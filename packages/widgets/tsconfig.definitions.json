@@ -1,0 +1,11 @@
+{
+  "extends": "../../tooling/typescript/tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.definitions.tsbuildinfo"
+  },
+  "include": [
+    "src/definitions.ts"
+  ]
+}

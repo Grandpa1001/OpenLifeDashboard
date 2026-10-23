@@ -1,13 +1,20 @@
-Analiza/.DS_Store
-Analiza/AGENTS.md
-Analiza/Architektura.md
-Analiza/CLAUDE.md
-Analiza/DEV.md
-Analiza/fixtures/.DS_Store
-Analiza/fixtures/mvp/auth-v1.cases.json
-Analiza/fixtures/mvp/books-v1.expected.json
-Analiza/fixtures/mvp/books-v1.export.json
-Analiza/fixtures/mvp/bootstrap-v1.cases.json
-Analiza/fixtures/mvp/record-validation.cases.json
-Analiza/Scope.md
-Analiza/scripts/verify_specs.py
+# Local analysis and specification workspace (not versioned in the product repo)
+/Analiza/
+
+# Dependencies and build output
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Verification artifacts, local instances and secrets
+/.artifacts/
+/data/
+.env
+.env.*
+!.env.example
+
+# Local tool settings
+.claude/settings.local.json
+.DS_Store
+AGENTS.md
+CLAUDE.md

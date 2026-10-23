@@ -1,0 +1,24 @@
+{
+  "name": "@openlife/widgets",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Widget type manifests (definitions) and views, exported separately.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./definitions": {
+      "types": "./dist/definitions.d.ts",
+      "default": "./dist/definitions.js"
+    },
+    "./views": {
+      "types": "./dist/views.d.ts",
+      "default": "./dist/views.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

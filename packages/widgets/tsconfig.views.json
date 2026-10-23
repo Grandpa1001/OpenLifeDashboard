@@ -1,0 +1,16 @@
+{
+  "extends": "../../tooling/typescript/tsconfig.browser.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.views.tsbuildinfo"
+  },
+  "include": [
+    "src/views.ts"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.definitions.json"
+    }
+  ]
+}
