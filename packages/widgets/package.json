@@ -7,10 +7,12 @@
   "type": "module",
   "exports": {
     "./definitions": {
+      "@openlife/source": "./src/definitions.ts",
       "types": "./dist/definitions.d.ts",
       "default": "./dist/definitions.js"
     },
     "./views": {
+      "@openlife/source": "./src/views.ts",
       "types": "./dist/views.d.ts",
       "default": "./dist/views.js"
     }

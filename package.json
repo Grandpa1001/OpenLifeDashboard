@@ -19,10 +19,17 @@
   },
   "scripts": {
     "build": "pnpm -r build",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b && tsc -p tsconfig.tooling.json",
+    "lint": "eslint .",
+    "check:architecture": "node scripts/check-architecture.ts",
+    "check:contracts": "node scripts/check-contracts.ts"
   },
   "devDependencies": {
+    "@eslint/js": "catalog:",
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "dependency-cruiser": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:"
   }
 }

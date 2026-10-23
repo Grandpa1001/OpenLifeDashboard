@@ -11,7 +11,13 @@ Requirements: [Corepack](https://nodejs.org/api/corepack.html) or pnpm. The exac
 ```sh
 pnpm install --frozen-lockfile
 pnpm build
+pnpm typecheck            # product packages and the tooling scripts
+pnpm lint
+pnpm check:architecture   # import boundaries ARCH-01…05 plus their negative controls
+pnpm check:contracts      # package exports, build artifacts and runtime loading
 ```
+
+Workspace packages import each other only by package name through `exports`. Every export maps three conditions: `@openlife/source` (TypeScript source, used by the boundary checks), `types` and `default` (build output).
 
 Workspace layout:
 
@@ -24,7 +30,10 @@ Workspace layout:
 | `packages/sqlite` | SQLite connection, migrations and repository adapters |
 | `packages/widgets` | Widget definitions (`/definitions`) and views (`/views`) |
 | `packages/ui` | Presentational components and design tokens |
-| `tooling/typescript` | Shared strict TypeScript configuration |
+| `tooling/typescript` | Shared strict TypeScript configuration (neutral, Node and browser profiles) |
+| `tooling/dependency-cruiser`, `tooling/eslint` | Import boundary and lint rules |
+| `scripts` | Repository checks (`check:architecture`, `check:contracts`) |
+| `tests` | Test data and support; synthetic graphs for the boundary checks |
 
 ## License
 
