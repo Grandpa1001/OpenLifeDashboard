@@ -1,0 +1,13 @@
+Analiza/.DS_Store
+Analiza/AGENTS.md
+Analiza/Architektura.md
+Analiza/CLAUDE.md
+Analiza/DEV.md
+Analiza/fixtures/.DS_Store
+Analiza/fixtures/mvp/auth-v1.cases.json
+Analiza/fixtures/mvp/books-v1.expected.json
+Analiza/fixtures/mvp/books-v1.export.json
+Analiza/fixtures/mvp/bootstrap-v1.cases.json
+Analiza/fixtures/mvp/record-validation.cases.json
+Analiza/Scope.md
+Analiza/scripts/verify_specs.py
