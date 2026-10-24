@@ -22,7 +22,8 @@
     "typecheck": "tsc -b && tsc -p tsconfig.tooling.json",
     "lint": "eslint .",
     "check:architecture": "node scripts/check-architecture.ts",
-    "check:contracts": "node scripts/check-contracts.ts"
+    "check:contracts": "node scripts/check-contracts.ts",
+    "verify:task": "node scripts/verify-task.ts"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",

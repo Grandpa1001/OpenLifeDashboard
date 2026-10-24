@@ -9,5 +9,5 @@
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true
   },
-  "include": ["scripts", "tests"]
+  "include": ["scripts", "tests", "tooling"]
 }

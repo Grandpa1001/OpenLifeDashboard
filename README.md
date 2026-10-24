@@ -15,7 +15,10 @@ pnpm typecheck            # product packages and the tooling scripts
 pnpm lint
 pnpm check:architecture   # import boundaries ARCH-01…05 plus their negative controls
 pnpm check:contracts      # package exports, build artifacts and runtime loading
+pnpm verify:task -- D01   # every check mapped to a task; report in .artifacts/<run-id>/
 ```
+
+`verify:task` reads `tooling/verification-tasks.ts` and records each check as passed, failed, blocked (missing file, tool or precondition) or not_run. Tasks without defined checks are reported as blocked. CI (`.github/workflows/ci.yml`) runs the same command.
 
 Workspace packages import each other only by package name through `exports`. Every export maps three conditions: `@openlife/source` (TypeScript source, used by the boundary checks), `types` and `default` (build output).
 
