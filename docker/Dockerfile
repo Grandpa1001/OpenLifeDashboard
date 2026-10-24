@@ -25,6 +25,8 @@ COPY --from=build /out/server apps/server
 COPY --from=build /workspace/apps/web/dist apps/web/dist
 USER node
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+# start-interval (Docker Engine ≥ 25) probes every 2 s during start-up, so readiness is
+# reported within seconds instead of after the first 30 s interval.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --start-interval=2s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:8080/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 ENTRYPOINT ["node", "apps/server/dist/main.js", "--host", "0.0.0.0"]

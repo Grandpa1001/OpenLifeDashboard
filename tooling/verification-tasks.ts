@@ -241,6 +241,47 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D02.2-regression"),
     ],
   },
+  {
+    id: "D02.3",
+    ready: true,
+    // Like D02.2 it verifies the host's native architecture; D02 joins both architectures.
+    title: "App container start/stop (host architecture) and the D02 report join",
+    criteria: ["D02.3-AC1", "D02.3-AC2", "D02.3-AC3", "D02.3-regression"],
+    checks: [
+      {
+        id: "container-lifecycle-native",
+        criteria: ["D02.3-AC1", "D02.3-AC2"],
+        description: "Container serves health/SPA/API 404, reports healthy, stops on SIGTERM; bad start args exit 1",
+        command: ["node", "tests/system/container-lifecycle.ts"],
+        requires: ["docker/Dockerfile", "tests/system/container-lifecycle.ts", "tests/support/docker.ts"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      {
+        id: "multiarch-join-rules",
+        criteria: ["D02.3-AC3"],
+        description: "D02 joins passed, current, executed reports of both architectures; CI wiring",
+        command: ["node", "tests/verification/d02-multiarch.ts"],
+        requires: ["tests/verification/d02-multiarch.ts", "tests/support/multiarch-reports.ts"],
+      },
+      ...regressionChecks("D02.3-regression"),
+    ],
+  },
+  {
+    id: "D02",
+    ready: true,
+    title: "HTTP/SPA foundation and native app image on amd64 and arm64",
+    steps: ["D02.1", "D02.2", "D02.3"],
+    criteria: ["D02-multiarch"],
+    checks: [
+      {
+        id: "multiarch-reports",
+        criteria: ["D02-multiarch"],
+        description: "D02.2/D02.3 reports from linux/amd64 and linux/arm64 hosts passed for this commit",
+        command: ["node", "tests/system/multiarch-reports.ts"],
+        requires: ["tests/system/multiarch-reports.ts", "tests/support/multiarch-reports.ts"],
+      },
+    ],
+  },
 ];
 
 function notReady(id: string): TaskDefinition {

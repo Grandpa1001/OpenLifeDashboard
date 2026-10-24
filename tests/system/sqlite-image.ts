@@ -7,12 +7,11 @@ import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { isJsonObject, type JsonObject } from "../../scripts/support/workspaces.ts";
 import { EVIDENCE_DIR_ENV } from "../../tooling/verification-tasks.ts";
-import { blockCheck, createCheck } from "../support/check-report.ts";
-import { docker, hostDockerArch, nodeArchFor } from "../support/docker.ts";
+import { createCheck } from "../support/check-report.ts";
+import { buildAppImage, docker, nodeArchFor, requireNativeDocker } from "../support/docker.ts";
 import { repoRoot } from "../support/repository-copy.ts";
 
 const IMAGE = "openlife-app:verify-d02";
-const BUILD_TIMEOUT_MS = 15 * 60 * 1000;
 const PROBE = ["--entrypoint", "node", IMAGE, "apps/server/dist/cli/sqlite-probe.js"] as const;
 // Exit code the shell uses when the native module was not even found to remove.
 const NOTHING_TO_REMOVE = 90;
@@ -38,27 +37,16 @@ const lastJsonLine = (output: string): JsonObject | undefined =>
     })
     .find(Boolean);
 
-const host = hostDockerArch();
-if (!host) {
-  blockCheck(`host architecture ${process.arch} has no supported linux image`);
-}
-const serverArch = docker(["version", "--format", "{{.Server.Arch}}"], repoRoot);
-if (serverArch.status !== 0) {
-  blockCheck(`the docker daemon is not reachable:\n${serverArch.output.trim()}`);
-}
-if (serverArch.output.trim() !== host) {
-  blockCheck(`docker runs ${serverArch.output.trim()} containers on a ${host} host; emulation is not accepted`);
-}
+const { arch: host, platform, serverVersion } = requireNativeDocker(repoRoot);
 const expected = process.env["OPENLIFE_EXPECT_ARCH"];
-const platform = `linux/${host}`;
-const evidence: Record<string, unknown> = { hostArch: host, platform };
+const evidence: Record<string, unknown> = { hostArch: host, platform, dockerServerVersion: serverVersion };
 
 const check = createCheck(`app image on ${platform} (native)`);
 if (expected) {
   check.expect(expected === host, `runner architecture is the expected ${expected} (got ${host})`);
 }
 try {
-  const build = docker(["build", "--platform", platform, "-f", "docker/Dockerfile", "-t", IMAGE, "."], repoRoot, BUILD_TIMEOUT_MS);
+  const build = buildAppImage(IMAGE, platform, repoRoot);
   if (check.expect(build.status === 0, `docker build --platform ${platform} exits 0`, build.output)) {
     const inspect = docker(["image", "inspect", IMAGE, "--format", "{{json .}}"], repoRoot);
     const image = lastJsonLine(inspect.output) ?? {};

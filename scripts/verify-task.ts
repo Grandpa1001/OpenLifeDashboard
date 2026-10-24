@@ -229,11 +229,25 @@ function runCheck(check: CheckDefinition, root: string, runDir: string): CheckRe
   return { ...executed, status: run.status === 0 ? "passed" : "failed", exitCode: run.status };
 }
 
-/** Checks and criteria of a task including its work orders; not-ready steps block it. */
+/**
+ * Checks and criteria of a task including its work orders; not-ready steps block it. A check
+ * shared by several steps (same ID and command) runs once and covers all their criteria.
+ */
 function expandTask(task: ReadyTask, tasks: ReadonlyMap<string, TaskDefinition>) {
   const checks = new Map<string, CheckDefinition>();
   const criteria: string[] = [];
   const blockers: string[] = [];
+  const add = (check: CheckDefinition): void => {
+    const existing = checks.get(check.id);
+    if (!existing) {
+      checks.set(check.id, check);
+      return;
+    }
+    if (JSON.stringify(existing.command) !== JSON.stringify(check.command)) {
+      throw new UsageError(`check ${check.id} is defined with different commands in ${task.id} and its steps`);
+    }
+    checks.set(check.id, { ...existing, criteria: [...new Set([...existing.criteria, ...check.criteria])] });
+  };
   for (const stepId of task.steps ?? []) {
     const step = tasks.get(stepId);
     if (!step?.ready) {
@@ -241,14 +255,10 @@ function expandTask(task: ReadyTask, tasks: ReadonlyMap<string, TaskDefinition>)
       continue;
     }
     criteria.push(...step.criteria);
-    for (const check of step.checks) {
-      checks.set(check.id, check);
-    }
+    step.checks.forEach(add);
   }
   criteria.push(...task.criteria);
-  for (const check of task.checks) {
-    checks.set(check.id, check);
-  }
+  task.checks.forEach(add);
   return { checks: [...checks.values()], criteria, blockers };
 }
 

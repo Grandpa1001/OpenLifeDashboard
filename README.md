@@ -41,7 +41,19 @@ docker build -f docker/Dockerfile -t openlifedashboard:dev .
 docker run --rm -p 127.0.0.1:8080:8080 openlifedashboard:dev
 ```
 
-`pnpm verify:task -- D02.2` builds the image natively for the host architecture and checks the SQLite driver inside it; without Docker the check reports blocked. CI runs it on native linux/amd64 and linux/arm64 runners.
+`pnpm verify:task -- D02.2` and `-- D02.3` build the image natively for the host architecture, check the SQLite driver and the container start/stop; without Docker they report blocked. CI runs them on native linux/amd64 and linux/arm64 runners, and `pnpm verify:task -- D02` accepts the result only with passing reports of both architectures for the same commit.
+
+### Verified runtime
+
+Versions exercised by the verification reports (DEV D02); the release matrix extends this list later.
+
+| Component | Version |
+|---|---|
+| Node.js | 24.22.1 (LTS, `.node-version`) |
+| pnpm | 12.14.0 (`packageManager`) |
+| Base image | `node:24.22.1-trixie-slim` pinned by digest in `docker/Dockerfile` |
+| SQLite driver | better-sqlite3 13.0.3 (bundled native binaries), SQLite 3.53.4 |
+| Native image runs | linux/amd64 on `ubuntu-24.04`, linux/arm64 on `ubuntu-24.04-arm` (GitHub Actions) |
 
 `verify:task` reads `tooling/verification-tasks.ts` and records each check as passed, failed, blocked (missing file, tool or precondition) or not_run. Tasks without defined checks are reported as blocked. CI (`.github/workflows/ci.yml`) runs the same command.
 

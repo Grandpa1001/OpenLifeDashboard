@@ -42,6 +42,16 @@ const TASKS = [
   },
   { id: "X04", ready: false },
   {
+    id: "X08",
+    ready: true,
+    title: "parent whose steps share a check",
+    steps: ["X08.1", "X08.2"],
+    criteria: ["X08-smoke"],
+    checks: [check("smoke-x08", "ok.mjs", ["X08-smoke"])],
+  },
+  { id: "X08.1", ready: true, title: "shared a", criteria: ["X08.1-AC1"], checks: [check("shared", "ok.mjs", ["X08.1-AC1"])] },
+  { id: "X08.2", ready: true, title: "shared b", criteria: ["X08.2-AC1"], checks: [check("shared", "ok.mjs", ["X08.2-AC1"])] },
+  {
     id: "X07",
     ready: true,
     title: "evidence",
@@ -148,6 +158,16 @@ try {
       JSON.stringify(evidenceCheck?.["evidence"]) === JSON.stringify(["evidence/evidence/responses.json"]),
     "files a check saves in its evidence directory are listed in the report",
     withEvidence.output,
+  );
+
+  const shared = verify("X08");
+  t.expect(
+    shared.status === 0 &&
+      criterion(shared.report, "X08.1-AC1") === "passed" &&
+      criterion(shared.report, "X08.2-AC1") === "passed" &&
+      asArray(shared.report?.["checks"]).filter((c) => c["id"] === "shared").length === 1,
+    "a check shared by two work orders runs once and covers both criteria",
+    shared.output,
   );
 
   const precondition = verify("X06");

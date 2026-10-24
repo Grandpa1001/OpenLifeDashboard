@@ -31,3 +31,32 @@ export function hostDockerArch(): DockerArch | undefined {
 export function nodeArchFor(arch: DockerArch): string {
   return arch === "amd64" ? "x64" : "arm64";
 }
+
+const BUILD_TIMEOUT_MS = 15 * 60 * 1000;
+
+export type NativeDocker = Readonly<{ arch: DockerArch; platform: string; serverVersion: string }>;
+
+/**
+ * The host's Docker, provided it runs containers of the host architecture. Anything else
+ * (no CLI, no daemon, an emulated platform) stops the check as blocked, never passed.
+ */
+export function requireNativeDocker(cwd: string): NativeDocker {
+  const arch = hostDockerArch();
+  if (!arch) {
+    blockCheck(`host architecture ${process.arch} has no supported linux image`);
+  }
+  const server = docker(["version", "--format", "{{.Server.Arch}} {{.Server.Version}}"], cwd);
+  if (server.status !== 0) {
+    blockCheck(`the docker daemon is not reachable:\n${server.output.trim()}`);
+  }
+  const [serverArch = "", serverVersion = ""] = server.output.trim().split(" ");
+  if (serverArch !== arch) {
+    blockCheck(`docker runs ${serverArch} containers on a ${arch} host; emulation is not accepted`);
+  }
+  return { arch, platform: `linux/${arch}`, serverVersion };
+}
+
+/** Builds docker/Dockerfile for the native platform; the build cache makes repeats cheap. */
+export function buildAppImage(tag: string, platform: string, cwd: string): RunResult {
+  return docker(["build", "--platform", platform, "-f", "docker/Dockerfile", "-t", tag, "."], cwd, BUILD_TIMEOUT_MS);
+}
