@@ -25,7 +25,8 @@ try {
   editManifest(copy, "apps/web", (m) => ({ ...m, dependencies: { "@openlife/ui": "workspace:*" } }));
   editManifest(copy, "packages/ui", (m) => ({ ...m, dependencies: { "@openlife/sqlite": "workspace:*" } }));
 
-  const install = runPnpm(["install", "--prefer-offline"], copy);
+  // The copy's manifests changed on purpose; pnpm defaults to a frozen lockfile when CI=true.
+  const install = runPnpm(["install", "--no-frozen-lockfile", "--prefer-offline"], copy);
   if (check.expect(install.status === 0, "install with the declared workspace links exits 0", install.output)) {
     const filesBefore = sourceFiles(copy);
     const tempBefore = countTempDirs(SYNTHETIC_PREFIX);

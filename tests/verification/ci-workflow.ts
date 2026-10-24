@@ -25,4 +25,8 @@ check.expect(
   `every action is pinned to a commit SHA (${actions.length} actions)`,
 );
 check.expect(/^permissions:\n\s+contents: read$/m.test(workflow), "the workflow token is read-only");
+check.expect(
+  steps.includes("path: .artifacts/") && steps.includes("include-hidden-files: true"),
+  "the .artifacts report directory is uploaded (dot-directories are skipped by default)",
+);
 check.finish();

@@ -34,5 +34,7 @@ jobs:
         with:
           name: verification-d01
           path: .artifacts/
+          # The report directory is a dot-directory, which upload-artifact skips by default.
+          include-hidden-files: true
           retention-days: 14
-          if-no-files-found: warn
+          if-no-files-found: error
