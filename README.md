@@ -32,6 +32,17 @@ For frontend work, keep the server running and start Vite on http://127.0.0.1:51
 pnpm --filter @openlife/web dev
 ```
 
+### Container image
+
+`docker/Dockerfile` builds the app image (Node 24 on Debian trixie-slim, runs as the non-root `node` user) for the platform of the building machine. Compose files and installers come later.
+
+```sh
+docker build -f docker/Dockerfile -t openlifedashboard:dev .
+docker run --rm -p 127.0.0.1:8080:8080 openlifedashboard:dev
+```
+
+`pnpm verify:task -- D02.2` builds the image natively for the host architecture and checks the SQLite driver inside it; without Docker the check reports blocked. CI runs it on native linux/amd64 and linux/arm64 runners.
+
 `verify:task` reads `tooling/verification-tasks.ts` and records each check as passed, failed, blocked (missing file, tool or precondition) or not_run. Tasks without defined checks are reported as blocked. CI (`.github/workflows/ci.yml`) runs the same command.
 
 Workspace packages import each other only by package name through `exports`. Every export maps three conditions: `@openlife/source` (TypeScript source, used by the boundary checks), `types` and `default` (build output).

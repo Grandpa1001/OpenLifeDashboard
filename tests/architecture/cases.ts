@@ -47,7 +47,7 @@ export const architectureCases: readonly ArchitectureCase[] = [
         "apps/server/src/main.ts": [
           'import "@openlife/core";',
           'import "@openlife/contracts/http/errors";',
-          'import "@openlife/sqlite";',
+          'import "@openlife/sqlite/driver-probe";',
           'import "@openlife/widgets/definitions";',
           'import "node:http";',
         ].join("\n"),
@@ -85,7 +85,7 @@ export const architectureCases: readonly ArchitectureCase[] = [
   {
     id: "arch-02-adapter-package-in-core",
     description: "core imports the SQLite adapter package",
-    workspace: { files: { "packages/core/src/index.ts": 'import "@openlife/sqlite";\nexport {};\n' } },
+    workspace: { files: { "packages/core/src/index.ts": 'import "@openlife/sqlite/driver-probe";\nexport {};\n' } },
     expect: violation("dependency-cruiser", "ARCH-02-core-imports-only-core", "packages/core/src/index.ts"),
   },
   {
@@ -103,7 +103,7 @@ export const architectureCases: readonly ArchitectureCase[] = [
   {
     id: "arch-03-web-imports-sqlite",
     description: "web imports the SQLite package directly",
-    workspace: { files: { "apps/web/src/main.ts": 'import "@openlife/sqlite";\nexport {};\n' } },
+    workspace: { files: { "apps/web/src/main.ts": 'import "@openlife/sqlite/driver-probe";\nexport {};\n' } },
     expect: violation("dependency-cruiser", "ARCH-03-web-cannot-reach-server-runtime", "apps/web/src/main.ts"),
   },
   {
@@ -113,7 +113,7 @@ export const architectureCases: readonly ArchitectureCase[] = [
       externalModules: ["better-sqlite3"],
       files: {
         "apps/web/src/main.ts": 'import "@openlife/ui";\nexport {};\n',
-        "packages/ui/src/index.ts": 'import "@openlife/sqlite";\nexport {};\n',
+        "packages/ui/src/index.ts": 'import "@openlife/sqlite/driver-probe";\nexport {};\n',
         "packages/sqlite/src/index.ts": 'import "better-sqlite3";\nexport {};\n',
       },
     },

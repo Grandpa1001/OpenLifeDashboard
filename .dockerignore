@@ -1,0 +1,21 @@
+# Build context for docker/Dockerfile: sources, manifests and TypeScript config only.
+# Never send dependencies, build output, local data, secrets or the specification.
+**/node_modules
+**/dist
+**/.tsbuild
+**/*.tsbuildinfo
+.git
+.github
+.claude
+.artifacts
+Analiza
+data
+.env
+.env.*
+tests
+scripts
+docker
+eslint.config.js
+vitest.config.ts
+tsconfig.tooling.json
+**/.DS_Store

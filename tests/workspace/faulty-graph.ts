@@ -21,7 +21,7 @@ const check = createCheck("faulty graph and contract");
 const copy = copyRepository();
 try {
   writeFileSync(path.join(copy, "apps/web/src/main.tsx"), 'import "@openlife/ui";\nexport {};\n');
-  writeFileSync(path.join(copy, "packages/ui/src/index.ts"), 'import "@openlife/sqlite";\nexport {};\n');
+  writeFileSync(path.join(copy, "packages/ui/src/index.ts"), 'import "@openlife/sqlite/driver-probe";\nexport {};\n');
   editManifest(copy, "apps/web", (m) => ({ ...m, dependencies: { "@openlife/ui": "workspace:*" } }));
   editManifest(copy, "packages/ui", (m) => ({ ...m, dependencies: { "@openlife/sqlite": "workspace:*" } }));
 

@@ -5,6 +5,9 @@
   "description": "Presentational components and design tokens.",
   "license": "MIT",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "@openlife/source": "./src/index.ts",

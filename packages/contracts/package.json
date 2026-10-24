@@ -5,6 +5,9 @@
   "description": "Transport schemas, DTOs and error codes shared by server and web.",
   "license": "MIT",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "exports": {
     "./http/errors": {
       "@openlife/source": "./src/http/errors.ts",

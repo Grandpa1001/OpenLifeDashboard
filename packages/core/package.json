@@ -5,6 +5,9 @@
   "description": "Domain rules and use cases; framework- and runtime-free.",
   "license": "MIT",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "@openlife/source": "./src/index.ts",

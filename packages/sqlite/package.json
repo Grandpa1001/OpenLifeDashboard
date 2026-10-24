@@ -5,18 +5,25 @@
   "description": "SQLite connection, schema, migrations and core port adapters.",
   "license": "MIT",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "exports": {
-    ".": {
-      "@openlife/source": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+    "./driver-probe": {
+      "@openlife/source": "./src/driver-probe.ts",
+      "types": "./dist/driver-probe.d.ts",
+      "default": "./dist/driver-probe.js"
     }
   },
   "scripts": {
     "build": "tsc -b"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "catalog:",
     "@types/node": "catalog:",
     "typescript": "catalog:"
+  },
+  "dependencies": {
+    "better-sqlite3": "catalog:"
   }
 }

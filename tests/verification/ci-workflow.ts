@@ -19,6 +19,11 @@ check.expect(
 check.expect(steps.includes("run: pnpm install --frozen-lockfile"), "CI installs with --frozen-lockfile");
 check.expect(steps.includes("run: pnpm verify:task -- D01"), "CI runs pnpm verify:task -- D01");
 check.expect(steps.includes("node-version-file: .node-version"), "CI uses the Node version from .node-version");
+check.expect(steps.includes("run: pnpm verify:task -- D02.2"), "CI runs pnpm verify:task -- D02.2");
+check.expect(
+  steps.includes("- runner: ubuntu-24.04") && steps.includes("- runner: ubuntu-24.04-arm"),
+  "the image job runs on native amd64 and arm64 runners",
+);
 const actions = steps.filter((line) => line.startsWith("uses:") || line.startsWith("- uses:"));
 check.expect(
   actions.length > 0 && actions.every((line) => /@[0-9a-f]{40}\b/.test(line)),

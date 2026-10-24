@@ -222,6 +222,25 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D02.1-regression"),
     ],
   },
+  {
+    id: "D02.2",
+    ready: true,
+    // Verifies the host's native architecture only; CI runs it on linux/amd64 and linux/arm64
+    // runners, and D02.3 combines both reports. Without Docker the check is blocked.
+    title: "App image with the native SQLite driver (host architecture)",
+    criteria: ["D02.2-AC1", "D02.2-AC2", "D02.2-regression"],
+    checks: [
+      {
+        id: "sqlite-image-native",
+        criteria: ["D02.2-AC1", "D02.2-AC2"],
+        description: "Native docker build, non-root image, driver probe counts, forced failure and missing module",
+        command: ["node", "tests/system/sqlite-image.ts"],
+        requires: ["docker/Dockerfile", ".dockerignore", "tests/system/sqlite-image.ts", "tests/support/docker.ts"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      ...regressionChecks("D02.2-regression"),
+    ],
+  },
 ];
 
 function notReady(id: string): TaskDefinition {

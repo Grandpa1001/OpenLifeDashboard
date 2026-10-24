@@ -5,6 +5,9 @@
   "description": "Widget type manifests (definitions) and views, exported separately.",
   "license": "MIT",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "exports": {
     "./definitions": {
       "@openlife/source": "./src/definitions.ts",

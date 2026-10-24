@@ -5,6 +5,9 @@
   "description": "HTTP API, SPA hosting, live stream and scheduler process.",
   "license": "MIT",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -b",
     "start": "node dist/main.js"
@@ -16,6 +19,7 @@
   "dependencies": {
     "@hono/node-server": "catalog:",
     "@openlife/contracts": "workspace:*",
+    "@openlife/sqlite": "workspace:*",
     "hono": "catalog:"
   }
 }
