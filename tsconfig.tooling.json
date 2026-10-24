@@ -9,5 +9,11 @@
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true
   },
-  "include": ["scripts", "tests", "tooling"]
+  "include": [
+    "scripts",
+    "tests",
+    "tooling",
+    "vitest.config.ts",
+    "apps/web/vite.config.ts"
+  ]
 }

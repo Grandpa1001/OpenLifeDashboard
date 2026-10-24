@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, unlinkSyn
 import os from "node:os";
 import path from "node:path";
 import { isJsonObject } from "../../scripts/support/workspaces.ts";
-import { BLOCKED_EXIT_CODE } from "../../tooling/verification-tasks.ts";
+import { BLOCKED_EXIT_CODE, EVIDENCE_DIR_ENV } from "../../tooling/verification-tasks.ts";
 import { createCheck } from "../support/check-report.ts";
 import { repoRoot, runNode } from "../support/repository-copy.ts";
 
@@ -42,6 +42,13 @@ const TASKS = [
   },
   { id: "X04", ready: false },
   {
+    id: "X07",
+    ready: true,
+    title: "evidence",
+    criteria: ["X07-AC1"],
+    checks: [check("evidence", "evidence.mjs", ["X07-AC1"])],
+  },
+  {
     id: "X06",
     ready: true,
     title: "missing precondition",
@@ -64,6 +71,10 @@ write("ok.mjs", 'console.log("ok");\n');
 write("fail.mjs", "process.exit(3);\n");
 write("gone.mjs", "process.exit(0);\n");
 write("precondition.mjs", `process.exit(${BLOCKED_EXIT_CODE});\n`);
+write(
+  "evidence.mjs",
+  `import { writeFileSync } from "node:fs";\nwriteFileSync(process.env.${EVIDENCE_DIR_ENV} + "/responses.json", "[]");\n`,
+);
 write("tasks.mjs", `export const verificationTasks = ${JSON.stringify(TASKS, null, 2)};\n`);
 write(
   "malformed.mjs",
@@ -129,6 +140,15 @@ try {
 
   const uncovered = verify("X03");
   t.expect(uncovered.status === 1 && criterion(uncovered.report, "X03-AC2") === "blocked", "criterion without a check → blocked, exit 1");
+
+  const withEvidence = verify("X07");
+  const evidenceCheck = asArray(withEvidence.report?.["checks"])[0];
+  t.expect(
+    withEvidence.status === 0 &&
+      JSON.stringify(evidenceCheck?.["evidence"]) === JSON.stringify(["evidence/evidence/responses.json"]),
+    "files a check saves in its evidence directory are listed in the report",
+    withEvidence.output,
+  );
 
   const precondition = verify("X06");
   t.expect(

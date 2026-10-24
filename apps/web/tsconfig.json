@@ -2,10 +2,14 @@
   "extends": "../../tooling/typescript/tsconfig.browser.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist",
-    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
+    "jsx": "react-jsx",
+    "resolveJsonModule": true,
+    "emitDeclarationOnly": true,
+    "outDir": ".tsbuild",
+    "tsBuildInfoFile": ".tsbuild/tsconfig.tsbuildinfo"
   },
   "include": [
-    "src"
+    "src",
+    "src/**/*.json"
   ]
 }

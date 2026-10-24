@@ -23,14 +23,17 @@
     "lint": "eslint .",
     "check:architecture": "node scripts/check-architecture.ts",
     "check:contracts": "node scripts/check-contracts.ts",
-    "verify:task": "node scripts/verify-task.ts"
+    "verify:task": "node scripts/verify-task.ts",
+    "test:integration": "vitest run"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
+    "@openlife/contracts": "workspace:*",
     "@types/node": "catalog:",
     "dependency-cruiser": "catalog:",
     "eslint": "catalog:",
     "typescript": "catalog:",
-    "typescript-eslint": "catalog:"
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
   }
 }

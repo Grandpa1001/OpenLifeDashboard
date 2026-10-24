@@ -6,9 +6,21 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b && vite build",
+    "dev": "vite"
   },
   "devDependencies": {
-    "typescript": "catalog:"
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  },
+  "dependencies": {
+    "@tanstack/react-router": "catalog:",
+    "i18next": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-i18next": "catalog:"
   }
 }

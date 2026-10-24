@@ -4,6 +4,7 @@
 # Dependencies and build output
 node_modules/
 dist/
+.tsbuild/
 *.tsbuildinfo
 
 # Verification artifacts, local instances and secrets

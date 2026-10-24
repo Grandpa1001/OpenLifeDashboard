@@ -1,0 +1,10 @@
+{
+  "start": {
+    "title": "OpenLifeDashboard",
+    "status": "The application is under construction. Sign-in and data arrive in later stages."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "backHome": "Back to the start page"
+  }
+}

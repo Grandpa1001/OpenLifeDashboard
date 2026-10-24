@@ -1,0 +1,10 @@
+{
+  "start": {
+    "title": "OpenLifeDashboard",
+    "status": "Aplikacja jest w budowie. Logowanie i dane pojawią się w kolejnych etapach."
+  },
+  "notFound": {
+    "title": "Nie znaleziono strony",
+    "backHome": "Wróć na stronę główną"
+  }
+}

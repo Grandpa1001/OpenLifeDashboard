@@ -8,7 +8,12 @@ import { copyRepository, removeCopy, repoRoot, runPnpm } from "../support/reposi
 
 /** The five packages required by Architektura §13 / DEV D01.1. */
 const REQUIRED_PACKAGES = ["contracts", "core", "sqlite", "ui", "widgets"];
-const SMOKE_SCRIPTS = ["typecheck", "lint", "check:architecture", "check:contracts"];
+const SMOKE_SCRIPTS = ["typecheck", "lint", "check:architecture", "check:contracts", "test:integration"];
+/** Build output of applications, which have no package exports: tsc for the server, Vite for web. */
+const APP_OUTPUTS: Readonly<Record<string, readonly string[]>> = {
+  "apps/server": ["dist/main.js"],
+  "apps/web": ["dist/index.html"],
+};
 
 const through = process.argv.find((arg) => arg.startsWith("--through="))?.slice("--through=".length);
 if (through !== "build" && through !== "all") {
@@ -37,7 +42,7 @@ try {
     const missing = workspaces.flatMap((workspace) => {
       const outputs =
         workspace.kind === "app"
-          ? ["dist/main.js"]
+          ? (APP_OUTPUTS[workspace.dir] ?? [`dist (no expected output declared for ${workspace.dir})`])
           : readExports(workspace.manifest).flatMap((entry) => [entry.types.slice(2), entry.runtime.slice(2)]);
       return outputs.map((file) => `${workspace.dir}/${file}`).filter((file) => !isFile(path.join(copy, file)));
     });

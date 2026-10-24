@@ -13,9 +13,14 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { BLOCKED_EXIT_CODE, type CheckDefinition, type TaskDefinition } from "../tooling/verification-tasks.ts";
+import {
+  BLOCKED_EXIT_CODE,
+  EVIDENCE_DIR_ENV,
+  type CheckDefinition,
+  type TaskDefinition,
+} from "../tooling/verification-tasks.ts";
 import { toolInvocation } from "./support/toolchain.ts";
-import { isFile, isJsonObject } from "./support/workspaces.ts";
+import { isFile, isJsonObject, listFiles } from "./support/workspaces.ts";
 
 type Status = "passed" | "failed" | "blocked" | "not_run";
 type ReadyTask = Extract<TaskDefinition, { ready: true }>;
@@ -30,6 +35,8 @@ type CheckResult = Readonly<{
   durationMs: number;
   reason?: string;
   log?: string;
+  /** Files the check saved under evidence/<check id>/, relative to the run directory. */
+  evidence?: readonly string[];
 }>;
 
 class UsageError extends Error {}
@@ -178,7 +185,7 @@ function describeEnvironment(): Record<string, unknown> {
   };
 }
 
-function runCheck(check: CheckDefinition, root: string, logDir: string): CheckResult {
+function runCheck(check: CheckDefinition, root: string, runDir: string): CheckResult {
   const base = {
     id: check.id,
     criteria: check.criteria,
@@ -189,6 +196,8 @@ function runCheck(check: CheckDefinition, root: string, logDir: string): CheckRe
   if (missing.length > 0) {
     return { ...base, status: "blocked", exitCode: null, durationMs: 0, reason: `missing ${missing.join(", ")}` };
   }
+  const evidenceDir = path.join(runDir, "evidence", check.id);
+  mkdirSync(evidenceDir, { recursive: true });
   const invocation = toolInvocation(check.command);
   const started = performance.now();
   const run = spawnSync(invocation.command, invocation.args, {
@@ -196,27 +205,28 @@ function runCheck(check: CheckDefinition, root: string, logDir: string): CheckRe
     encoding: "utf8",
     maxBuffer: MAX_LOG_BYTES,
     timeout: check.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    env: { ...process.env, [EVIDENCE_DIR_ENV]: evidenceDir },
   });
   const durationMs = Math.round(performance.now() - started);
-  const log = path.join(logDir, `${check.id}.log`);
-  writeFileSync(log, `$ ${check.command.join(" ")}\n${run.stdout ?? ""}${run.stderr ?? ""}`);
-  const relativeLog = path.relative(path.dirname(logDir), log).split(path.sep).join("/");
+  const log = `checks/${check.id}.log`;
+  writeFileSync(path.join(runDir, log), `$ ${check.command.join(" ")}\n${run.stdout ?? ""}${run.stderr ?? ""}`);
+  const evidence = listFiles(runDir, `evidence/${check.id}`);
+  const executed = { ...base, durationMs, log, ...(evidence.length > 0 ? { evidence } : {}) };
+
   const errorCode = run.error && "code" in run.error ? String(run.error.code) : undefined;
   if (errorCode === "ENOENT") {
-    return { ...base, status: "blocked", exitCode: null, durationMs, reason: `${invocation.command} not found` };
+    return { ...executed, status: "blocked", exitCode: null, reason: `${invocation.command} not found` };
   }
   if (errorCode === "ETIMEDOUT") {
-    return { ...base, status: "failed", exitCode: null, durationMs, reason: "timed out", log: relativeLog };
+    return { ...executed, status: "failed", exitCode: null, reason: "timed out" };
   }
   if (run.error) {
-    return { ...base, status: "failed", exitCode: null, durationMs, reason: run.error.message, log: relativeLog };
+    return { ...executed, status: "failed", exitCode: null, reason: run.error.message };
   }
   if (run.status === BLOCKED_EXIT_CODE) {
-    const reason = "precondition unavailable (see log)";
-    return { ...base, status: "blocked", exitCode: run.status, durationMs, reason, log: relativeLog };
+    return { ...executed, status: "blocked", exitCode: run.status, reason: "precondition unavailable (see log)" };
   }
-  const status: Status = run.status === 0 ? "passed" : "failed";
-  return { ...base, status, exitCode: run.status, durationMs, log: relativeLog };
+  return { ...executed, status: run.status === 0 ? "passed" : "failed", exitCode: run.status };
 }
 
 /** Checks and criteria of a task including its work orders; not-ready steps block it. */
@@ -259,7 +269,7 @@ async function main(argv: readonly string[]): Promise<number> {
   const expanded = task.ready ? expandTask(task, tasks) : undefined;
   const blockers = expanded?.blockers ?? [`${task.id} is not ready for verification; define its checks first (DEV §9)`];
   const results = (expanded?.checks ?? []).map((check) => {
-    const result = runCheck(check, options.root, logDir);
+    const result = runCheck(check, options.root, runDir);
     console.log(`  ${result.status.padEnd(7)} ${result.id}${result.reason ? ` — ${result.reason}` : ""}`);
     return result;
   });

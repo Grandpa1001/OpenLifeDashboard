@@ -23,7 +23,9 @@
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": false,
+    // Third-party declarations (e.g. zod) reference runtime globals such as URL that the
+    // runtime-neutral profile deliberately omits. Our own sources stay fully checked.
+    "skipLibCheck": true,
 
     "composite": true,
     "declaration": true,

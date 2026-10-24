@@ -17,7 +17,7 @@ const computedDynamicImport = {
 const coreAmbient = "[ARCH-02-core-no-ambient-io]";
 
 export default defineConfig(
-  { ignores: ["**/dist/**", "**/node_modules/**", "Analiza/**", ".artifacts/**"] },
+  { ignores: ["**/dist/**", "**/.tsbuild/**", "**/node_modules/**", "Analiza/**", ".artifacts/**"] },
   js.configs.recommended,
   tseslint.configs.recommended,
   {

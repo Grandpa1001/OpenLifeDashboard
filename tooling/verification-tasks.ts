@@ -8,6 +8,12 @@
  */
 export const BLOCKED_EXIT_CODE = 78;
 
+/**
+ * Environment variable with a per-check directory where a check may save evidence (e.g. HTTP
+ * responses); the runner lists the saved files in the report. Unset outside verify:task.
+ */
+export const EVIDENCE_DIR_ENV = "OPENLIFE_VERIFY_EVIDENCE_DIR";
+
 export type CheckDefinition = Readonly<{
   id: string;
   /** Acceptance criteria this check provides evidence for, e.g. "D01.1-AC1". */
@@ -174,6 +180,50 @@ const defined: readonly TaskDefinition[] = [
   },
 ];
 
+/** Repository-wide checks every implementation step repeats (CLAUDE.md step 5). */
+function regressionChecks(criterion: string): CheckDefinition[] {
+  const script = (name: string, file: string): CheckDefinition => ({
+    id: `regression-${name.replace(":", "-")}`,
+    criteria: [criterion],
+    description: `pnpm ${name} still passes`,
+    command: ["pnpm", "run", name],
+    requires: [file],
+  });
+  return [
+    script("typecheck", "tsconfig.tooling.json"),
+    script("lint", "eslint.config.js"),
+    script("check:architecture", "scripts/check-architecture.ts"),
+    script("check:contracts", "scripts/check-contracts.ts"),
+  ];
+}
+
+const definedLater: readonly TaskDefinition[] = [
+  {
+    id: "D02.1",
+    ready: true,
+    title: "HTTP server, SPA build and production serving",
+    criteria: ["D02.1-AC1", "D02.1-AC2", "D02.1-AC3", "D02.1-regression"],
+    checks: [
+      {
+        // Runs first: the HTTP tests exercise these build artifacts.
+        id: "workspace-build",
+        criteria: ["D02.1-AC1"],
+        description: "pnpm -r build produces the server (tsc) and the SPA (Vite)",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/main.ts", "apps/web/vite.config.ts", "apps/web/index.html"],
+      },
+      {
+        id: "http-integration",
+        criteria: ["D02.1-AC1", "D02.1-AC2", "D02.1-AC3"],
+        description: "Built server over real HTTP: health, SPA reload, API/asset 404, exposure, SIGTERM",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/http"],
+        requires: ["tests/integration/http/server.test.ts", "tests/support/server-process.ts", "vitest.config.ts"],
+      },
+      ...regressionChecks("D02.1-regression"),
+    ],
+  },
+];
+
 function notReady(id: string): TaskDefinition {
   return { id, ready: false };
 }
@@ -193,7 +243,7 @@ function allIds(): string[] {
   return ids;
 }
 
-const definedById = new Map(defined.map((task) => [task.id, task]));
+const definedById = new Map([...defined, ...definedLater].map((task) => [task.id, task]));
 
 export const verificationTasks: readonly TaskDefinition[] = allIds().map(
   (id) => definedById.get(id) ?? notReady(id),

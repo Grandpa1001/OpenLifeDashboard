@@ -6,10 +6,15 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": {
-      "@openlife/source": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+    "./http/errors": {
+      "@openlife/source": "./src/http/errors.ts",
+      "types": "./dist/http/errors.d.ts",
+      "default": "./dist/http/errors.js"
+    },
+    "./http/health": {
+      "@openlife/source": "./src/http/health.ts",
+      "types": "./dist/http/health.d.ts",
+      "default": "./dist/http/health.js"
     }
   },
   "scripts": {
@@ -17,5 +22,8 @@
   },
   "devDependencies": {
     "typescript": "catalog:"
+  },
+  "dependencies": {
+    "zod": "catalog:"
   }
 }

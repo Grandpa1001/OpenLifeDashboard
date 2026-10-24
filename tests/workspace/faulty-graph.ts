@@ -20,7 +20,7 @@ const sourceFiles = (copy: string): string[] =>
 const check = createCheck("faulty graph and contract");
 const copy = copyRepository();
 try {
-  writeFileSync(path.join(copy, "apps/web/src/main.ts"), 'import "@openlife/ui";\nexport {};\n');
+  writeFileSync(path.join(copy, "apps/web/src/main.tsx"), 'import "@openlife/ui";\nexport {};\n');
   writeFileSync(path.join(copy, "packages/ui/src/index.ts"), 'import "@openlife/sqlite";\nexport {};\n');
   editManifest(copy, "apps/web", (m) => ({ ...m, dependencies: { "@openlife/ui": "workspace:*" } }));
   editManifest(copy, "packages/ui", (m) => ({ ...m, dependencies: { "@openlife/sqlite": "workspace:*" } }));
@@ -33,7 +33,7 @@ try {
     const architecture = runNode(["scripts/check-architecture.ts"], copy);
     check.expect(architecture.status === 1, `check:architecture exits 1 (got ${architecture.status})`, architecture.output);
     check.expect(
-      architecture.output.includes("ARCH-03-web-cannot-reach-server-runtime: apps/web/src/main.ts"),
+      architecture.output.includes("ARCH-03-web-cannot-reach-server-runtime: apps/web/src/main.tsx"),
       "the indirect path web → ui → sqlite is rejected by ARCH-03",
       architecture.output,
     );

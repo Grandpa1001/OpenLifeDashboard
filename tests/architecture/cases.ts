@@ -30,7 +30,7 @@ export const architectureCases: readonly ArchitectureCase[] = [
       externalModules: ["better-sqlite3"],
       files: {
         "apps/web/src/main.ts": [
-          'import "@openlife/contracts";',
+          'import "@openlife/contracts/http/errors";',
           'import "@openlife/ui";',
           'import "@openlife/widgets/views";',
           'import "./features/registers/index.js";',
@@ -40,13 +40,13 @@ export const architectureCases: readonly ArchitectureCase[] = [
         "apps/web/src/features/registers/record-form.ts": "export {};\n",
         "apps/web/src/features/designer/index.ts": "export {};\n",
         "packages/widgets/src/views.ts":
-          'import "@openlife/ui";\nimport "@openlife/contracts";\nimport "./definitions.js";\nexport {};\n',
-        "packages/widgets/src/definitions.ts": 'import "@openlife/contracts";\nexport {};\n',
+          'import "@openlife/ui";\nimport "@openlife/contracts/http/errors";\nimport "./definitions.js";\nexport {};\n',
+        "packages/widgets/src/definitions.ts": 'import "@openlife/contracts/http/errors";\nexport {};\n',
         "packages/sqlite/src/index.ts":
           'import "@openlife/core";\nimport "node:fs";\nimport "better-sqlite3";\nexport {};\n',
         "apps/server/src/main.ts": [
           'import "@openlife/core";',
-          'import "@openlife/contracts";',
+          'import "@openlife/contracts/http/errors";',
           'import "@openlife/sqlite";',
           'import "@openlife/widgets/definitions";',
           'import "node:http";',
@@ -218,7 +218,7 @@ export const architectureCases: readonly ArchitectureCase[] = [
   {
     id: "boundary-sqlite-imports-contracts",
     description: "sqlite depends on HTTP contracts",
-    workspace: { files: { "packages/sqlite/src/index.ts": 'import "@openlife/contracts";\nexport {};\n' } },
+    workspace: { files: { "packages/sqlite/src/index.ts": 'import "@openlife/contracts/http/errors";\nexport {};\n' } },
     expect: violation(
       "dependency-cruiser",
       "boundary-sqlite-no-presentation-or-transport",
@@ -253,7 +253,7 @@ export const architectureCases: readonly ArchitectureCase[] = [
   {
     id: "boundary-ui-imports-contracts",
     description: "ui imports another product package",
-    workspace: { files: { "packages/ui/src/index.ts": 'import "@openlife/contracts";\nexport {};\n' } },
+    workspace: { files: { "packages/ui/src/index.ts": 'import "@openlife/contracts/http/errors";\nexport {};\n' } },
     expect: violation("dependency-cruiser", "boundary-ui-standalone", "packages/ui/src/index.ts"),
   },
   {

@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   verify:
-    name: verify:task D01
+    name: verify:task
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -28,11 +28,13 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Verify D01
         run: pnpm verify:task -- D01
+      - name: Verify D02.1
+        run: pnpm verify:task -- D02.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: verification-d01
+          name: verification-reports
           path: .artifacts/
           # The report directory is a dot-directory, which upload-artifact skips by default.
           include-hidden-files: true

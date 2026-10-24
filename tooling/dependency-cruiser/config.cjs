@@ -142,7 +142,8 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: "(^|/)node_modules/" },
-    exclude: { path: "(^|/)dist/" },
+    // Build output: Vite/tsc emit to dist/, the web project type-checks into .tsbuild/.
+    exclude: { path: "(^|/)(dist|\\.tsbuild)/" },
     // Type-only imports cross boundaries too (web must not even reference core types).
     tsPreCompilationDeps: true,
     moduleSystems: ["es6", "cjs"],

@@ -2,7 +2,7 @@
 
 A self-hosted, no-code personal life dashboard: build your own registers, dictionaries and screens with widgets, and view them live on your phone, laptop and a large screen.
 
-> **Status: early development.** The repository currently contains only the monorepo skeleton. Nothing here is ready to install or use yet.
+> **Status: early development.** The server answers `/api/health` and serves a placeholder web app; there is no sign-in or data yet. Nothing here is ready to install or use.
 
 ## Development
 
@@ -15,7 +15,21 @@ pnpm typecheck            # product packages and the tooling scripts
 pnpm lint
 pnpm check:architecture   # import boundaries ARCH-01…05 plus their negative controls
 pnpm check:contracts      # package exports, build artifacts and runtime loading
+pnpm test:integration     # HTTP tests against the built server (run pnpm build first)
 pnpm verify:task -- D01   # every check mapped to a task; report in .artifacts/<run-id>/
+```
+
+Run the built app on http://127.0.0.1:8080:
+
+```sh
+pnpm build
+pnpm --filter @openlife/server start   # options: --port <n> (0 = ephemeral), --host, --web-root
+```
+
+For frontend work, keep the server running and start Vite on http://127.0.0.1:5173; it proxies `/api` to port 8080:
+
+```sh
+pnpm --filter @openlife/web dev
 ```
 
 `verify:task` reads `tooling/verification-tasks.ts` and records each check as passed, failed, blocked (missing file, tool or precondition) or not_run. Tasks without defined checks are reported as blocked. CI (`.github/workflows/ci.yml`) runs the same command.
@@ -36,7 +50,7 @@ Workspace layout:
 | `tooling/typescript` | Shared strict TypeScript configuration (neutral, Node and browser profiles) |
 | `tooling/dependency-cruiser`, `tooling/eslint` | Import boundary and lint rules |
 | `scripts` | Repository checks (`check:architecture`, `check:contracts`) |
-| `tests` | Test data and support; synthetic graphs for the boundary checks |
+| `tests` | Integration tests, step checks, test support and synthetic graphs for the boundary checks |
 
 ## License
 
