@@ -15,6 +15,7 @@ pnpm typecheck            # product packages and the tooling scripts
 pnpm lint
 pnpm check:architecture   # import boundaries ARCH-01…05 plus their negative controls
 pnpm check:contracts      # package exports, build artifacts and runtime loading
+pnpm test:unit            # pure rules, e.g. the F08 bootstrap cases
 pnpm test:integration     # HTTP tests against the built server (run pnpm build first)
 pnpm verify:task -- D01   # every check mapped to a task; report in .artifacts/<run-id>/
 ```
@@ -24,6 +25,13 @@ Run the built app on http://127.0.0.1:8080:
 ```sh
 pnpm build
 pnpm --filter @openlife/server start   # options: --port <n> (0 = ephemeral), --host, --web-root
+```
+
+Check an installation environment without starting the server (prints no secret values; exit 1 names invalid fields):
+
+```sh
+INSTALL_MODE=local BASE_URL=http://localhost:8080 BETTER_AUTH_SECRET=<64 hex> APP_ENCRYPTION_KEY=<64 hex> \
+  node apps/server/dist/cli/config-check.js
 ```
 
 For frontend work, keep the server running and start Vite on http://127.0.0.1:5173; it proxies `/api` to port 8080:

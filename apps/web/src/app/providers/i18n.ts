@@ -1,14 +1,10 @@
+import { SOURCE_LOCALE, SUPPORTED_LOCALES, type Locale } from "@openlife/contracts/locales";
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import enCommon from "../../locales/en/common.json";
 import plCommon from "../../locales/pl/common.json";
 
-// Polish is the source language (Architektura §7.5). Until owner preferences exist (D11/D12)
-// the language follows the browser.
-export const SUPPORTED_LOCALES = ["pl", "en"] as const;
-export type Locale = (typeof SUPPORTED_LOCALES)[number];
-
-const SOURCE_LOCALE: Locale = "pl";
+// Until owner preferences exist (D11/D12) the language follows the browser.
 
 export function browserLocale(languages: readonly string[]): Locale {
   for (const language of languages) {

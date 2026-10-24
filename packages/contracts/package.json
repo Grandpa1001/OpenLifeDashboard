@@ -9,6 +9,11 @@
     "dist"
   ],
   "exports": {
+    "./http/bootstrap": {
+      "@openlife/source": "./src/http/bootstrap.ts",
+      "types": "./dist/http/bootstrap.d.ts",
+      "default": "./dist/http/bootstrap.js"
+    },
     "./http/errors": {
       "@openlife/source": "./src/http/errors.ts",
       "types": "./dist/http/errors.d.ts",
@@ -18,6 +23,11 @@
       "@openlife/source": "./src/http/health.ts",
       "types": "./dist/http/health.d.ts",
       "default": "./dist/http/health.js"
+    },
+    "./locales": {
+      "@openlife/source": "./src/locales.ts",
+      "types": "./dist/locales.d.ts",
+      "default": "./dist/locales.js"
     }
   },
   "scripts": {

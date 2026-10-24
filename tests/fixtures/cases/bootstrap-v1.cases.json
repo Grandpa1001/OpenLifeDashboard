@@ -1,0 +1,136 @@
+{
+  "format": "openlifedashboard-bootstrap-cases",
+  "formatVersion": 1,
+  "synthetic": true,
+  "baseline": {
+    "env": {
+      "INSTALL_MODE": "local",
+      "BASE_URL": "http://localhost:18080"
+    },
+    "generatedSecretKeys": ["BETTER_AUTH_SECRET", "APP_ENCRYPTION_KEY"],
+    "databaseOverrides": {},
+    "instance": {
+      "formatVersion": 1,
+      "instanceId": "0fce2ff9-4b3b-49b2-90dd-98651d031111",
+      "installMode": "local",
+      "composeProjectName": "openlife-98651d031111",
+      "hostPlatform": "posix",
+      "installationPath": "/tmp/OpenLife Test/Zażółć",
+      "createdAt": "2026-10-23T12:00:00Z"
+    }
+  },
+  "cases": [
+    {
+      "id": "local-defaults",
+      "task": "D03.1",
+      "expected": {"kind": "ready", "normalizedBaseUrl": "http://localhost:18080", "updaterEnabled": false}
+    },
+    {
+      "id": "database-override",
+      "task": "D03.2",
+      "databaseOverrides": {"backup.diskReserveMiB": 256},
+      "expected": {
+        "kind": "ready",
+        "effectiveOption": {"key": "backup.diskReserveMiB", "value": 256, "source": "db", "editable": true, "restartRequired": false}
+      }
+    },
+    {
+      "id": "environment-locks-database-value",
+      "task": "D03.2",
+      "databaseOverrides": {"backup.diskReserveMiB": 256},
+      "envPatch": {"BACKUP_DISK_RESERVE_MIB": "1024"},
+      "expected": {
+        "kind": "ready",
+        "effectiveOption": {"key": "backup.diskReserveMiB", "value": 1024, "source": "env", "editable": false, "restartRequired": true}
+      }
+    },
+    {
+      "id": "blank-active-environment-value",
+      "task": "D03.1",
+      "envPatch": {"BACKUP_DISK_RESERVE_MIB": ""},
+      "expected": {"kind": "error", "code": "CONFIG_INVALID", "fields": ["BACKUP_DISK_RESERVE_MIB"], "exitCode": 1}
+    },
+    {
+      "id": "numeric-value-with-unit",
+      "task": "D03.1",
+      "envPatch": {"DB_BUSY_TIMEOUT_MS": "5000ms"},
+      "expected": {"kind": "error", "code": "CONFIG_INVALID", "fields": ["DB_BUSY_TIMEOUT_MS"], "exitCode": 1}
+    },
+    {
+      "id": "boolean-is-not-zero-string",
+      "task": "D03.1",
+      "envPatch": {"UPDATER_ENABLED": "0"},
+      "expected": {"kind": "error", "code": "CONFIG_INVALID", "fields": ["UPDATER_ENABLED"], "exitCode": 1}
+    },
+    {
+      "id": "server-with-https-origin",
+      "task": "D03.1",
+      "envPatch": {"INSTALL_MODE": "server", "BASE_URL": "https://dashboard.example.invalid/"},
+      "instancePatch": {"installMode": "server"},
+      "expected": {"kind": "ready", "normalizedBaseUrl": "https://dashboard.example.invalid"}
+    },
+    {
+      "id": "server-rejects-http",
+      "task": "D03.1",
+      "envPatch": {"INSTALL_MODE": "server", "BASE_URL": "http://dashboard.example.invalid"},
+      "instancePatch": {"installMode": "server"},
+      "expected": {"kind": "error", "code": "CONFIG_INVALID", "fields": ["BASE_URL"], "exitCode": 1}
+    },
+    {
+      "id": "origin-rejects-subpath",
+      "task": "D03.1",
+      "envPatch": {"BASE_URL": "http://localhost:18080/dashboard"},
+      "expected": {"kind": "error", "code": "CONFIG_INVALID", "fields": ["BASE_URL"], "exitCode": 1}
+    },
+    {
+      "id": "missing-encryption-key",
+      "task": "D03.1",
+      "omitGeneratedSecrets": ["APP_ENCRYPTION_KEY"],
+      "expected": {"kind": "error", "code": "CONFIG_INVALID", "fields": ["APP_ENCRYPTION_KEY"], "exitCode": 1}
+    },
+    {
+      "id": "inactive-updater-allows-empty-placeholders",
+      "task": "D03.1",
+      "envPatch": {"UPDATER_ENABLED": "false", "UPDATER_TOKEN": "", "RELEASES_REPO": ""},
+      "expected": {"kind": "ready", "updaterEnabled": false}
+    },
+    {
+      "id": "active-updater-requires-token",
+      "task": "D03.1",
+      "envPatch": {"UPDATER_ENABLED": "true", "RELEASES_REPO": "example/openlife-releases"},
+      "expected": {"kind": "error", "code": "CONFIG_INVALID", "fields": ["UPDATER_TOKEN"], "exitCode": 1}
+    },
+    {
+      "id": "configured-updater-module-not-built-yet",
+      "task": "D03.1",
+      "phase": "before-D52",
+      "envPatch": {"UPDATER_ENABLED": "true", "RELEASES_REPO": "example/openlife-releases"},
+      "extraGeneratedSecrets": ["UPDATER_TOKEN"],
+      "expected": {"kind": "error", "code": "FEATURE_UNAVAILABLE", "fields": ["UPDATER_ENABLED"], "exitCode": 1}
+    },
+    {
+      "id": "record-limit-plus-overhead-exceeds-body",
+      "task": "D03.2",
+      "envPatch": {"RECORD_MAX_KIB": "256", "JSON_BODY_KIB": "256"},
+      "expected": {"kind": "error", "code": "CONFIG_INVALID", "fields": ["RECORD_MAX_KIB", "JSON_BODY_KIB"], "exitCode": 1}
+    },
+    {
+      "id": "unknown-instance-format",
+      "task": "D03.3",
+      "instancePatch": {"formatVersion": 2},
+      "expected": {"kind": "error", "code": "INSTANCE_METADATA_INVALID", "fields": ["formatVersion"], "exitCode": 1}
+    },
+    {
+      "id": "instance-mode-disagrees-with-environment",
+      "task": "D03.3",
+      "instancePatch": {"installMode": "server"},
+      "expected": {"kind": "error", "code": "INSTANCE_METADATA_INVALID", "fields": ["installMode"], "exitCode": 1}
+    },
+    {
+      "id": "windows-host-path-is-descriptive-metadata",
+      "task": "D03.3",
+      "instancePatch": {"hostPlatform": "windows", "installationPath": "C:\\Users\\Test User\\OpenLifeDashboard\\Zażółć"},
+      "expected": {"kind": "ready", "containerDatabasePath": "/data/app.db"}
+    }
+  ]
+}

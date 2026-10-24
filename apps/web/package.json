@@ -17,6 +17,7 @@
     "vite": "catalog:"
   },
   "dependencies": {
+    "@openlife/contracts": "workspace:*",
     "@tanstack/react-router": "catalog:",
     "i18next": "catalog:",
     "react": "catalog:",

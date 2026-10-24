@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 export const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 export const SERVER_ENTRY = path.join(repoRoot, "apps/server/dist/main.js");
 export const WEB_INDEX = path.join(repoRoot, "apps/web/dist/index.html");
+export const CONFIG_CHECK_ENTRY = path.join(repoRoot, "apps/server/dist/cli/config-check.js");
 
 const STARTUP_TIMEOUT_MS = 10_000;
 
@@ -25,9 +26,10 @@ function capture(child: ChildProcess): () => string {
 }
 
 /** Starts the built server on an ephemeral loopback port and waits for its listening event. */
-export function startBuiltServer(extraArgs: readonly string[] = []): Promise<ServerProcess> {
+export function startBuiltServer(extraArgs: readonly string[] = [], env: NodeJS.ProcessEnv = process.env): Promise<ServerProcess> {
   const child = spawn(process.execPath, [SERVER_ENTRY, "--port", "0", ...extraArgs], {
     cwd: repoRoot,
+    env,
     stdio: ["ignore", "pipe", "pipe"],
   });
   const output = capture(child);
@@ -61,7 +63,12 @@ export function startBuiltServer(extraArgs: readonly string[] = []): Promise<Ser
 
 /** Runs the server entry to completion, e.g. to observe a startup failure. */
 export function runServerEntry(args: readonly string[]): Promise<ProcessExit> {
-  const child = spawn(process.execPath, [SERVER_ENTRY, ...args], { cwd: repoRoot, stdio: ["ignore", "pipe", "pipe"] });
+  return runBuiltScript(SERVER_ENTRY, args);
+}
+
+/** Runs a built server script (e.g. a CLI under apps/server/dist/cli) to completion. */
+export function runBuiltScript(script: string, args: readonly string[], env: NodeJS.ProcessEnv = process.env): Promise<ProcessExit> {
+  const child = spawn(process.execPath, [script, ...args], { cwd: repoRoot, env, stdio: ["ignore", "pipe", "pipe"] });
   return waitForExit(child, capture(child), STARTUP_TIMEOUT_MS);
 }
 

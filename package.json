@@ -24,7 +24,8 @@
     "check:architecture": "node scripts/check-architecture.ts",
     "check:contracts": "node scripts/check-contracts.ts",
     "verify:task": "node scripts/verify-task.ts",
-    "test:integration": "vitest run"
+    "test:integration": "vitest run tests/integration",
+    "test:unit": "vitest run tests/unit"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",

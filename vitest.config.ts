@@ -1,10 +1,10 @@
 import { defineConfig } from "vitest/config";
 
-// Integration tests run against built artifacts as real processes (DEV §8.3); they never use
-// the owner's data and start isolated servers on ephemeral ports.
+// Unit tests cover pure rules; integration tests run built artifacts as real processes
+// (DEV §8.3). None uses the owner's data; servers start isolated on ephemeral ports.
 export default defineConfig({
   test: {
-    include: ["tests/integration/**/*.test.ts"],
+    include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
     environment: "node",
     testTimeout: 30_000,
     hookTimeout: 30_000,

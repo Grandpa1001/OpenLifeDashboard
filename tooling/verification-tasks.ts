@@ -267,6 +267,37 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D03.1",
+    ready: true,
+    title: "Private environment parser, public bootstrap DTO and F08 harness",
+    criteria: ["D03.1-AC1", "D03.1-AC2", "D03.1-regression"],
+    checks: [
+      {
+        // Runs first: the CLI, server and asset checks below use these build artifacts.
+        id: "workspace-build",
+        criteria: ["D03.1-AC1", "D03.1-AC2"],
+        description: "pnpm -r build produces the server, its CLIs and the SPA",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/cli/config-check.ts", "apps/server/src/bootstrap/environment.ts"],
+      },
+      {
+        id: "f08-environment-cases",
+        criteria: ["D03.1-AC1"],
+        description: "Every F08 case of D03.1 through the parser and the config-check CLI (codes, fields, exit 1)",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/bootstrap"],
+        requires: ["tests/unit/bootstrap/environment.test.ts", "tests/fixtures/cases/bootstrap-v1.cases.json"],
+      },
+      {
+        id: "secret-marker-scan",
+        criteria: ["D03.1-AC2"],
+        description: "Random secret markers absent from CLI output, an isolated server and the built assets",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/bootstrap"],
+        requires: ["tests/integration/bootstrap/secret-exposure.test.ts"],
+      },
+      ...regressionChecks("D03.1-regression"),
+    ],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",

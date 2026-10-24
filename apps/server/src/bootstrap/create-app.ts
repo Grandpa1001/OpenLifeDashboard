@@ -1,8 +1,10 @@
+import { PUBLIC_BOOTSTRAP_PATH } from "@openlife/contracts/http/bootstrap";
 import { HEALTH_PATH } from "@openlife/contracts/http/health";
 import { Hono } from "hono";
 import { apiNotFound, unhandledError } from "../http/api-errors.js";
 import type { AppEnv } from "../http/app-env.js";
 import { requestId } from "../http/middleware/request-id.js";
+import { publicBootstrap } from "../http/routes/bootstrap.routes.js";
 import { health } from "../http/routes/health.routes.js";
 import { spaFallback, webAssets } from "../http/spa.js";
 
@@ -22,6 +24,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
   app.use("*", requestId(dependencies.newRequestId));
   app.get(HEALTH_PATH, health);
+  app.get(PUBLIC_BOOTSTRAP_PATH, publicBootstrap);
   app.all("/api", apiNotFound);
   app.all("/api/*", apiNotFound);
   app.use("*", webAssets(dependencies.webRoot));
