@@ -99,9 +99,13 @@ try {
     evidence["healthcheck"] = healthStatus ?? "no result";
     check.expect(healthStatus === "healthy", `AC1: Docker HEALTHCHECK reports healthy (got ${healthStatus ?? "no result"})`);
 
-    const processes = docker(["top", CONTAINER, "-o", "pid,comm"], repoRoot).output.trim().split("\n").slice(1);
+    // `args`, not `comm`: Node names its main thread "MainThread", which `comm` reports.
+    const processes = docker(["top", CONTAINER, "-o", "pid,args"], repoRoot).output.trim().split("\n").slice(1);
     evidence["processes"] = processes;
-    check.expect(processes.length === 1 && /\bnode$/.test(processes[0] ?? ""), `AC1: node is the only process (${processes.join("; ")})`);
+    check.expect(
+      processes.length === 1 && /\bnode apps\/server\/dist\/main\.js\b/.test(processes[0] ?? ""),
+      `AC1: the server is the only process (${processes.join("; ")})`,
+    );
 
     // D02.3-AC1: SIGTERM via docker stop must end the process before Docker would SIGKILL it.
     const stopStarted = Date.now();

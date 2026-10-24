@@ -54,6 +54,7 @@ Versions exercised by the verification reports (DEV D02); the release matrix ext
 | Base image | `node:24.22.1-trixie-slim` pinned by digest in `docker/Dockerfile` |
 | SQLite driver | better-sqlite3 13.0.3 (bundled native binaries), SQLite 3.53.4 |
 | Native image runs | linux/amd64 on `ubuntu-24.04`, linux/arm64 on `ubuntu-24.04-arm` (GitHub Actions) |
+| Docker Engine | 28.0.4 on both runners |
 
 `verify:task` reads `tooling/verification-tasks.ts` and records each check as passed, failed, blocked (missing file, tool or precondition) or not_run. Tasks without defined checks are reported as blocked. CI (`.github/workflows/ci.yml`) runs the same command.
 
