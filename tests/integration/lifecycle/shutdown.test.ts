@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest";
 import { acquireWriterLease } from "../../../apps/server/dist/adapters/filesystem/writer-lease.js";
 import { openDatabase } from "../../../packages/sqlite/dist/connection/open-database.js";
 import { freshTestInstance, outputEvent, startBuiltServer, waitForExit, type ServerProcess } from "../../support/server-process.ts";
+import { serverHasReadEverything } from "../../support/socket-state.ts";
 
 const DEADLINE_MS = 15_000;
 const STEPS = ["readiness", "http", "logger", "database", "lease"];
@@ -28,20 +29,21 @@ const eventsOf = (output: string): Event[] =>
     }
   });
 
-/** A request whose headers are sent only in part: the server sees a request in progress. */
+/**
+ * A request whose headers are sent only in part: the server sees a request in progress. The
+ * server's idle sweep closes a connection that has not begun a message, and a connection whose
+ * bytes it has not read yet looks exactly like that, so the test continues only when the kernel
+ * shows that the server process has read what was sent (see socket-state.ts).
+ */
 async function openUnfinishedRequest(server: ServerProcess) {
   const port = Number(new URL(server.baseUrl).port);
   const socket = net.connect(port, "127.0.0.1");
   await new Promise<void>((resolve, reject) => socket.once("connect", resolve).once("error", reject));
-  socket.write("GET /api/health HTTP/1.1\r\nHost: localhost\r\n");
   let received = "";
   socket.on("data", (chunk: Buffer) => (received += chunk.toString("utf8")));
   const closed = new Promise<void>((resolve) => socket.once("close", () => resolve()));
-  // The server must have READ these bytes before the test goes on, or it would take the
-  // connection for idle. A full request on a new connection cannot be answered before the
-  // server has read what was already waiting on this one, so its answer is the proof; waiting for
-  // a fixed time instead fails on a loaded machine.
-  expect((await fetch(`${server.baseUrl}/api/health`)).status).toBe(200);
+  await new Promise<void>((resolve, reject) => socket.write("GET /api/health HTTP/1.1\r\nHost: localhost\r\n", (error) => (error ? reject(error) : resolve())));
+  expect(await serverHasReadEverything(port, socket.localPort ?? 0, 10_000), "the server process has read the partial request").toBe(true);
   return {
     port,
     socket,
@@ -83,7 +85,7 @@ describe("D06.3-AC1 an orderly stop", () => {
     // The request that began before the signal is finished — and sees readiness withdrawn.
     const finishedAt = Date.now();
     const response = await inProgress.complete();
-    expect(response.split("\r\n")[0]).toBe("HTTP/1.1 503 Service Unavailable");
+    expect(response.split("\r\n")[0], `the answer of the request in progress; server output so far:\n${server.output()}`).toBe("HTTP/1.1 503 Service Unavailable");
     expect(response).toContain('{"status":"unavailable"}');
     expect(response.toLowerCase()).toContain("cache-control: no-store");
 

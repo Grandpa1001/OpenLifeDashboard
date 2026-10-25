@@ -28,19 +28,27 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Verify D01
         run: pnpm verify:task -- D01
+      # Each task's report is evidence of its own: a failing step must not hide the later ones.
       - name: Verify D02.1
+        if: ${{ !cancelled() }}
         run: pnpm verify:task -- D02.1
       - name: Verify D03 (D03.1–D03.4, Docker on the runner)
+        if: ${{ !cancelled() }}
         run: pnpm verify:task -- D03
       - name: Verify D04 (D04.1–D04.3, Docker on the runner)
+        if: ${{ !cancelled() }}
         run: pnpm verify:task -- D04
       - name: Verify D05 (D05.1–D05.3, Docker on the runner)
+        if: ${{ !cancelled() }}
         run: pnpm verify:task -- D05
       - name: Verify D06 (D06.1–D06.3, Docker on the runner)
+        if: ${{ !cancelled() }}
         run: pnpm verify:task -- D06
       - name: Verify D07.1 (Compose local mode, Docker on the runner)
+        if: ${{ !cancelled() }}
         run: pnpm verify:task -- D07.1
       - name: Verify D07.2 (persistence on Compose mounts, Docker on the runner)
+        if: ${{ !cancelled() }}
         run: pnpm verify:task -- D07.2
       - name: Upload verification report
         if: always()
