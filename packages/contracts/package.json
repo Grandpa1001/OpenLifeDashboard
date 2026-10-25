@@ -33,6 +33,11 @@
       "@openlife/source": "./src/settings/catalog.ts",
       "types": "./dist/settings/catalog.d.ts",
       "default": "./dist/settings/catalog.js"
+    },
+    "./workers/maintenance-state": {
+      "@openlife/source": "./src/workers/maintenance-state.ts",
+      "types": "./dist/workers/maintenance-state.d.ts",
+      "default": "./dist/workers/maintenance-state.js"
     }
   },
   "scripts": {

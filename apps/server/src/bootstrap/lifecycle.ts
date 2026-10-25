@@ -15,11 +15,12 @@ export function startServer(app: Hono<AppEnv>, host: string, port: number): Prom
 }
 
 /**
- * SIGTERM/SIGINT stop accepting connections and let started requests finish. Exceeding the
- * deadline ends the process with an error instead of a success message (Architektura §15.2).
- * Readiness, DB and writer lease join this sequence in D04/D06.
+ * SIGTERM/SIGINT stop accepting connections and let started requests finish; `afterClose` then
+ * releases what must outlive HTTP, ending with the writer lease. Exceeding the deadline ends the
+ * process with an error instead of a success message, and the exit releases the lease
+ * (Architektura §15.2). Readiness and the database join this sequence in D04.2/D06.
  */
-export function stopOnSignals(server: ServerType, timeoutMs: number): void {
+export function stopOnSignals(server: ServerType, timeoutMs: number, afterClose: () => void): void {
   let stopping = false;
   const stop = (signal: NodeJS.Signals): void => {
     if (stopping) {
@@ -34,6 +35,7 @@ export function stopOnSignals(server: ServerType, timeoutMs: number): void {
     deadline.unref();
     server.close((error) => {
       clearTimeout(deadline);
+      afterClose();
       if (error) {
         console.error(JSON.stringify({ event: "server.stop_failed", error: error.name }));
         process.exitCode = 1;

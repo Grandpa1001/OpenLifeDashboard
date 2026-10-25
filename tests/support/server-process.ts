@@ -9,6 +9,7 @@ export const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 export const SERVER_ENTRY = path.join(repoRoot, "apps/server/dist/main.js");
 export const WEB_INDEX = path.join(repoRoot, "apps/web/dist/index.html");
 export const CONFIG_CHECK_ENTRY = path.join(repoRoot, "apps/server/dist/cli/config-check.js");
+const WRITER_HOLDER = path.join(repoRoot, "tests/support/writer-holder.ts");
 
 const STARTUP_TIMEOUT_MS = 10_000;
 
@@ -108,6 +109,60 @@ export function waitForExit(child: ChildProcess, output: () => string, timeoutMs
     child.once("exit", (code, signal) => {
       clearTimeout(timer);
       resolve({ code, signal, output: output() });
+    });
+  });
+}
+
+/** The single JSON event with this name in a process output, if any. */
+export function outputEvent(output: string, name: string): Record<string, unknown> | undefined {
+  for (const line of output.split("\n")) {
+    try {
+      const value: unknown = JSON.parse(line);
+      if (typeof value === "object" && value !== null && "event" in value && value.event === name) {
+        return { ...value };
+      }
+    } catch {
+      // Not a JSON event line.
+    }
+  }
+  return undefined;
+}
+
+export type WriterHolder = Readonly<{
+  child: ChildProcess;
+  ready: Readonly<{ generation: number; operationId: string | null; childPid: number | null }>;
+}>;
+
+/**
+ * Starts tests/support/writer-holder.ts on an installation and waits until it holds the writer
+ * lease (and has done what the flags ask); it then stays alive until the test kills it.
+ */
+export function startWriterHolder(installationDir: string, flags: readonly string[] = []): Promise<WriterHolder> {
+  const child = spawn(process.execPath, [WRITER_HOLDER, installationDir, ...flags], { cwd: repoRoot, stdio: ["ignore", "pipe", "pipe"] });
+  const output = capture(child);
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      reject(new Error(`writer holder not ready within ${STARTUP_TIMEOUT_MS} ms:\n${output()}`));
+    }, STARTUP_TIMEOUT_MS);
+    child.stdout?.on("data", () => {
+      const ready = outputEvent(output(), "holder.ready");
+      if (ready) {
+        clearTimeout(timer);
+        const { generation, operationId, childPid } = ready;
+        resolve({
+          child,
+          ready: {
+            generation: typeof generation === "number" ? generation : -1,
+            operationId: typeof operationId === "string" ? operationId : null,
+            childPid: typeof childPid === "number" ? childPid : null,
+          },
+        });
+      }
+    });
+    child.once("exit", (code) => {
+      clearTimeout(timer);
+      reject(new Error(`writer holder exited with ${code} before it was ready:\n${output()}`));
     });
   });
 }

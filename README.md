@@ -30,6 +30,8 @@ node --env-file=../openlife-dev/.env apps/server/dist/main.js --installation ../
 
 Start options: `--port <n>` (0 = ephemeral), `--host`, `--web-root`, `--installation <dir>`. Before listening the server checks the environment, the instance metadata, the option set and the storage folders; a failure exits 1 with `bootstrap.failed` and the fields to fix, never their values.
 
+One server process writes to an installation at a time. It holds an exclusive lock on `control/maintenance/writer.lock` while it runs; a second process on the same folder exits 1 with `INSTANCE_BUSY`. The lock is released when the process ends, also after a crash, so there is nothing to delete by hand. `control/maintenance/state.json` records maintenance operations in progress: if one was left unfinished, the server refuses to start with `MAINTENANCE_RECOVERY_REQUIRED` instead of writing to possibly inconsistent data.
+
 Check an installation environment without starting the server (prints no secret values; exit 1 names invalid fields):
 
 ```sh
@@ -64,6 +66,7 @@ Versions exercised by the verification reports (DEV D02); the release matrix ext
 | pnpm | 12.14.0 (`packageManager`) |
 | Base image | `node:24.22.1-trixie-slim` pinned by digest in `docker/Dockerfile` |
 | SQLite driver | better-sqlite3 13.0.3 (bundled native binaries), SQLite 3.53.4 |
+| Writer lease | fs-native-extensions 1.5.1 (bundled native binaries): OFD lock on Linux, flock on macOS |
 | Native image runs | linux/amd64 on `ubuntu-24.04`, linux/arm64 on `ubuntu-24.04-arm` (GitHub Actions) |
 | Docker Engine | 28.0.4 on both runners |
 

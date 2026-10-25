@@ -401,6 +401,45 @@ const definedLater: readonly TaskDefinition[] = [
     checks: [],
   },
   {
+    id: "D04.1",
+    ready: true,
+    title: "Writer lease, durable maintenance gate and their place in the server lifecycle",
+    criteria: ["D04.1-AC1", "D04.1-AC2", "D04.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests start the built server and drive the built adapters.
+        id: "workspace-build",
+        criteria: ["D04.1-AC1", "D04.1-AC2"],
+        description: "pnpm -r build produces the server with its lease and gate adapters",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/adapters/filesystem/writer-lease.ts", "apps/server/src/adapters/filesystem/maintenance-gate.ts"],
+      },
+      {
+        id: "writer-lease-processes",
+        criteria: ["D04.1-AC1"],
+        description: "Two servers → one writer and INSTANCE_BUSY; SIGKILL recovery on the same lock file; no lease kept by a child",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/writer-lease.test.ts"],
+        requires: ["tests/integration/maintenance/writer-lease.test.ts", "tests/support/writer-holder.ts"],
+      },
+      {
+        id: "maintenance-gate-restarts",
+        criteria: ["D04.1-AC2"],
+        description: "Unfinished operation of a killed writer, unknown/unreadable/missing gate keep writes closed after restart",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/maintenance-gate.test.ts"],
+        requires: ["tests/integration/maintenance/maintenance-gate.test.ts", "tests/support/writer-holder.ts"],
+      },
+      {
+        id: "container-lease-native",
+        criteria: ["D04.1-AC1", "D04.1-AC2"],
+        description: "Containers on a shared bind mount: INSTANCE_BUSY, recovery after docker kill, host writer and its unfinished operation",
+        command: ["node", "tests/system/container-lease.ts"],
+        requires: ["tests/system/container-lease.ts", "docker/Dockerfile"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      ...regressionChecks("D04.1-regression"),
+    ],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",

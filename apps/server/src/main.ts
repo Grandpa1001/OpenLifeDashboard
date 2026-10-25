@@ -1,13 +1,16 @@
 // Server process entrypoint: the only place that starts HTTP (Architektura §13.1).
-// Bootstrap order (§14.5, §18.6): start options → web app → environment → instance metadata →
-// option set → storage preflight → HTTP. Any failure exits 1 before listening; a failure names
-// a code and fields, never a value.
+// Bootstrap order (§4.8, §14.5, §18.6): start options → web app → environment → instance
+// metadata → option set → storage preflight → writer lease → maintenance gate → HTTP. Any
+// failure exits 1 before listening; a failure names a code and fields, never a value. Exiting
+// releases the lease with the process; nothing before the lease opens or changes database files.
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONTAINER_WORKING_PATHS, installationWorkingPaths } from "./adapters/filesystem/installation-paths.js";
+import { openMaintenanceGate } from "./adapters/filesystem/maintenance-gate.js";
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
+import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
 import { loadBootstrapConfig } from "./bootstrap/bootstrap-config.js";
 import { createApp } from "./bootstrap/create-app.js";
 import { startServer, stopOnSignals } from "./bootstrap/lifecycle.js";
@@ -58,6 +61,14 @@ if (!preflight.ok) {
 if (preflight.degraded.length > 0) {
   console.error(JSON.stringify({ event: "bootstrap.degraded", code: "LOG_SINK_UNAVAILABLE", fields: preflight.degraded }));
 }
+const writer = acquireWriterLease(workingPaths.maintenance);
+if (!writer.ok) {
+  bootstrapFailed(writer.code, writer.fields);
+}
+const gate = openMaintenanceGate(writer.lease, workingPaths);
+if (!gate.ok) {
+  bootstrapFailed(gate.code, gate.fields);
+}
 console.log(
   JSON.stringify({
     event: "bootstrap.ready",
@@ -69,6 +80,7 @@ console.log(
     databasePath: workingPaths.database,
     containerDatabasePath: paths.container.database,
     degraded: preflight.degraded,
+    maintenance: { generation: gate.gate.current().generation, initialized: gate.initialized },
     settings: settings.map(({ key, value, source }) => ({ key, value, source })),
   }),
 );
@@ -76,7 +88,8 @@ console.log(
 const app = createApp({ webRoot, indexHtml, newRequestId: randomUUID });
 try {
   const { server, address } = await startServer(app, host, port);
-  stopOnSignals(server, SHUTDOWN_TIMEOUT_MS);
+  // The lease goes last, after HTTP; from D04.2 the database closes before it (§15.2).
+  stopOnSignals(server, SHUTDOWN_TIMEOUT_MS, writer.lease.release);
   console.log(JSON.stringify({ event: "server.listening", host: address.address, port: address.port }));
 } catch (error) {
   fail(`cannot listen on ${host}:${port} (${error instanceof Error && "code" in error ? String(error.code) : "unknown error"})`);

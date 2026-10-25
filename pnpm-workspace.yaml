@@ -14,6 +14,8 @@ catalog:
   better-sqlite3: 13.0.3
   dependency-cruiser: 18.7.0
   eslint: 10.13.0
+  # Writer lease (Architektura §4.8): OFD locks on Linux, flock on macOS, LockFileEx on Windows.
+  fs-native-extensions: 1.5.1
   hono: 4.13.13
   i18next: 26.5.10
   react: 19.3.1

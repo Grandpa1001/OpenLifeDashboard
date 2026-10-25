@@ -21,6 +21,7 @@
     "@openlife/contracts": "workspace:*",
     "@openlife/core": "workspace:*",
     "@openlife/sqlite": "workspace:*",
+    "fs-native-extensions": "catalog:",
     "hono": "catalog:"
   }
 }
