@@ -238,6 +238,9 @@ importers:
       '@eslint/js':
         specifier: 'catalog:'
         version: 10.0.1(eslint@10.13.0(supports-color@7.2.0))
+      '@hono/node-server':
+        specifier: 'catalog:'
+        version: 2.1.5(hono@4.13.13)
       '@openlife/contracts':
         specifier: workspace:*
         version: link:packages/contracts
@@ -250,6 +253,9 @@ importers:
       eslint:
         specifier: 'catalog:'
         version: 10.13.0(supports-color@7.2.0)
+      hono:
+        specifier: 'catalog:'
+        version: 4.13.13
       node:
         specifier: runtime:24.22.1
         version: runtime:24.22.1

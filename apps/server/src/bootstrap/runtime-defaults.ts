@@ -8,3 +8,9 @@ export const DEFAULT_HOST = "127.0.0.1";
 
 /** Started work must finish within this window after SIGTERM (Architektura §15.2). */
 export const SHUTDOWN_TIMEOUT_MS = 15_000;
+
+/** Lowest level of the technical log until the option catalog of D06.2 makes it configurable. */
+export const LOG_MIN_LEVEL = "info";
+
+/** `service` field of every line this process writes (Architektura §15.2). */
+export const LOG_SERVICE = "app";

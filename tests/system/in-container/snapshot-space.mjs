@@ -2,6 +2,7 @@
 // host against apps/server/dist with --data/--backups/--dist (DEV D05.3-AC2). The backup folder
 // is a size-limited file system. The script leaves exactly the size of one database copy free
 // there, so the free-space check passes and the real write then runs out of space (ENOSPC):
+//   0. the file system is shown to be limited: writing past its free space fails with ENOSPC;
 //   1. a database with ballast is initialized through the bootstrap step (plan A);
 //   2. a good snapshot is published, then the file system is filled up to one copy;
 //   3. the upgrade to plan B must stop with MIGRATION_SNAPSHOT_REQUIRED, publish nothing, leave
@@ -79,6 +80,25 @@ const staging = () => {
   }
 };
 
+// The file system really is limited: one more page than the free space cannot be written. Done
+// first, on the empty file system, so that everything measured afterwards is measured after it.
+const limit = free();
+const probe = path.join(backups, ".probe");
+let probeCode = "none";
+const probeFd = openSync(probe, "wx");
+try {
+  // A write that hits the end of the space may return a short count (Linux) instead of failing;
+  // the error comes with the next call that makes no progress, so write until it does.
+  for (let written = 0; written < limit.bytes + limit.blockSize; ) {
+    written += writeSync(probeFd, Buffer.alloc(Math.min(MIB, limit.bytes + limit.blockSize - written)));
+  }
+} catch (error) {
+  probeCode = error instanceof Error && "code" in error ? String(error.code) : "unknown";
+} finally {
+  closeSync(probeFd);
+  rmSync(probe, { force: true });
+}
+
 // 1. A database with ballast, checkpointed so that no WAL counts towards the copy.
 const created = await open(planA);
 if (!created.ok) throw new Error(`init failed: ${created.code}`);
@@ -104,19 +124,6 @@ for (let written = 0; written < fillBytes; ) {
 }
 closeSync(fillFd);
 const afterFill = free();
-
-// The file system really is limited: one more page than the free space cannot be written.
-const probe = path.join(backups, ".probe");
-let probeCode = "none";
-const probeFd = openSync(probe, "wx");
-try {
-  writeSync(probeFd, Buffer.alloc(afterFill.bytes + afterFill.blockSize));
-} catch (error) {
-  probeCode = error instanceof Error && "code" in error ? String(error.code) : "unknown";
-} finally {
-  closeSync(probeFd);
-  rmSync(probe, { force: true });
-}
 
 // 3. The snapshot passes the free-space check, the copy fills the file system, a later write fails.
 // Called directly first: SNAPSHOT_FAILED (not SNAPSHOT_LOW_SPACE) proves the error was the real
@@ -145,6 +152,7 @@ const result = {
   freeBeforeFill: before.bytes,
   freeAfterFill: afterFill.bytes,
   probeCode,
+  limitBytes: limit.bytes,
   direct: directObservation,
   afterRefusal,
   retry: retried.ok ? { ok: true, schemaVersion: retried.schemaVersion } : { ok: false, code: retried.code },

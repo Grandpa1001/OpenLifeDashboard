@@ -1,7 +1,7 @@
 // Server process entrypoint: the only place that starts HTTP (Architektura §13.1).
 // Bootstrap order (§4.8, §14.5, §18.6): start options → web app → environment → instance
 // metadata → option set → storage preflight → writer lease → maintenance gate → database
-// (inspect, initialize, upgrade with a snapshot or reconcile) → HTTP. Any failure exits 1 before listening; a failure
+// (inspect, initialize, upgrade with a snapshot or reconcile) → technical logger → HTTP. Any failure exits 1 before listening; a failure
 // names a code and fields, never a value. Exiting releases the lease with the process; nothing
 // before the lease opens or changes database files.
 import { randomUUID } from "node:crypto";
@@ -12,6 +12,9 @@ import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
 import { CONTAINER_WORKING_PATHS, installationWorkingPaths } from "./adapters/filesystem/installation-paths.js";
 import { createDatabaseSnapshots } from "./adapters/filesystem/database-snapshots.js";
 import { openMaintenanceGate } from "./adapters/filesystem/maintenance-gate.js";
+import { openAppLogFile } from "./adapters/logging/file-sink.js";
+import { stdoutSink } from "./adapters/logging/stdout-sink.js";
+import { createTechnicalLogger } from "./adapters/logging/technical-logger.js";
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
 import { loadBootstrapConfig } from "./bootstrap/bootstrap-config.js";
@@ -19,7 +22,7 @@ import { createApp } from "./bootstrap/create-app.js";
 import { readBuildInfo } from "./bootstrap/build-info.js";
 import { openInstallationDatabase } from "./bootstrap/database.js";
 import { startServer, stopOnSignals } from "./bootstrap/lifecycle.js";
-import { SHUTDOWN_TIMEOUT_MS } from "./bootstrap/runtime-defaults.js";
+import { LOG_MIN_LEVEL, LOG_SERVICE, SHUTDOWN_TIMEOUT_MS } from "./bootstrap/runtime-defaults.js";
 import { parseStartOptions } from "./bootstrap/start-options.js";
 
 /** The built web app sits next to the server in the workspace and in the image. */
@@ -114,12 +117,22 @@ console.log(
   }),
 );
 
-const app = createApp({ webRoot, indexHtml, newRequestId: randomUUID });
+// The technical log: stdout always, data/logs/app/app.jsonl when the folder is usable (an
+// unusable one was reported as degraded by the preflight and costs no start).
+const logFile = preflight.degraded.includes("logs") ? undefined : openAppLogFile(workingPaths.logs);
+const logger = createTechnicalLogger({
+  identity: { service: LOG_SERVICE, appVersion: build.appVersion, instanceId: paths.instanceId },
+  minLevel: LOG_MIN_LEVEL,
+  now: () => new Date(),
+  sinks: logFile === undefined ? [stdoutSink] : [stdoutSink, logFile],
+});
+const app = createApp({ webRoot, indexHtml, newRequestId: randomUUID, logger, nowMs: () => performance.now() });
 try {
   const { server, address } = await startServer(app, host, port);
   // After HTTP the database closes, and the lease goes last (§15.2).
   stopOnSignals(server, SHUTDOWN_TIMEOUT_MS, () => {
     database.connection.close();
+    logFile?.close();
     writer.lease.release();
   });
   console.log(JSON.stringify({ event: "server.listening", host: address.address, port: address.port }));

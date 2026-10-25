@@ -1,9 +1,10 @@
 import { PUBLIC_BOOTSTRAP_PATH } from "@openlife/contracts/http/bootstrap";
 import { HEALTH_PATH } from "@openlife/contracts/http/health";
 import { Hono } from "hono";
-import { apiNotFound, unhandledError } from "../http/api-errors.js";
+import type { TechnicalLogger } from "../adapters/logging/technical-logger.js";
+import { apiNotFound } from "../http/api-errors.js";
 import type { AppEnv } from "../http/app-env.js";
-import { requestId } from "../http/middleware/request-id.js";
+import { installHttpFoundation } from "../http/foundation.js";
 import { publicBootstrap } from "../http/routes/bootstrap.routes.js";
 import { health } from "../http/routes/health.routes.js";
 import { spaFallback, webAssets } from "../http/spa.js";
@@ -14,6 +15,9 @@ export type AppDependencies = Readonly<{
   /** Contents of webRoot/index.html, read once at startup. */
   indexHtml: string;
   newRequestId: () => string;
+  logger: TechnicalLogger;
+  /** Monotonic milliseconds for request durations. */
+  nowMs: () => number;
 }>;
 
 /**
@@ -22,13 +26,12 @@ export type AppDependencies = Readonly<{
  */
 export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
-  app.use("*", requestId(dependencies.newRequestId));
+  installHttpFoundation(app, dependencies);
   app.get(HEALTH_PATH, health);
   app.get(PUBLIC_BOOTSTRAP_PATH, publicBootstrap);
   app.all("/api", apiNotFound);
   app.all("/api/*", apiNotFound);
   app.use("*", webAssets(dependencies.webRoot));
   app.all("*", spaFallback(dependencies.indexHtml));
-  app.onError(unhandledError);
   return app;
 }

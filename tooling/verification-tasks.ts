@@ -614,6 +614,44 @@ const definedLater: readonly TaskDefinition[] = [
     checks: [],
   },
   {
+    id: "D06.1",
+    ready: true,
+    title: "Technical logger with an allowlist, request IDs and safe handling of failures",
+    criteria: ["D06.1-AC1", "D06.1-AC2", "D06.1-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests use the built logger, middleware and server.
+        id: "workspace-build",
+        criteria: ["D06.1-AC1", "D06.1-AC2"],
+        description: "pnpm -r build produces the logger, the request log middleware and the HTTP foundation",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/adapters/logging/technical-logger.ts", "apps/server/src/http/foundation.ts"],
+      },
+      {
+        id: "logger-unit",
+        criteria: ["D06.1-AC1", "D06.1-AC2"],
+        description: "Line shape and order, level filter, refused field values, error reduced to name/code/cause, failing sink",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/logging"],
+        requires: ["tests/unit/logging/technical-logger.test.ts"],
+      },
+      {
+        id: "request-log-http",
+        criteria: ["D06.1-AC1", "D06.1-AC2"],
+        description: "Same request ID in response, request line and error line; markers in headers/query/path/body/nested errors absent from stdout, stderr and app.jsonl",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/logging"],
+        requires: ["tests/integration/logging/request-log.test.ts"],
+      },
+      {
+        id: "http-regression",
+        criteria: ["D06.1-regression"],
+        description: "D02.1 HTTP behaviour and the D03 secret scan still hold with the logger in the app",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/http", "tests/integration/bootstrap/secret-exposure.test.ts"],
+        requires: ["tests/integration/http/server.test.ts", "tests/integration/bootstrap/secret-exposure.test.ts"],
+      },
+      ...regressionChecks("D06.1-regression"),
+    ],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",

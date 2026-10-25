@@ -30,10 +30,12 @@
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
+    "@hono/node-server": "catalog:",
     "@openlife/contracts": "workspace:*",
     "@types/node": "catalog:",
     "dependency-cruiser": "catalog:",
     "eslint": "catalog:",
+    "hono": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "vitest": "catalog:"
