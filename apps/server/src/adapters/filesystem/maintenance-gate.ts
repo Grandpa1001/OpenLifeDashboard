@@ -1,7 +1,8 @@
 // Durable maintenance gate (Architektura §4.8, §11.4): control/maintenance/state.json records
 // the operation in progress outside the database. It is read and written only under the writer
 // lease, and it is not the lease: after a crash the next process recovers the lock, but an
-// unfinished, unknown or unreadable operation still keeps writes closed until reconciliation.
+// unknown or unreadable gate keeps writes closed, and an operation left active must be
+// reconciled by the bootstrap (bootstrap/database.ts) before anything else writes.
 // A missing file is initialized only for a new installation without a database; it is never a
 // repair of an existing one. Every change goes through staging, fsync, rename and a directory
 // fsync on the same mount, so a crash leaves either the old or the new state.
@@ -166,8 +167,9 @@ function createGate(lease: WriterLease, dir: string, initial: MaintenanceState):
 }
 
 /**
- * Reads the gate under the held lease. Writes may open only for a valid state without an
- * active operation; reconciliation of an unfinished one arrives with its operation (D05).
+ * Reads the gate under the held lease. A valid state opens the gate also with an operation left
+ * active by a crash: `current().activeOperation` tells the caller, which must reconcile it or
+ * refuse with MAINTENANCE_RECOVERY_REQUIRED before writing.
  */
 export function openMaintenanceGate(lease: WriterLease, paths: Readonly<{ maintenance: string; database: string }>): GateOpenResult {
   if (!lease.isHeld()) {
@@ -178,9 +180,7 @@ export function openMaintenanceGate(lease: WriterLease, paths: Readonly<{ mainte
     return { ok: false, code: "MAINTENANCE_RECOVERY_REQUIRED", fields: read.fields };
   }
   if (read.kind === "valid") {
-    return read.state.activeOperation === null
-      ? { ok: true, gate: createGate(lease, paths.maintenance, read.state), initialized: false }
-      : { ok: false, code: "MAINTENANCE_RECOVERY_REQUIRED", fields: ["activeOperation"] };
+    return { ok: true, gate: createGate(lease, paths.maintenance, read.state), initialized: false };
   }
   if (!isNewInstallation(paths.database)) {
     return { ok: false, code: "MAINTENANCE_RECOVERY_REQUIRED", fields: [MAINTENANCE_STATE_FILE] };

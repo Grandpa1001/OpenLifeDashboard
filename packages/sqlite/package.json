@@ -19,6 +19,11 @@
       "types": "./dist/driver-probe.d.ts",
       "default": "./dist/driver-probe.js"
     },
+    "./migrations": {
+      "@openlife/source": "./src/migrations/public.ts",
+      "types": "./dist/migrations/public.d.ts",
+      "default": "./dist/migrations/public.js"
+    },
     "./transactions": {
       "@openlife/source": "./src/transactions/unit-of-work.ts",
       "types": "./dist/transactions/unit-of-work.d.ts",

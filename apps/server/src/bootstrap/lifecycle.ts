@@ -18,7 +18,7 @@ export function startServer(app: Hono<AppEnv>, host: string, port: number): Prom
  * SIGTERM/SIGINT stop accepting connections and let started requests finish; `afterClose` then
  * releases what must outlive HTTP, ending with the writer lease. Exceeding the deadline ends the
  * process with an error instead of a success message, and the exit releases the lease
- * (Architektura §15.2). Readiness and the database join this sequence in D04.2/D06.
+ * (Architektura §15.2). Readiness and the logger join this sequence in D06.
  */
 export function stopOnSignals(server: ServerType, timeoutMs: number, afterClose: () => void): void {
   let stopping = false;

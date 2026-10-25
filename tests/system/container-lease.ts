@@ -2,8 +2,8 @@
 // installation bind-mounted into every container (Architektura §4.8, §15.1). Two containers on
 // the same mounts give one writer: the second exits 1 with INSTANCE_BUSY. After `docker kill`
 // (SIGKILL) a new container recovers the lease on the same lock file. On a Linux host, whose
-// kernel the containers share, a host process holding the lease also stops a container, and an
-// operation it left unfinished keeps the next container closed. Docker Desktop is checked by D07.
+// kernel the containers share, a host process holding the lease also stops a container, and a
+// snapshot operation it left unfinished keeps the next container closed. Docker Desktop: D07.
 import { randomBytes } from "node:crypto";
 import { readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -87,7 +87,7 @@ try {
     check.expect(stop.status === 0 && docker(["inspect", "--format", "{{.State.ExitCode}}", third], repoRoot).output.trim() === "0", "container C stops cleanly");
 
     if (process.platform === "linux") {
-      const holder = await startWriterHolder(instance.dir, ["--begin"]);
+      const holder = await startWriterHolder(instance.dir, ["--begin", "snapshot"]);
       const blocked = runToExit();
       evidence["hostHolder"] = outputEvent(blocked.output, "bootstrap.failed");
       check.expect(

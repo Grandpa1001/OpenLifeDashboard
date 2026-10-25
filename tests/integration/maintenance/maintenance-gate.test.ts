@@ -1,8 +1,9 @@
 // D04.1-AC2 — the durable maintenance gate control/maintenance/state.json, separate from the
-// lease. A new installation gets generation 0; a restart keeps it. An operation begun by a
-// writer that is then SIGKILLed keeps every later start closed with
-// MAINTENANCE_RECOVERY_REQUIRED, although the lease itself is recovered; so does an unknown,
-// unreadable or missing gate next to an existing database. Refusals change no file.
+// lease. A new installation creates the gate and records its database init as generation 1; a
+// restart keeps it. A snapshot operation begun by a writer that is then SIGKILLed keeps every
+// later start closed with MAINTENANCE_RECOVERY_REQUIRED, although the lease itself is
+// recovered; so does an unknown, unreadable or missing gate next to an existing database.
+// Refusals change no file. Reconciliation of an interrupted init is D04.3 (tests/integration/sqlite).
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -49,25 +50,25 @@ function writeGate(instance: TestInstance, content: unknown): void {
 }
 
 describe("D04.1-AC2 durable gate across restarts", () => {
-  it("a new installation initializes generation 0 and a restart keeps it", async () => {
+  it("a new installation creates the gate with its completed init and a restart keeps it", async () => {
     const instance = freshTestInstance();
-    expect(await bootReady(instance)).toEqual({ generation: 0, initialized: true });
-    expect(readState(instance)).toEqual({ formatVersion: 1, generation: 0, activeOperation: null });
+    expect(await bootReady(instance)).toEqual({ generation: 1, initialized: true });
+    expect(readState(instance)).toEqual({ formatVersion: 1, generation: 1, activeOperation: null });
     const before = sha256(stateFile(instance));
-    expect(await bootReady(instance)).toEqual({ generation: 0, initialized: false });
+    expect(await bootReady(instance)).toEqual({ generation: 1, initialized: false });
     expect(sha256(stateFile(instance))).toBe(before);
   });
 
   it("an operation begun by a killed writer blocks later starts although the lease is recovered", async () => {
     const instance = freshTestInstance();
     await bootReady(instance);
-    const holder = await startWriterHolder(instance.dir, ["--begin"]);
-    expect(holder.ready.generation).toBe(1);
+    const holder = await startWriterHolder(instance.dir, ["--begin", "snapshot"]);
+    expect(holder.ready.generation).toBe(2);
     holder.child.kill("SIGKILL");
     await waitForExit(holder.child, () => "", STOP_TIMEOUT_MS);
 
     const persisted = readState(instance);
-    expect(persisted).toMatchObject({ generation: 1, activeOperation: { operationId: holder.ready.operationId, reason: "init" } });
+    expect(persisted).toMatchObject({ generation: 2, activeOperation: { operationId: holder.ready.operationId, reason: "snapshot" } });
     const before = sha256(stateFile(instance));
     // Not INSTANCE_BUSY: the lock is free again, the recorded operation still closes writes.
     expect(await bootRefused(instance)).toEqual(recoveryRequired(["activeOperation"]));
@@ -75,16 +76,17 @@ describe("D04.1-AC2 durable gate across restarts", () => {
     expect(sha256(stateFile(instance))).toBe(before);
     const maintenance = readdirSync(path.join(instance.dir, "control", "maintenance")).sort();
     expect(maintenance).toEqual(["state.json", "writer.lock"]);
+    expect(readdirSync(path.join(instance.dir, "data")).filter((name) => name.startsWith("app.db"))).toEqual(["app.db"]);
   });
 
   it("a completed operation leaves the next generation and the server starts", async () => {
     const instance = freshTestInstance();
     await bootReady(instance);
-    const holder = await startWriterHolder(instance.dir, ["--begin", "--complete"]);
+    const holder = await startWriterHolder(instance.dir, ["--begin", "snapshot", "--complete"]);
     holder.child.kill("SIGKILL");
     await waitForExit(holder.child, () => "", STOP_TIMEOUT_MS);
-    expect(readState(instance)).toEqual({ formatVersion: 1, generation: 1, activeOperation: null });
-    expect(await bootReady(instance)).toEqual({ generation: 1, initialized: false });
+    expect(readState(instance)).toEqual({ formatVersion: 1, generation: 2, activeOperation: null });
+    expect(await bootReady(instance)).toEqual({ generation: 2, initialized: false });
   });
 });
 

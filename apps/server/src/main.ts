@@ -1,18 +1,21 @@
 // Server process entrypoint: the only place that starts HTTP (Architektura §13.1).
 // Bootstrap order (§4.8, §14.5, §18.6): start options → web app → environment → instance
-// metadata → option set → storage preflight → writer lease → maintenance gate → HTTP. Any
-// failure exits 1 before listening; a failure names a code and fields, never a value. Exiting
-// releases the lease with the process; nothing before the lease opens or changes database files.
+// metadata → option set → storage preflight → writer lease → maintenance gate → database
+// (inspect, initialize or reconcile) → HTTP. Any failure exits 1 before listening; a failure
+// names a code and fields, never a value. Exiting releases the lease with the process; nothing
+// before the lease opens or changes database files.
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
 import { CONTAINER_WORKING_PATHS, installationWorkingPaths } from "./adapters/filesystem/installation-paths.js";
 import { openMaintenanceGate } from "./adapters/filesystem/maintenance-gate.js";
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
 import { loadBootstrapConfig } from "./bootstrap/bootstrap-config.js";
 import { createApp } from "./bootstrap/create-app.js";
+import { openInstallationDatabase, SNAPSHOTS_UNAVAILABLE } from "./bootstrap/database.js";
 import { startServer, stopOnSignals } from "./bootstrap/lifecycle.js";
 import { SHUTDOWN_TIMEOUT_MS } from "./bootstrap/runtime-defaults.js";
 import { parseStartOptions } from "./bootstrap/start-options.js";
@@ -69,6 +72,19 @@ const gate = openMaintenanceGate(writer.lease, workingPaths);
 if (!gate.ok) {
   bootstrapFailed(gate.code, gate.fields);
 }
+const database = await openInstallationDatabase({
+  file: workingPaths.database,
+  gate: gate.gate,
+  plan: PRODUCT_MIGRATION_PLAN,
+  instanceId: paths.instanceId,
+  busyTimeoutMs: environment.dbBusyTimeoutMs,
+  snapshots: SNAPSHOTS_UNAVAILABLE,
+  now: () => new Date().toISOString(),
+  newOperationId: randomUUID,
+});
+if (!database.ok) {
+  bootstrapFailed(database.code, database.fields);
+}
 console.log(
   JSON.stringify({
     event: "bootstrap.ready",
@@ -81,6 +97,7 @@ console.log(
     containerDatabasePath: paths.container.database,
     degraded: preflight.degraded,
     maintenance: { generation: gate.gate.current().generation, initialized: gate.initialized },
+    database: { schemaVersion: database.schemaVersion, created: database.created },
     settings: settings.map(({ key, value, source }) => ({ key, value, source })),
   }),
 );
@@ -88,8 +105,11 @@ console.log(
 const app = createApp({ webRoot, indexHtml, newRequestId: randomUUID });
 try {
   const { server, address } = await startServer(app, host, port);
-  // The lease goes last, after HTTP; from D04.2 the database closes before it (§15.2).
-  stopOnSignals(server, SHUTDOWN_TIMEOUT_MS, writer.lease.release);
+  // After HTTP the database closes, and the lease goes last (§15.2).
+  stopOnSignals(server, SHUTDOWN_TIMEOUT_MS, () => {
+    database.connection.close();
+    writer.lease.release();
+  });
   console.log(JSON.stringify({ event: "server.listening", host: address.address, port: address.port }));
 } catch (error) {
   fail(`cannot listen on ${host}:${port} (${error instanceof Error && "code" in error ? String(error.code) : "unknown error"})`);

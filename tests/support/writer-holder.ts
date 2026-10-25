@@ -1,8 +1,9 @@
-// node tests/support/writer-holder.ts <installation dir> [--begin] [--complete] [--spawn-child]
+// node tests/support/writer-holder.ts <installation dir> [--begin init|snapshot] [--complete] [--spawn-child]
 // Test-only writer process (DEV D04.1): takes the writer lease and opens the maintenance gate
-// through the built server adapters, optionally begins (and completes) an init operation or
-// spawns a long-lived child, prints one JSON line and stays alive until it is killed. Tests use
-// it to leave a real unfinished operation or a surviving child behind a killed writer.
+// through the built server adapters, optionally begins (and completes) a maintenance operation
+// or spawns a long-lived child, prints one JSON line and stays alive until it is killed. Tests
+// use it to leave a real unfinished operation or a surviving child behind a killed writer: an
+// `init` is reconciled by the next start (D04.3), a `snapshot` stays unrecoverable until D05.
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { installationWorkingPaths } from "../../apps/server/dist/adapters/filesystem/installation-paths.js";
@@ -11,7 +12,7 @@ import { acquireWriterLease } from "../../apps/server/dist/adapters/filesystem/w
 
 const [dir, ...flags] = process.argv.slice(2);
 if (!dir) {
-  console.error("usage: writer-holder <installation dir> [--begin] [--complete] [--spawn-child]");
+  console.error("usage: writer-holder <installation dir> [--begin init|snapshot] [--complete] [--spawn-child]");
   process.exit(2);
 }
 const paths = installationWorkingPaths(dir);
@@ -26,15 +27,15 @@ if (!opened.ok) {
   process.exit(1);
 }
 let operationId: string | null = null;
+const reason = flags[flags.indexOf("--begin") + 1];
 if (flags.includes("--begin")) {
   operationId = randomUUID();
-  const state = opened.gate.begin({
-    operationId,
-    reason: "init",
-    phase: "initializing",
-    startedAt: new Date().toISOString(),
-    targetSchemaVersion: 1,
-  });
+  const startedAt = new Date().toISOString();
+  const state = opened.gate.begin(
+    reason === "init"
+      ? { operationId, reason, phase: "initializing", startedAt, targetSchemaVersion: 1 }
+      : { operationId, reason: "snapshot", phase: "staging", startedAt, snapshotId: `holder-${operationId}` },
+  );
   if (flags.includes("--complete")) {
     opened.gate.complete(operationId, state.generation);
   }

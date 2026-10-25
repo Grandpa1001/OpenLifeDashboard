@@ -46,14 +46,17 @@ function isAlive(pid: number): boolean {
 }
 
 describe("D04.1-AC1 single writer per installation", () => {
-  it("a second server exits 1 with INSTANCE_BUSY, creates no database and leaves the writer serving", async () => {
+  it("a second server exits 1 with INSTANCE_BUSY, touches no database file and leaves the writer serving", async () => {
     const instance = freshTestInstance();
     const writer = await startBuiltServer({ installation: instance });
     const stateFile = path.join(instance.dir, "control", "maintenance", "state.json");
-    const gateBefore = sha256(stateFile);
+    const databaseFiles = (): string[] => readdirSync(path.join(instance.dir, "data")).filter((name) => name.startsWith("app.db")).sort();
+    const filesBefore = databaseFiles();
+    const [gateBefore, databaseBefore] = [sha256(stateFile), sha256(path.join(instance.dir, "data", "app.db"))];
 
     expect(await startAndRefuse(instance)).toEqual({ event: "bootstrap.failed", code: "INSTANCE_BUSY", fields: [WRITER_LOCK_FILE] });
-    expect(readdirSync(path.join(instance.dir, "data")).filter((name) => name.startsWith("app.db"))).toEqual([]);
+    expect(databaseFiles()).toEqual(filesBefore);
+    expect(sha256(path.join(instance.dir, "data", "app.db"))).toBe(databaseBefore);
     expect(sha256(stateFile)).toBe(gateBefore);
     expect((await fetch(`${writer.baseUrl}/api/health`)).status).toBe(200);
     await stop(writer);
@@ -83,7 +86,8 @@ describe("D04.1-AC1 single writer per installation", () => {
     expect(statSync(lockFile(instance)).ino).toBe(inode);
 
     const next = await startBuiltServer({ installation: instance });
-    expect(outputEvent(next.output(), "bootstrap.ready")?.["maintenance"]).toEqual({ generation: 0, initialized: false });
+    // The init of the first start stays the last operation: recovery begins none.
+    expect(outputEvent(next.output(), "bootstrap.ready")?.["maintenance"]).toEqual({ generation: 1, initialized: false });
     expect(statSync(lockFile(instance)).ino).toBe(inode);
     await stop(next);
     // A clean stop releases the lease and keeps the same file for the next writer.

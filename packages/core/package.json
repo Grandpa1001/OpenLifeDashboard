@@ -14,6 +14,11 @@
       "types": "./dist/foundation/public.d.ts",
       "default": "./dist/foundation/public.js"
     },
+    "./maintenance": {
+      "@openlife/source": "./src/modules/maintenance/public.ts",
+      "types": "./dist/modules/maintenance/public.d.ts",
+      "default": "./dist/modules/maintenance/public.js"
+    },
     "./settings": {
       "@openlife/source": "./src/modules/settings/public.ts",
       "types": "./dist/modules/settings/public.d.ts",

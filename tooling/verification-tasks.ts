@@ -471,6 +471,46 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D04.3",
+    ready: true,
+    title: "Migration manifest, empty-database initialization and refusal of unknown databases",
+    criteria: ["D04.3-AC1", "D04.3-AC2", "D04.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests start the built server and use the built migrations.
+        id: "workspace-build",
+        criteria: ["D04.3-AC1", "D04.3-AC2"],
+        description: "pnpm -r build produces the migrations, the bootstrap database step and the server",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/sqlite/src/migrations/public.ts", "apps/server/src/bootstrap/database.ts"],
+      },
+      {
+        id: "migrations-file-db",
+        criteria: ["D04.3-AC1", "D04.3-AC2"],
+        description: "Plan checksums, atomic initialization, classification of pending/newer/foreign/tampered files without change",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/sqlite/migrations.test.ts"],
+        requires: ["tests/integration/sqlite/migrations.test.ts", "tests/support/migration-plans.ts"],
+      },
+      {
+        id: "database-bootstrap",
+        criteria: ["D04.3-AC1", "D04.3-AC2"],
+        description: "Real starts: init and two restarts, SIGKILL inside init, closing a committed init, refusals with unchanged files",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/database-bootstrap.test.ts"],
+        requires: ["tests/integration/maintenance/database-bootstrap.test.ts", "tests/support/database-holder.ts"],
+      },
+      ...regressionChecks("D04.3-regression"),
+    ],
+  },
+  {
+    // The parent passes only through its work orders, D04.1 including the container check.
+    id: "D04",
+    ready: true,
+    title: "Writer lease, maintenance gate, connections, unit of work and the first schema",
+    steps: ["D04.1", "D04.2", "D04.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",
