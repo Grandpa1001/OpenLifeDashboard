@@ -1,13 +1,18 @@
 import type { HealthResponse } from "@openlife/contracts/http/health";
 import type { Handler } from "hono";
+import type { Readiness } from "../../bootstrap/readiness.js";
 import type { AppEnv } from "../app-env.js";
 
 /**
- * Readiness for the scope deployed so far: in D02 the process serves HTTP and the SPA.
- * From D04 readiness also requires an open, migrated database (Architektura §6.1).
+ * Readiness (Architektura §6.1): 200 while the process serves — HTTP, SPA and an open, migrated
+ * database — and 503 once readiness is withdrawn (shutdown, later maintenance). Never carries
+ * diagnostics, and never a cached answer.
  */
-export const health: Handler<AppEnv> = (c) => {
-  const body: HealthResponse = { status: "ok" };
-  c.header("Cache-Control", "no-store");
-  return c.json(body, 200);
-};
+export function health(readiness: Readiness): Handler<AppEnv> {
+  return (c) => {
+    const ready = readiness.isReady();
+    const body: HealthResponse = { status: ready ? "ok" : "unavailable" };
+    c.header("Cache-Control", "no-store");
+    return c.json(body, ready ? 200 : 503);
+  };
+}

@@ -698,6 +698,55 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D06.3",
+    ready: true,
+    title: "One ordered shutdown with a deadline: readiness, requests, logger, database, lease",
+    criteria: ["D06.3-AC1", "D06.3-AC2", "D06.3-regression"],
+    checks: [
+      {
+        // Runs first: the process tests start the built server.
+        id: "workspace-build",
+        criteria: ["D06.3-AC1", "D06.3-AC2"],
+        description: "pnpm -r build produces the shutdown sequence, readiness and the drain",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/bootstrap/shutdown.ts", "apps/server/src/bootstrap/readiness.ts"],
+      },
+      {
+        id: "shutdown-sequence-unit",
+        criteria: ["D06.3-AC1", "D06.3-AC2"],
+        description: "Step order and reports, deadline without a success event, failing step, ignored second signal (fake clock)",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/lifecycle"],
+        requires: ["tests/unit/lifecycle/shutdown.test.ts"],
+      },
+      {
+        id: "shutdown-process",
+        criteria: ["D06.3-AC1", "D06.3-AC2"],
+        description: "Real SIGTERM/SIGINT: readiness 503, request in progress finished, lease last, 15 s deadline with exit 1, intact database after it",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/lifecycle"],
+        requires: ["tests/integration/lifecycle/shutdown.test.ts"],
+        timeoutMs: 5 * 60 * 1000,
+      },
+      {
+        id: "lifecycle-regression",
+        criteria: ["D06.3-regression"],
+        description: "D02.1 HTTP behaviour including SIGTERM, the D04.1 lease and gate cases and the D06 logging tests still hold",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/http", "tests/integration/maintenance/writer-lease.test.ts", "tests/integration/maintenance/maintenance-gate.test.ts", "tests/integration/logging"],
+        requires: ["tests/integration/http/server.test.ts", "tests/integration/maintenance/writer-lease.test.ts"],
+        timeoutMs: 5 * 60 * 1000,
+      },
+      ...regressionChecks("D06.3-regression"),
+    ],
+  },
+  {
+    // The parent passes only through its work orders, D06.2 including the container check.
+    id: "D06",
+    ready: true,
+    title: "Technical logger, rotation and the ordered shutdown",
+    steps: ["D06.1", "D06.2", "D06.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",

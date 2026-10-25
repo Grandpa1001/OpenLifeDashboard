@@ -14,36 +14,27 @@ export function startServer(app: Hono<AppEnv>, host: string, port: number): Prom
   });
 }
 
+const IDLE_SWEEP_MS = 50;
+
 /**
- * SIGTERM/SIGINT stop accepting connections and let started requests finish; `afterClose` then
- * releases what must outlive HTTP, ending with the writer lease. Exceeding the deadline ends the
- * process with an error instead of a success message, and the exit releases the lease
- * (Architektura §15.2). Readiness and the logger join this sequence in D06.
+ * Stops accepting connections and resolves when every started request has finished. A
+ * connection with a request in progress (also one that has not finished sending its headers) is
+ * waited for until the shutdown deadline; idle keep-alive connections are closed, and a
+ * connection that becomes idle only after this started (its last request finished) is closed at
+ * the next sweep instead of waiting for the keep-alive timeout.
  */
-export function stopOnSignals(server: ServerType, timeoutMs: number, afterClose: () => void): void {
-  let stopping = false;
-  const stop = (signal: NodeJS.Signals): void => {
-    if (stopping) {
-      return;
-    }
-    stopping = true;
-    console.log(JSON.stringify({ event: "server.stopping", signal }));
-    const deadline = setTimeout(() => {
-      console.error(JSON.stringify({ event: "server.stop_timeout", timeoutMs }));
-      process.exit(1);
-    }, timeoutMs);
-    deadline.unref();
-    server.close((error) => {
-      clearTimeout(deadline);
-      afterClose();
-      if (error) {
-        console.error(JSON.stringify({ event: "server.stop_failed", error: error.name }));
-        process.exitCode = 1;
-        return;
+export function drainServer(server: ServerType): Promise<void> {
+  return new Promise((resolveDrained, rejectDrained) => {
+    const closeIdle = (): void => {
+      if ("closeIdleConnections" in server) {
+        server.closeIdleConnections();
       }
-      console.log(JSON.stringify({ event: "server.stopped" }));
+    };
+    const sweep = setInterval(closeIdle, IDLE_SWEEP_MS);
+    server.close((error) => {
+      clearInterval(sweep);
+      return error ? rejectDrained(error) : resolveDrained();
     });
-  };
-  process.once("SIGTERM", stop);
-  process.once("SIGINT", stop);
+    closeIdle();
+  });
 }

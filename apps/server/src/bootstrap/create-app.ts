@@ -7,6 +7,7 @@ import type { AppEnv } from "../http/app-env.js";
 import { installHttpFoundation } from "../http/foundation.js";
 import { publicBootstrap } from "../http/routes/bootstrap.routes.js";
 import { health } from "../http/routes/health.routes.js";
+import type { Readiness } from "./readiness.js";
 import { spaFallback, webAssets } from "../http/spa.js";
 
 export type AppDependencies = Readonly<{
@@ -16,6 +17,7 @@ export type AppDependencies = Readonly<{
   indexHtml: string;
   newRequestId: () => string;
   logger: TechnicalLogger;
+  readiness: Readiness;
   /** Monotonic milliseconds for request durations. */
   nowMs: () => number;
 }>;
@@ -27,7 +29,7 @@ export type AppDependencies = Readonly<{
 export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
   installHttpFoundation(app, dependencies);
-  app.get(HEALTH_PATH, health);
+  app.get(HEALTH_PATH, health(dependencies.readiness));
   app.get(PUBLIC_BOOTSTRAP_PATH, publicBootstrap);
   app.all("/api", apiNotFound);
   app.all("/api/*", apiNotFound);

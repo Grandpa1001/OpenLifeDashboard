@@ -36,10 +36,8 @@ jobs:
         run: pnpm verify:task -- D04
       - name: Verify D05 (D05.1–D05.3, Docker on the runner)
         run: pnpm verify:task -- D05
-      - name: Verify D06.1 (technical logger and request IDs)
-        run: pnpm verify:task -- D06.1
-      - name: Verify D06.2 (log rotation and degraded logging, Docker on the runner)
-        run: pnpm verify:task -- D06.2
+      - name: Verify D06 (D06.1–D06.3, Docker on the runner)
+        run: pnpm verify:task -- D06
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

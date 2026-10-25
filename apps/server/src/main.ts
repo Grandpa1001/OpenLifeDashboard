@@ -23,7 +23,9 @@ import { createApp } from "./bootstrap/create-app.js";
 import { logLimitsFrom } from "./bootstrap/log-limits.js";
 import { readBuildInfo } from "./bootstrap/build-info.js";
 import { openInstallationDatabase } from "./bootstrap/database.js";
-import { startServer, stopOnSignals } from "./bootstrap/lifecycle.js";
+import { drainServer, startServer } from "./bootstrap/lifecycle.js";
+import { createReadiness } from "./bootstrap/readiness.js";
+import { createShutdown } from "./bootstrap/shutdown.js";
 import { LOG_MIN_LEVEL, LOG_SERVICE, SHUTDOWN_TIMEOUT_MS } from "./bootstrap/runtime-defaults.js";
 import { parseStartOptions } from "./bootstrap/start-options.js";
 
@@ -137,16 +139,33 @@ const logger = createTechnicalLogger({
   now: () => new Date(),
   sinks: [stdoutSink, logFile],
 });
-const app = createApp({ webRoot, indexHtml, newRequestId: randomUUID, logger, nowMs: () => performance.now() });
+const readiness = createReadiness();
+const app = createApp({ webRoot, indexHtml, newRequestId: randomUUID, logger, readiness, nowMs: () => performance.now() });
 try {
   const { server, address } = await startServer(app, host, port);
-  // After HTTP the database closes, and the lease goes last (§15.2).
-  stopOnSignals(server, SHUTDOWN_TIMEOUT_MS, () => {
-    database.connection.close();
-    clearInterval(retentionSweep);
-    logFile.close();
-    writer.lease.release();
+  // One ordered sequence (§15.2): readiness, started requests, logger, database, and the writer
+  // lease last, under one deadline.
+  const shutdown = createShutdown({
+    steps: [
+      { name: "readiness", run: () => readiness.withdraw() },
+      { name: "http", run: () => drainServer(server) },
+      {
+        name: "logger",
+        run: () => {
+          clearInterval(retentionSweep);
+          logFile.close();
+        },
+      },
+      { name: "database", run: () => database.connection.close() },
+      { name: "lease", run: () => writer.lease.release() },
+    ],
+    timeoutMs: SHUTDOWN_TIMEOUT_MS,
+    report: (event, stream) => (stream === "stdout" ? console.log : console.error)(JSON.stringify(event)),
+    exit: (code) => process.exit(code),
   });
+  for (const signal of ["SIGTERM", "SIGINT"] as const) {
+    process.once(signal, () => void shutdown(signal));
+  }
   console.log(JSON.stringify({ event: "server.listening", host: address.address, port: address.port }));
 } catch (error) {
   fail(`cannot listen on ${host}:${port} (${error instanceof Error && "code" in error ? String(error.code) : "unknown error"})`);
