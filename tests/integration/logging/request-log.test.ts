@@ -12,7 +12,7 @@ import { serve } from "@hono/node-server";
 import { apiErrorSchema, REQUEST_ID_HEADER } from "@openlife/contracts/http/errors";
 import { Hono } from "hono";
 import { afterAll, describe, expect, it } from "vitest";
-import { openAppLogFile } from "../../../apps/server/dist/adapters/logging/file-sink.js";
+import { createRotatingFileSink } from "../../../apps/server/dist/adapters/logging/rotating-file-sink.js";
 import { createTechnicalLogger } from "../../../apps/server/dist/adapters/logging/technical-logger.js";
 import { installHttpFoundation } from "../../../apps/server/dist/http/foundation.js";
 import type { AppEnv } from "../../../apps/server/dist/http/app-env.js";
@@ -56,8 +56,12 @@ function expectOnlyAllowedFields(line: Line): void {
 /** The production foundation with extra routes, served on an ephemeral port with a real file sink. */
 async function composedApp() {
   const logDir = mkdtempSync(path.join(scratch, "logs-"));
-  const fileSink = openAppLogFile(logDir);
-  if (!fileSink) throw new Error("the log file could not be opened");
+  const fileSink = createRotatingFileSink({
+    dir: logDir,
+    limits: () => ({ fileMaxBytes: 10 * 1024 * 1024, maxFiles: 5, retentionDays: 14 }),
+    now: () => new Date(),
+    notify: () => undefined,
+  });
   const captured: string[] = [];
   const logger = createTechnicalLogger({
     identity: { service: "app", appVersion: "0.0.0", instanceId: randomUUID() },
@@ -86,7 +90,15 @@ async function composedApp() {
     const server = serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 0 }, (address) => resolve({ port: address.port, close: () => server.close() }));
   });
   servers.push(started);
-  return { base: `http://127.0.0.1:${started.port}`, captured, file: () => readFileSync(fileSink.file, "utf8") };
+  return {
+    base: `http://127.0.0.1:${started.port}`,
+    captured,
+    // The sink writes in a later turn of the event loop: flush before reading.
+    file: () => {
+      fileSink.flush();
+      return readFileSync(fileSink.status().file, "utf8");
+    },
+  };
 }
 
 const secretHeaders = {

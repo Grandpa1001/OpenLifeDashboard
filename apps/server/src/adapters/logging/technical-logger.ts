@@ -32,7 +32,7 @@ export interface TechnicalLogger {
   log(event: LogEvent): void;
 }
 
-/** A destination of finished lines; stdout always, the rotating file from D06.2 on. */
+/** A destination of finished lines: stdout always, the rotating file when it is usable. */
 export interface LogSink {
   write(line: string): void;
 }
@@ -58,6 +58,7 @@ const SHAPES = {
   method: /^[A-Z]{3,10}$/,
   route: /^\/[\x21-\x7e]{0,119}$/,
   version: /^[0-9A-Za-z.+-]{1,64}$/,
+  service: /^[a-z][a-z0-9_-]{0,31}$/,
 } as const;
 const REJECTED_EVENT = "log.event_rejected";
 const MAX_STATUS = 599;
@@ -120,8 +121,10 @@ export function formatLogLine(options: LoggerOptions, input: LogEvent): string |
 }
 
 export function createTechnicalLogger(options: LoggerOptions): TechnicalLogger {
-  if (!text(SHAPES.version)(options.identity.appVersion)) {
-    throw new RangeError("the logger's appVersion is not a plain version string");
+  // The identity is written into every line: it is bounded like every other field.
+  const { service, appVersion, instanceId } = options.identity;
+  if (!text(SHAPES.service)(service) || !text(SHAPES.version)(appVersion) || !text(SHAPES.id)(instanceId)) {
+    throw new RangeError("the logger's identity (service, appVersion, instanceId) has an unexpected shape");
   }
   return {
     log(event) {

@@ -151,10 +151,11 @@ export function parseEnvironment(env: RawEnvironment): EnvironmentResult {
   }
   // The public settings catalog names the env variables allowed to override an option.
   const overrides: Record<string, number> = {};
-  for (const { key, envOverride } of SETTINGS_CATALOG) {
-    const value = integer(envOverride);
+  for (const definition of SETTINGS_CATALOG) {
+    // Options without an env override (the log rotation limits) are changed only in the UI.
+    const value = "envOverride" in definition ? integer(definition.envOverride) : undefined;
     if (value !== undefined) {
-      overrides[key] = value;
+      overrides[definition.key] = value;
     }
   }
 

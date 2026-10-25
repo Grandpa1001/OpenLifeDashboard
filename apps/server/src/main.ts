@@ -12,13 +12,15 @@ import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
 import { CONTAINER_WORKING_PATHS, installationWorkingPaths } from "./adapters/filesystem/installation-paths.js";
 import { createDatabaseSnapshots } from "./adapters/filesystem/database-snapshots.js";
 import { openMaintenanceGate } from "./adapters/filesystem/maintenance-gate.js";
-import { openAppLogFile } from "./adapters/logging/file-sink.js";
+import { LOG_RETENTION_SWEEP_MS } from "./adapters/logging/limits.js";
+import { createRotatingFileSink } from "./adapters/logging/rotating-file-sink.js";
 import { stdoutSink } from "./adapters/logging/stdout-sink.js";
 import { createTechnicalLogger } from "./adapters/logging/technical-logger.js";
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
 import { loadBootstrapConfig } from "./bootstrap/bootstrap-config.js";
 import { createApp } from "./bootstrap/create-app.js";
+import { logLimitsFrom } from "./bootstrap/log-limits.js";
 import { readBuildInfo } from "./bootstrap/build-info.js";
 import { openInstallationDatabase } from "./bootstrap/database.js";
 import { startServer, stopOnSignals } from "./bootstrap/lifecycle.js";
@@ -117,14 +119,23 @@ console.log(
   }),
 );
 
-// The technical log: stdout always, data/logs/app/app.jsonl when the folder is usable (an
-// unusable one was reported as degraded by the preflight and costs no start).
-const logFile = preflight.degraded.includes("logs") ? undefined : openAppLogFile(workingPaths.logs);
+// The technical log: stdout always and data/logs/app/app.jsonl, rotated within the logs.* limits.
+// A file that cannot be written makes the sink degraded (reported on stderr, retried later), never
+// a failed start or a failed request; the preflight has already reported an unusable folder.
+const logFile = createRotatingFileSink({
+  dir: workingPaths.logs,
+  limits: logLimitsFrom(() => settings),
+  now: () => new Date(),
+  notify: (line) => process.stderr.write(line),
+});
+logFile.enforceRetention();
+const retentionSweep = setInterval(logFile.enforceRetention, LOG_RETENTION_SWEEP_MS);
+retentionSweep.unref();
 const logger = createTechnicalLogger({
   identity: { service: LOG_SERVICE, appVersion: build.appVersion, instanceId: paths.instanceId },
   minLevel: LOG_MIN_LEVEL,
   now: () => new Date(),
-  sinks: logFile === undefined ? [stdoutSink] : [stdoutSink, logFile],
+  sinks: [stdoutSink, logFile],
 });
 const app = createApp({ webRoot, indexHtml, newRequestId: randomUUID, logger, nowMs: () => performance.now() });
 try {
@@ -132,7 +143,8 @@ try {
   // After HTTP the database closes, and the lease goes last (§15.2).
   stopOnSignals(server, SHUTDOWN_TIMEOUT_MS, () => {
     database.connection.close();
-    logFile?.close();
+    clearInterval(retentionSweep);
+    logFile.close();
     writer.lease.release();
   });
   console.log(JSON.stringify({ event: "server.listening", host: address.address, port: address.port }));

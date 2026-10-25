@@ -652,6 +652,52 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D06.2",
+    ready: true,
+    title: "Log rotation, limits, bounded queue and the degraded state of the log file",
+    criteria: ["D06.2-AC1", "D06.2-AC2", "D06.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built sink, logger and server.
+        id: "workspace-build",
+        criteria: ["D06.2-AC1", "D06.2-AC2"],
+        description: "pnpm -r build produces the rotating sink, the limit mapping and the log options of the catalog",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/adapters/logging/rotating-file-sink.ts", "packages/contracts/src/settings/catalog.ts"],
+      },
+      {
+        id: "rotating-sink-file-system",
+        criteria: ["D06.2-AC1", "D06.2-AC2"],
+        description: "Rotation by size and count, retention by the clock, whole lines, 16 KiB/1 MiB limits, read-only folder, recovery, DB write while degraded",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/logging/rotating-file-sink.test.ts"],
+        requires: ["tests/integration/logging/rotating-file-sink.test.ts", "tests/support/test-ports.ts"],
+      },
+      {
+        id: "server-degraded-logs",
+        criteria: ["D06.2-AC2"],
+        description: "Built server with an unwritable log folder: serves, request lines on stdout, one notice; rotation options with defaults",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/logging/log-degraded.test.ts"],
+        requires: ["tests/integration/logging/log-degraded.test.ts"],
+      },
+      {
+        id: "container-log-space-native",
+        criteria: ["D06.2-AC2"],
+        description: "In the image: a log folder out of space (ENOSPC) → degraded, whole lines only, stdout complete, recovery after space is freed",
+        command: ["node", "tests/system/container-log-space.ts"],
+        requires: ["tests/system/container-log-space.ts", "tests/system/in-container/log-space.mjs", "docker/Dockerfile"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      {
+        id: "logging-regression",
+        criteria: ["D06.2-regression"],
+        description: "D06.1 logger, request IDs and secret scans, the settings resolver and the F08 bootstrap cases still hold",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit", "tests/integration/logging/request-log.test.ts", "tests/integration/bootstrap"],
+        requires: ["tests/integration/logging/request-log.test.ts", "tests/unit/settings/resolve-settings.test.ts"],
+      },
+      ...regressionChecks("D06.2-regression"),
+    ],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",

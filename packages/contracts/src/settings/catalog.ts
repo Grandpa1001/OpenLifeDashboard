@@ -1,7 +1,8 @@
 // Public catalog of configurable application options (Architektura §14.1, §14.3). It is the
 // single definition of key, type, default, range, editability, how a change applies and the
 // environment override allowed for it. Secrets are never described here (§14.5).
-// D03.2 contains the options read at bootstrap; D41 extends the catalog with the rest of §14.
+// D03.2 contains the options read at bootstrap, D06.2 adds the log rotation limits; D41 extends
+// the catalog with the rest of §14.
 
 export type IntegerSettingDefinition = Readonly<{
   key: string;
@@ -9,7 +10,7 @@ export type IntegerSettingDefinition = Readonly<{
   defaultValue: number;
   min: number;
   max: number;
-  unit: "KiB" | "MiB";
+  unit: "KiB" | "MiB" | "files" | "days";
   level: "app";
   /** Whether the owner may change it in the UI (D41/D42); deployment options stay read-only. */
   editable: boolean;
@@ -80,6 +81,48 @@ export const SETTINGS_CATALOG = [
     stepUp: false,
     envOverride: "JSON_BODY_KIB",
     labelKey: "settings:options.jsonBody",
+  },
+  {
+    key: "logs.fileMaxMiB",
+    type: "integer",
+    defaultValue: 10,
+    min: 1,
+    max: 50,
+    unit: "MiB",
+    level: "app",
+    editable: true,
+    // Read at each rotation decision, so a change takes effect with the next rotation.
+    apply: "immediate",
+    stepUp: false,
+    labelKey: "settings:options.logsFileMax",
+  },
+  {
+    key: "logs.maxFiles",
+    type: "integer",
+    defaultValue: 5,
+    min: 2,
+    max: 20,
+    unit: "files",
+    level: "app",
+    editable: true,
+    // Per service and including the active file.
+    apply: "immediate",
+    stepUp: false,
+    labelKey: "settings:options.logsMaxFiles",
+  },
+  {
+    key: "logs.retentionDays",
+    type: "integer",
+    defaultValue: 14,
+    min: 1,
+    max: 90,
+    unit: "days",
+    level: "app",
+    editable: true,
+    // Deletes only rotated log files, never the database or backups.
+    apply: "immediate",
+    stepUp: false,
+    labelKey: "settings:options.logsRetention",
   },
 ] as const satisfies readonly SettingDefinition[];
 
