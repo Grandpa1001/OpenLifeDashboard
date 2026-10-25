@@ -1,17 +1,20 @@
-// Storage preflight (Architektura §14.5, §15.2): before any database work the required
-// directories must be real directories inside their mount root and accept a create/read/delete
-// probe, and the data file system must keep the configured reserve. Nothing is created,
+// Storage preflight (Architektura §14.5, §15.2): before any database work, in a container the
+// data and maintenance roots must really be mounted (otherwise the process would create a new
+// installation in the container's own file system), the required directories must be real
+// directories inside their mount root and accept a create/read/delete probe, and the data file
+// system must keep the configured reserve. Nothing is created,
 // repaired or re-permissioned here; a missing or wrong directory is reported, not fixed.
 import { randomBytes } from "node:crypto";
 import { closeSync, lstatSync, openSync, readFileSync, realpathSync, statfsSync, unlinkSync, writeSync } from "node:fs";
 import path from "node:path";
 import type { WorkingPaths } from "./installation-paths.js";
+import { readMountPoints } from "./mounts.js";
 
 export type StorageRole = "data" | "backups" | "tmp" | "maintenance" | "logs";
 
 export type PreflightResult =
   | Readonly<{ ok: true; degraded: readonly StorageRole[] }>
-  | Readonly<{ ok: false; code: "STORAGE_UNWRITABLE" | "STORAGE_LOW_SPACE"; fields: readonly StorageRole[] }>;
+  | Readonly<{ ok: false; code: "STORAGE_UNWRITABLE" | "STORAGE_LOW_SPACE" | "STORAGE_NOT_MOUNTED"; fields: readonly StorageRole[] }>;
 
 const MIB = 1024 * 1024;
 const PROBE_PREFIX = ".openlife-preflight-";
@@ -52,7 +55,20 @@ function usable(dir: string, root: string): boolean {
   }
 }
 
-export function runStoragePreflight(paths: WorkingPaths, reserveMiB: number): PreflightResult {
+/** Reads the mount table of the process; replaceable for tests of the decision. */
+export type MountTable = () => ReadonlySet<string> | undefined;
+
+export function runStoragePreflight(paths: WorkingPaths, reserveMiB: number, mountTable: MountTable = readMountPoints): PreflightResult {
+  if (paths.requireMounts) {
+    // An unreadable table proves nothing, so it counts as "not mounted": fail closed.
+    const mounted = mountTable();
+    const missing: StorageRole[] = [];
+    if (!mounted?.has(paths.roots.data)) missing.push("data");
+    if (!mounted?.has(paths.roots.maintenance)) missing.push("maintenance");
+    if (missing.length > 0) {
+      return { ok: false, code: "STORAGE_NOT_MOUNTED", fields: missing };
+    }
+  }
   const critical: ReadonlyArray<readonly [StorageRole, string, string]> = [
     ["data", path.dirname(paths.database), paths.roots.data],
     ["backups", paths.backups, paths.roots.data],

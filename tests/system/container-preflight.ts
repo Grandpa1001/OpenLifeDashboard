@@ -1,7 +1,8 @@
 // D03.4-AC2 — storage preflight inside the app image, run by its non-root user on this host's
-// native architecture: a read-only file system stops the start (STORAGE_UNWRITABLE), a data
-// mount smaller than the disk reserve stops it (STORAGE_LOW_SPACE), and an unwritable log
-// folder only degrades it. No output may contain the installation secrets.
+// native architecture: read-only mounts stop the start (STORAGE_UNWRITABLE), a data mount smaller
+// than the disk reserve stops it (STORAGE_LOW_SPACE), and an unwritable log folder only degrades
+// it. Since D07.2 the folders are real mounts, as the image demands. No output may contain the
+// installation secrets.
 import { randomBytes } from "node:crypto";
 import { rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -14,7 +15,7 @@ import { repoRoot } from "../support/repository-copy.ts";
 const IMAGE = "openlife-app:verify-d03-preflight";
 const CONTAINER = `openlife-d03-${randomBytes(4).toString("hex")}`;
 // Far below the default 512 MiB reserve (backup.diskReserveMiB).
-const SMALL_DATA_MOUNT = "size=32m,mode=1777";
+const SMALL_DATA_MOUNT = "size=32m";
 const START_WITH_DATA_DIRS = "mkdir -p /data/backup /data/logs/app /data/tmp && exec node apps/server/dist/main.js --host 0.0.0.0";
 const READY_TIMEOUT_MS = 60_000;
 
@@ -39,21 +40,21 @@ const outputs: Record<string, string> = {};
 try {
   const build = buildAppImage(IMAGE, platform, repoRoot);
   if (check.expect(build.status === 0, `docker build --platform ${platform} exits 0`, build.output)) {
-    const base = ["run", "--rm", "--platform", platform, ...containerInstanceArgs(instance)];
+    const base = ["run", "--rm", "--platform", platform];
     const uid = docker(["run", "--rm", "--entrypoint", "id", IMAGE, "-u"], repoRoot).output.trim();
     check.expect(uid !== "" && uid !== "0", `the image runs the check as non-root uid ${uid}`);
 
-    const readOnly = docker([...base, "--read-only", IMAGE], repoRoot);
+    const readOnly = docker([...base, ...containerInstanceArgs(instance, { data: "read-only", maintenance: "read-only" }), IMAGE], repoRoot);
     outputs["readOnly"] = readOnly.output;
-    check.expect(readOnly.status === 1, `read-only file system → exit 1 (got ${readOnly.status})`, readOnly.output);
+    check.expect(readOnly.status === 1, `read-only mounts → exit 1 (got ${readOnly.status})`, readOnly.output);
     check.expect(
       failure(readOnly.output)?.["code"] === "STORAGE_UNWRITABLE" &&
         JSON.stringify(fieldsOf(failure(readOnly.output))) === JSON.stringify(["backups", "data", "maintenance", "tmp"]),
-      "read-only file system → STORAGE_UNWRITABLE for every critical folder",
+      "read-only mounts → STORAGE_UNWRITABLE for every critical folder",
       readOnly.output,
     );
 
-    const small = docker([...base, "--tmpfs", `/data:${SMALL_DATA_MOUNT}`, "--entrypoint", "sh", IMAGE, "-c", START_WITH_DATA_DIRS], repoRoot);
+    const small = docker([...base, ...containerInstanceArgs(instance, { data: { tmpfs: SMALL_DATA_MOUNT } }), "--entrypoint", "sh", IMAGE, "-c", START_WITH_DATA_DIRS], repoRoot);
     outputs["lowSpace"] = small.output;
     check.expect(small.status === 1, `32 MiB data mount → exit 1 (got ${small.status})`, small.output);
     check.expect(

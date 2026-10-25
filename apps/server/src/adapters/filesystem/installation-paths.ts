@@ -40,11 +40,19 @@ export type InstallationPaths = Readonly<{
  * container (development, tests) gets an installation folder with the host layout instead.
  */
 export type WorkingPaths = Readonly<Record<PathRole, string>> &
-  Readonly<{ roots: Readonly<{ data: string; maintenance: string }> }>;
+  Readonly<{
+    roots: Readonly<{ data: string; maintenance: string }>;
+    /**
+     * True in the image: the two roots must be mount points of the installation's folders. False
+     * for a process outside a container, whose roots are plain folders of an installation.
+     */
+    requireMounts: boolean;
+  }>;
 
 export const CONTAINER_WORKING_PATHS: WorkingPaths = {
   ...CONTAINER_PATHS,
   roots: { data: "/data", maintenance: CONTAINER_PATHS.maintenance },
+  requireMounts: true,
 };
 
 export function installationWorkingPaths(installationDir: string): WorkingPaths {
@@ -57,6 +65,7 @@ export function installationWorkingPaths(installationDir: string): WorkingPaths 
     instanceFile: at("instanceFile"),
     maintenance: at("maintenance"),
     roots: { data: path.join(installationDir, "data"), maintenance: at("maintenance") },
+    requireMounts: false,
   };
 }
 

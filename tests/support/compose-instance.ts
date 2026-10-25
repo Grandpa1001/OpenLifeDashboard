@@ -4,6 +4,7 @@
 // Architektura §14.4 in .env (PORT, the host user, COMPOSE_PROJECT_NAME and COMPOSE_FILE with the
 // release file LAST). The installer (D19) takes this over. A non-empty folder is still refused.
 import { appendFileSync, copyFileSync, constants, readFileSync, writeFileSync } from "node:fs";
+import net from "node:net";
 import path from "node:path";
 import { prepareTestInstance, type TestInstance } from "./test-instance.ts";
 import { repoRoot } from "./repository-copy.ts";
@@ -55,4 +56,14 @@ export function prepareComposeInstance(dir: string, options: ComposeInstanceOpti
   };
   appendFileSync(instance.envFile, `${Object.entries(lines).map(([key, value]) => `${key}=${value}`).join("\n")}\n`);
   return { ...instance, port: options.port, projectName, composeFiles: COMPOSE_FILES };
+}
+
+/** A port that is free on the loopback address right now (a harness picks one per installation). */
+export function freeLoopbackPort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer().once("error", reject).listen(0, "127.0.0.1", () => {
+      const { port } = server.address() as net.AddressInfo;
+      server.close(() => resolve(port));
+    });
+  });
 }

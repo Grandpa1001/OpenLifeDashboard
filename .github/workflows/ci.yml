@@ -40,6 +40,8 @@ jobs:
         run: pnpm verify:task -- D06
       - name: Verify D07.1 (Compose local mode, Docker on the runner)
         run: pnpm verify:task -- D07.1
+      - name: Verify D07.2 (persistence on Compose mounts, Docker on the runner)
+        run: pnpm verify:task -- D07.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

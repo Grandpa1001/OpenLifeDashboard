@@ -26,8 +26,10 @@ COPY --from=build /workspace/apps/web/dist apps/web/dist
 # Source revision of this build for snapshot metadata (apps/server/src/bootstrap/build-info.ts).
 ARG BUILD_REVISION=development
 RUN printf '{"buildRevision":"%s"}\n' "$BUILD_REVISION" > apps/server/build-info.json
-# Mount points of Architektura §15.1. Compose binds the installation folders here (D07); the
-# image provides them owned by the runtime user so a container without mounts still starts.
+# Mount points of Architektura §15.1. Compose binds the installation folders here (D07). The
+# folders exist so Docker has targets, but the server refuses to start unless /data and
+# /control/maintenance are really mounted (STORAGE_NOT_MOUNTED, D07.2): a container without its
+# mounts must not create an installation in its own file system, lost with the container.
 RUN mkdir -p /data/backup /data/logs/app /data/tmp /control/maintenance /instance \
  && chown -R node:node /data /control
 USER node

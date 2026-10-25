@@ -67,13 +67,37 @@ export function buildAppImage(tag: string, platform: string, cwd: string): RunRe
 }
 
 /**
- * A fresh test installation on the host whose environment and instance.json a container gets
- * through `containerInstanceArgs`; data stays in the container's own /data (the image owns it).
+ * A fresh test installation on the host. A container gets its environment, its folders and
+ * instance.json through `containerInstanceArgs`: since D07.2 the image refuses to start without
+ * real mounts of /data and /control/maintenance, so a test container always mounts them.
  */
 export function hostTestInstance(): TestInstance {
   return prepareTestInstance(path.join(mkdtempSync(path.join(os.tmpdir(), "openlife-container-")), "instance"));
 }
 
-export function containerInstanceArgs(instance: TestInstance): string[] {
-  return ["--env-file", instance.envFile, "--volume", `${instance.instanceFile}:${CONTAINER_PATHS.instanceFile}:ro`];
+export type ContainerMounts = Readonly<{
+  /** /data: the installation's data folder (default), the same read-only, or a tmpfs (options as for --tmpfs). */
+  data?: "bind" | "read-only" | "none" | Readonly<{ tmpfs: string }>;
+  /** /control/maintenance: the installation's folder (default), the same read-only, or no mount at all. */
+  maintenance?: "bind" | "read-only" | "none";
+}>;
+
+/**
+ * Arguments that give a container one installation: env file, the host user (so the bind mounts
+ * are writable without chmod 777), the two writable mounts of Architektura §15.1 and instance.json
+ * read-only. Variants are for the tests of what the preflight does with a bad mount.
+ */
+export function containerInstanceArgs(instance: TestInstance, mounts: ContainerMounts = {}): string[] {
+  const data = mounts.data ?? "bind";
+  const maintenance = mounts.maintenance ?? "bind";
+  const user = `${process.getuid?.() ?? 1000}:${process.getgid?.() ?? 1000}`;
+  const bind = (source: string, target: string, mode: "bind" | "read-only" | "none"): string[] =>
+    mode === "none" ? [] : ["--volume", `${source}:${target}${mode === "read-only" ? ":ro" : ""}`];
+  return [
+    "--env-file", instance.envFile,
+    "--user", user,
+    ...(typeof data === "object" ? ["--tmpfs", `/data:${data.tmpfs},mode=1777`] : bind(path.join(instance.dir, "data"), "/data", data)),
+    ...bind(path.join(instance.dir, "control", "maintenance"), CONTAINER_PATHS.maintenance, maintenance),
+    "--volume", `${instance.instanceFile}:${CONTAINER_PATHS.instanceFile}:ro`,
+  ];
 }

@@ -14,7 +14,7 @@ import path from "node:path";
 import { isJsonObject, type JsonObject } from "../../scripts/support/workspaces.ts";
 import { EVIDENCE_DIR_ENV } from "../../tooling/verification-tasks.ts";
 import { createCheck } from "../support/check-report.ts";
-import { prepareComposeInstance } from "../support/compose-instance.ts";
+import { freeLoopbackPort, prepareComposeInstance } from "../support/compose-instance.ts";
 import { buildAppImage, docker, requireNativeDocker } from "../support/docker.ts";
 import { repoRoot } from "../support/repository-copy.ts";
 
@@ -34,14 +34,6 @@ if (probe.status !== 0) {
   process.exit(process.exitCode ?? 1);
 }
 
-const freePort = (): Promise<number> =>
-  new Promise((resolve, reject) => {
-    const server = net.createServer().once("error", reject).listen(0, "127.0.0.1", () => {
-      const { port } = server.address() as net.AddressInfo;
-      server.close(() => resolve(port));
-    });
-  });
-
 const object = (value: unknown): JsonObject => (isJsonObject(value) ? value : {});
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 
@@ -60,7 +52,7 @@ let instanceDir: string | undefined;
 try {
   const build = buildAppImage(IMAGE, platform, repoRoot);
   if (check.expect(build.status === 0, `docker build --platform ${platform} exits 0`, build.output)) {
-    const port = await freePort();
+    const port = await freeLoopbackPort();
     const instance = prepareComposeInstance(path.join(root, "installation"), {
       image: IMAGE,
       port,
@@ -84,7 +76,7 @@ try {
 
     // A missing required variable is a clear error naming it, not a silent default.
     const brokenDir = path.join(root, "broken");
-    const broken = prepareComposeInstance(brokenDir, { image: IMAGE, port: await freePort() });
+    const broken = prepareComposeInstance(brokenDir, { image: IMAGE, port: await freeLoopbackPort() });
     const envText = readFileSync(broken.envFile, "utf8").split("\n").filter((line) => !line.startsWith("BETTER_AUTH_SECRET=")).join("\n");
     writeFileSync(broken.envFile, envText);
     const refused = docker(["compose", "config"], brokenDir);

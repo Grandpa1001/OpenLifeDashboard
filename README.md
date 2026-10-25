@@ -61,6 +61,8 @@ pnpm prepare:test-instance -- ../openlife-compose --image openlifedashboard:dev 
 cd ../openlife-compose && docker compose up --detach --wait
 ```
 
+The image refuses to start unless `/data` and `/control/maintenance` are really mounted (`STORAGE_NOT_MOUNTED`), so a container started by hand without them cannot create a second installation inside itself; `docker compose down` removes the container and keeps all data in the mounted folders.
+
 `pnpm verify:task -- D07.1` checks the compose files statically and, with Docker, runs them for real (healthy, non-root, loopback only, mounts, stop within 20 s); without Docker the real run is blocked.
 
 ### Container image

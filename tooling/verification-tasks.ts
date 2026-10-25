@@ -778,6 +778,45 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D07.2",
+    ready: true,
+    title: "Persistence on real mounts: restarts, recreate, and no installation without its mounts",
+    criteria: ["D07.2-AC1", "D07.2-AC2", "D07.2-regression"],
+    checks: [
+      {
+        // Runs first: the system test reads the installation from the host with the built adapters.
+        id: "workspace-build",
+        criteria: ["D07.2-AC1", "D07.2-AC2"],
+        description: "pnpm -r build produces the mount check of the preflight and the adapters the test reads with",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/adapters/filesystem/mounts.ts", "apps/server/src/adapters/filesystem/storage-preflight.ts"],
+      },
+      {
+        id: "mount-table-and-preflight",
+        criteria: ["D07.2-AC2"],
+        description: "Mount table parsing and the preflight decision: missing data/maintenance mounts, unreadable table, subfolders, host mode",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/bootstrap/storage-mounts.test.ts"],
+        requires: ["tests/unit/bootstrap/storage-mounts.test.ts"],
+      },
+      {
+        id: "compose-persistence-native",
+        criteria: ["D07.2-AC1", "D07.2-AC2"],
+        description: "Real Compose: manifest, installation ID, gate, snapshot and log survive restart ×2 and down/up; no mount → STORAGE_NOT_MOUNTED and nothing created",
+        command: ["node", "tests/system/compose-persistence.ts"],
+        requires: ["tests/system/compose-persistence.ts", "tests/system/in-container/create-snapshot.mjs", "docker/compose.yml"],
+        timeoutMs: 25 * 60 * 1000,
+      },
+      {
+        id: "bootstrap-regression",
+        criteria: ["D07.2-regression"],
+        description: "The F08 bootstrap cases, the preflight on a real file system and the D07.1 files still hold",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/bootstrap", "tests/integration/bootstrap", "tests/unit/compose", "tests/integration/compose"],
+        requires: ["tests/integration/bootstrap/storage-preflight.test.ts", "tests/unit/compose/compose-files.test.ts"],
+      },
+      ...regressionChecks("D07.2-regression"),
+    ],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",
