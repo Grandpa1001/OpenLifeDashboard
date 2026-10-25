@@ -1,6 +1,7 @@
 // What the kernel says about a TCP connection between this test process and a server process on
-// the loopback address. A test that must know the server has READ the bytes it was sent (not only
-// that they arrived) cannot learn it from the server, and a fixed wait fails on a loaded machine.
+// the loopback address. A test that must know the server has accepted the connection and READ the
+// bytes it was sent (not only that they arrived) cannot learn it from the server, and a fixed
+// wait is a guess on a loaded machine.
 // On Linux /proc/net/tcp has both ends of the connection: nothing is left unacknowledged on the
 // client's side (tx_queue) and nothing is left unread on the server's side (rx_queue). Elsewhere
 // there is no such table and only a pause is possible: a local convenience, not a proof.

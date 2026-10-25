@@ -237,7 +237,8 @@ try {
         result.output,
       );
       check.expect(!result.output.includes('"bootstrap.ready"') && !result.output.includes('"server.listening"'), `${name}: it never reported ready or listening`);
-      check.expect(!/app\.db|state\.json|writer\.lock|app\.jsonl|instance\.json/.test(result.diff), `${name}: nothing of an installation appeared in the container's own file system`, result.diff);
+      // /instance/instance.json is the mount point Docker adds for the file mount, not the app's doing.
+      check.expect(!/app\.db|state\.json|writer\.lock|app\.jsonl|\/data|\/control/.test(result.diff), `${name}: nothing of an installation appeared in the container's own file system`, result.diff);
     }
     check.expect(
       sha256(path.join(prepared.dir, "data", "app.db")) === dataBefore.db && sha256(path.join(prepared.dir, "control", "maintenance", "state.json")) === dataBefore.gate,

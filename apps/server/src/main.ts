@@ -163,8 +163,11 @@ try {
     report: (event, stream) => (stream === "stdout" ? console.log : console.error)(JSON.stringify(event)),
     exit: (code) => process.exit(code),
   });
+  // `on`, not `once`: with a one-time listener the second signal would find none and take the
+  // default action, killing the process in the middle of the orderly stop. The sequence ignores
+  // every signal after the first.
   for (const signal of ["SIGTERM", "SIGINT"] as const) {
-    process.once(signal, () => void shutdown(signal));
+    process.on(signal, () => void shutdown(signal));
   }
   console.log(JSON.stringify({ event: "server.listening", host: address.address, port: address.port }));
 } catch (error) {

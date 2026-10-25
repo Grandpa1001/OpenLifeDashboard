@@ -30,10 +30,10 @@ const eventsOf = (output: string): Event[] =>
   });
 
 /**
- * A request whose headers are sent only in part: the server sees a request in progress. The
- * server's idle sweep closes a connection that has not begun a message, and a connection whose
- * bytes it has not read yet looks exactly like that, so the test continues only when the kernel
- * shows that the server process has read what was sent (see socket-state.ts).
+ * A request whose headers are sent only in part: the server sees a request in progress. The test
+ * continues only when the kernel shows that the server process has accepted the connection and
+ * read what was sent (see socket-state.ts): a connection still waiting in the accept queue is
+ * reset when the listening socket closes, which would end the scenario before it began.
  */
 async function openUnfinishedRequest(server: ServerProcess) {
   const port = Number(new URL(server.baseUrl).port);
@@ -78,9 +78,13 @@ describe("D06.3-AC1 an orderly stop", () => {
     const inProgress = await openUnfinishedRequest(server);
 
     server.child.kill("SIGTERM");
-    server.child.kill("SIGTERM"); // a second signal during the stop is ignored
     expect(await connectionRefused(inProgress.port, 5000)).toBe(true);
+    // The stop is under way (the listening socket is closed, so the first handler has run). A
+    // second signal now must be ignored, not take the default action and kill the process.
+    server.child.kill("SIGTERM");
+    await new Promise((resolve) => setTimeout(resolve, 300));
     expect(server.child.exitCode, "the request in progress keeps the process alive").toBeNull();
+    expect(server.child.signalCode, "a second signal does not kill the process").toBeNull();
 
     // The request that began before the signal is finished — and sees readiness withdrawn.
     const finishedAt = Date.now();
