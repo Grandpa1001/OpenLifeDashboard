@@ -105,9 +105,16 @@ try {
       check.expect(uid !== "" && uid !== "0" && uid === String(process.getuid?.() ?? uid), `the app runs as the host user, not root (uid ${uid})`);
       const dbOwner = statSync(path.join(instance.dir, "data", "app.db")).uid;
       check.expect(dbOwner === process.getuid?.(), "data/app.db was created with the host user's ownership", String(dbOwner));
+      // The log file is created by the first line (the health probe is debug level and writes
+      // none), so make a request first and give the sink its turn of the event loop.
+      await fetch(`http://127.0.0.1:${port}/api/nothing`);
+      const logFile = path.join(instance.dir, "data", "logs", "app", "app.jsonl");
+      for (let attempt = 0; attempt < 40 && !readdirSync(path.dirname(logFile)).includes("app.jsonl"); attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
       check.expect(
-        readdirSync(path.join(instance.dir, "data", "logs", "app")).includes("app.jsonl"),
-        "the technical log is written to data/logs/app through the mount",
+        readdirSync(path.dirname(logFile)).includes("app.jsonl") && readFileSync(logFile, "utf8").includes('"event":"http.request"') && statSync(logFile).uid === process.getuid?.(),
+        "the technical log is written to data/logs/app through the mount, owned by the host user",
       );
 
       // The published port: loopback only.
