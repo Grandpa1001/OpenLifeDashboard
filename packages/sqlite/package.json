@@ -9,10 +9,20 @@
     "dist"
   ],
   "exports": {
+    "./connection": {
+      "@openlife/source": "./src/connection/open-database.ts",
+      "types": "./dist/connection/open-database.d.ts",
+      "default": "./dist/connection/open-database.js"
+    },
     "./driver-probe": {
       "@openlife/source": "./src/driver-probe.ts",
       "types": "./dist/driver-probe.d.ts",
       "default": "./dist/driver-probe.js"
+    },
+    "./transactions": {
+      "@openlife/source": "./src/transactions/unit-of-work.ts",
+      "types": "./dist/transactions/unit-of-work.d.ts",
+      "default": "./dist/transactions/unit-of-work.js"
     }
   },
   "scripts": {
@@ -24,6 +34,7 @@
     "typescript": "catalog:"
   },
   "dependencies": {
+    "@openlife/core": "workspace:*",
     "better-sqlite3": "catalog:"
   }
 }

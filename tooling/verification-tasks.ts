@@ -440,6 +440,37 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D04.2",
+    ready: true,
+    title: "SQLite connections with confirmed settings and the synchronous unit of work",
+    criteria: ["D04.2-AC1", "D04.2-AC2", "D04.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built core, sqlite and the native driver.
+        id: "workspace-build",
+        criteria: ["D04.2-AC1", "D04.2-AC2"],
+        description: "pnpm -r build produces core/foundation and the sqlite connection and transactions",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/sqlite/src/connection/open-database.ts", "packages/sqlite/src/transactions/unit-of-work.ts"],
+      },
+      {
+        id: "unit-of-work-file-db",
+        criteria: ["D04.2-AC1", "D04.2-AC2"],
+        description: "PRAGMA read-back, commit/rollback across two ports, FK orphan, async guard, SIGKILL inside/after commit on a file",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/sqlite/unit-of-work.test.ts"],
+        requires: ["tests/integration/sqlite/unit-of-work.test.ts", "tests/support/test-ports.ts", "tests/support/uow-crash.ts"],
+      },
+      {
+        id: "unit-of-work-async-types",
+        criteria: ["D04.2-AC2"],
+        description: "Strict compiler rejects async and Promise-returning callbacks; a synchronous control compiles",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/foundation/unit-of-work-types.test.ts"],
+        requires: ["tests/unit/foundation/unit-of-work-types.test.ts", "packages/core/src/foundation/unit-of-work.ts"],
+      },
+      ...regressionChecks("D04.2-regression"),
+    ],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",

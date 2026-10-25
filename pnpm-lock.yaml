@@ -346,6 +346,9 @@ importers:
 
   packages/sqlite:
     dependencies:
+      '@openlife/core':
+        specifier: workspace:*
+        version: link:../core
       better-sqlite3:
         specifier: 'catalog:'
         version: 13.0.3
