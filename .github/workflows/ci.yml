@@ -30,12 +30,8 @@ jobs:
         run: pnpm verify:task -- D01
       - name: Verify D02.1
         run: pnpm verify:task -- D02.1
-      - name: Verify D03.1
-        run: pnpm verify:task -- D03.1
-      - name: Verify D03.2
-        run: pnpm verify:task -- D03.2
-      - name: Verify D03.3
-        run: pnpm verify:task -- D03.3
+      - name: Verify D03 (D03.1–D03.4, Docker on the runner)
+        run: pnpm verify:task -- D03
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

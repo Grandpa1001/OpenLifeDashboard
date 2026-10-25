@@ -1,7 +1,13 @@
 import { isAbsolute, resolve } from "node:path";
 import { DEFAULT_HOST, INTERNAL_PORT } from "./runtime-defaults.js";
 
-export type StartOptions = Readonly<{ host: string; port: number; webRoot: string }>;
+export type StartOptions = Readonly<{
+  host: string;
+  port: number;
+  webRoot: string;
+  /** Installation folder for a process outside a container; absent = fixed container paths. */
+  installationDir?: string;
+}>;
 
 export type StartOptionsResult =
   | Readonly<{ ok: true; options: StartOptions }>
@@ -9,16 +15,19 @@ export type StartOptionsResult =
 
 const MAX_PORT = 65_535;
 
+const FLAGS = ["--host", "--port", "--web-root", "--installation"];
+
 /**
- * Process launch arguments. A test harness may pick another listening port per process
- * (`--port 0` for an ephemeral one); deployment configuration arrives with bootstrap in D03.
+ * Process launch arguments, not installation options: a harness may pick a listening port
+ * (`--port 0` = ephemeral) and, outside a container, the installation folder to work in.
+ * Deployment configuration comes from the environment and instance.json (Architektura §14.5).
  */
 export function parseStartOptions(argv: readonly string[], defaultWebRoot: string): StartOptionsResult {
   const values = new Map<string, string>();
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index] ?? "";
-    if (!["--host", "--port", "--web-root"].includes(flag)) {
-      return { ok: false, message: `unknown argument "${flag}"; expected --host, --port or --web-root` };
+    if (!FLAGS.includes(flag)) {
+      return { ok: false, message: `unknown argument "${flag}"; expected ${FLAGS.join(", ")}` };
     }
     const value = argv[index + 1];
     if (value === undefined || value.startsWith("--")) {
@@ -33,13 +42,15 @@ export function parseStartOptions(argv: readonly string[], defaultWebRoot: strin
   if (rawPort !== undefined && (!/^\d+$/.test(rawPort) || port > MAX_PORT)) {
     return { ok: false, message: `--port must be an integer 0–${MAX_PORT}, got "${rawPort}"` };
   }
-  const webRoot = values.get("--web-root") ?? defaultWebRoot;
+  const absolute = (value: string): string => (isAbsolute(value) ? value : resolve(value));
+  const installation = values.get("--installation");
   return {
     ok: true,
     options: {
       host: values.get("--host") ?? DEFAULT_HOST,
       port,
-      webRoot: isAbsolute(webRoot) ? webRoot : resolve(webRoot),
+      webRoot: absolute(values.get("--web-root") ?? defaultWebRoot),
+      ...(installation === undefined ? {} : { installationDir: absolute(installation) }),
     },
   };
 }

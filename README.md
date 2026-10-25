@@ -20,12 +20,15 @@ pnpm test:integration     # HTTP tests against the built server (run pnpm build 
 pnpm verify:task -- D01   # every check mapped to a task; report in .artifacts/<run-id>/
 ```
 
-Run the built app on http://127.0.0.1:8080:
+The server starts only with an installation: environment keys and `control/instance.json`. Outside a container, prepare an isolated test installation in a fresh folder (it generates the keys and refuses a non-empty folder) and run the built app on http://127.0.0.1:8080:
 
 ```sh
 pnpm build
-pnpm --filter @openlife/server start   # options: --port <n> (0 = ephemeral), --host, --web-root
+pnpm prepare:test-instance -- ../openlife-dev   # prints the start command
+node --env-file=../openlife-dev/.env apps/server/dist/main.js --installation ../openlife-dev
 ```
+
+Start options: `--port <n>` (0 = ephemeral), `--host`, `--web-root`, `--installation <dir>`. Before listening the server checks the environment, the instance metadata, the option set and the storage folders; a failure exits 1 with `bootstrap.failed` and the fields to fix, never their values.
 
 Check an installation environment without starting the server (prints no secret values; exit 1 names invalid fields):
 

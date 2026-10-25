@@ -55,7 +55,7 @@ describe("D03.1-AC2 secret markers stay private", () => {
   });
 
   it("an isolated server with the markers in its environment does not expose them", async () => {
-    const server = await startBuiltServer([], baseEnv);
+    const server = await startBuiltServer({ env: baseEnv });
     try {
       for (const route of [PUBLIC_BOOTSTRAP_PATH, "/api/health", "/", "/api/unknown"]) {
         const response = await fetch(`${server.baseUrl}${route}`);

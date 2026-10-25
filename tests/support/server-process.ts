@@ -1,6 +1,9 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { prepareTestInstance, type TestInstance } from "./test-instance.ts";
 
 export const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 export const SERVER_ENTRY = path.join(repoRoot, "apps/server/dist/main.js");
@@ -12,6 +15,8 @@ const STARTUP_TIMEOUT_MS = 10_000;
 export type ServerProcess = Readonly<{
   baseUrl: string;
   child: ChildProcess;
+  /** The isolated installation the server runs on. */
+  installationDir: string;
   /** Everything the process wrote to stdout and stderr so far. */
   output: () => string;
 }>;
@@ -25,11 +30,32 @@ function capture(child: ChildProcess): () => string {
   return () => output;
 }
 
+let scratchRoot: string | undefined;
+
+/** A fresh isolated test installation, removed when the test process exits. */
+export function freshTestInstance(): TestInstance {
+  if (!scratchRoot) {
+    const root = mkdtempSync(path.join(os.tmpdir(), "openlife-servers-"));
+    scratchRoot = root;
+    process.once("exit", () => rmSync(root, { recursive: true, force: true }));
+  }
+  return prepareTestInstance(mkdtempSync(path.join(scratchRoot, "instance-")));
+}
+
+export type StartOptions = Readonly<{
+  args?: readonly string[];
+  /** Merged over the installation's generated environment. */
+  env?: Readonly<Record<string, string>>;
+  /** An existing installation folder; by default a fresh test instance is prepared. */
+  installation?: Readonly<{ dir: string; env: Readonly<Record<string, string>> }>;
+}>;
+
 /** Starts the built server on an ephemeral loopback port and waits for its listening event. */
-export function startBuiltServer(extraArgs: readonly string[] = [], env: NodeJS.ProcessEnv = process.env): Promise<ServerProcess> {
-  const child = spawn(process.execPath, [SERVER_ENTRY, "--port", "0", ...extraArgs], {
+export function startBuiltServer(options: StartOptions = {}): Promise<ServerProcess> {
+  const installation = options.installation ?? freshTestInstance();
+  const child = spawn(process.execPath, [SERVER_ENTRY, "--port", "0", "--installation", installation.dir, ...(options.args ?? [])], {
     cwd: repoRoot,
-    env,
+    env: { PATH: process.env["PATH"] ?? "", ...installation.env, ...options.env },
     stdio: ["ignore", "pipe", "pipe"],
   });
   const output = capture(child);
@@ -51,7 +77,7 @@ export function startBuiltServer(extraArgs: readonly string[] = [], env: NodeJS.
         .find((event) => event.event === "server.listening");
       if (listening?.port) {
         clearTimeout(timer);
-        resolve({ baseUrl: `http://127.0.0.1:${listening.port}`, child, output });
+        resolve({ baseUrl: `http://127.0.0.1:${listening.port}`, child, installationDir: installation.dir, output });
       }
     });
     child.once("exit", (code) => {
@@ -62,8 +88,8 @@ export function startBuiltServer(extraArgs: readonly string[] = [], env: NodeJS.
 }
 
 /** Runs the server entry to completion, e.g. to observe a startup failure. */
-export function runServerEntry(args: readonly string[]): Promise<ProcessExit> {
-  return runBuiltScript(SERVER_ENTRY, args);
+export function runServerEntry(args: readonly string[], env: NodeJS.ProcessEnv = process.env): Promise<ProcessExit> {
+  return runBuiltScript(SERVER_ENTRY, args, env);
 }
 
 /** Runs a built server script (e.g. a CLI under apps/server/dist/cli) to completion. */

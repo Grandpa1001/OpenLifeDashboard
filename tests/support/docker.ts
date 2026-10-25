@@ -1,5 +1,10 @@
 import { spawnSync } from "node:child_process";
+import { mkdtempSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { CONTAINER_PATHS } from "../../apps/server/src/adapters/filesystem/installation-paths.ts";
 import { blockCheck } from "./check-report.ts";
+import { prepareTestInstance, type TestInstance } from "./test-instance.ts";
 import type { RunResult } from "./repository-copy.ts";
 
 const MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
@@ -59,4 +64,16 @@ export function requireNativeDocker(cwd: string): NativeDocker {
 /** Builds docker/Dockerfile for the native platform; the build cache makes repeats cheap. */
 export function buildAppImage(tag: string, platform: string, cwd: string): RunResult {
   return docker(["build", "--platform", platform, "-f", "docker/Dockerfile", "-t", tag, "."], cwd, BUILD_TIMEOUT_MS);
+}
+
+/**
+ * A fresh test installation on the host whose environment and instance.json a container gets
+ * through `containerInstanceArgs`; data stays in the container's own /data (the image owns it).
+ */
+export function hostTestInstance(): TestInstance {
+  return prepareTestInstance(path.join(mkdtempSync(path.join(os.tmpdir(), "openlife-container-")), "instance"));
+}
+
+export function containerInstanceArgs(instance: TestInstance): string[] {
+  return ["--env-file", instance.envFile, "--volume", `${instance.instanceFile}:${CONTAINER_PATHS.instanceFile}:ro`];
 }

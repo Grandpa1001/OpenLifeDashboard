@@ -4,13 +4,14 @@
 // AC2: an invalid start argument exits nonzero with a readable stderr message.
 // Both architectures are covered by running this on linux/amd64 and linux/arm64 hosts (CI).
 import { randomBytes } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { isJsonObject } from "../../scripts/support/workspaces.ts";
 import { EVIDENCE_DIR_ENV } from "../../tooling/verification-tasks.ts";
 import { createCheck } from "../support/check-report.ts";
-import { buildAppImage, docker, requireNativeDocker } from "../support/docker.ts";
+import { buildAppImage, containerInstanceArgs, docker, hostTestInstance, requireNativeDocker } from "../support/docker.ts";
 import { repoRoot } from "../support/repository-copy.ts";
+import type { TestInstance } from "../support/test-instance.ts";
 
 const IMAGE = "openlife-app:verify-d02-lifecycle";
 const CONTAINER = `openlife-d02-${randomBytes(4).toString("hex")}`;
@@ -53,6 +54,7 @@ function inspectState(): Record<string, unknown> {
 const { arch, platform, serverVersion } = requireNativeDocker(repoRoot);
 const evidence: Record<string, unknown> = { arch, platform, dockerServerVersion: serverVersion };
 const check = createCheck(`app container lifecycle on ${platform} (native)`);
+let instance: TestInstance | undefined;
 const expected = process.env["OPENLIFE_EXPECT_ARCH"];
 if (expected) {
   check.expect(expected === arch, `runner architecture is the expected ${expected} (got ${arch})`);
@@ -62,8 +64,10 @@ try {
   const build = buildAppImage(IMAGE, platform, repoRoot);
   if (check.expect(build.status === 0, `docker build --platform ${platform} exits 0`, build.output)) {
     // D02.3-AC1: start, serve, report healthy.
+    // Since D03.4 the server boots only with an installation environment and instance.json.
+    instance = hostTestInstance();
     const run = docker(
-      ["run", "--detach", "--name", CONTAINER, "--platform", platform, "--publish", "127.0.0.1::8080", IMAGE],
+      ["run", "--detach", "--name", CONTAINER, "--platform", platform, "--publish", "127.0.0.1::8080", ...containerInstanceArgs(instance), IMAGE],
       repoRoot,
     );
     check.expect(run.status === 0, "container starts detached", run.output);
@@ -132,6 +136,9 @@ try {
     }
   }
 } finally {
+  if (instance) {
+    rmSync(path.dirname(instance.dir), { recursive: true, force: true });
+  }
   docker(["rm", "--force", CONTAINER], repoRoot);
   docker(["image", "rm", "--force", IMAGE], repoRoot);
   const evidenceDir = process.env[EVIDENCE_DIR_ENV];

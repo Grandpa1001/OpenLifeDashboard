@@ -34,6 +34,32 @@ export type InstallationPaths = Readonly<{
   container: typeof CONTAINER_PATHS;
 }>;
 
+/**
+ * Paths the process actually works with, plus the mount roots that required directories must
+ * stay inside. In the image they are the fixed container paths; a process started outside a
+ * container (development, tests) gets an installation folder with the host layout instead.
+ */
+export type WorkingPaths = Readonly<Record<PathRole, string>> &
+  Readonly<{ roots: Readonly<{ data: string; maintenance: string }> }>;
+
+export const CONTAINER_WORKING_PATHS: WorkingPaths = {
+  ...CONTAINER_PATHS,
+  roots: { data: "/data", maintenance: CONTAINER_PATHS.maintenance },
+};
+
+export function installationWorkingPaths(installationDir: string): WorkingPaths {
+  const at = (role: PathRole): string => path.join(installationDir, ...HOST_LAYOUT[role]);
+  return {
+    database: at("database"),
+    backups: at("backups"),
+    logs: at("logs"),
+    tmp: at("tmp"),
+    instanceFile: at("instanceFile"),
+    maintenance: at("maintenance"),
+    roots: { data: path.join(installationDir, "data"), maintenance: at("maintenance") },
+  };
+}
+
 export function describeInstallation(metadata: InstanceMetadata): InstallationPaths {
   // Join with the host's conventions, not the container's: a Windows path keeps backslashes.
   const join = metadata.hostPlatform === "windows" ? path.win32.join : path.posix.join;

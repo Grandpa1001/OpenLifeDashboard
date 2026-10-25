@@ -353,6 +353,54 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D03.4",
+    ready: true,
+    title: "Storage preflight, test instances and the full server bootstrap",
+    criteria: ["D03.4-AC1", "D03.4-AC2", "D03.4-AC3", "D03.4-regression"],
+    checks: [
+      {
+        // Runs first: every check below starts the built server or its CLIs.
+        id: "workspace-build",
+        criteria: ["D03.4-AC1", "D03.4-AC2", "D03.4-AC3"],
+        description: "pnpm -r build produces the server, its CLIs and the SPA",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/adapters/filesystem/storage-preflight.ts", "tests/support/test-instance.ts"],
+      },
+      {
+        id: "storage-preflight",
+        criteria: ["D03.4-AC1", "D03.4-AC2"],
+        description: "Non-root probe on spaces/Unicode, fresh-folder refusal, RO/symlink/missing dirs, degraded logs",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/bootstrap/storage-preflight.test.ts"],
+        requires: ["tests/integration/bootstrap/storage-preflight.test.ts", "scripts/prepare-test-instance.ts"],
+      },
+      {
+        id: "container-preflight-native",
+        criteria: ["D03.4-AC2"],
+        description: "In the image as non-root: read-only FS, 32 MiB data mount below the reserve, degraded logs",
+        command: ["node", "tests/system/container-preflight.ts"],
+        requires: ["tests/system/container-preflight.ts", "docker/Dockerfile"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      {
+        id: "full-bootstrap-f08",
+        criteria: ["D03.4-AC3"],
+        description: "All 17 F08 cases through the real server start and a secret scan of every run",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/bootstrap/full-bootstrap.test.ts"],
+        requires: ["tests/integration/bootstrap/full-bootstrap.test.ts", "tests/fixtures/cases/bootstrap-v1.cases.json"],
+      },
+      ...regressionChecks("D03.4-regression"),
+    ],
+  },
+  {
+    // The parent passes only through its work orders, including the full bootstrap of D03.4.
+    id: "D03",
+    ready: true,
+    title: "Bootstrap: environment, settings, instance metadata, paths and storage preflight",
+    steps: ["D03.1", "D03.2", "D03.3", "D03.4"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",

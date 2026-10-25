@@ -1,8 +1,14 @@
 // Server process entrypoint: the only place that starts HTTP (Architektura §13.1).
+// Bootstrap order (§14.5, §18.6): start options → web app → environment → instance metadata →
+// option set → storage preflight → HTTP. Any failure exits 1 before listening; a failure names
+// a code and fields, never a value.
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { CONTAINER_WORKING_PATHS, installationWorkingPaths } from "./adapters/filesystem/installation-paths.js";
+import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
+import { loadBootstrapConfig } from "./bootstrap/bootstrap-config.js";
 import { createApp } from "./bootstrap/create-app.js";
 import { startServer, stopOnSignals } from "./bootstrap/lifecycle.js";
 import { SHUTDOWN_TIMEOUT_MS } from "./bootstrap/runtime-defaults.js";
@@ -10,9 +16,15 @@ import { parseStartOptions } from "./bootstrap/start-options.js";
 
 /** The built web app sits next to the server in the workspace and in the image. */
 const DEFAULT_WEB_ROOT = fileURLToPath(new URL("../../web/dist/", import.meta.url));
+const DISK_RESERVE_KEY = "backup.diskReserveMiB";
 
 function fail(message: string): never {
   console.error(`openlife server: ${message}`);
+  process.exit(1);
+}
+
+function bootstrapFailed(code: string, fields: readonly string[]): never {
+  console.error(JSON.stringify({ event: "bootstrap.failed", code, fields }));
   process.exit(1);
 }
 
@@ -20,7 +32,7 @@ const parsed = parseStartOptions(process.argv.slice(2), DEFAULT_WEB_ROOT);
 if (!parsed.ok) {
   fail(parsed.message);
 }
-const { host, port, webRoot } = parsed.options;
+const { host, port, webRoot, installationDir } = parsed.options;
 
 let indexHtml: string;
 try {
@@ -28,6 +40,38 @@ try {
 } catch {
   fail(`web app not found at ${webRoot}; build it with "pnpm build" or pass --web-root`);
 }
+
+const workingPaths = installationDir === undefined ? CONTAINER_WORKING_PATHS : installationWorkingPaths(installationDir);
+const bootstrap = loadBootstrapConfig({ env: process.env, instanceFile: workingPaths.instanceFile });
+if (!bootstrap.ok) {
+  bootstrapFailed(bootstrap.code, bootstrap.fields);
+}
+const { environment, paths, settings } = bootstrap.config;
+const reserveMiB = settings.find((setting) => setting.key === DISK_RESERVE_KEY)?.value;
+if (reserveMiB === undefined) {
+  bootstrapFailed("CONFIG_INVALID", [DISK_RESERVE_KEY]);
+}
+const preflight = runStoragePreflight(workingPaths, reserveMiB);
+if (!preflight.ok) {
+  bootstrapFailed(preflight.code, preflight.fields);
+}
+if (preflight.degraded.length > 0) {
+  console.error(JSON.stringify({ event: "bootstrap.degraded", code: "LOG_SINK_UNAVAILABLE", fields: preflight.degraded }));
+}
+console.log(
+  JSON.stringify({
+    event: "bootstrap.ready",
+    installMode: environment.installMode,
+    baseUrl: environment.baseUrl,
+    updaterEnabled: environment.updater.enabled,
+    instanceId: paths.instanceId,
+    hostPlatform: paths.hostPlatform,
+    databasePath: workingPaths.database,
+    containerDatabasePath: paths.container.database,
+    degraded: preflight.degraded,
+    settings: settings.map(({ key, value, source }) => ({ key, value, source })),
+  }),
+);
 
 const app = createApp({ webRoot, indexHtml, newRequestId: randomUUID });
 try {

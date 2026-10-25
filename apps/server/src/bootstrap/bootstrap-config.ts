@@ -1,5 +1,5 @@
 // Bootstrap configuration in the order of Architektura §14.5/§18.6: environment, then instance
-// metadata, then the option set. Filesystem preflight and the server start join in D03.4.
+// metadata, then the option set. main.ts follows it with the storage preflight and the start.
 import type { EffectiveSetting } from "@openlife/core/settings";
 import { describeInstallation, type InstallationPaths } from "../adapters/filesystem/installation-paths.js";
 import { parseEnvironment, type BootstrapErrorCode, type EnvironmentConfig } from "./environment.js";
