@@ -9,10 +9,10 @@
     "dist"
   ],
   "exports": {
-    ".": {
-      "@openlife/source": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+    "./settings": {
+      "@openlife/source": "./src/modules/settings/public.ts",
+      "types": "./dist/modules/settings/public.d.ts",
+      "default": "./dist/modules/settings/public.js"
     }
   },
   "scripts": {

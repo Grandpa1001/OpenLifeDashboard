@@ -43,9 +43,9 @@ export const architectureCases: readonly ArchitectureCase[] = [
           'import "@openlife/ui";\nimport "@openlife/contracts/http/errors";\nimport "./definitions.js";\nexport {};\n',
         "packages/widgets/src/definitions.ts": 'import "@openlife/contracts/http/errors";\nexport {};\n',
         "packages/sqlite/src/index.ts":
-          'import "@openlife/core";\nimport "node:fs";\nimport "better-sqlite3";\nexport {};\n',
+          'import "@openlife/core/settings";\nimport "node:fs";\nimport "better-sqlite3";\nexport {};\n',
         "apps/server/src/main.ts": [
-          'import "@openlife/core";',
+          'import "@openlife/core/settings";',
           'import "@openlife/contracts/http/errors";',
           'import "@openlife/sqlite/driver-probe";',
           'import "@openlife/widgets/definitions";',
@@ -124,8 +124,8 @@ export const architectureCases: readonly ArchitectureCase[] = [
     description: "A type-only import from core still crosses the web boundary",
     workspace: {
       files: {
-        "packages/core/src/index.ts": "export type OwnerId = string;\n",
-        "apps/web/src/main.ts": 'import type { OwnerId } from "@openlife/core";\nexport const owner: OwnerId = "x";\n',
+        "packages/core/src/modules/settings/public.ts": "export type OwnerId = string;\n",
+        "apps/web/src/main.ts": 'import type { OwnerId } from "@openlife/core/settings";\nexport const owner: OwnerId = "x";\n',
       },
     },
     expect: violation("dependency-cruiser", "ARCH-03-web-cannot-reach-server-runtime", "apps/web/src/main.ts"),
@@ -139,7 +139,7 @@ export const architectureCases: readonly ArchitectureCase[] = [
   {
     id: "arch-04-relative-cross-package",
     description: "server reaches into core sources by relative path",
-    workspace: { files: { "apps/server/src/main.ts": 'import "../../../packages/core/src/index.js";\nexport {};\n' } },
+    workspace: { files: { "apps/server/src/main.ts": 'import "../../../packages/core/src/modules/settings/public.js";\nexport {};\n' } },
     expect: violation("dependency-cruiser", "ARCH-04-no-cross-package-relative-import", "apps/server/src/main.ts"),
   },
   {
@@ -212,7 +212,7 @@ export const architectureCases: readonly ArchitectureCase[] = [
   {
     id: "boundary-contracts-imports-core",
     description: "contracts depends on core",
-    workspace: { files: { "packages/contracts/src/index.ts": 'import "@openlife/core";\nexport {};\n' } },
+    workspace: { files: { "packages/contracts/src/index.ts": 'import "@openlife/core/settings";\nexport {};\n' } },
     expect: violation("dependency-cruiser", "boundary-contracts-only-contracts", "packages/contracts/src/index.ts"),
   },
   {
@@ -247,7 +247,7 @@ export const architectureCases: readonly ArchitectureCase[] = [
   {
     id: "boundary-widget-views-import-core",
     description: "Widget views import core instead of receiving data via props",
-    workspace: { files: { "packages/widgets/src/views.ts": 'import "@openlife/core";\nexport {};\n' } },
+    workspace: { files: { "packages/widgets/src/views.ts": 'import "@openlife/core/settings";\nexport {};\n' } },
     expect: violation("dependency-cruiser", "boundary-widgets-views-browser-only", "packages/widgets/src/views.ts"),
   },
   {
@@ -265,7 +265,7 @@ export const architectureCases: readonly ArchitectureCase[] = [
   {
     id: "boundary-updater-imports-core",
     description: "updater imports core instead of the update protocol",
-    workspace: { files: { "apps/updater/src/main.ts": 'import "@openlife/core";\nexport {};\n' } },
+    workspace: { files: { "apps/updater/src/main.ts": 'import "@openlife/core/settings";\nexport {};\n' } },
     expect: violation("dependency-cruiser", "boundary-updater-protocol-only", "apps/updater/src/main.ts"),
   },
 ];

@@ -2,6 +2,7 @@
 // It reads only the keys it names, so unrelated process variables such as PATH are ignored.
 // Errors name fields, never their values. Option ranges and cross-field rules belong to the
 // settings resolver (D03.2); instance.json is validated in D03.3.
+import { SETTINGS_CATALOG } from "@openlife/contracts/settings";
 import { Secret } from "./secret.js";
 
 export type InstallMode = "local" | "server";
@@ -11,8 +12,8 @@ export type UpdaterConfig =
   | Readonly<{ enabled: false }>
   | Readonly<{ enabled: true; token: Secret; releasesRepo: string }>;
 
-/** Env values that override public settings (keys of the settings catalog, D03.2). */
-export type EnvironmentOverrides = Readonly<Partial<Record<OverrideKey, number>>>;
+/** Parsed env overrides keyed by setting key; ranges are checked by the settings resolver. */
+export type EnvironmentOverrides = Readonly<Record<string, number>>;
 
 export type EnvironmentConfig = Readonly<{
   installMode: InstallMode;
@@ -40,13 +41,6 @@ const DECIMAL_DIGITS = /^\d+$/;
 const RELEASES_REPO = /^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9._-]+$/;
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
-const OVERRIDE_ENV = {
-  BACKUP_DISK_RESERVE_MIB: "backup.diskReserveMiB",
-  JSON_BODY_KIB: "limits.jsonBodyKiB",
-  RECORD_MAX_KIB: "limits.recordMaxKiB",
-  IMPORT_MAX_MIB: "limits.importMaxMiB",
-} as const;
-type OverrideKey = (typeof OVERRIDE_ENV)[keyof typeof OVERRIDE_ENV];
 
 /** Origin check per install mode: local is plain HTTP on loopback, server is HTTPS. */
 function parseBaseUrl(raw: string, mode: InstallMode | undefined): string | undefined {
@@ -155,11 +149,12 @@ export function parseEnvironment(env: RawEnvironment): EnvironmentResult {
   if (busyTimeout !== undefined && (busyTimeout < DB_BUSY_TIMEOUT_MS.min || busyTimeout > DB_BUSY_TIMEOUT_MS.max)) {
     invalid.add("DB_BUSY_TIMEOUT_MS");
   }
-  const overrides: Partial<Record<OverrideKey, number>> = {};
-  for (const [envKey, settingKey] of Object.entries(OVERRIDE_ENV)) {
-    const value = integer(envKey);
+  // The public settings catalog names the env variables allowed to override an option.
+  const overrides: Record<string, number> = {};
+  for (const { key, envOverride } of SETTINGS_CATALOG) {
+    const value = integer(envOverride);
     if (value !== undefined) {
-      overrides[settingKey] = value;
+      overrides[key] = value;
     }
   }
 

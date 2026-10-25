@@ -32,6 +32,8 @@ jobs:
         run: pnpm verify:task -- D02.1
       - name: Verify D03.1
         run: pnpm verify:task -- D03.1
+      - name: Verify D03.2
+        run: pnpm verify:task -- D03.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -28,6 +28,11 @@
       "@openlife/source": "./src/locales.ts",
       "types": "./dist/locales.d.ts",
       "default": "./dist/locales.js"
+    },
+    "./settings": {
+      "@openlife/source": "./src/settings/catalog.ts",
+      "types": "./dist/settings/catalog.d.ts",
+      "default": "./dist/settings/catalog.js"
     }
   },
   "scripts": {

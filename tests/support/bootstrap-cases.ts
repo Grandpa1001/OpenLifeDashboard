@@ -5,8 +5,22 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { repoRoot } from "./server-process.ts";
 
+export type ExpectedOption = Readonly<{
+  key: string;
+  value: number;
+  source: "default" | "db" | "env";
+  editable: boolean;
+  restartRequired: boolean;
+}>;
+
 export type BootstrapExpectation =
-  | Readonly<{ kind: "ready"; normalizedBaseUrl?: string; updaterEnabled?: boolean }>
+  | Readonly<{
+      kind: "ready";
+      normalizedBaseUrl?: string;
+      updaterEnabled?: boolean;
+      effectiveOption?: ExpectedOption;
+      containerDatabasePath?: string;
+    }>
   | Readonly<{ kind: "error"; code: string; fields: readonly string[]; exitCode: number }>;
 
 export type BootstrapCase = Readonly<{

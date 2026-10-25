@@ -19,6 +19,7 @@
   "dependencies": {
     "@hono/node-server": "catalog:",
     "@openlife/contracts": "workspace:*",
+    "@openlife/core": "workspace:*",
     "@openlife/sqlite": "workspace:*",
     "hono": "catalog:"
   }

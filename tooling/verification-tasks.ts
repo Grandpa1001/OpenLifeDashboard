@@ -298,6 +298,30 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D03.2",
+    ready: true,
+    title: "Settings catalog and pure resolver (default < DB < env)",
+    criteria: ["D03.2-AC1", "D03.2-AC2", "D03.2-regression"],
+    checks: [
+      {
+        // Runs first: the config-check CLI used by the F08 cases comes from this build.
+        id: "workspace-build",
+        criteria: ["D03.2-AC1"],
+        description: "pnpm -r build produces the server, its CLIs and the SPA",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/settings/catalog.ts", "packages/core/src/modules/settings/public.ts"],
+      },
+      {
+        id: "settings-resolution",
+        criteria: ["D03.2-AC1", "D03.2-AC2"],
+        description: "F08 D03.2 cases, whole-set rejection without partial results, no env/fs in core/settings",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/settings"],
+        requires: ["tests/unit/settings/resolve-settings.test.ts", "tests/fixtures/cases/bootstrap-v1.cases.json"],
+      },
+      ...regressionChecks("D03.2-regression"),
+    ],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",
