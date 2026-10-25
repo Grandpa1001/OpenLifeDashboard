@@ -3,7 +3,8 @@
 // published by a rename into data/backup/<name> on the same mount: a published directory is a
 // verified package, a staging directory never is. The caller holds the writer lease; the copy
 // is read through the writer connection (Backup API), never by copying the database file.
-// Recovery of staging left by a crash and real disk-full handling are D05.3.
+// Staging left by a crash is discarded before the next snapshot and by discardUnpublished; a
+// package is found again only by findPublished, which verifies it anew (D05.3).
 import { createHash } from "node:crypto";
 import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statfsSync, statSync } from "node:fs";
 import path from "node:path";
@@ -15,7 +16,7 @@ import {
   type DatabaseSnapshotChecksums,
   type DatabaseSnapshotMeta,
 } from "@openlife/contracts/backups/database-snapshot";
-import type { DatabaseSnapshotPort, SnapshotResult } from "@openlife/core/maintenance";
+import type { DatabaseSnapshotPort, PublishedSnapshot, SnapshotResult } from "@openlife/core/maintenance";
 import type { SqliteConnection } from "@openlife/sqlite/connection";
 import { copyDatabase, examineDatabaseCopy } from "@openlife/sqlite/snapshots";
 import { syncDirectory, syncFile, writeNewFileDurably } from "./durable-files.js";
@@ -118,6 +119,37 @@ function sourceBytes(databaseFile: string): number {
   }, 0);
 }
 
+/** Staging directories of this backup folder; empty when none was ever created. */
+function discardStaging(backupsDir: string): void {
+  const root = path.join(backupsDir, SNAPSHOT_STAGING_DIR);
+  let entries: string[];
+  try {
+    if (!lstatSync(root).isDirectory()) {
+      return;
+    }
+    entries = readdirSync(root);
+  } catch {
+    return;
+  }
+  // Under the writer lease only this adapter stages, so every entry is left over from a crash.
+  // rmSync removes a symlink itself and never follows it.
+  for (const entry of entries) {
+    rmSync(path.join(root, entry), { recursive: true, force: true });
+  }
+}
+
+/** Published (non-hidden) package directories, never the staging folder. */
+function publishedPackages(backupsDir: string): string[] {
+  try {
+    return readdirSync(backupsDir)
+      .filter((name) => !name.startsWith("."))
+      .sort()
+      .map((name) => path.join(backupsDir, name));
+  } catch {
+    return [];
+  }
+}
+
 function stagingRoot(backupsDir: string): string {
   const root = path.join(backupsDir, SNAPSHOT_STAGING_DIR);
   try {
@@ -136,6 +168,25 @@ function stagingRoot(backupsDir: string): string {
 
 export function createDatabaseSnapshots(source: SqliteConnection, options: SnapshotStoreOptions): DatabaseSnapshotPort {
   return {
+    findPublished(operationId): Promise<PublishedSnapshot | undefined> {
+      for (const dir of publishedPackages(options.backupsDir)) {
+        // The cheap meta check first: the full verification (integrity_check) runs only for the
+        // package that claims this operation, not for every package in the folder.
+        const claimed = databaseSnapshotMetaSchema.safeParse(readJson(path.join(dir, DATABASE_SNAPSHOT_FILES.meta)));
+        if (!claimed.success || claimed.data.operationId !== operationId) {
+          continue;
+        }
+        const verification = verifyDatabaseSnapshot(dir);
+        if (verification.ok && verification.meta.instanceId === options.instanceId) {
+          return Promise.resolve({ snapshotId: verification.meta.snapshotId, schemaVersion: verification.meta.schemaVersion });
+        }
+      }
+      return Promise.resolve(undefined);
+    },
+    discardUnpublished(): Promise<void> {
+      discardStaging(options.backupsDir);
+      return Promise.resolve();
+    },
     async create(request): Promise<SnapshotResult> {
       let free: number;
       try {
@@ -152,6 +203,7 @@ export function createDatabaseSnapshots(source: SqliteConnection, options: Snaps
       const name = snapshotDirectoryName(startedAt, request.reason, snapshotId);
       let staging: string | undefined;
       try {
+        discardStaging(options.backupsDir);
         const root = stagingRoot(options.backupsDir);
         staging = path.join(root, name);
         mkdirSync(staging, { mode: 0o700 });

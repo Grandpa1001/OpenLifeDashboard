@@ -87,10 +87,14 @@ export const SLOW_C_PLAN: MigrationPlan = [
   ),
 ];
 
+/** Plan D: the image after C, with one more migration. */
+export const PLAN_D: MigrationPlan = [...PLAN_C, harnessMigration(4, "0004-harness-more", "CREATE TABLE harness_more (id INTEGER PRIMARY KEY) STRICT;\n")];
+
 export const PLANS: Readonly<Record<string, MigrationPlan>> = {
   a: PLAN_A,
   b: PLAN_B,
   c: PLAN_C,
+  d: PLAN_D,
   slow: SLOW_PLAN,
   "c-fails": FAILING_C_PLAN,
   "c-orphan": ORPHAN_C_PLAN,

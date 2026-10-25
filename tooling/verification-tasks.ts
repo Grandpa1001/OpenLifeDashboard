@@ -566,6 +566,54 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D05.3",
+    ready: true,
+    title: "Reconciliation of an interrupted upgrade and snapshot failures on a real file system",
+    criteria: ["D05.3-AC1", "D05.3-AC2", "D05.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built snapshot adapter, bootstrap step and server.
+        id: "workspace-build",
+        criteria: ["D05.3-AC1", "D05.3-AC2"],
+        description: "pnpm -r build produces the snapshot recovery port and the resumable upgrade flow",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/adapters/filesystem/database-snapshots.ts", "apps/server/src/bootstrap/database.ts"],
+      },
+      {
+        id: "database-recovery",
+        criteria: ["D05.3-AC1", "D05.3-AC2"],
+        description: "SIGKILL before/after publication and inside the migration, recognized snapshot, committed-not-closed, EACCES on publication",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/database-recovery.test.ts"],
+        requires: ["tests/integration/maintenance/database-recovery.test.ts", "tests/support/database-fixtures.ts"],
+      },
+      {
+        id: "container-snapshot-space-native",
+        criteria: ["D05.3-AC2"],
+        description: "In the image: ENOSPC on a 16 MiB backup file system, nothing published, good snapshot untouched, retry succeeds",
+        command: ["node", "tests/system/container-snapshot-space.ts"],
+        requires: ["tests/system/container-snapshot-space.ts", "tests/system/in-container/snapshot-space.mjs", "docker/Dockerfile"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      {
+        id: "database-upgrade-regression",
+        criteria: ["D05.3-regression"],
+        description: "D05.2 upgrade cases and D04.3 start cases still hold with the resumable flow",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/database-upgrade.test.ts", "tests/integration/maintenance/database-bootstrap.test.ts"],
+        requires: ["tests/integration/maintenance/database-upgrade.test.ts", "tests/integration/maintenance/database-bootstrap.test.ts"],
+      },
+      ...regressionChecks("D05.3-regression"),
+    ],
+  },
+  {
+    // The parent passes only through its work orders, D05.3 including the container check.
+    id: "D05",
+    ready: true,
+    title: "Database snapshots, upgrade after a snapshot and recovery",
+    steps: ["D05.1", "D05.2", "D05.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",

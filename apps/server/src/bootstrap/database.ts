@@ -3,7 +3,9 @@
 // operation of the maintenance gate; an `init` interrupted by a crash is reconciled from the
 // database itself (empty → initialize again, complete → close the operation). Any other active
 // operation, a foreign or newer database, a changed migration or another instance's database
-// refuses the start. Upgrading an existing database (D05.2) is one `migrate` operation under the
+// refuses the start. An interrupted `migrate` is reconciled from the database file: still at the
+// old version → the same operation continues (a published snapshot of it is recognized and
+// verified again, otherwise a new one is taken); already at the new version → it only closes. Upgrading an existing database (D05.2) is one `migrate` operation under the
 // writer lease: verified pre_migration snapshot of the old version → all pending migrations in
 // one transaction → check → close the operation. No snapshot, no migration; a failing migration
 // rolls back as a whole and leaves the database at its version and the snapshot published.
@@ -21,6 +23,7 @@ import {
   type DatabaseRefusalCode,
   type MigrationPlan,
 } from "@openlife/sqlite/migrations";
+import type { MaintenanceOperation } from "@openlife/contracts/workers/maintenance-state";
 import type { MaintenanceGate } from "../adapters/filesystem/maintenance-gate.js";
 
 export type DatabaseOpenCode =
@@ -81,12 +84,19 @@ async function open(inputs: DatabaseOpenInputs): Promise<DatabaseOpenResult> {
   const target = targetSchemaVersion(inputs.plan);
   const state = inputs.gate.current();
   const active = state.activeOperation;
-  // Only an init of this very plan can be reconciled here; migrate/snapshot reconcile in D05.
-  if (active !== null && (active.reason !== "init" || active.targetSchemaVersion !== target)) {
+  // Only an init or an upgrade towards this very plan can be reconciled here; a standalone
+  // snapshot operation has no owner before the backup jobs (D48/D49).
+  const reconcilable =
+    active !== null &&
+    ((active.reason === "init" && active.targetSchemaVersion === target) || (active.reason === "migrate" && active.toSchemaVersion === target));
+  if (active !== null && !reconcilable) {
     return RECOVERY_REQUIRED;
   }
   const inspection = inspectDatabase(inputs.file, inputs.plan, { instanceId: inputs.instanceId, busyTimeoutMs: inputs.busyTimeoutMs });
 
+  if (active?.reason === "migrate") {
+    return resumeMigration(inputs, active, state.generation, inspection);
+  }
   if (active !== null) {
     if (inspection.kind === "empty") {
       return initialize(inputs, active.operationId, state.generation);
@@ -115,24 +125,71 @@ async function open(inputs: DatabaseOpenInputs): Promise<DatabaseOpenResult> {
       return initialize(inputs, operationId, begun.generation);
     }
     case "pending":
-      return upgrade(inputs, inspection.fromSchemaVersion, inspection.toSchemaVersion);
+      return beginUpgrade(inputs, inspection.fromSchemaVersion, inspection.toSchemaVersion);
   }
 }
 
-async function upgrade(inputs: DatabaseOpenInputs, fromSchemaVersion: number, toSchemaVersion: number): Promise<DatabaseOpenResult> {
-  const connection = openWriter(inputs);
-  const operationId = inputs.newOperationId();
-  const operation = { operationId, reason: "migrate", startedAt: inputs.now(), fromSchemaVersion, toSchemaVersion } as const;
+type MigrateOperation = Extract<MaintenanceOperation, { reason: "migrate" }>;
+
+/**
+ * The file decides what a crashed upgrade left: version `to` means the migration committed and
+ * only closing the operation was lost; version `from` means nothing of it was kept (one
+ * transaction), so the same operation continues. Any other state needs a human.
+ */
+async function resumeMigration(
+  inputs: DatabaseOpenInputs,
+  operation: MigrateOperation,
+  generation: number,
+  inspection: ReturnType<typeof inspectDatabase>,
+): Promise<DatabaseOpenResult> {
+  if (inspection.kind === "current" && operation.phase !== "snapshot") {
+    const connection = withWriter(inputs, () => inputs.gate.complete(operation.operationId, generation));
+    return { ok: true, connection, schemaVersion: inspection.schemaVersion, created: false };
+  }
+  if (
+    inspection.kind === "pending" &&
+    operation.phase !== "verifying" &&
+    inspection.fromSchemaVersion === operation.fromSchemaVersion &&
+    inspection.toSchemaVersion === operation.toSchemaVersion
+  ) {
+    return upgrade(inputs, operation, generation, true);
+  }
+  return RECOVERY_REQUIRED;
+}
+
+/** A new `migrate` operation for the pending upgrade. */
+function beginUpgrade(inputs: DatabaseOpenInputs, fromSchemaVersion: number, toSchemaVersion: number): Promise<DatabaseOpenResult> {
+  const operation = { operationId: inputs.newOperationId(), reason: "migrate", startedAt: inputs.now(), fromSchemaVersion, toSchemaVersion } as const;
   const { generation } = inputs.gate.begin({ ...operation, phase: "snapshot", snapshotId: null });
+  return upgrade(inputs, { ...operation, phase: "snapshot", snapshotId: null }, generation, false);
+}
+
+/** Snapshot of the old version (new, or recognized again after a crash) → migrate → check → close. */
+async function upgrade(inputs: DatabaseOpenInputs, operation: MigrateOperation, generation: number, resuming: boolean): Promise<DatabaseOpenResult> {
+  const { operationId, fromSchemaVersion, toSchemaVersion, startedAt } = operation;
+  const base = { operationId, reason: "migrate", startedAt, fromSchemaVersion, toSchemaVersion } as const;
+  const connection = openWriter(inputs);
   try {
-    const snapshot = await inputs.createSnapshots(connection).create({ reason: "pre_migration", scope: "database", operationId, fence: generation });
-    if (!snapshot.ok) {
+    const snapshots = inputs.createSnapshots(connection);
+    // A crash after publication leaves a finished snapshot of this very operation. The database
+    // has not changed since (the operation never got past its snapshot or rolled back), so the
+    // snapshot is recognized, verified again and used instead of taking a second one.
+    const published = resuming ? await snapshots.findPublished(operationId) : undefined;
+    let snapshotId: string | undefined;
+    if (published?.schemaVersion === fromSchemaVersion) {
+      await snapshots.discardUnpublished();
+      snapshotId = published.snapshotId;
+    } else {
+      const snapshot = await snapshots.create({ reason: "pre_migration", scope: "database", operationId, fence: generation });
+      snapshotId = snapshot.ok ? snapshot.snapshotId : undefined;
+    }
+    if (snapshotId === undefined) {
       // Nothing was changed: the operation closes and the database stays at its version.
       inputs.gate.complete(operationId, generation);
       connection.close();
       return refused("MIGRATION_SNAPSHOT_REQUIRED", ["schemaVersion"]);
     }
-    inputs.gate.advance({ ...operation, phase: "migrating", snapshotId: snapshot.snapshotId });
+    inputs.gate.advance({ ...base, phase: "migrating", snapshotId });
     try {
       migrateDatabase(connection, inputs.plan, inputs.now());
     } catch (error) {
@@ -144,10 +201,10 @@ async function upgrade(inputs: DatabaseOpenInputs, fromSchemaVersion: number, to
       connection.close();
       return refused("MIGRATION_FAILED", [error.migrationId]);
     }
-    inputs.gate.advance({ ...operation, phase: "verifying", snapshotId: snapshot.snapshotId });
+    inputs.gate.advance({ ...base, phase: "verifying", snapshotId });
     const after = inspectDatabase(inputs.file, inputs.plan, { instanceId: inputs.instanceId, busyTimeoutMs: inputs.busyTimeoutMs });
     if (after.kind !== "current") {
-      // Committed but not what the plan says: only reconciliation (D05.3) may judge it.
+      // Committed but not what the plan says: nothing automatic may judge that.
       connection.close();
       return RECOVERY_REQUIRED;
     }

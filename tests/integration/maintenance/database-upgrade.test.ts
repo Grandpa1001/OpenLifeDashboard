@@ -6,98 +6,41 @@
 //      inside the migration leaves the old schema, the published snapshot and the phase.
 // AC2: a failed snapshot, a failing migration and an orphan row left by a migration all keep the
 //      database at its version with its data; the snapshot of the old version stays restorable.
-import { spawn } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { createHash } from "node:crypto";
-import os from "node:os";
+import { chmodSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { verifyDatabaseSnapshot } from "../../../apps/server/dist/adapters/filesystem/database-snapshots.js";
-import { openDatabase } from "../../../packages/sqlite/dist/connection/open-database.js";
-import { inspectDatabase } from "../../../packages/sqlite/dist/migrations/public.js";
 import { PLAN_B, PLAN_C } from "../../support/migration-plans.ts";
-import { freshTestInstance, outputEvent, repoRoot, runServerEntry, waitForExit } from "../../support/server-process.ts";
+import {
+  backupsDir,
+  databaseFile,
+  expectedNoteSummary,
+  HOLDER_TIMEOUT_MS,
+  inspectAs,
+  installationAtB,
+  manifestIds,
+  noteColumns,
+  noteSummary,
+  NOTES,
+  packages,
+  query,
+  readState,
+  restoredRows,
+  runHolder,
+  sha256,
+  spawnHolder,
+  STOP_TIMEOUT_MS,
+  tableNames,
+  stateFile,
+} from "../../support/database-fixtures.ts";
+import { outputEvent, runServerEntry, waitForExit } from "../../support/server-process.ts";
 import type { TestInstance } from "../../support/test-instance.ts";
-
-const NOTES = 25;
-const BUSY_TIMEOUT_MS = 5000;
-const STOP_TIMEOUT_MS = 15_000;
-const HOLDER_TIMEOUT_MS = 60_000;
-const DATABASE_HOLDER = path.join(repoRoot, "tests/support/database-holder.ts");
-const scratch = mkdtempSync(path.join(os.tmpdir(), "openlife-upgrade-"));
-afterAll(() => rmSync(scratch, { recursive: true, force: true }));
-
-const databaseFile = (instance: TestInstance): string => path.join(instance.dir, "data", "app.db");
-const stateFile = (instance: TestInstance): string => path.join(instance.dir, "control", "maintenance", "state.json");
-const backupsDir = (instance: TestInstance): string => path.join(instance.dir, "data", "backup");
-const readState = (instance: TestInstance): { generation: number; activeOperation: Record<string, unknown> | null } => JSON.parse(readFileSync(stateFile(instance), "utf8"));
-const sha256 = (file: string): string => createHash("sha256").update(readFileSync(file)).digest("hex");
-const inspectAs = (instance: TestInstance, plan: typeof PLAN_B) => inspectDatabase(databaseFile(instance), plan, { instanceId: instance.instanceId, busyTimeoutMs: BUSY_TIMEOUT_MS });
-
-/** Published snapshot packages (not the staging folder), oldest first. */
-const packages = (instance: TestInstance): string[] =>
-  readdirSync(backupsDir(instance)).filter((name) => !name.startsWith(".")).sort().map((name) => path.join(backupsDir(instance), name));
-
-function query(file: string, sql: string): unknown[] {
-  const reader = openDatabase(file, { role: "reader", busyTimeoutMs: BUSY_TIMEOUT_MS });
-  try {
-    return reader.handle.prepare(sql).all();
-  } finally {
-    reader.close();
-  }
-}
-
-/** A standalone copy of a snapshot's database file, opened the way a restore would use it. */
-function restoredRows(pkg: string, sql: string): unknown[] {
-  const dir = mkdtempSync(path.join(scratch, "restored-"));
-  const file = path.join(dir, "app.db");
-  copyFileSync(path.join(pkg, "app.db"), file);
-  const writer = openDatabase(file, { role: "writer", busyTimeoutMs: BUSY_TIMEOUT_MS });
-  try {
-    expect(writer.handle.pragma("integrity_check", { simple: true })).toBe("ok");
-    return writer.handle.prepare(sql).all();
-  } finally {
-    writer.close();
-  }
-}
-
-function spawnHolder(instance: TestInstance, plan: string) {
-  const child = spawn(process.execPath, [DATABASE_HOLDER, instance.dir, plan], { cwd: repoRoot, stdio: ["ignore", "pipe", "pipe"] });
-  let output = "";
-  child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString("utf8")));
-  child.stderr.on("data", (chunk: Buffer) => (output += chunk.toString("utf8")));
-  return { child, output: () => output };
-}
-
-async function runHolder(instance: TestInstance, plan: string): Promise<Record<string, unknown> | undefined> {
-  const holder = spawnHolder(instance, plan);
-  const exit = await waitForExit(holder.child, holder.output, HOLDER_TIMEOUT_MS);
-  return outputEvent(exit.output, "database.opened") ?? outputEvent(exit.output, "database.refused");
-}
-
-/** An installation whose database is at plan B (version 2) with notes in a domain table. */
-async function installationAtB(): Promise<TestInstance> {
-  const instance = freshTestInstance();
-  expect(await runHolder(instance, "b")).toEqual({ event: "database.opened", schemaVersion: 2, created: true });
-  const writer = openDatabase(databaseFile(instance), { role: "writer", busyTimeoutMs: BUSY_TIMEOUT_MS });
-  const insert = writer.handle.prepare("INSERT INTO harness_note (text) VALUES (?)");
-  writer.handle.transaction(() => {
-    for (let index = 0; index < NOTES; index += 1) insert.run(`note ${index}`);
-  })();
-  writer.close();
-  return instance;
-}
-
-const noteSummary = "SELECT count(*) AS count, sum(id) AS ids, min(text) AS first, max(text) AS last FROM harness_note";
-const tableNames = (file: string): unknown[] => query(file, "SELECT name FROM sqlite_schema WHERE type = 'table' AND name LIKE 'harness%' ORDER BY name");
-const noteColumns = (file: string): unknown[] => query(file, "SELECT name FROM pragma_table_info('harness_note') ORDER BY cid");
-const manifestIds = (file: string): unknown[] => query(file, "SELECT id FROM schema_migration ORDER BY version");
 
 describe("D05.2-AC1 upgrade after a verified snapshot", () => {
   it("snapshot of version 2, database at version 3, same domain rows, extended manifest, closed operation", async () => {
     const instance = await installationAtB();
     const before = query(databaseFile(instance), noteSummary);
-    expect(before).toEqual([{ count: NOTES, ids: (NOTES * (NOTES + 1)) / 2, first: "note 0", last: "note 9" }]);
+    expect(before).toEqual(expectedNoteSummary);
     expect(readState(instance)).toMatchObject({ generation: 1, activeOperation: null });
 
     expect(await runHolder(instance, "c")).toEqual({ event: "database.opened", schemaVersion: 3, created: false });
@@ -150,7 +93,7 @@ describe("D05.2-AC1 upgrade after a verified snapshot", () => {
     // Atomic: the unfinished transaction left nothing of version 3.
     expect(inspectAs(instance, PLAN_B)).toEqual({ kind: "current", schemaVersion: 2 });
     expect(tableNames(databaseFile(instance))).toEqual([{ name: "harness_note" }]);
-    expect(query(databaseFile(instance), noteSummary)).toEqual([{ count: NOTES, ids: (NOTES * (NOTES + 1)) / 2, first: "note 0", last: "note 9" }]);
+    expect(query(databaseFile(instance), noteSummary)).toEqual(expectedNoteSummary);
     const [pkg] = packages(instance);
     const verification = verifyDatabaseSnapshot(pkg ?? "");
     expect(verification.ok).toBe(true);

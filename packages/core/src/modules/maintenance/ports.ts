@@ -18,4 +18,18 @@ export type SnapshotResult =
  */
 export interface DatabaseSnapshotPort {
   create(request: SnapshotRequest): Promise<SnapshotResult>;
+  /**
+   * The published snapshot that belongs to this operation, verified again now (crash after
+   * publication, D05.3). A package that does not verify, or a leftover of staging, is never
+   * returned: only a published and valid snapshot counts as completed.
+   */
+  findPublished(operationId: string): Promise<PublishedSnapshot | undefined>;
+  /** Removes working directories of snapshots that were never published (crash while staging). */
+  discardUnpublished(): Promise<void>;
 }
+
+export type PublishedSnapshot = Readonly<{
+  snapshotId: string;
+  /** schemaVersion of the database at the time of the snapshot. */
+  schemaVersion: number;
+}>;
