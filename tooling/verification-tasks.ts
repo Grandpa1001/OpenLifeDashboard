@@ -511,6 +511,30 @@ const definedLater: readonly TaskDefinition[] = [
     checks: [],
   },
   {
+    id: "D05.1",
+    ready: true,
+    title: "Database snapshots through the SQLite Backup API and package verification",
+    criteria: ["D05.1-AC1", "D05.1-AC2", "D05.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built snapshot adapter, sqlite and the native driver.
+        id: "workspace-build",
+        criteria: ["D05.1-AC1", "D05.1-AC2"],
+        description: "pnpm -r build produces the snapshot copy, the package format and the file adapter",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/sqlite/src/snapshots/copy-database.ts", "apps/server/src/adapters/filesystem/database-snapshots.ts"],
+      },
+      {
+        id: "database-snapshots-file-db",
+        criteria: ["D05.1-AC1", "D05.1-AC2"],
+        description: "WAL-only rows in a restored copy, package of exactly three files, invalid packages and refused sources",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/database-snapshots.test.ts"],
+        requires: ["tests/integration/maintenance/database-snapshots.test.ts", "tests/support/migration-plans.ts"],
+      },
+      ...regressionChecks("D05.1-regression"),
+    ],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",

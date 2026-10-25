@@ -10,7 +10,7 @@ export type SnapshotRequest = Readonly<{
 
 export type SnapshotResult =
   | Readonly<{ ok: true; snapshotId: string }>
-  | Readonly<{ ok: false; code: "SNAPSHOT_UNAVAILABLE" | "SNAPSHOT_FAILED" }>;
+  | Readonly<{ ok: false; code: "SNAPSHOT_UNAVAILABLE" | "SNAPSHOT_LOW_SPACE" | "SNAPSHOT_FAILED" }>;
 
 /**
  * Creates a verified `database` snapshot of the source under the writer lease (D05). It runs

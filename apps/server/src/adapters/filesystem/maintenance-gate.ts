@@ -6,7 +6,7 @@
 // A missing file is initialized only for a new installation without a database; it is never a
 // repair of an existing one. Every change goes through staging, fsync, rename and a directory
 // fsync on the same mount, so a crash leaves either the old or the new state.
-import { closeSync, constants, fstatSync, fsyncSync, lstatSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, renameSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import {
   MAINTENANCE_STATE_FORMAT_VERSION,
@@ -15,6 +15,7 @@ import {
   type MaintenanceOperation,
   type MaintenanceState,
 } from "@openlife/contracts/workers/maintenance-state";
+import { syncDirectory, writeNewFileDurably } from "./durable-files.js";
 import type { WriterLease } from "./writer-lease.js";
 
 /** Gate file inside the maintenance mount; the field name reported for an unreadable gate. */
@@ -22,7 +23,6 @@ export const MAINTENANCE_STATE_FILE = "state.json";
 const STAGING_FILE = `${MAINTENANCE_STATE_FILE}.staging`;
 /** The database and the companion files SQLite keeps next to it. */
 const DATABASE_FILE_SUFFIXES = ["", "-wal", "-shm", "-journal"];
-const STATE_FILE_MODE = 0o600;
 const READ_FLAGS = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0);
 
 export type MaintenanceGate = Readonly<{
@@ -102,19 +102,6 @@ function isNewInstallation(databaseFile: string): boolean {
   });
 }
 
-function syncDirectory(dir: string): void {
-  // Windows cannot open a directory for fsync; NTFS orders the rename metadata itself.
-  if (process.platform === "win32") {
-    return;
-  }
-  const fd = openSync(dir, "r");
-  try {
-    fsyncSync(fd);
-  } finally {
-    closeSync(fd);
-  }
-}
-
 function persist(dir: string, state: MaintenanceState): void {
   const staging = path.join(dir, STAGING_FILE);
   // A staging file left by a crash is this gate's own; anything else in its place is refused.
@@ -128,13 +115,7 @@ function persist(dir: string, state: MaintenanceState): void {
       throw error;
     }
   }
-  const fd = openSync(staging, "wx", STATE_FILE_MODE);
-  try {
-    writeFileSync(fd, `${JSON.stringify(state)}\n`);
-    fsyncSync(fd);
-  } finally {
-    closeSync(fd);
-  }
+  writeNewFileDurably(staging, `${JSON.stringify(state)}\n`);
   renameSync(staging, path.join(dir, MAINTENANCE_STATE_FILE));
   syncDirectory(dir);
 }

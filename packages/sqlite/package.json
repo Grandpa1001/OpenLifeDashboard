@@ -24,6 +24,11 @@
       "types": "./dist/migrations/public.d.ts",
       "default": "./dist/migrations/public.js"
     },
+    "./snapshots": {
+      "@openlife/source": "./src/snapshots/copy-database.ts",
+      "types": "./dist/snapshots/copy-database.d.ts",
+      "default": "./dist/snapshots/copy-database.js"
+    },
     "./transactions": {
       "@openlife/source": "./src/transactions/unit-of-work.ts",
       "types": "./dist/transactions/unit-of-work.d.ts",

@@ -9,6 +9,11 @@
     "dist"
   ],
   "exports": {
+    "./backups/database-snapshot": {
+      "@openlife/source": "./src/backups/database-snapshot.ts",
+      "types": "./dist/backups/database-snapshot.d.ts",
+      "default": "./dist/backups/database-snapshot.js"
+    },
     "./http/bootstrap": {
       "@openlife/source": "./src/http/bootstrap.ts",
       "types": "./dist/http/bootstrap.d.ts",

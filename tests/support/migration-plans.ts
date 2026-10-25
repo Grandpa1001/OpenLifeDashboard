@@ -30,4 +30,15 @@ export const FOREIGN_PLAN: MigrationPlan = PLAN_A.map((migration) => harnessMigr
 /** Plan A plus a migration whose SQL fails: initialization must leave no table behind. */
 export const BROKEN_PLAN: MigrationPlan = [...PLAN_A, harnessMigration(2, "0002-harness-broken", "CREATE TABLE harness_ok (id INTEGER);\nCREATE TABLE harness_ok (id INTEGER);\n")];
 
+/** Plan A plus parent/child tables with a foreign key, for integrity checks of snapshots. */
+export const FK_PLAN: MigrationPlan = [
+  ...PLAN_A,
+  harnessMigration(
+    2,
+    "0002-harness-parent-child",
+    "CREATE TABLE harness_parent (id INTEGER PRIMARY KEY) STRICT;\n" +
+      "CREATE TABLE harness_child (id INTEGER PRIMARY KEY, parent_id INTEGER NOT NULL REFERENCES harness_parent (id)) STRICT;\n",
+  ),
+];
+
 export const PLANS: Readonly<Record<string, MigrationPlan>> = { a: PLAN_A, b: PLAN_B, slow: SLOW_PLAN };
