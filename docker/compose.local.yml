@@ -1,0 +1,10 @@
+# Local mode (Architektura §12.1): the app is published ONLY on the loopback address of the host.
+# PORT is the host-side port of the installation (default 8080); the process in the container
+# always listens on 8080 (Architektura §14.5).
+services:
+  app:
+    ports:
+      - target: 8080
+        published: "${PORT:-8080}"
+        host_ip: 127.0.0.1
+        protocol: tcp

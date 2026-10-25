@@ -747,6 +747,37 @@ const definedLater: readonly TaskDefinition[] = [
     checks: [],
   },
   {
+    id: "D07.1",
+    ready: true,
+    title: "Compose local mode: the app service, loopback publication and the mounts of §15.1",
+    criteria: ["D07.1-AC1", "D07.1-AC2", "D07.1-regression"],
+    checks: [
+      {
+        id: "compose-files-static",
+        criteria: ["D07.1-AC1", "D07.1-AC2"],
+        description: "Parsed compose files: one service, no image, loopback port, three mounts, no socket, non-root, env list, healthcheck via node, 20 s grace",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/compose"],
+        requires: ["docker/compose.yml", "docker/compose.local.yml", "tests/unit/compose/compose-files.test.ts"],
+      },
+      {
+        id: "compose-instance-preparer",
+        criteria: ["D07.1-AC2"],
+        description: "The test installation for Compose: files, .env keys, project name, release override last, fresh folder only, no key printed",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/compose"],
+        requires: ["tests/integration/compose/compose-instance.test.ts", "tests/support/compose-instance.ts", "scripts/prepare-test-instance.ts"],
+      },
+      {
+        id: "compose-local-native",
+        criteria: ["D07.1-AC1", "D07.1-AC2"],
+        description: "Real docker compose: healthy, non-root, 127.0.0.1:PORT→8080 only, three mounts, no socket, listed variables only, stop within 20 s",
+        command: ["node", "tests/system/compose-local.ts"],
+        requires: ["tests/system/compose-local.ts", "docker/Dockerfile", "docker/compose.yml"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      ...regressionChecks("D07.1-regression"),
+    ],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",

@@ -37,8 +37,11 @@ async function openUnfinishedRequest(server: ServerProcess) {
   let received = "";
   socket.on("data", (chunk: Buffer) => (received += chunk.toString("utf8")));
   const closed = new Promise<void>((resolve) => socket.once("close", () => resolve()));
-  // The parser has the first bytes once the event loop has turned a few times.
-  await new Promise((resolve) => setTimeout(resolve, 150));
+  // The server must have READ these bytes before the test goes on, or it would take the
+  // connection for idle. A full request on a new connection cannot be answered before the
+  // server has read what was already waiting on this one, so its answer is the proof; waiting for
+  // a fixed time instead fails on a loaded machine.
+  expect((await fetch(`${server.baseUrl}/api/health`)).status).toBe(200);
   return {
     port,
     socket,

@@ -51,6 +51,18 @@ For frontend work, keep the server running and start Vite on http://127.0.0.1:51
 pnpm --filter @openlife/web dev
 ```
 
+### Compose (local mode)
+
+`docker/compose.yml` and `docker/compose.local.yml` run the app as the host user, read-only and without capabilities, with exactly three mounts (`data`, `control/maintenance`, and `control/instance.json` read-only), published only on `127.0.0.1:PORT`. A test installation that Compose can run is prepared from an image that exists on your machine:
+
+```sh
+docker build -f docker/Dockerfile -t openlifedashboard:dev .
+pnpm prepare:test-instance -- ../openlife-compose --image openlifedashboard:dev --port 8080
+cd ../openlife-compose && docker compose up --detach --wait
+```
+
+`pnpm verify:task -- D07.1` checks the compose files statically and, with Docker, runs them for real (healthy, non-root, loopback only, mounts, stop within 20 s); without Docker the real run is blocked.
+
 ### Container image
 
 `docker/Dockerfile` builds the app image (Node 24 on Debian trixie-slim, runs as the non-root `node` user) for the platform of the building machine. Compose files and installers come later.
