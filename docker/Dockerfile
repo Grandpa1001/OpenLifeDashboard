@@ -23,6 +23,9 @@ WORKDIR /app
 # Application files stay owned by root and read-only for the runtime user.
 COPY --from=build /out/server apps/server
 COPY --from=build /workspace/apps/web/dist apps/web/dist
+# Source revision of this build for snapshot metadata (apps/server/src/bootstrap/build-info.ts).
+ARG BUILD_REVISION=development
+RUN printf '{"buildRevision":"%s"}\n' "$BUILD_REVISION" > apps/server/build-info.json
 # Mount points of Architektura §15.1. Compose binds the installation folders here (D07); the
 # image provides them owned by the runtime user so a container without mounts still starts.
 RUN mkdir -p /data/backup /data/logs/app /data/tmp /control/maintenance /instance \

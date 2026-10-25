@@ -3,14 +3,18 @@
 // operation of the maintenance gate; an `init` interrupted by a crash is reconciled from the
 // database itself (empty → initialize again, complete → close the operation). Any other active
 // operation, a foreign or newer database, a changed migration or another instance's database
-// refuses the start. Upgrading an existing database needs a verified pre_migration snapshot;
-// until its provider exists (D05) the snapshot port refuses and so does the upgrade.
+// refuses the start. Upgrading an existing database (D05.2) is one `migrate` operation under the
+// writer lease: verified pre_migration snapshot of the old version → all pending migrations in
+// one transaction → check → close the operation. No snapshot, no migration; a failing migration
+// rolls back as a whole and leaves the database at its version and the snapshot published.
 import type { DatabaseSnapshotPort } from "@openlife/core/maintenance";
 import { ConnectionSettingError, openDatabase, type SqliteConnection } from "@openlife/sqlite/connection";
 import {
   DATABASE_FIELD,
   initializeDatabase,
   inspectDatabase,
+  MigrationFailedError,
+  migrateDatabase,
   MigrationPlanError,
   targetSchemaVersion,
   validatePlan,
@@ -23,6 +27,7 @@ export type DatabaseOpenCode =
   | DatabaseRefusalCode
   | "MAINTENANCE_RECOVERY_REQUIRED"
   | "MIGRATION_SNAPSHOT_REQUIRED"
+  | "MIGRATION_FAILED"
   | "DATABASE_MISSING"
   | "DATABASE_UNAVAILABLE";
 
@@ -38,15 +43,11 @@ export type DatabaseOpenInputs = Readonly<{
   /** instanceId of control/instance.json. */
   instanceId: string;
   busyTimeoutMs: number;
-  snapshots: DatabaseSnapshotPort;
+  /** Builds the snapshot port for the source connection the upgrade is about to change. */
+  createSnapshots: (source: SqliteConnection) => DatabaseSnapshotPort;
   now: () => string;
   newOperationId: () => string;
 }>;
-
-/** The snapshot provider before D05: every request is refused, so no existing database migrates. */
-export const SNAPSHOTS_UNAVAILABLE: DatabaseSnapshotPort = {
-  create: () => Promise.resolve({ ok: false, code: "SNAPSHOT_UNAVAILABLE" }),
-};
 
 const refused = (code: DatabaseOpenCode, fields: readonly string[]): DatabaseOpenResult => ({ ok: false, code, fields });
 const RECOVERY_REQUIRED = refused("MAINTENANCE_RECOVERY_REQUIRED", ["activeOperation"]);
@@ -113,26 +114,48 @@ async function open(inputs: DatabaseOpenInputs): Promise<DatabaseOpenResult> {
       const begun = inputs.gate.begin({ operationId, reason: "init", phase: "initializing", startedAt: inputs.now(), targetSchemaVersion: target });
       return initialize(inputs, operationId, begun.generation);
     }
-    case "pending": {
-      const operationId = inputs.newOperationId();
-      const begun = inputs.gate.begin({
-        operationId,
-        reason: "migrate",
-        phase: "snapshot",
-        startedAt: inputs.now(),
-        fromSchemaVersion: inspection.fromSchemaVersion,
-        toSchemaVersion: inspection.toSchemaVersion,
-        snapshotId: null,
-      });
-      const snapshot = await inputs.snapshots.create({ reason: "pre_migration", scope: "database", operationId, fence: begun.generation });
+    case "pending":
+      return upgrade(inputs, inspection.fromSchemaVersion, inspection.toSchemaVersion);
+  }
+}
+
+async function upgrade(inputs: DatabaseOpenInputs, fromSchemaVersion: number, toSchemaVersion: number): Promise<DatabaseOpenResult> {
+  const connection = openWriter(inputs);
+  const operationId = inputs.newOperationId();
+  const operation = { operationId, reason: "migrate", startedAt: inputs.now(), fromSchemaVersion, toSchemaVersion } as const;
+  const { generation } = inputs.gate.begin({ ...operation, phase: "snapshot", snapshotId: null });
+  try {
+    const snapshot = await inputs.createSnapshots(connection).create({ reason: "pre_migration", scope: "database", operationId, fence: generation });
+    if (!snapshot.ok) {
       // Nothing was changed: the operation closes and the database stays at its version.
-      inputs.gate.complete(operationId, begun.generation);
-      if (!snapshot.ok) {
-        return refused("MIGRATION_SNAPSHOT_REQUIRED", ["schemaVersion"]);
-      }
-      // Applying the migrations after a verified snapshot is D05.2; no provider succeeds before it.
-      throw new Error("upgrading an existing database arrives with D05.2");
+      inputs.gate.complete(operationId, generation);
+      connection.close();
+      return refused("MIGRATION_SNAPSHOT_REQUIRED", ["schemaVersion"]);
     }
+    inputs.gate.advance({ ...operation, phase: "migrating", snapshotId: snapshot.snapshotId });
+    try {
+      migrateDatabase(connection, inputs.plan, inputs.now());
+    } catch (error) {
+      if (!(error instanceof MigrationFailedError)) {
+        throw error;
+      }
+      // Rolled back as a whole: the database is still at its version, the snapshot stays.
+      inputs.gate.complete(operationId, generation);
+      connection.close();
+      return refused("MIGRATION_FAILED", [error.migrationId]);
+    }
+    inputs.gate.advance({ ...operation, phase: "verifying", snapshotId: snapshot.snapshotId });
+    const after = inspectDatabase(inputs.file, inputs.plan, { instanceId: inputs.instanceId, busyTimeoutMs: inputs.busyTimeoutMs });
+    if (after.kind !== "current") {
+      // Committed but not what the plan says: only reconciliation (D05.3) may judge it.
+      connection.close();
+      return RECOVERY_REQUIRED;
+    }
+    inputs.gate.complete(operationId, generation);
+    return { ok: true, connection, schemaVersion: after.schemaVersion, created: false };
+  } catch (error) {
+    connection.close();
+    throw error;
   }
 }
 

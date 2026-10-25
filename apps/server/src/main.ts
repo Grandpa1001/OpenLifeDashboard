@@ -1,7 +1,7 @@
 // Server process entrypoint: the only place that starts HTTP (Architektura §13.1).
 // Bootstrap order (§4.8, §14.5, §18.6): start options → web app → environment → instance
 // metadata → option set → storage preflight → writer lease → maintenance gate → database
-// (inspect, initialize or reconcile) → HTTP. Any failure exits 1 before listening; a failure
+// (inspect, initialize, upgrade with a snapshot or reconcile) → HTTP. Any failure exits 1 before listening; a failure
 // names a code and fields, never a value. Exiting releases the lease with the process; nothing
 // before the lease opens or changes database files.
 import { randomUUID } from "node:crypto";
@@ -10,12 +10,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
 import { CONTAINER_WORKING_PATHS, installationWorkingPaths } from "./adapters/filesystem/installation-paths.js";
+import { createDatabaseSnapshots } from "./adapters/filesystem/database-snapshots.js";
 import { openMaintenanceGate } from "./adapters/filesystem/maintenance-gate.js";
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
 import { loadBootstrapConfig } from "./bootstrap/bootstrap-config.js";
 import { createApp } from "./bootstrap/create-app.js";
-import { openInstallationDatabase, SNAPSHOTS_UNAVAILABLE } from "./bootstrap/database.js";
+import { readBuildInfo } from "./bootstrap/build-info.js";
+import { openInstallationDatabase } from "./bootstrap/database.js";
 import { startServer, stopOnSignals } from "./bootstrap/lifecycle.js";
 import { SHUTDOWN_TIMEOUT_MS } from "./bootstrap/runtime-defaults.js";
 import { parseStartOptions } from "./bootstrap/start-options.js";
@@ -72,13 +74,23 @@ const gate = openMaintenanceGate(writer.lease, workingPaths);
 if (!gate.ok) {
   bootstrapFailed(gate.code, gate.fields);
 }
+// Read before the database step: a broken image fails here, not inside an upgrade operation.
+const build = readBuildInfo();
 const database = await openInstallationDatabase({
   file: workingPaths.database,
   gate: gate.gate,
   plan: PRODUCT_MIGRATION_PLAN,
   instanceId: paths.instanceId,
   busyTimeoutMs: environment.dbBusyTimeoutMs,
-  snapshots: SNAPSHOTS_UNAVAILABLE,
+  createSnapshots: (source) =>
+    createDatabaseSnapshots(source, {
+      backupsDir: workingPaths.backups,
+      reserveMiB,
+      instanceId: paths.instanceId,
+      build,
+      now: () => new Date().toISOString(),
+      newSnapshotId: randomUUID,
+    }),
   now: () => new Date().toISOString(),
   newOperationId: randomUUID,
 });

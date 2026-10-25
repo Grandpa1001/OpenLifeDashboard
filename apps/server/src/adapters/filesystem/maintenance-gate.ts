@@ -32,6 +32,11 @@ export type MaintenanceGate = Readonly<{
    * returned generation is the operation's fence. Requires the held lease and no active operation.
    */
   begin: (operation: MaintenanceOperation) => MaintenanceState;
+  /**
+   * Persists a later phase of the active operation (same ID and reason, same generation), so a
+   * crash leaves the phase that was reached for reconciliation. Another operation is refused.
+   */
+  advance: (operation: MaintenanceOperation) => MaintenanceState;
   /** Closes the operation that `begin` returned; another ID or generation is refused. */
   complete: (operationId: string, generation: number) => MaintenanceState;
 }>;
@@ -137,6 +142,13 @@ function createGate(lease: WriterLease, dir: string, initial: MaintenanceState):
         throw new Error(`operation ${state.activeOperation.operationId} is still active`);
       }
       return write({ ...state, generation: state.generation + 1, activeOperation: maintenanceOperationSchema.parse(operation) });
+    },
+    advance: (operation) => {
+      const active = state.activeOperation;
+      if (active === null || active.operationId !== operation.operationId || active.reason !== operation.reason) {
+        throw new Error(`operation ${operation.operationId} is not the active one`);
+      }
+      return write({ ...state, activeOperation: maintenanceOperationSchema.parse(operation) });
     },
     complete: (operationId, generation) => {
       if (state.activeOperation?.operationId !== operationId || state.generation !== generation) {

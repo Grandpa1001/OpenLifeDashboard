@@ -535,6 +535,37 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D05.2",
+    ready: true,
+    title: "Upgrade of an existing database after a verified pre_migration snapshot",
+    criteria: ["D05.2-AC1", "D05.2-AC2", "D05.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built migrator, snapshot adapter and bootstrap step.
+        id: "workspace-build",
+        criteria: ["D05.2-AC1", "D05.2-AC2"],
+        description: "pnpm -r build produces the migration runner and the upgrade flow of the bootstrap",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/sqlite/src/migrations/migrate-database.ts", "apps/server/src/bootstrap/database.ts"],
+      },
+      {
+        id: "database-upgrade",
+        criteria: ["D05.2-AC1", "D05.2-AC2"],
+        description: "B→C on real installations: snapshot before migration, one transaction, SIGKILL inside it, snapshot/SQL/orphan failures",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/database-upgrade.test.ts"],
+        requires: ["tests/integration/maintenance/database-upgrade.test.ts", "tests/support/database-holder.ts"],
+      },
+      {
+        id: "database-bootstrap-regression",
+        criteria: ["D05.2-regression"],
+        description: "D04.3 start, restart and refusal cases still hold with the real snapshot provider",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/database-bootstrap.test.ts"],
+        requires: ["tests/integration/maintenance/database-bootstrap.test.ts"],
+      },
+      ...regressionChecks("D05.2-regression"),
+    ],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",

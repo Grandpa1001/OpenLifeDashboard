@@ -9,7 +9,7 @@
 //      the database file unchanged.
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { openDatabase } from "../../../packages/sqlite/dist/connection/open-database.js";
@@ -68,7 +68,7 @@ async function bootRefused(instance: TestInstance): Promise<unknown> {
   return outputEvent(exit.output, "bootstrap.failed");
 }
 
-function spawnDatabaseHolder(instance: TestInstance, plan: "a" | "b" | "slow") {
+function spawnDatabaseHolder(instance: TestInstance, plan: string) {
   const child = spawn(process.execPath, [DATABASE_HOLDER, instance.dir, plan], { cwd: repoRoot, stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString("utf8")));
@@ -76,7 +76,7 @@ function spawnDatabaseHolder(instance: TestInstance, plan: "a" | "b" | "slow") {
   return { child, output: () => output };
 }
 
-async function runDatabaseHolder(instance: TestInstance, plan: "a" | "b" | "slow"): Promise<Record<string, unknown> | undefined> {
+async function runDatabaseHolder(instance: TestInstance, plan: string): Promise<Record<string, unknown> | undefined> {
   const holder = spawnDatabaseHolder(instance, plan);
   const exit = await waitForExit(holder.child, holder.output, HOLDER_TIMEOUT_MS);
   return outputEvent(exit.output, "database.opened") ?? outputEvent(exit.output, "database.refused");
@@ -170,10 +170,16 @@ describe("D04.3-AC2 refused databases stay unchanged", () => {
     expect([sha256(databaseFile(instance)), sha256(stateFile(instance))]).toEqual(before);
   }
 
-  it("a pending upgrade without a snapshot is refused and the database stays at its version", async () => {
+  it("a pending upgrade whose snapshot cannot be written is refused and the database stays at its version", async () => {
     const instance = await initializedInstance();
+    const backups = path.join(instance.dir, "data", "backup");
+    chmodSync(backups, 0o555);
     const before = sha256(databaseFile(instance));
-    expect(await runDatabaseHolder(instance, "b")).toEqual({ event: "database.refused", code: "MIGRATION_SNAPSHOT_REQUIRED", fields: ["schemaVersion"] });
+    try {
+      expect(await runDatabaseHolder(instance, "b")).toEqual({ event: "database.refused", code: "MIGRATION_SNAPSHOT_REQUIRED", fields: ["schemaVersion"] });
+    } finally {
+      chmodSync(backups, 0o755);
+    }
     expect(sha256(databaseFile(instance))).toBe(before);
     expect(readRows(instance, "SELECT id FROM schema_migration")).toEqual([{ id: "0001-foundation" }]);
     expect(readRows(instance, "SELECT name FROM sqlite_schema WHERE name = 'harness_note'")).toEqual([]);
