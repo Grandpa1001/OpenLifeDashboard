@@ -322,6 +322,37 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D03.3",
+    ready: true,
+    title: "instance.json v1, installation paths and the paths CLI",
+    criteria: ["D03.3-AC1", "D03.3-AC2", "D03.3-regression"],
+    checks: [
+      {
+        // Runs first: the paths CLI test uses this build.
+        id: "workspace-build",
+        criteria: ["D03.3-AC1", "D03.3-AC2"],
+        description: "pnpm -r build produces the server and its CLIs",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/cli/paths.ts", "apps/server/src/bootstrap/instance-metadata.ts"],
+      },
+      {
+        id: "instance-metadata",
+        criteria: ["D03.3-AC1", "D03.3-AC2"],
+        description: "F08 D03.3 cases through the bootstrap; POSIX/Windows paths; malformed metadata refused",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/bootstrap/instance-metadata.test.ts"],
+        requires: ["tests/unit/bootstrap/instance-metadata.test.ts", "tests/fixtures/cases/bootstrap-v1.cases.json"],
+      },
+      {
+        id: "paths-cli",
+        criteria: ["D03.3-AC1", "D03.3-AC2"],
+        description: "Built paths CLI without env: same ID on restart; invalid metadata exits 1 without side effects",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/bootstrap/paths-cli.test.ts"],
+        requires: ["tests/integration/bootstrap/paths-cli.test.ts"],
+      },
+      ...regressionChecks("D03.3-regression"),
+    ],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",

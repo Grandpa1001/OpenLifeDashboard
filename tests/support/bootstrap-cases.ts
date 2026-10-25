@@ -36,7 +36,11 @@ export type BootstrapCase = Readonly<{
 }>;
 
 type Fixture = Readonly<{
-  baseline: Readonly<{ env: Readonly<Record<string, string>>; generatedSecretKeys: readonly string[] }>;
+  baseline: Readonly<{
+    env: Readonly<Record<string, string>>;
+    generatedSecretKeys: readonly string[];
+    instance: Readonly<Record<string, unknown>>;
+  }>;
   cases: readonly BootstrapCase[];
 }>;
 
