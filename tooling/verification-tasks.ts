@@ -1083,6 +1083,31 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D09.2",
+    ready: true,
+    title: "create-owner CLI: one owner, credential and audit entry in one transaction under the writer lease",
+    criteria: ["D09.2-AC1", "D09.2-AC2", "D09.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built CLI against the built migrations and adapters.
+        id: "workspace-build",
+        criteria: ["D09.2-AC1", "D09.2-AC2"],
+        description: "pnpm -r build: the identity use case, the sqlite adapters, migration 3 and the CLI",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/cli/create-owner.ts", "packages/sqlite/src/migrations/0003-owner-audit.ts"],
+      },
+      {
+        id: "create-owner-cli",
+        criteria: ["D09.2-AC1", "D09.2-AC2"],
+        description:
+          "Real CLI processes on real installations: stdin only; parallel runs give one owner, credential and owner.created entry; failing audit/credential/singleton rolls back; second owner, same-e-mail foreign user, running app and missing database refused; F09 parallel-owner-creation and owner-audit-failure-rolls-back",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/create-owner.test.ts"],
+        requires: ["tests/integration/auth/create-owner.test.ts", "apps/server/src/bootstrap/command-session.ts", "packages/core/src/modules/identity/public.ts"],
+      },
+      ...regressionChecks("D09.2-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

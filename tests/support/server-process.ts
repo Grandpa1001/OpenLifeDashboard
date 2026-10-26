@@ -86,9 +86,15 @@ export function runServerEntry(args: readonly string[], env: NodeJS.ProcessEnv =
   return runBuiltScript(SERVER_ENTRY, args, env);
 }
 
-/** Runs a built server script (e.g. a CLI under apps/server/dist/cli) to completion. */
-export function runBuiltScript(script: string, args: readonly string[], env: NodeJS.ProcessEnv = process.env): Promise<ProcessExit> {
-  const child = spawn(process.execPath, [script, ...args], { cwd: repoRoot, env, stdio: ["ignore", "pipe", "pipe"] });
+/**
+ * Runs a built server script (e.g. a CLI under apps/server/dist/cli) to completion. `input` is
+ * written to its standard input and closed; without it, standard input is empty.
+ */
+export function runBuiltScript(script: string, args: readonly string[], env: NodeJS.ProcessEnv = process.env, input?: string): Promise<ProcessExit> {
+  const child = spawn(process.execPath, [script, ...args], { cwd: repoRoot, env, stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"] });
+  if (input !== undefined) {
+    child.stdin?.end(input);
+  }
   // A script that unexpectedly keeps running (a server that started instead of refusing) must
   // not outlive the failed test.
   return waitForExit(child, capture(child), STARTUP_TIMEOUT_MS).catch((error: unknown) => {
@@ -163,4 +169,18 @@ export function startWriterHolder(installationDir: string, flags: readonly strin
       reject(new Error(`writer holder exited with ${code} before it was ready:\n${output()}`));
     });
   });
+}
+
+const STOP_TIMEOUT_MS = 15_000;
+
+/** A new installation after its first real start and orderly stop: the database exists, nothing runs. */
+export async function startedInstallation(): Promise<TestInstance> {
+  const instance = freshTestInstance();
+  const server = await startBuiltServer({ installation: instance });
+  server.child.kill("SIGTERM");
+  const exit = await waitForExit(server.child, server.output, STOP_TIMEOUT_MS);
+  if (exit.code !== 0 || !outputEvent(exit.output, "bootstrap.ready")) {
+    throw new Error(`the first start of a new installation did not end cleanly:\n${exit.output}`);
+  }
+  return instance;
 }

@@ -74,8 +74,8 @@ try {
     const created = readInstallationState(prepared.dir);
     evidence["created"] = withoutLog(created);
     check.expect(
-      Array.isArray(created.manifest) && created.manifest.length === 1 && text(created.gate) === '{"formatVersion":1,"generation":1,"activeOperation":null}',
-      "the first start created one migration and a closed init operation",
+      Array.isArray(created.manifest) && created.manifest.length === VERSION.a && text(created.gate) === '{"formatVersion":1,"generation":1,"activeOperation":null}',
+      "the first start applied the whole migration plan and left a closed init operation",
       text(withoutLog(created)),
     );
     check.expect(

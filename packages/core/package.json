@@ -9,10 +9,20 @@
     "dist"
   ],
   "exports": {
+    "./audit": {
+      "@openlife/source": "./src/modules/audit/public.ts",
+      "types": "./dist/modules/audit/public.d.ts",
+      "default": "./dist/modules/audit/public.js"
+    },
     "./foundation": {
       "@openlife/source": "./src/foundation/public.ts",
       "types": "./dist/foundation/public.d.ts",
       "default": "./dist/foundation/public.js"
+    },
+    "./identity": {
+      "@openlife/source": "./src/modules/identity/public.ts",
+      "types": "./dist/modules/identity/public.d.ts",
+      "default": "./dist/modules/identity/public.js"
     },
     "./maintenance": {
       "@openlife/source": "./src/modules/maintenance/public.ts",

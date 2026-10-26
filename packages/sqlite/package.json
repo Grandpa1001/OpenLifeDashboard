@@ -9,6 +9,16 @@
     "dist"
   ],
   "exports": {
+    "./adapters/audit": {
+      "@openlife/source": "./src/adapters/audit/append-audit.ts",
+      "types": "./dist/adapters/audit/append-audit.d.ts",
+      "default": "./dist/adapters/audit/append-audit.js"
+    },
+    "./adapters/identity": {
+      "@openlife/source": "./src/adapters/identity/owner-writers.ts",
+      "types": "./dist/adapters/identity/owner-writers.d.ts",
+      "default": "./dist/adapters/identity/owner-writers.js"
+    },
     "./connection": {
       "@openlife/source": "./src/connection/open-database.ts",
       "types": "./dist/connection/open-database.d.ts",

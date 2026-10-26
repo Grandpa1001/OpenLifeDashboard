@@ -2,7 +2,7 @@
 
 A self-hosted, no-code personal life dashboard: build your own registers, dictionaries and screens with widgets, and view them live on your phone, laptop and a large screen.
 
-> **Status: early development (KM1).** The foundation (KM0) passed gate G0: the image starts from a Compose installation with a real database, snapshots and logs, and the web app shows whether the server is ready. The database now has the tables of the auth adapter, but there is no owner account, sign-in or data yet. Nothing here is ready to install or use.
+> **Status: early development (KM1).** The foundation (KM0) passed gate G0: the image starts from a Compose installation with a real database, snapshots and logs, and the web app shows whether the server is ready. The database now has the tables of the auth adapter, the owner singleton and the audit trail, and the `create-owner` command creates the owner account (credentials on stdin only); there is no sign-in or data yet. Nothing here is ready to install or use.
 
 ## Development
 
@@ -78,6 +78,16 @@ docker run --rm -p 127.0.0.1:8080:8080 openlifedashboard:dev
 ```
 
 `pnpm verify:task -- D02.2` and `-- D02.3` build the image natively for the host architecture, check the SQLite driver and the container start/stop; without Docker they report blocked. CI runs them on native linux/amd64 and linux/arm64 runners, and `pnpm verify:task -- D02` accepts the result only with passing reports of both architectures for the same commit.
+
+### Owner account
+
+There is no sign-up. The owner exists only after `create-owner`, which runs against a stopped app (it takes the same writer lease; a running app means `INSTANCE_BUSY` and no change) and a database that is already current. The e-mail and the password are read from stdin as one JSON object, `{"email": "...", "password": "..."}` (12–128 code points, never trimmed or normalized), and never from arguments or the environment. One transaction writes the account, the owner singleton and the `owner.created` audit entry; a second owner is refused with `OWNER_ALREADY_EXISTS`. On failure the command exits 1 with a stable code and field names, never values.
+
+```sh
+printf '%s' '{"email":"owner@example.com","password":"a long passphrase"}' | node apps/server/dist/cli/create-owner.js --installation <installation-folder>
+```
+
+The container sequence (stop the app, one-off container, start again) belongs to the installer (D19).
 
 ### Verified runtime
 

@@ -9,10 +9,9 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { checkAuthSchema } from "../../../apps/server/dist/adapters/auth/auth-schema.js";
 import { openDatabase } from "../../../packages/sqlite/dist/connection/open-database.js";
-import { freshTestInstance, outputEvent, runServerEntry, startBuiltServer, waitForExit } from "../../support/server-process.ts";
+import { outputEvent, runServerEntry, startedInstallation } from "../../support/server-process.ts";
 import type { TestInstance } from "../../support/test-instance.ts";
 
-const STOP_TIMEOUT_MS = 15_000;
 const AUTH_TABLES = ["account", "session", "user", "verification"];
 
 const databaseFile = (instance: TestInstance): string => path.join(instance.dir, "data", "app.db");
@@ -28,17 +27,6 @@ function withWriter<T>(instance: TestInstance, use: (handle: ReturnType<typeof o
 }
 
 const schemaOf = (instance: TestInstance): unknown => withWriter(instance, (handle) => handle.prepare("SELECT type, name, sql FROM sqlite_schema ORDER BY name").all());
-
-/** A new installation after its first real start and stop. */
-async function startedInstallation(): Promise<TestInstance> {
-  const instance = freshTestInstance();
-  const server = await startBuiltServer({ installation: instance });
-  server.child.kill("SIGTERM");
-  const exit = await waitForExit(server.child, server.output, STOP_TIMEOUT_MS);
-  expect(exit.code, exit.output).toBe(0);
-  expect(outputEvent(exit.output, "bootstrap.ready")).toBeDefined();
-  return instance;
-}
 
 describe("D09.1-AC3 the auth schema decides readiness", () => {
   it("a new installation has the auth tables of the migration plan and starts", async () => {
