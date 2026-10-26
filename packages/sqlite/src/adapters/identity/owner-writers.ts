@@ -11,7 +11,11 @@ const OWNER_ACCOUNT_NAME = "Owner";
 const CREDENTIAL_PROVIDER = "credential";
 
 export function bindOwnerWriters(tx: TransactionHandle): Readonly<{ owners: OwnerSingletonWriter; credentials: CredentialWriter }> {
-  const count = tx.prepare("SELECT count(*) AS owners FROM instance_state");
+  const current = tx.prepare("SELECT owner_id AS ownerId, access_epoch AS accessEpoch FROM instance_state");
+  const advance = tx.prepare("UPDATE instance_state SET access_epoch = access_epoch + 1 WHERE singleton = 1");
+  const replacePassword = tx.prepare(
+    `UPDATE account SET password = ?, updatedAt = ? WHERE userId = ? AND providerId = '${CREDENTIAL_PROVIDER}'`,
+  );
   const claim = tx.prepare("INSERT INTO instance_state (singleton, owner_id, access_epoch, owner_created_at) VALUES (1, ?, ?, ?)");
   const insertUser = tx.prepare(
     `INSERT INTO "user" (id, name, email, emailVerified, image, createdAt, updatedAt) VALUES (?, ?, ?, 1, NULL, ?, ?)`,
@@ -21,7 +25,12 @@ export function bindOwnerWriters(tx: TransactionHandle): Readonly<{ owners: Owne
   );
   return {
     owners: {
-      hasOwner: () => (count.get() as { owners: number }).owners > 0,
+      hasOwner: () => current.get() !== undefined,
+      currentOwnerId: () => (current.get() as { ownerId: string } | undefined)?.ownerId ?? null,
+      advanceAccessEpoch: () => {
+        advance.run();
+        return (current.get() as { accessEpoch: number }).accessEpoch;
+      },
       claim: ({ ownerId, at }) => void claim.run(ownerId, FIRST_ACCESS_EPOCH, at),
     },
     credentials: {
@@ -30,6 +39,7 @@ export function bindOwnerWriters(tx: TransactionHandle): Readonly<{ owners: Owne
         insertUser.run(ownerId, OWNER_ACCOUNT_NAME, email, at, at);
         insertAccount.run(ownerId, ownerId, CREDENTIAL_PROVIDER, ownerId, passwordHash, at, at);
       },
+      replaceOwnerPassword: ({ ownerId, passwordHash, at }) => replacePassword.run(passwordHash, at, ownerId).changes === 1,
     },
   };
 }

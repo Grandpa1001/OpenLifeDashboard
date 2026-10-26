@@ -17,6 +17,10 @@ export type NewOwnerAccount = Readonly<{
 /** The owner singleton: at most one owner per installation, guarded by the database itself. */
 export interface OwnerSingletonWriter {
   hasOwner(): boolean;
+  /** The owner's id; null before an owner exists. */
+  currentOwnerId(): string | null;
+  /** Raises the access epoch (password reset, MFA reset) and returns the new one. */
+  advanceAccessEpoch(): number;
   /** Claims the singleton for an account written by `CredentialWriter` in the same unit. */
   claim(owner: Readonly<{ ownerId: string; at: string }>): void;
 }
@@ -24,6 +28,8 @@ export interface OwnerSingletonWriter {
 /** The login identity and password credential in the tables of the auth adapter. */
 export interface CredentialWriter {
   insertOwnerAccount(account: NewOwnerAccount): void;
+  /** Replaces the password hash of the owner's credential; false if the owner has none. */
+  replaceOwnerPassword(change: Readonly<{ ownerId: string; passwordHash: string; at: string }>): boolean;
 }
 
 export type CreateOwnerPorts = Readonly<{
@@ -67,6 +73,8 @@ export interface SessionStore {
   findActive(token: string, nowMs: number): Readonly<{ ownerId: string }> | null;
   /** True if a session was removed. */
   deleteByToken(token: string): boolean;
+  /** Ends every session of the owner (password reset); returns how many existed. */
+  deleteAllOfOwner(ownerId: string): number;
 }
 
 export type SignInPorts = Readonly<{
@@ -74,5 +82,12 @@ export type SignInPorts = Readonly<{
   credentials: CredentialReader;
   sessions: SessionStore;
   owners: Pick<OwnerSingletonWriter, "hasOwner">;
+  audit: AppendAudit;
+}>;
+
+export type ResetPasswordPorts = Readonly<{
+  owners: OwnerSingletonWriter;
+  credentials: CredentialWriter;
+  sessions: Pick<SessionStore, "deleteAllOfOwner">;
   audit: AppendAudit;
 }>;

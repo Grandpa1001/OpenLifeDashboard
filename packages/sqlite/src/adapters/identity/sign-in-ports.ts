@@ -53,6 +53,7 @@ function bindSessions(tx: TransactionHandle): SessionStore {
     `SELECT s.userId AS ownerId FROM session s JOIN instance_state o ON o.owner_id = s.userId WHERE s.token = ? AND s.expiresAt > ?`,
   );
   const remove = tx.prepare("DELETE FROM session WHERE token = ?");
+  const removeAll = tx.prepare("DELETE FROM session WHERE userId = ?");
   return {
     insert: (session) =>
       void insert.run(
@@ -67,6 +68,7 @@ function bindSessions(tx: TransactionHandle): SessionStore {
       ),
     findActive: (token, nowMs) => (active.get(token, iso(nowMs)) as { ownerId: string } | undefined) ?? null,
     deleteByToken: (token) => remove.run(token).changes > 0,
+    deleteAllOfOwner: (ownerId) => removeAll.run(ownerId).changes,
   };
 }
 

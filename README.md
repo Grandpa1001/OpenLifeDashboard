@@ -87,6 +87,12 @@ There is no sign-up. The owner exists only after `create-owner`, which runs agai
 printf '%s' '{"email":"owner@example.com","password":"a long passphrase"}' | node apps/server/dist/cli/create-owner.js --installation <installation-folder>
 ```
 
+`reset-password` works the same way (stopped app, current database, stdin only) with `{"password": "..."}`. In one transaction it replaces the password hash, raises the access epoch, ends every session of the owner and writes the `owner.password_reset` audit entry; the old cookies stop authenticating at once. There is no e-mail reset: the commands are the only way.
+
+```sh
+printf '%s' '{"password":"a new long passphrase"}' | node apps/server/dist/cli/reset-password.js --installation <installation-folder>
+```
+
 The container sequence (stop the app, one-off container, start again) belongs to the installer (D19).
 
 ### Verified runtime

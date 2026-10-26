@@ -35,6 +35,11 @@ export const ownerCredentialsSchema = z.object({ email: ownerEmailSchema, passwo
 
 export type OwnerCredentials = z.infer<typeof ownerCredentialsSchema>;
 
+/** stdin of the reset-password CLI: the owner is the installation's single owner, so only the new password. */
+export const resetPasswordInputSchema = z.object({ password: ownerPasswordSchema }).strict();
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordInputSchema>;
+
 // Sign-in, sign-out and status (Architektura §9.8, §18.7; D09.3): the closed list of the
 // operations of the first cross-section. No response carries a token, session or account row.
 

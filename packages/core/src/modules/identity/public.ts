@@ -1,7 +1,9 @@
 // Public API of the identity module (Architektura §13.2, §18.7).
+export { resetOwnerPassword } from "./application/reset-password.js";
+export type { PasswordReset, ResetPasswordCommand } from "./application/reset-password.js";
 export { createOwner } from "./application/create-owner.js";
 export type { CreateOwnerCommand, OwnerCreated } from "./application/create-owner.js";
-export type { CreateOwnerPorts, CredentialWriter, NewOwnerAccount, OwnerSingletonWriter } from "./ports.js";
+export type { CreateOwnerPorts, CredentialWriter, NewOwnerAccount, OwnerSingletonWriter, ResetPasswordPorts } from "./ports.js";
 export { readIdentityStatus, signInWithPassword, signOut } from "./application/sign-in.js";
 export type {
   AuthAttemptOutcome,

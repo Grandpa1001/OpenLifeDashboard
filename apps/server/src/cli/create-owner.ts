@@ -11,48 +11,24 @@ import { createOwner } from "@openlife/core/identity";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
 import { bindAppendAudit } from "@openlife/sqlite/adapters/audit";
 import { bindOwnerWriters } from "@openlife/sqlite/adapters/identity";
-import { ownerCredentialsSchema, type OwnerCredentials } from "@openlife/contracts/http/identity";
+import { ownerCredentialsSchema } from "@openlife/contracts/http/identity";
 import { createPasswordHasher } from "../adapters/auth/password-hasher.js";
 import { describeError } from "../adapters/logging/describe-error.js";
 import { openCommandSession } from "../bootstrap/command-session.js";
 import { parseCommandOptions } from "./command-options.js";
-import { readStdin, StdinTooLargeError } from "./read-stdin.js";
+import { readJsonInput, refuse as refuseCommand } from "./command-io.js";
 
-/** The JSON of a valid credential pair is far below this; more is not a credential. */
-const MAX_INPUT_BYTES = 16 * 1024;
+const EVENT = "create-owner.failed";
 
 function refuse(code: string, fields: readonly string[], details: Readonly<Record<string, unknown>> = {}): never {
-  console.error(JSON.stringify({ event: "create-owner.failed", code, fields, ...details }));
-  process.exit(1);
-}
-
-/** Field names only: the issue paths of the contract, never the rejected values. */
-async function readCredentials(): Promise<OwnerCredentials> {
-  let raw: string;
-  try {
-    raw = await readStdin(process.stdin, MAX_INPUT_BYTES);
-  } catch (error) {
-    return refuse("INPUT_INVALID", [error instanceof StdinTooLargeError ? "input" : "stdin"]);
-  }
-  let json: unknown;
-  try {
-    json = JSON.parse(raw);
-  } catch {
-    return refuse("INPUT_INVALID", ["input"]);
-  }
-  const parsed = ownerCredentialsSchema.safeParse(json);
-  if (!parsed.success) {
-    const fields = new Set(parsed.error.issues.map((issue) => String(issue.path[0] ?? "input")));
-    return refuse("INPUT_INVALID", [...fields]);
-  }
-  return parsed.data;
+  return refuseCommand(EVENT, code, fields, details);
 }
 
 const options = parseCommandOptions(process.argv.slice(2));
 if (!options.ok) {
   refuse("USAGE", ["arguments"]);
 }
-const credentials = await readCredentials();
+const credentials = await readJsonInput(EVENT, ownerCredentialsSchema);
 const requestId = randomUUID();
 // Hashing is asynchronous and costly, so it happens before the unit of work (§9.8).
 const passwordHash = await createPasswordHasher().hash(credentials.password);

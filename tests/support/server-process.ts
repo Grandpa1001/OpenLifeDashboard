@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { sharedScratchDir } from "./scratch.ts";
-import { prepareTestInstance, type TestInstance } from "./test-instance.ts";
+import { prepareTestInstance, type TestInstance, type TestInstanceOptions } from "./test-instance.ts";
 
 export const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 export const SERVER_ENTRY = path.join(repoRoot, "apps/server/dist/main.js");
@@ -32,8 +32,8 @@ function capture(child: ChildProcess): () => string {
 }
 
 /** A fresh isolated test installation, removed after the test file (tests/support/scratch.ts). */
-export function freshTestInstance(): TestInstance {
-  return prepareTestInstance(mkdtempSync(path.join(sharedScratchDir("openlife-servers-"), "instance-")));
+export function freshTestInstance(options?: TestInstanceOptions): TestInstance {
+  return prepareTestInstance(mkdtempSync(path.join(sharedScratchDir("openlife-servers-"), "instance-")), options);
 }
 
 export type StartOptions = Readonly<{
@@ -174,8 +174,8 @@ export function startWriterHolder(installationDir: string, flags: readonly strin
 const STOP_TIMEOUT_MS = 15_000;
 
 /** A new installation after its first real start and orderly stop: the database exists, nothing runs. */
-export async function startedInstallation(): Promise<TestInstance> {
-  const instance = freshTestInstance();
+export async function startedInstallation(options?: TestInstanceOptions): Promise<TestInstance> {
+  const instance = freshTestInstance(options);
   const server = await startBuiltServer({ installation: instance });
   server.child.kill("SIGTERM");
   const exit = await waitForExit(server.child, server.output, STOP_TIMEOUT_MS);

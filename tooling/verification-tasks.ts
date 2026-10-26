@@ -1139,6 +1139,47 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D09.4",
+    ready: true,
+    title: "reset-password CLI with session revocation and the cookie isolation of two installations",
+    criteria: ["D09.4-AC1", "D09.4-AC2", "D09.4-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built CLI, server and adapters.
+        id: "workspace-build",
+        criteria: ["D09.4-AC1", "D09.4-AC2"],
+        description: "pnpm -r build: the reset use case, the credential and session adapters and the reset-password CLI",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/cli/reset-password.ts", "packages/core/src/modules/identity/application/reset-password.ts"],
+      },
+      {
+        id: "reset-password-cli",
+        criteria: ["D09.4-AC1"],
+        description:
+          "Real CLI and server: credential, epoch, sessions and audit change together; old cookies stop authenticating, old password refused, new works; running app, failing audit, invalid input, missing owner change nothing; F09 reset-password-revokes-session",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/reset-password.test.ts"],
+        requires: ["tests/integration/auth/reset-password.test.ts", "apps/server/src/bootstrap/command-session.ts"],
+      },
+      {
+        id: "cookie-isolation",
+        criteria: ["D09.4-AC2"],
+        description: "Two installations and one browser profile on localhost: independent logins, no cross authorization, sign-out of A keeps B, restart keeps keys and sessions, no password in logs",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/cookie-isolation.test.ts"],
+        requires: ["tests/integration/auth/cookie-isolation.test.ts", "apps/server/src/adapters/auth/session-cookie.ts"],
+      },
+      ...regressionChecks("D09.4-regression"),
+    ],
+  },
+  {
+    // The parent passes only through its work orders: the owner, the session and the cookies.
+    id: "D09",
+    ready: true,
+    title: "Auth adapter PoC, owner and reset CLI, explicit sign-in and cookies per installation",
+    steps: ["D09.1", "D09.2", "D09.3", "D09.4"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,
