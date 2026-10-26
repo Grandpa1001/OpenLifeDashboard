@@ -3,6 +3,7 @@
 // workflow run, not from this repository check.
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { parseDocument } from "yaml";
 import { isJsonObject, readJsonObject } from "../../scripts/support/workspaces.ts";
 import { createCheck } from "../support/check-report.ts";
 import { repoRoot } from "../support/repository-copy.ts";
@@ -12,6 +13,9 @@ const scripts = readJsonObject(path.join(repoRoot, "package.json"))["scripts"];
 const steps = workflow.split("\n").map((line) => line.trim());
 
 const check = createCheck("CI workflow");
+// GitHub rejects an unparsable workflow before any job starts, so no report would show it.
+const parseErrors = parseDocument(workflow).errors.map((error) => error.message);
+check.expect(parseErrors.length === 0, "the workflow is valid YAML", parseErrors.join("\n"));
 check.expect(
   isJsonObject(scripts) && scripts["verify:task"] === "node scripts/verify-task.ts",
   "package.json verify:task runs scripts/verify-task.ts",

@@ -44,7 +44,7 @@ jobs:
       - name: Verify D06 (D06.1–D06.3, Docker on the runner)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D06
-      - name: Verify D07 (D07.1–D07.3: Compose local mode, persistence, isolation; Docker on the runner)
+      - name: Verify D07 (D07.1–D07.3, Compose local mode, persistence and isolation, Docker on the runner)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D07
       - name: Upload verification report
