@@ -1,0 +1,747 @@
+{
+  "format": "openlifedashboard-export",
+  "formatVersion": 1,
+  "appVersion": "0.1.0",
+  "exportedAt": "2026-10-22T12:00:00Z",
+  "settings": {
+    "timezone": "Europe/Warsaw",
+    "locale": "pl",
+    "dateFormat": "DD.MM.YYYY"
+  },
+  "configEntries": [
+    {
+      "id": "019a0000-0000-7000-8000-00000000012c",
+      "symbol": "norma_czytania",
+      "displayName": "Norma czytania",
+      "value": "20",
+      "description": "Syntetyczna konfiguracja do przyszłych widgetów; MVP tylko przechowuje."
+    }
+  ],
+  "dictionaries": [
+    {
+      "id": "019a0000-0000-7000-8000-0000000000c8",
+      "symbol": "status_czytania",
+      "displayName": "Status czytania",
+      "values": [
+        {
+          "id": "019a0000-0000-7000-8000-0000000000d2",
+          "symbol": "planowane",
+          "label": "Planowane",
+          "position": 0,
+          "hidden": false
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000000d3",
+          "symbol": "czytane",
+          "label": "W trakcie",
+          "position": 1,
+          "hidden": false
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000000d4",
+          "symbol": "ukonczone",
+          "label": "Ukończone",
+          "position": 2,
+          "hidden": false
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000000d5",
+          "symbol": "archiwalne",
+          "label": "Archiwalne",
+          "position": 3,
+          "hidden": true
+        }
+      ]
+    }
+  ],
+  "registries": [
+    {
+      "id": "019a0000-0000-7000-8000-000000000064",
+      "symbol": "ksiazki",
+      "displayName": "Książki",
+      "schemaRevision": 1,
+      "dataRevision": 25,
+      "columns": [
+        {
+          "id": "019a0000-0000-7000-8000-00000000006e",
+          "symbol": "tytul",
+          "displayName": "Tytuł",
+          "type": "text",
+          "typeOptions": {},
+          "defaultValue": null,
+          "required": true,
+          "position": 0
+        },
+        {
+          "id": "019a0000-0000-7000-8000-00000000006f",
+          "symbol": "autor",
+          "displayName": "Autor",
+          "type": "text",
+          "typeOptions": {},
+          "defaultValue": null,
+          "required": false,
+          "position": 1
+        },
+        {
+          "id": "019a0000-0000-7000-8000-000000000070",
+          "symbol": "strony",
+          "displayName": "Liczba stron",
+          "type": "number",
+          "typeOptions": {
+            "decimalPlaces": 0
+          },
+          "defaultValue": null,
+          "required": false,
+          "position": 2
+        },
+        {
+          "id": "019a0000-0000-7000-8000-000000000071",
+          "symbol": "cena",
+          "displayName": "Cena",
+          "type": "money",
+          "typeOptions": {},
+          "defaultValue": null,
+          "required": false,
+          "position": 3
+        },
+        {
+          "id": "019a0000-0000-7000-8000-000000000072",
+          "symbol": "data_ukonczenia",
+          "displayName": "Data ukończenia",
+          "type": "date",
+          "typeOptions": {},
+          "defaultValue": null,
+          "required": false,
+          "position": 4
+        },
+        {
+          "id": "019a0000-0000-7000-8000-000000000073",
+          "symbol": "rozpoczeto",
+          "displayName": "Rozpoczęto",
+          "type": "datetime",
+          "typeOptions": {},
+          "defaultValue": null,
+          "required": false,
+          "position": 5
+        },
+        {
+          "id": "019a0000-0000-7000-8000-000000000074",
+          "symbol": "przypomnienie",
+          "displayName": "Godzina przypomnienia",
+          "type": "time",
+          "typeOptions": {},
+          "defaultValue": null,
+          "required": false,
+          "position": 6
+        },
+        {
+          "id": "019a0000-0000-7000-8000-000000000075",
+          "symbol": "ponowne_czytanie",
+          "displayName": "Ponowne czytanie",
+          "type": "boolean",
+          "typeOptions": {},
+          "defaultValue": false,
+          "required": false,
+          "position": 7
+        },
+        {
+          "id": "019a0000-0000-7000-8000-000000000076",
+          "symbol": "status",
+          "displayName": "Status",
+          "type": "choice",
+          "typeOptions": {
+            "dictionaryId": "019a0000-0000-7000-8000-0000000000c8"
+          },
+          "defaultValue": "planowane",
+          "required": false,
+          "position": 8
+        }
+      ],
+      "records": [
+        {
+          "id": "019a0000-0000-7000-8000-0000000003e9",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:01:00Z",
+          "updatedAt": "2026-10-01T12:01:00Z",
+          "values": {
+            "tytul": "Książka testowa 01",
+            "autor": "Autor testowy 2",
+            "strony": 10,
+            "cena": 1037,
+            "data_ukonczenia": null,
+            "rozpoczeto": null,
+            "przypomnienie": null,
+            "ponowne_czytanie": false,
+            "status": "planowane"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003ea",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:02:00Z",
+          "updatedAt": "2026-10-01T12:02:00Z",
+          "values": {
+            "tytul": "Książka testowa 02",
+            "autor": "Autor testowy 3",
+            "strony": 20,
+            "cena": 1074,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": "18:30",
+            "ponowne_czytanie": true,
+            "status": "czytane"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003eb",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:03:00Z",
+          "updatedAt": "2026-10-01T12:03:00Z",
+          "values": {
+            "tytul": "Książka testowa 03",
+            "autor": "Autor testowy 4",
+            "strony": 30,
+            "cena": 1111,
+            "data_ukonczenia": "2026-10-20",
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": null,
+            "ponowne_czytanie": false,
+            "status": "ukonczone"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003ec",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:04:00Z",
+          "updatedAt": "2026-10-01T12:04:00Z",
+          "values": {
+            "tytul": "Książka testowa 04",
+            "autor": "Autor testowy 1",
+            "strony": 40,
+            "cena": 1148,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": "18:30",
+            "ponowne_czytanie": true,
+            "status": "archiwalne"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003ed",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:05:00Z",
+          "updatedAt": "2026-10-01T12:05:00Z",
+          "values": {
+            "tytul": "Książka testowa 05",
+            "autor": "Autor testowy 2",
+            "strony": 50,
+            "cena": 1185,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": null,
+            "ponowne_czytanie": false,
+            "status": "spoza_slownika"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003ee",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:06:00Z",
+          "updatedAt": "2026-10-01T12:06:00Z",
+          "values": {
+            "tytul": "Książka testowa 06",
+            "autor": "Autor testowy 3",
+            "strony": 60,
+            "cena": 1222,
+            "data_ukonczenia": null,
+            "rozpoczeto": null,
+            "przypomnienie": "18:30",
+            "ponowne_czytanie": true,
+            "status": "planowane"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003ef",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:07:00Z",
+          "updatedAt": "2026-10-01T12:07:00Z",
+          "values": {
+            "tytul": "Książka testowa 07",
+            "autor": null,
+            "strony": 70,
+            "cena": 1259,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": null,
+            "ponowne_czytanie": false,
+            "status": "czytane"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003f0",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:08:00Z",
+          "updatedAt": "2026-10-01T12:08:00Z",
+          "values": {
+            "tytul": "Książka testowa 08",
+            "autor": "Autor testowy 1",
+            "strony": 80,
+            "cena": 1296,
+            "data_ukonczenia": "2026-10-20",
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": "18:30",
+            "ponowne_czytanie": true,
+            "status": "ukonczone"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003f1",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:09:00Z",
+          "updatedAt": "2026-10-01T12:09:00Z",
+          "values": {
+            "tytul": "Książka testowa 09",
+            "autor": "Autor testowy 2",
+            "strony": 90,
+            "cena": 1333,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": null,
+            "ponowne_czytanie": false,
+            "status": "archiwalne"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003f2",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:10:00Z",
+          "updatedAt": "2026-10-01T12:10:00Z",
+          "values": {
+            "tytul": "Książka testowa 10",
+            "autor": "Autor testowy 3",
+            "strony": 100,
+            "cena": 1370,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": "18:30",
+            "ponowne_czytanie": true,
+            "status": "spoza_slownika"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003f3",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:11:00Z",
+          "updatedAt": "2026-10-01T12:11:00Z",
+          "values": {
+            "tytul": "Książka testowa 11",
+            "autor": "Autor testowy 4",
+            "strony": 110,
+            "cena": 1407,
+            "data_ukonczenia": null,
+            "rozpoczeto": null,
+            "przypomnienie": null,
+            "ponowne_czytanie": false,
+            "status": "planowane"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003f4",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:12:00Z",
+          "updatedAt": "2026-10-01T12:12:00Z",
+          "values": {
+            "tytul": "Książka testowa 12",
+            "autor": "Autor testowy 1",
+            "strony": 120,
+            "cena": 1444,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": "18:30",
+            "ponowne_czytanie": true,
+            "status": "czytane"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003f5",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:13:00Z",
+          "updatedAt": "2026-10-01T12:13:00Z",
+          "values": {
+            "tytul": "Książka testowa 13",
+            "autor": "Autor testowy 2",
+            "strony": 130,
+            "cena": 1481,
+            "data_ukonczenia": "2026-10-20",
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": null,
+            "ponowne_czytanie": false,
+            "status": "ukonczone"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003f6",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:14:00Z",
+          "updatedAt": "2026-10-01T12:14:00Z",
+          "values": {
+            "tytul": "Książka testowa 14",
+            "autor": null,
+            "strony": 140,
+            "cena": 1518,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": "18:30",
+            "ponowne_czytanie": true,
+            "status": "archiwalne"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003f7",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:15:00Z",
+          "updatedAt": "2026-10-01T12:15:00Z",
+          "values": {
+            "tytul": "Książka testowa 15",
+            "autor": "Autor testowy 4",
+            "strony": 150,
+            "cena": 1555,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": null,
+            "ponowne_czytanie": false,
+            "status": "spoza_slownika"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003f8",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:16:00Z",
+          "updatedAt": "2026-10-01T12:16:00Z",
+          "values": {
+            "tytul": "Książka testowa 16",
+            "autor": "Autor testowy 1",
+            "strony": 160,
+            "cena": 1592,
+            "data_ukonczenia": null,
+            "rozpoczeto": null,
+            "przypomnienie": "18:30",
+            "ponowne_czytanie": true,
+            "status": "planowane"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003f9",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:17:00Z",
+          "updatedAt": "2026-10-01T12:17:00Z",
+          "values": {
+            "tytul": "Książka testowa 17",
+            "autor": "Autor testowy 2",
+            "strony": 170,
+            "cena": 1629,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": null,
+            "ponowne_czytanie": false,
+            "status": "czytane"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003fa",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:18:00Z",
+          "updatedAt": "2026-10-01T12:18:00Z",
+          "values": {
+            "tytul": "Książka testowa 18",
+            "autor": "Autor testowy 3",
+            "strony": 180,
+            "cena": 1666,
+            "data_ukonczenia": "2026-10-20",
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": "18:30",
+            "ponowne_czytanie": true,
+            "status": "ukonczone"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003fb",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:19:00Z",
+          "updatedAt": "2026-10-01T12:19:00Z",
+          "values": {
+            "tytul": "Książka testowa 19",
+            "autor": "Autor testowy 4",
+            "strony": 190,
+            "cena": 1703,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": null,
+            "ponowne_czytanie": false,
+            "status": "archiwalne"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003fc",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:20:00Z",
+          "updatedAt": "2026-10-01T12:20:00Z",
+          "values": {
+            "tytul": "Książka testowa 20",
+            "autor": "Autor testowy 1",
+            "strony": 200,
+            "cena": 1740,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": "18:30",
+            "ponowne_czytanie": true,
+            "status": "spoza_slownika"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003fd",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:21:00Z",
+          "updatedAt": "2026-10-01T12:21:00Z",
+          "values": {
+            "tytul": "Książka testowa 21",
+            "autor": null,
+            "strony": 210,
+            "cena": 1777,
+            "data_ukonczenia": null,
+            "rozpoczeto": null,
+            "przypomnienie": null,
+            "ponowne_czytanie": false,
+            "status": "planowane"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003fe",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:22:00Z",
+          "updatedAt": "2026-10-01T12:22:00Z",
+          "values": {
+            "tytul": "Książka testowa 22",
+            "autor": "Autor testowy 3",
+            "strony": 220,
+            "cena": 1814,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": "18:30",
+            "ponowne_czytanie": true,
+            "status": "czytane"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-0000000003ff",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:23:00Z",
+          "updatedAt": "2026-10-01T12:23:00Z",
+          "values": {
+            "tytul": "Książka testowa 23",
+            "autor": "Autor testowy 4",
+            "strony": 230,
+            "cena": 1851,
+            "data_ukonczenia": "2026-10-20",
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": null,
+            "ponowne_czytanie": false,
+            "status": "ukonczone"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-000000000400",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:23:00Z",
+          "updatedAt": "2026-10-01T12:23:00Z",
+          "values": {
+            "tytul": "Książka testowa 24",
+            "autor": "Autor testowy 1",
+            "strony": 240,
+            "cena": 1888,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": "18:30",
+            "ponowne_czytanie": true,
+            "status": "archiwalne"
+          }
+        },
+        {
+          "id": "019a0000-0000-7000-8000-000000000401",
+          "revision": 1,
+          "createdAt": "2026-10-01T12:25:00Z",
+          "updatedAt": "2026-10-01T12:25:00Z",
+          "values": {
+            "tytul": "Książka testowa 25",
+            "autor": "Autor testowy 2",
+            "strony": 250,
+            "cena": 1925,
+            "data_ukonczenia": null,
+            "rozpoczeto": "2026-10-01T10:00:00Z",
+            "przypomnienie": null,
+            "ponowne_czytanie": false,
+            "status": "spoza_slownika"
+          }
+        }
+      ]
+    }
+  ],
+  "screens": [
+    {
+      "id": "019a0000-0000-7000-8000-000000000190",
+      "name": "Test MVP",
+      "theme": "dark",
+      "accent": "blue",
+      "widgets": [
+        {
+          "id": "019a0000-0000-7000-8000-00000000019a",
+          "type": "register-table",
+          "config": {
+            "v": 1,
+            "title": "Moje książki",
+            "pageSize": 10,
+            "sortDirection": "desc",
+            "allowAdd": true
+          },
+          "layout": {
+            "phone": {
+              "x": 0,
+              "y": 0,
+              "w": 1,
+              "h": 8
+            },
+            "tablet": {
+              "x": 0,
+              "y": 0,
+              "w": 8,
+              "h": 8
+            },
+            "desktop": {
+              "x": 0,
+              "y": 0,
+              "w": 8,
+              "h": 8
+            }
+          },
+          "bindings": [
+            {
+              "slot": "registry",
+              "ordinal": 0,
+              "path": "Field.Register.ksiazki",
+              "target": {
+                "kind": "registry",
+                "registryId": "019a0000-0000-7000-8000-000000000064"
+              }
+            },
+            {
+              "slot": "columns",
+              "ordinal": 0,
+              "path": "Field.Register.ksiazki.tytul",
+              "target": {
+                "kind": "column",
+                "registryId": "019a0000-0000-7000-8000-000000000064",
+                "columnId": "019a0000-0000-7000-8000-00000000006e"
+              }
+            },
+            {
+              "slot": "columns",
+              "ordinal": 1,
+              "path": "Field.Register.ksiazki.autor",
+              "target": {
+                "kind": "column",
+                "registryId": "019a0000-0000-7000-8000-000000000064",
+                "columnId": "019a0000-0000-7000-8000-00000000006f"
+              }
+            },
+            {
+              "slot": "columns",
+              "ordinal": 2,
+              "path": "Field.Register.ksiazki.status",
+              "target": {
+                "kind": "column",
+                "registryId": "019a0000-0000-7000-8000-000000000064",
+                "columnId": "019a0000-0000-7000-8000-000000000076"
+              }
+            },
+            {
+              "slot": "sortColumn",
+              "ordinal": 0,
+              "path": "Field.Register.ksiazki.created_at",
+              "target": {
+                "kind": "systemColumn",
+                "registryId": "019a0000-0000-7000-8000-000000000064",
+                "symbol": "created_at"
+              }
+            }
+          ]
+        },
+        {
+          "id": "019a0000-0000-7000-8000-00000000019b",
+          "type": "clock",
+          "config": {
+            "v": 1,
+            "timezone": "owner",
+            "label": "Dom",
+            "format": "24h",
+            "showSeconds": false,
+            "showDate": true
+          },
+          "layout": {
+            "phone": {
+              "x": 0,
+              "y": 8,
+              "w": 1,
+              "h": 3
+            },
+            "tablet": {
+              "x": 0,
+              "y": 8,
+              "w": 4,
+              "h": 3
+            },
+            "desktop": {
+              "x": 8,
+              "y": 0,
+              "w": 4,
+              "h": 3
+            }
+          },
+          "bindings": []
+        },
+        {
+          "id": "019a0000-0000-7000-8000-00000000019c",
+          "type": "clock",
+          "config": {
+            "v": 1,
+            "timezone": "America/New_York",
+            "label": "Nowy Jork",
+            "format": "24h",
+            "showSeconds": true,
+            "showDate": true
+          },
+          "layout": {
+            "phone": {
+              "x": 0,
+              "y": 11,
+              "w": 1,
+              "h": 3
+            },
+            "tablet": {
+              "x": 4,
+              "y": 8,
+              "w": 4,
+              "h": 3
+            },
+            "desktop": {
+              "x": 8,
+              "y": 3,
+              "w": 4,
+              "h": 3
+            }
+          },
+          "bindings": []
+        }
+      ]
+    }
+  ]
+}

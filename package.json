@@ -26,7 +26,8 @@
     "verify:task": "node scripts/verify-task.ts",
     "test:integration": "vitest run tests/integration",
     "test:unit": "vitest run tests/unit",
-    "prepare:test-instance": "node scripts/prepare-test-instance.ts"
+    "prepare:test-instance": "node scripts/prepare-test-instance.ts",
+    "fixtures:verify": "node scripts/fixtures-verify.ts"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
@@ -39,6 +40,7 @@
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "vitest": "catalog:",
-    "yaml": "catalog:"
+    "yaml": "catalog:",
+    "zod": "catalog:"
   }
 }

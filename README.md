@@ -17,6 +17,7 @@ pnpm check:architecture   # import boundaries ARCH-01…05 plus their negative c
 pnpm check:contracts      # package exports, build artifacts and runtime loading
 pnpm test:unit            # pure rules, e.g. the F08 bootstrap cases
 pnpm test:integration     # HTTP tests against the built server (run pnpm build first)
+pnpm fixtures:verify      # the synthetic fixtures of tests/fixtures; -- --self-test adds corruption controls
 pnpm verify:task -- D01   # every check mapped to a task; report in .artifacts/<run-id>/
 ```
 
@@ -90,7 +91,7 @@ Versions exercised by the verification reports (DEV D02); the release matrix ext
 | Native image runs | linux/amd64 on `ubuntu-24.04`, linux/arm64 on `ubuntu-24.04-arm` (GitHub Actions) |
 | Docker Engine | 28.0.4 on both runners |
 
-`verify:task` reads `tooling/verification-tasks.ts` and records each check as passed, failed, blocked (missing file, tool or precondition) or not_run. Tasks without defined checks are reported as blocked. CI (`.github/workflows/ci.yml`) runs the same command.
+`verify:task` reads `tooling/verification-tasks.ts` and records each check as passed, failed, blocked (missing file, tool or precondition) or not_run. Tasks without defined checks are reported as blocked. CI (`.github/workflows/ci.yml`) runs the same command for every task the map can verify (a check of the workflow fails when one is missing); D00 needs the local specification and stays local.
 
 Workspace packages import each other only by package name through `exports`. Every export maps three conditions: `@openlife/source` (TypeScript source, used by the boundary checks), `types` and `default` (build output).
 

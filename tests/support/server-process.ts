@@ -1,8 +1,8 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
-import os from "node:os";
+import { mkdtempSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { sharedScratchDir } from "./scratch.ts";
 import { prepareTestInstance, type TestInstance } from "./test-instance.ts";
 
 export const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
@@ -31,16 +31,9 @@ function capture(child: ChildProcess): () => string {
   return () => output;
 }
 
-let scratchRoot: string | undefined;
-
-/** A fresh isolated test installation, removed when the test process exits. */
+/** A fresh isolated test installation, removed after the test file (tests/support/scratch.ts). */
 export function freshTestInstance(): TestInstance {
-  if (!scratchRoot) {
-    const root = mkdtempSync(path.join(os.tmpdir(), "openlife-servers-"));
-    scratchRoot = root;
-    process.once("exit", () => rmSync(root, { recursive: true, force: true }));
-  }
-  return prepareTestInstance(mkdtempSync(path.join(scratchRoot, "instance-")));
+  return prepareTestInstance(mkdtempSync(path.join(sharedScratchDir("openlife-servers-"), "instance-")));
 }
 
 export type StartOptions = Readonly<{

@@ -47,6 +47,9 @@ jobs:
       - name: Verify D07 (D07.1–D07.3, Compose local mode, persistence and isolation, Docker on the runner)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D07
+      - name: Verify D08.1 (fixtures, isolated test runs, blocking controls)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D08.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

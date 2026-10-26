@@ -1,0 +1,675 @@
+{
+  "format": "openlifedashboard-auth-cases",
+  "formatVersion": 1,
+  "synthetic": true,
+  "nowMs": 1792760400000,
+  "baseline": {
+    "ownerExists": true,
+    "ownerMatches": true,
+    "sessionState": "active",
+    "epochMatches": true,
+    "mfaPolicy": "required",
+    "enrollmentState": "complete",
+    "assurance": "totp",
+    "trustedState": "not_used",
+    "dataChoice": "empty",
+    "totpVerifiedAtMs": 1792760340000,
+    "passwordVerifiedAtMs": 1792760280000
+  },
+  "policyCases": [
+    {
+      "id": "totp-allows-data",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {},
+      "expected": {
+        "allow": true,
+        "httpStatus": 200
+      }
+    },
+    {
+      "id": "password-before-mfa",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "assurance": "password",
+        "totpVerifiedAtMs": null
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "MFA_REQUIRED"
+      }
+    },
+    {
+      "id": "trusted-allows-data-without-step-up",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "assurance": "trusted",
+        "trustedState": "valid",
+        "totpVerifiedAtMs": null
+      },
+      "expected": {
+        "allow": true,
+        "httpStatus": 200
+      }
+    },
+    {
+      "id": "recovery-allows-data",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "assurance": "recovery",
+        "totpVerifiedAtMs": null
+      },
+      "expected": {
+        "allow": true,
+        "httpStatus": 200
+      }
+    },
+    {
+      "id": "missing-session",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "sessionState": "missing"
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 401,
+        "code": "AUTH_REQUIRED"
+      }
+    },
+    {
+      "id": "expired-session",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "sessionState": "expired"
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 401,
+        "code": "AUTH_REQUIRED"
+      }
+    },
+    {
+      "id": "revoked-session",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "sessionState": "revoked"
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 401,
+        "code": "AUTH_REQUIRED"
+      }
+    },
+    {
+      "id": "missing-owner",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "ownerExists": false
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 401,
+        "code": "AUTH_REQUIRED"
+      }
+    },
+    {
+      "id": "foreign-owner",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "ownerMatches": false
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 401,
+        "code": "AUTH_REQUIRED"
+      }
+    },
+    {
+      "id": "stale-access-epoch",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "epochMatches": false
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 401,
+        "code": "AUTH_REQUIRED"
+      }
+    },
+    {
+      "id": "administrative-mfa-reset",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "mfaPolicy": "reset_required",
+        "enrollmentState": "required",
+        "assurance": "password",
+        "totpVerifiedAtMs": null
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "MFA_REQUIRED"
+      }
+    },
+    {
+      "id": "recovery-codes-not-acknowledged",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "enrollmentState": "awaiting_recovery_ack"
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "RECOVERY_ACK_REQUIRED"
+      }
+    },
+    {
+      "id": "data-choice-not-committed",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "dataChoice": "unselected"
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "SETUP_DATA_REQUIRED"
+      }
+    },
+    {
+      "id": "fresh-totp-step-up",
+      "task": "D10.2",
+      "operation": "step_up",
+      "patch": {},
+      "expected": {
+        "allow": true,
+        "httpStatus": 200
+      }
+    },
+    {
+      "id": "step-up-exactly-five-minutes",
+      "task": "D10.2",
+      "operation": "step_up",
+      "patch": {
+        "totpVerifiedAtMs": 1792760100000
+      },
+      "expected": {
+        "allow": true,
+        "httpStatus": 200
+      }
+    },
+    {
+      "id": "step-up-one-millisecond-too-old",
+      "task": "D10.2",
+      "operation": "step_up",
+      "patch": {
+        "totpVerifiedAtMs": 1792760099999
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "STEP_UP_REQUIRED"
+      }
+    },
+    {
+      "id": "step-up-timestamp-in-future",
+      "task": "D10.2",
+      "operation": "step_up",
+      "patch": {
+        "totpVerifiedAtMs": 1792760400001
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "STEP_UP_REQUIRED"
+      }
+    },
+    {
+      "id": "trusted-is-not-fresh-totp",
+      "task": "D10.2",
+      "operation": "step_up",
+      "patch": {
+        "assurance": "trusted",
+        "trustedState": "valid",
+        "totpVerifiedAtMs": null
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "STEP_UP_REQUIRED"
+      }
+    },
+    {
+      "id": "recovery-is-not-fresh-totp",
+      "task": "D10.2",
+      "operation": "step_up",
+      "patch": {
+        "assurance": "recovery",
+        "totpVerifiedAtMs": null
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "STEP_UP_REQUIRED"
+      }
+    },
+    {
+      "id": "disabled-mfa-password-allows-data",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "mfaPolicy": "disabled",
+        "assurance": "password",
+        "totpVerifiedAtMs": null
+      },
+      "expected": {
+        "allow": true,
+        "httpStatus": 200
+      }
+    },
+    {
+      "id": "disabled-mfa-fresh-password-step-up",
+      "task": "D10.2",
+      "operation": "step_up",
+      "patch": {
+        "mfaPolicy": "disabled",
+        "assurance": "password",
+        "totpVerifiedAtMs": null
+      },
+      "expected": {
+        "allow": true,
+        "httpStatus": 200
+      }
+    },
+    {
+      "id": "disabled-mfa-stale-password",
+      "task": "D10.2",
+      "operation": "step_up",
+      "patch": {
+        "mfaPolicy": "disabled",
+        "assurance": "password",
+        "totpVerifiedAtMs": null,
+        "passwordVerifiedAtMs": 1792760099999
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "STEP_UP_REQUIRED"
+      }
+    },
+    {
+      "id": "disabled-mfa-totp-does-not-replace-password-freshness",
+      "task": "D10.2",
+      "operation": "step_up",
+      "patch": {
+        "mfaPolicy": "disabled",
+        "assurance": "password",
+        "passwordVerifiedAtMs": null
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "STEP_UP_REQUIRED"
+      }
+    },
+    {
+      "id": "revoked-trusted-device",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "assurance": "trusted",
+        "trustedState": "revoked",
+        "totpVerifiedAtMs": null
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "MFA_REQUIRED"
+      }
+    },
+    {
+      "id": "expired-trusted-device",
+      "task": "D10.2",
+      "operation": "data",
+      "patch": {
+        "assurance": "trusted",
+        "trustedState": "expired",
+        "totpVerifiedAtMs": null
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "MFA_REQUIRED"
+      }
+    },
+    {
+      "id": "completed-mfa-can-choose-data",
+      "task": "D10.2",
+      "operation": "setup_data_choice",
+      "patch": {
+        "dataChoice": "unselected"
+      },
+      "expected": {
+        "allow": true,
+        "httpStatus": 200
+      }
+    },
+    {
+      "id": "cannot-replace-imported-with-empty",
+      "task": "D10.2",
+      "operation": "setup_data_choice",
+      "patch": {
+        "dataChoice": "imported"
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 409,
+        "code": "SETUP_DATA_ALREADY_CHOSEN"
+      }
+    },
+    {
+      "id": "cannot-choose-data-before-recovery-ack",
+      "task": "D10.2",
+      "operation": "setup_data_choice",
+      "patch": {
+        "dataChoice": "unselected",
+        "enrollmentState": "awaiting_recovery_ack"
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "RECOVERY_ACK_REQUIRED"
+      }
+    },
+    {
+      "id": "cannot-choose-data-before-totp",
+      "task": "D10.2",
+      "operation": "setup_data_choice",
+      "patch": {
+        "dataChoice": "unselected",
+        "assurance": "password",
+        "totpVerifiedAtMs": null
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "MFA_REQUIRED"
+      }
+    },
+    {
+      "id": "step-up-cannot-skip-data-choice",
+      "task": "D10.2",
+      "operation": "step_up",
+      "patch": {
+        "dataChoice": "unselected"
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "SETUP_DATA_REQUIRED"
+      }
+    },
+    {
+      "id": "timestamp-does-not-promote-password-assurance",
+      "task": "D10.2",
+      "operation": "step_up",
+      "patch": {
+        "assurance": "password"
+      },
+      "expected": {
+        "allow": false,
+        "httpStatus": 403,
+        "code": "MFA_REQUIRED"
+      }
+    }
+  ],
+  "flows": [
+    {
+      "id": "parallel-owner-creation",
+      "task": "D09.2",
+      "actions": [
+        "prepare_empty_instance",
+        "parallel_create_owner"
+      ],
+      "expected": {
+        "successfulCreators": 1,
+        "ownerCount": 1,
+        "credentialCount": 1,
+        "ownerCreatedAuditCount": 1
+      }
+    },
+    {
+      "id": "owner-audit-failure-rolls-back",
+      "task": "D09.2",
+      "actions": [
+        "prepare_empty_instance",
+        "inject_audit_failure",
+        "create_owner"
+      ],
+      "expected": {
+        "exitCode": 1,
+        "ownerCount": 0,
+        "credentialCount": 0
+      }
+    },
+    {
+      "id": "reset-password-revokes-session",
+      "task": "D09.4",
+      "actions": [
+        "prepare_owner",
+        "password_login",
+        "stop_app",
+        "reset_password",
+        "start_app",
+        "read_identity_status_with_old_cookie"
+      ],
+      "expected": {
+        "oldSessionAuthenticated": false,
+        "newPasswordWorks": true
+      }
+    },
+    {
+      "id": "login-audit-failure-issues-no-session",
+      "task": "D09.3",
+      "actions": [
+        "prepare_owner",
+        "inject_audit_failure",
+        "password_login"
+      ],
+      "expected": {
+        "httpStatus": 503,
+        "code": "AUTH_UNAVAILABLE",
+        "newSessionCount": 0,
+        "setCookie": false
+      }
+    },
+    {
+      "id": "password-lockout-survives-restart",
+      "task": "D11.3",
+      "actions": [
+        "prepare_owner",
+        "five_bad_passwords",
+        "restart_app",
+        "correct_password_while_locked",
+        "advance_to_locked_until",
+        "password_login"
+      ],
+      "expected": {
+        "failedAttemptStatuses": [
+          401,
+          401,
+          401,
+          401,
+          429
+        ],
+        "lockedHttpStatus": 429,
+        "afterDeadlineHttpStatus": 200
+      }
+    },
+    {
+      "id": "parallel-recovery-use",
+      "task": "D11.2",
+      "actions": [
+        "prepare_enrolled_owner",
+        "two_password_sessions",
+        "parallel_same_recovery_code"
+      ],
+      "expected": {
+        "successCount": 1,
+        "failureCount": 1,
+        "failureHttpStatus": 401,
+        "remainingCodeCount": 9,
+        "freshTotpGranted": false,
+        "trustedDeviceCreated": false
+      }
+    },
+    {
+      "id": "parallel-totp-use",
+      "task": "D11.2",
+      "actions": [
+        "prepare_enrolled_owner",
+        "two_password_sessions",
+        "parallel_same_totp_step"
+      ],
+      "expected": {
+        "successCount": 1,
+        "failureCount": 1,
+        "failureHttpStatus": 401
+      }
+    },
+    {
+      "id": "lost-recovery-view-requires-new-batch",
+      "task": "D11.4",
+      "actions": [
+        "prepare_owner",
+        "password_login",
+        "begin_enrollment",
+        "confirm_totp",
+        "discard_plaintext_codes",
+        "try_private_preferences",
+        "advance_one_totp_step",
+        "reissue_recovery_batch",
+        "ack_old_batch",
+        "ack_current_batch",
+        "choose_empty"
+      ],
+      "expected": {
+        "beforeAckHttpStatus": 403,
+        "oldBatchAckHttpStatus": 409,
+        "oldBatchAckCode": "RECOVERY_BATCH_CHANGED",
+        "afterAckChoiceHttpStatus": 200,
+        "totpSecretReplaced": false
+      }
+    },
+    {
+      "id": "mfa-promotion-rotates-session",
+      "task": "D11.2",
+      "actions": [
+        "prepare_enrolled_owner",
+        "password_login",
+        "verify_totp",
+        "read_identity_status_with_old_cookie"
+      ],
+      "expected": {
+        "oldSessionAuthenticated": false,
+        "newSessionTokenDiffers": true
+      }
+    },
+    {
+      "id": "foreign-origin-write-rejected",
+      "task": "D13.1",
+      "actions": [
+        "prepare_enrolled_owner",
+        "login_and_verify_totp",
+        "choose_empty",
+        "put_preferences_from_foreign_origin"
+      ],
+      "expected": {
+        "httpStatus": 403,
+        "code": "ORIGIN_FORBIDDEN",
+        "preferencesUnchanged": true
+      }
+    },
+    {
+      "id": "client-cannot-forge-assurance",
+      "task": "D13.1",
+      "actions": [
+        "prepare_enrolled_owner",
+        "password_login",
+        "verify_totp_with_forged_privileged_fields",
+        "read_setup_status"
+      ],
+      "expected": {
+        "forgedRequestHttpStatus": 422,
+        "assuranceChanged": false,
+        "totpStepConsumed": false
+      }
+    },
+    {
+      "id": "minimal-setup-resumes-after-restart",
+      "task": "D12.3",
+      "actions": [
+        "prepare_owner",
+        "complete_enrollment_ui",
+        "restart_app",
+        "login_and_verify_totp",
+        "choose_empty_ui",
+        "save_preferences_ui",
+        "restart_app",
+        "login_and_verify_totp",
+        "read_setup_status"
+      ],
+      "expected": {
+        "enrollmentRepeated": false,
+        "dataChoice": "empty",
+        "preferencesPreserved": true,
+        "importOfferedBeforeD46": false,
+        "designerClaimedReadyBeforeD18": false
+      }
+    },
+    {
+      "id": "logout-before-protected-commit",
+      "task": "D13.2",
+      "actions": [
+        "prepare_ready_owner",
+        "login_and_verify_totp",
+        "pause_before_preferences_transaction",
+        "logout_same_session",
+        "resume_preferences_transaction"
+      ],
+      "expected": {
+        "mutationHttpStatus": 401,
+        "preferencesUnchanged": true
+      }
+    },
+    {
+      "id": "logout-clears-browser-private-cache",
+      "task": "D12.3",
+      "actions": [
+        "prepare_ready_owner",
+        "login_and_verify_totp",
+        "open_two_tabs",
+        "read_private_preferences",
+        "logout_same_session",
+        "inspect_browser_cache_and_back_navigation"
+      ],
+      "expected": {
+        "sameBrowserTabsLocked": true,
+        "privateQueriesCleared": true,
+        "oldSessionHttpStatus": 401
+      }
+    }
+  ]
+}

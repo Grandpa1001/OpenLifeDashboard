@@ -1,0 +1,74 @@
+{
+  "synthetic": true,
+  "baseFixture": "books-v1.export.json",
+  "registrySymbol": "ksiazki",
+  "cases": [
+    {
+      "id": "missing-title",
+      "values": {},
+      "expectedHttpStatus": 422,
+      "expectedCode": "VALIDATION_FAILED"
+    },
+    {
+      "id": "invalid-date",
+      "values": {
+        "tytul": "Test",
+        "data_ukonczenia": "2026-02-31"
+      },
+      "expectedHttpStatus": 422,
+      "expectedCode": "VALIDATION_FAILED"
+    },
+    {
+      "id": "fractional-amount",
+      "values": {
+        "tytul": "Test",
+        "cena": 10.37
+      },
+      "expectedHttpStatus": 422,
+      "expectedCode": "VALIDATION_FAILED"
+    },
+    {
+      "id": "invalid-boolean",
+      "values": {
+        "tytul": "Test",
+        "ponowne_czytanie": "tak"
+      },
+      "expectedHttpStatus": 422,
+      "expectedCode": "VALIDATION_FAILED"
+    },
+    {
+      "id": "unexpected-system-field",
+      "values": {
+        "tytul": "Test",
+        "user_id": "foreign-owner"
+      },
+      "expectedHttpStatus": 422,
+      "expectedCode": "VALIDATION_FAILED"
+    },
+    {
+      "id": "unknown-column",
+      "values": {
+        "tytul": "Test",
+        "nieistniejaca": "x"
+      },
+      "expectedHttpStatus": 422,
+      "expectedCode": "VALIDATION_FAILED"
+    },
+    {
+      "id": "unknown-dictionary-value",
+      "values": {
+        "tytul": "Test",
+        "status": "spoza_slownika"
+      },
+      "expectedHttpStatus": 201
+    },
+    {
+      "id": "xss-stays-text",
+      "values": {
+        "tytul": "<img src=x onerror=alert(1)>"
+      },
+      "expectedHttpStatus": 201,
+      "assertion": "literal text, no script execution"
+    }
+  ]
+}

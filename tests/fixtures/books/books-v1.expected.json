@@ -1,0 +1,145 @@
+{
+  "datasetId": "mvp-books-v1",
+  "synthetic": true,
+  "sourceFile": "books-v1.export.json",
+  "recordCount": 25,
+  "columnCount": 9,
+  "widgetCount": 3,
+  "pageSize": 10,
+  "sort": {
+    "symbol": "created_at",
+    "direction": "desc",
+    "tieBreaker": "id desc"
+  },
+  "pageRecordIds": [
+    [
+      "019a0000-0000-7000-8000-000000000401",
+      "019a0000-0000-7000-8000-000000000400",
+      "019a0000-0000-7000-8000-0000000003ff",
+      "019a0000-0000-7000-8000-0000000003fe",
+      "019a0000-0000-7000-8000-0000000003fd",
+      "019a0000-0000-7000-8000-0000000003fc",
+      "019a0000-0000-7000-8000-0000000003fb",
+      "019a0000-0000-7000-8000-0000000003fa",
+      "019a0000-0000-7000-8000-0000000003f9",
+      "019a0000-0000-7000-8000-0000000003f8"
+    ],
+    [
+      "019a0000-0000-7000-8000-0000000003f7",
+      "019a0000-0000-7000-8000-0000000003f6",
+      "019a0000-0000-7000-8000-0000000003f5",
+      "019a0000-0000-7000-8000-0000000003f4",
+      "019a0000-0000-7000-8000-0000000003f3",
+      "019a0000-0000-7000-8000-0000000003f2",
+      "019a0000-0000-7000-8000-0000000003f1",
+      "019a0000-0000-7000-8000-0000000003f0",
+      "019a0000-0000-7000-8000-0000000003ef",
+      "019a0000-0000-7000-8000-0000000003ee"
+    ],
+    [
+      "019a0000-0000-7000-8000-0000000003ed",
+      "019a0000-0000-7000-8000-0000000003ec",
+      "019a0000-0000-7000-8000-0000000003eb",
+      "019a0000-0000-7000-8000-0000000003ea",
+      "019a0000-0000-7000-8000-0000000003e9"
+    ]
+  ],
+  "pageTitles": [
+    [
+      "Książka testowa 25",
+      "Książka testowa 24",
+      "Książka testowa 23",
+      "Książka testowa 22",
+      "Książka testowa 21",
+      "Książka testowa 20",
+      "Książka testowa 19",
+      "Książka testowa 18",
+      "Książka testowa 17",
+      "Książka testowa 16"
+    ],
+    [
+      "Książka testowa 15",
+      "Książka testowa 14",
+      "Książka testowa 13",
+      "Książka testowa 12",
+      "Książka testowa 11",
+      "Książka testowa 10",
+      "Książka testowa 09",
+      "Książka testowa 08",
+      "Książka testowa 07",
+      "Książka testowa 06"
+    ],
+    [
+      "Książka testowa 05",
+      "Książka testowa 04",
+      "Książka testowa 03",
+      "Książka testowa 02",
+      "Książka testowa 01"
+    ]
+  ],
+  "statusCounts": {
+    "planowane": 5,
+    "czytane": 5,
+    "ukonczone": 5,
+    "archiwalne": 5,
+    "spoza_slownika": 5
+  },
+  "hiddenLabel": "Archiwalne",
+  "unknownValueDisplayedAs": "spoza_slownika",
+  "priceExample": {
+    "recordId": "019a0000-0000-7000-8000-0000000003e9",
+    "minorUnits": 1037,
+    "plDisplay": "10,37"
+  },
+  "fixedClockCases": [
+    {
+      "nowIso": "2026-03-29T00:30:00Z",
+      "Europe/Warsaw": "01:30",
+      "America/New_York": "20:30"
+    },
+    {
+      "nowIso": "2026-03-29T01:30:00Z",
+      "Europe/Warsaw": "03:30",
+      "America/New_York": "21:30"
+    }
+  ],
+  "derivedCases": [
+    {
+      "id": "broken-author-binding",
+      "transform": "remove autor column and values; retain original binding target",
+      "columnId": "019a0000-0000-7000-8000-00000000006f",
+      "expectedTableState": "needs_rebinding",
+      "expectedWorkingClockCount": 2
+    },
+    {
+      "id": "same-symbol-new-column",
+      "transform": "recreate autor with new ID; retain old widget target",
+      "newColumnId": "019a0000-0000-7000-8000-0000000003e7",
+      "expectedTableState": "needs_rebinding"
+    },
+    {
+      "id": "unknown-widget",
+      "transform": "replace table type with community-future; retain opaque config and bindings",
+      "expectedTableState": "needs_refresh",
+      "expectedRoundtripPreservesConfig": true
+    },
+    {
+      "id": "schema-conflict",
+      "transform": "submit form schemaRevision 1 after schema changed to 2",
+      "expectedHttpStatus": 409,
+      "expectedCode": "SCHEMA_CHANGED"
+    },
+    {
+      "id": "record-conflict",
+      "transform": "two updates expect record revision 1",
+      "expectedRevisionsAfterFirst": 2,
+      "expectedSecondHttpStatus": 409
+    },
+    {
+      "id": "idempotent-create",
+      "transform": "submit same create operation twice with same key and payload",
+      "expectedRecordCountAfter": 26,
+      "expectedUniqueNewRecords": 1
+    }
+  ]
+}

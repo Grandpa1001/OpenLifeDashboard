@@ -1,10 +1,11 @@
 // D01.3-AC3 (static part): CI installs from the frozen lockfile on the pinned runtime and runs
-// the same `verify:task` runner for D01. Whether GitHub actually ran it is visible only in the
-// workflow run, not from this repository check.
+// the same `verify:task` runner for D01; since D08.1 also for every ready task of the map.
+// Whether GitHub actually ran it is visible only in the workflow run, not from this check.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { parseDocument } from "yaml";
 import { isJsonObject, readJsonObject } from "../../scripts/support/workspaces.ts";
+import { verificationTasks } from "../../tooling/verification-tasks.ts";
 import { createCheck } from "../support/check-report.ts";
 import { repoRoot } from "../support/repository-copy.ts";
 
@@ -38,4 +39,13 @@ check.expect(
   steps.includes("path: .artifacts/") && steps.includes("include-hidden-files: true"),
   "the .artifacts report directory is uploaded (dot-directories are skipped by default)",
 );
+
+// D08.1-AC1: every task the map can verify is run by CI, itself or through its parent.
+// D00 checks the local, unversioned specification (Analiza/), which a CI checkout does not have.
+const NOT_IN_CI = new Set(["D00"]);
+const ran = new Set(steps.flatMap((line) => /^run: pnpm verify:task -- (\S+)$/.exec(line)?.slice(1) ?? []));
+const ready = verificationTasks.filter((task) => task.ready);
+const parentOf = new Map(ready.flatMap((task) => (task.steps ?? []).map((step) => [step, task.id] as const)));
+const missing = ready.map((task) => task.id).filter((id) => !NOT_IN_CI.has(id) && !ran.has(id) && !ran.has(parentOf.get(id) ?? ""));
+check.expect(missing.length === 0, `CI runs every ready task of the map (${ready.length - NOT_IN_CI.size})`, `not run by CI: ${missing.join(", ")}`);
 check.finish();

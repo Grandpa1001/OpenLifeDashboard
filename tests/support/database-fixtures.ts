@@ -3,12 +3,12 @@
 // for the database, the maintenance gate and published snapshot packages.
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import os from "node:os";
+import { copyFileSync, mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { expect } from "vitest";
 import { openDatabase } from "../../packages/sqlite/dist/connection/open-database.js";
 import { inspectDatabase, type MigrationPlan } from "../../packages/sqlite/dist/migrations/public.js";
+import { sharedScratchDir } from "./scratch.ts";
 import { freshTestInstance, outputEvent, repoRoot, waitForExit } from "./server-process.ts";
 import type { TestInstance } from "./test-instance.ts";
 
@@ -19,8 +19,6 @@ export const STOP_TIMEOUT_MS = 15_000;
 export const HOLDER_TIMEOUT_MS = 60_000;
 const DATABASE_HOLDER = path.join(repoRoot, "tests/support/database-holder.ts");
 
-const scratch = mkdtempSync(path.join(os.tmpdir(), "openlife-db-fixtures-"));
-process.once("exit", () => rmSync(scratch, { recursive: true, force: true }));
 
 export type GateState = { generation: number; activeOperation: Record<string, unknown> | null };
 
@@ -57,7 +55,7 @@ export function query(file: string, sql: string): unknown[] {
 
 /** A standalone copy of a snapshot's database file, opened the way a restore would use it. */
 export function restoredRows(pkg: string, sql: string): unknown[] {
-  const dir = mkdtempSync(path.join(scratch, "restored-"));
+  const dir = mkdtempSync(path.join(sharedScratchDir("openlife-db-fixtures-"), "restored-"));
   const file = path.join(dir, "app.db");
   copyFileSync(path.join(pkg, "app.db"), file);
   const writer = openDatabase(file, { role: "writer", busyTimeoutMs: BUSY_TIMEOUT_MS });
