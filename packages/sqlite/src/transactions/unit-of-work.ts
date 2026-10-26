@@ -2,7 +2,7 @@
 // ports of one use case are bound to the same transaction handle, so a failure in any of them
 // rolls back the writes of the others. The handle and its statements work only while the unit
 // runs: a port kept beyond it, or code continuing after an await, cannot autocommit a write.
-import { DomainFault, type Commit, type Result, type UnitOfWork } from "@openlife/core/foundation";
+import { DomainFault, type Commit, type ReadUnit, type Result, type UnitOfWork } from "@openlife/core/foundation";
 import type Database from "better-sqlite3";
 import type { SqliteConnection } from "../connection/open-database.js";
 
@@ -41,33 +41,37 @@ function isThenable(value: unknown): boolean {
  * adapters hold no connection of their own. Units do not nest: a service never opens its own
  * transaction inside a larger command.
  */
-export function createUnitOfWork<P>(connection: SqliteConnection, bindPorts: (tx: TransactionHandle) => P): UnitOfWork<P> {
+export function createUnitOfWork<P>(connection: SqliteConnection, bindPorts: (tx: TransactionHandle) => P): UnitOfWork<P> & ReadUnit<P> {
   if (connection.role !== "writer") {
     throw new TypeError("a unit of work needs the writer connection");
   }
   const db = connection.handle;
+  /** The handle of one unit: its statements work only while `isActive` says so. */
+  const handleOf = (isActive: () => boolean): TransactionHandle => {
+    const guard = <A extends unknown[], R>(call: (...args: A) => R) => (...args: A): R => {
+      if (!isActive()) {
+        throw new InactiveTransactionError();
+      }
+      return call(...args);
+    };
+    return {
+      prepare: guard((sql: string) => {
+        const statement = db.prepare(sql);
+        return {
+          run: guard((...params: unknown[]) => statement.run(...params)),
+          get: guard((...params: unknown[]) => statement.get(...params)),
+          all: guard((...params: unknown[]) => statement.all(...params)),
+        };
+      }),
+    };
+  };
   return {
     run<T>(work: (ports: P) => Commit<T>): Result<Commit<T>> {
       if (db.inTransaction) {
         throw new TypeError("units of work do not nest");
       }
       let active = true;
-      const guard = <A extends unknown[], R>(call: (...args: A) => R) => (...args: A): R => {
-        if (!active) {
-          throw new InactiveTransactionError();
-        }
-        return call(...args);
-      };
-      const tx: TransactionHandle = {
-        prepare: guard((sql: string) => {
-          const statement = db.prepare(sql);
-          return {
-            run: guard((...params: unknown[]) => statement.run(...params)),
-            get: guard((...params: unknown[]) => statement.get(...params)),
-            all: guard((...params: unknown[]) => statement.all(...params)),
-          };
-        }),
-      };
+      const tx = handleOf(() => active);
       try {
         // IMMEDIATE takes the write lock at BEGIN instead of upgrading a read lock mid-unit.
         const commit = db
@@ -87,6 +91,31 @@ export function createUnitOfWork<P>(connection: SqliteConnection, bindPorts: (tx
         throw error;
       } finally {
         active = false;
+      }
+    },
+    read<T>(work: (ports: P) => T): T {
+      if (db.inTransaction) {
+        throw new TypeError("units of work do not nest");
+      }
+      let active = true;
+      const tx = handleOf(() => active);
+      // query_only makes the database itself refuse a write; the previous setting is restored,
+      // because a maintenance period may have set it for the whole connection.
+      const previous = db.pragma("query_only", { simple: true });
+      db.pragma("query_only = ON");
+      try {
+        return db
+          .transaction(() => {
+            const result = work(bindPorts(tx));
+            if (isThenable(result)) {
+              throw new AsyncUnitOfWorkError();
+            }
+            return result;
+          })
+          .deferred();
+      } finally {
+        active = false;
+        db.pragma(`query_only = ${previous === 1 ? "ON" : "OFF"}`);
       }
     },
   };

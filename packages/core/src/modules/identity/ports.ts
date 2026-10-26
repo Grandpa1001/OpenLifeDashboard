@@ -122,6 +122,12 @@ export interface MfaStore {
   /** Replaces the pending enrollment; the active secret is untouched. */
   savePending(pending: Readonly<{ challengeId: string; secret: string; expiresAtMs: number }>): void;
   /**
+   * Compare-and-set of the replay ledger: records `step` as consumed for the active secret of
+   * `expectedGeneration`, only if it is greater than the last consumed step. Of parallel requests
+   * with the same step exactly one gets true; the others get false and must be refused.
+   */
+  consumeStep(change: Readonly<{ expectedGeneration: number; step: number }>): boolean;
+  /**
    * Compare-and-set: moves the pending secret of `challengeId` to active as generation
    * `expectedGeneration + 1`, records the consumed step and awaits the recovery acknowledgment.
    * False, with nothing written, if the challenge expired or the challenge or the generation is

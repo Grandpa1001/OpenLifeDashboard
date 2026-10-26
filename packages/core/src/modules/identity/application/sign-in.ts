@@ -7,7 +7,7 @@
 // failure counters and the audit entry must survive the 401/429. If anything in step 3 throws
 // (an audit append that fails), the unit rolls back, no session exists and the caller answers
 // "unavailable".
-import type { Commit, UnitOfWork } from "../../../foundation/public.js";
+import type { Commit, ReadUnit, UnitOfWork } from "../../../foundation/public.js";
 import { decideAccess, nextActionFor, type NextAction } from "../domain/access-policy.js";
 import { afterFailure, retryAfterSeconds } from "../domain/lockout.js";
 import { SESSION_LIFETIME_MS } from "../domain/session-policy.js";
@@ -19,7 +19,7 @@ export interface PasswordVerifier {
 }
 
 export type SignInDependencies = Readonly<{
-  unit: UnitOfWork<SignInPorts>;
+  unit: UnitOfWork<SignInPorts> & ReadUnit<SignInPorts>;
   verifier: PasswordVerifier;
   /**
    * A hash of a random password, verified for an unknown e-mail so that the cost of a refusal
@@ -59,14 +59,12 @@ function lockedFor(ports: SignInPorts, keys: readonly string[], nowMs: number): 
 
 export async function signInWithPassword(deps: SignInDependencies, request: SignInRequest): Promise<AuthAttemptOutcome> {
   const keys = [request.accountKey, request.ipKey];
-  const first = deps.unit.run((ports) => {
+  // Step 1 only reads (locks, credential): it takes no write lock and cannot write.
+  const first = deps.unit.read((ports) => {
     const retryAfter = lockedFor(ports, keys, deps.nowMs());
-    return commit({ retryAfter, credential: retryAfter === null ? ports.credentialReader.findOwnerByEmail(request.email) : null });
+    return { retryAfter, credential: retryAfter === null ? ports.credentialReader.findOwnerByEmail(request.email) : null };
   });
-  if (!first.ok) {
-    throw new Error("sign-in preflight failed");
-  }
-  const { retryAfter, credential } = first.value.value;
+  const { retryAfter, credential } = first;
   if (retryAfter !== null) {
     return { kind: "locked", retryAfterSeconds: retryAfter };
   }
@@ -155,8 +153,8 @@ function decide(
 export type IdentityStatus = Readonly<{ authenticated: boolean; nextAction: NextAction }>;
 
 /** Status from the server state only: the session row and the current policy, never the cookie alone. */
-export function readIdentityStatus(unit: UnitOfWork<SignInPorts>, token: string | null, nowMs: number): IdentityStatus {
-  const read = unit.run((ports) => {
+export function readIdentityStatus(unit: ReadUnit<SignInPorts>, token: string | null, nowMs: number): IdentityStatus {
+  return unit.read((ports) => {
     const session = token === null ? null : ports.sessions.findActive(token, nowMs);
     if (session !== null) {
       const snapshot = ports.access.current({ ownerId: session.ownerId, sessionId: session.sessionId, requestId: "status", accessEpoch: session.accessEpoch });
@@ -164,15 +162,11 @@ export function readIdentityStatus(unit: UnitOfWork<SignInPorts>, token: string 
       const decision = decideAccess(snapshot, "data", nowMs);
       const authenticated = decision.allow || decision.code !== "AUTH_REQUIRED";
       if (authenticated) {
-        return commit<IdentityStatus>({ authenticated, nextAction: nextActionFor(snapshot, nowMs) });
+        return { authenticated, nextAction: nextActionFor(snapshot, nowMs) };
       }
     }
-    return commit<IdentityStatus>({ authenticated: false, nextAction: ports.owners.hasOwner() ? "login" : "create_owner" });
+    return { authenticated: false, nextAction: ports.owners.hasOwner() ? "login" : "create_owner" } satisfies IdentityStatus;
   });
-  if (!read.ok) {
-    throw new Error("status read failed");
-  }
-  return read.value.value;
 }
 
 /** Idempotent: ending a session that does not exist is not an error. */

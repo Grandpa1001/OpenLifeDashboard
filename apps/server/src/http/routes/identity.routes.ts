@@ -3,7 +3,7 @@
 // session, password reset, token and user updates) answer the API 404. Responses carry no
 // token, session row or account data; a session exists only after the unit of work committed.
 import { IDENTITY_STATUS_PATH, loginRequestSchema, normalizeOwnerEmail, SIGN_IN_PATH, SIGN_OUT_PATH, type IdentityStatus } from "@openlife/contracts/http/identity";
-import type { UnitOfWork } from "@openlife/core/foundation";
+import type { ReadUnit, UnitOfWork } from "@openlife/core/foundation";
 import { readIdentityStatus, signInWithPassword, signOut, type PasswordVerifier, type SignInPorts } from "@openlife/core/identity";
 import type { Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -18,7 +18,7 @@ import { requireSameOrigin } from "../middleware/same-origin.js";
 import { LOGIN_BODY_MAX_BYTES, USER_AGENT_MAX_LENGTH } from "../security-limits.js";
 
 export type IdentityRouteDependencies = Readonly<{
-  unit: UnitOfWork<SignInPorts>;
+  unit: UnitOfWork<SignInPorts> & ReadUnit<SignInPorts>;
   verifier: PasswordVerifier;
   decoyHash: string;
   cookies: SessionCookies;

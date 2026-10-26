@@ -211,3 +211,71 @@ describe("D04.2-AC2 SIGKILL of the writer process on a file database", () => {
     expect(countRows(await killAt("after"), "test_parent")).toBe(1);
   });
 });
+
+describe("D10.3 the read unit", () => {
+  const readPorts = (tx: TransactionHandle) => ({ ...bindTestPorts(tx), count: (): number => (tx.prepare("SELECT COUNT(*) FROM test_parent").get() as { "COUNT(*)": number })["COUNT(*)"] });
+
+  it("returns what the callback returns and sees committed data", () => {
+    const { writer } = freshWriter();
+    const unit = createUnitOfWork(writer, readPorts);
+    unit.run((ports) => (ports.parents.insert("p", "label"), done(null)));
+    expect(unit.read((ports) => ports.count())).toBe(1);
+  });
+
+  it("refuses every write inside: the database itself says read-only, and nothing stays", () => {
+    const { writer } = freshWriter();
+    const unit = createUnitOfWork(writer, readPorts);
+    expect(() => unit.read((ports) => ports.parents.insert("p", "label"))).toThrow(/readonly|read-only/i);
+    expect(countRows(writer, "test_parent")).toBe(0);
+    // The unit is usable for a write afterwards: the read left no lock and no setting behind.
+    unit.run((ports) => (ports.parents.insert("p", "label"), done(null)));
+    expect(countRows(writer, "test_parent")).toBe(1);
+  });
+
+  it("restores the query_only setting it found", () => {
+    const { writer } = freshWriter();
+    const unit = createUnitOfWork(writer, readPorts);
+    unit.read((ports) => ports.count());
+    expect(pragma(writer, "query_only")).toBe(0);
+    writer.handle.pragma("query_only = ON");
+    unit.read((ports) => ports.count());
+    expect(pragma(writer, "query_only")).toBe(1);
+  });
+
+  it("takes no write lock: another connection writes while a read is open, and the read keeps its snapshot", () => {
+    const { file, writer } = freshWriter();
+    const unit = createUnitOfWork(writer, readPorts);
+    const other = openDatabase(file, { role: "writer", busyTimeoutMs: 100 });
+    open.push(other);
+    const counts = unit.read((ports) => {
+      const before = ports.count();
+      other.handle.exec("INSERT INTO test_parent (id, label) VALUES ('from-other', 'x')");
+      return { before, during: ports.count() };
+    });
+    expect(counts).toEqual({ before: 0, during: 0 });
+    expect(countRows(writer, "test_parent")).toBe(1);
+  });
+
+  it("a unit of work, by contrast, holds the write lock from its start", () => {
+    const { file, writer } = freshWriter();
+    const other = openDatabase(file, { role: "writer", busyTimeoutMs: 50 });
+    open.push(other);
+    expect(() =>
+      createUnitOfWork(writer, readPorts).run(() => {
+        other.handle.exec("INSERT INTO test_parent (id, label) VALUES ('from-other', 'x')");
+        return done(null);
+      }),
+    ).toThrow(/locked|busy/i);
+  });
+
+  it("rejects an async callback, a handle kept beyond it and nesting", async () => {
+    const { writer } = freshWriter();
+    const unit = createUnitOfWork(writer, readPorts);
+    expect(() => unit.read(async () => 1)).toThrow(AsyncUnitOfWorkError);
+    let kept: TestPorts | undefined;
+    unit.read((ports) => (kept = ports, 1));
+    expect(() => kept?.parents.insert("late", "x")).toThrow(InactiveTransactionError);
+    expect(() => unit.run(() => unit.read(() => done(null)) as never)).toThrow(/nest/);
+    expect(() => unit.read(() => unit.read(() => 1))).toThrow(/nest/);
+  });
+});

@@ -23,3 +23,14 @@ export type Commit<T> = Readonly<{
 export interface UnitOfWork<P> {
   run<T>(work: (ports: P) => Commit<T>): Result<Commit<T>>;
 }
+
+/**
+ * A consistent read without the right to write (Architektura §4.5, §9.8): the adapter runs it in
+ * a deferred transaction, so it takes no write lock, and refuses any write attempted inside. A
+ * read path that wrote (a refreshed or cleaned session) would fail here instead of silently
+ * changing the database, also while the database is closed to writes. The callback is
+ * synchronous like a unit of work.
+ */
+export interface ReadUnit<P> {
+  read<T>(work: (ports: P) => T): T;
+}

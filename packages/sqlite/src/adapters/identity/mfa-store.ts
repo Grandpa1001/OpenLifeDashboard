@@ -31,6 +31,10 @@ export function bindMfaStore(tx: TransactionHandle): MfaStore {
             pending_challenge_id = NULL, pending_secret = NULL, pending_expires_at_ms = NULL
       WHERE singleton = 1 AND pending_challenge_id = ? AND pending_expires_at_ms > ? AND secret_generation = ?`,
   );
+  const consume = tx.prepare(
+    `UPDATE mfa_state SET last_used_step = ?
+      WHERE singleton = 1 AND secret_generation = ? AND secret_generation > 0 AND (last_used_step IS NULL OR last_used_step < ?)`,
+  );
   return {
     initialize: (ownerId) => void initialize.run(ownerId),
     read: () => {
@@ -50,6 +54,7 @@ export function bindMfaStore(tx: TransactionHandle): MfaStore {
             : { challengeId: row.pending_challenge_id, secret: row.pending_secret, expiresAtMs: row.pending_expires_at_ms },
       };
     },
+    consumeStep: ({ expectedGeneration, step }) => consume.run(step, expectedGeneration, step).changes === 1,
     savePending: ({ challengeId, secret, expiresAtMs }) => void savePending.run(challengeId, secret, expiresAtMs),
     activatePending: ({ challengeId, expectedGeneration, usedStep, nowMs }) => activate.run(usedStep, challengeId, nowMs, expectedGeneration).changes === 1,
   };

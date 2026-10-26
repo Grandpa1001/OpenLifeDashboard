@@ -21,150 +21,31 @@ import { authCookiePrefix, createAuthOptions } from "../../../apps/server/dist/a
 import { checkMfaIntegration } from "../../../apps/server/dist/adapters/auth/mfa-capabilities.js";
 import { createPasswordHasher } from "../../../apps/server/dist/adapters/auth/password-hasher.js";
 import { createSecretBox } from "../../../apps/server/dist/adapters/auth/secret-box.js";
-import { createTotp, totpStepAt } from "../../../apps/server/dist/adapters/auth/totp.js";
-import { createOwner, signInWithPassword, type SessionFacts } from "../../../packages/core/dist/modules/identity/public.js";
-import { bindAppendAudit } from "../../../packages/sqlite/dist/adapters/audit/append-audit.js";
-import { bindIdentityAccessReader } from "../../../packages/sqlite/dist/adapters/identity/access-reader.js";
-import { bindMfaStore } from "../../../packages/sqlite/dist/adapters/identity/mfa-store.js";
-import { bindOwnerWriters } from "../../../packages/sqlite/dist/adapters/identity/owner-writers.js";
-import { bindSignInStores } from "../../../packages/sqlite/dist/adapters/identity/sign-in-ports.js";
+import { totpStepAt } from "../../../apps/server/dist/adapters/auth/totp.js";
+import type { SessionFacts } from "../../../packages/core/dist/modules/identity/public.js";
 import { openDatabase, type SqliteConnection } from "../../../packages/sqlite/dist/connection/open-database.js";
 import { initializeDatabase, PRODUCT_MIGRATION_PLAN } from "../../../packages/sqlite/dist/migrations/public.js";
-import { createUnitOfWork } from "../../../packages/sqlite/dist/transactions/unit-of-work.js";
+import { closeRigs, createIdentityRig, done, RIG_INSTANCE_ID as INSTANCE_ID, RIG_T0 as T0, type IdentityRig } from "../../support/identity-rig.ts";
+import { beginEnrollment, box, codeAt, confirmEnrollment, PENDING_LIFETIME_MS, totp } from "../../support/mfa-prototype.ts";
 import { scratchDir } from "../../support/scratch.ts";
 
-const INSTANCE_ID = "4f7d2c9e-8a31-4b6e-9d0f-2c5a7e1b3d48";
 const BASE_URL = "http://127.0.0.1:8080";
 const AUTH_SECRET = "5a0c9f3e7d21b8a64c0e9f1d3b7a5c2e8f4d6b0a1c3e5f7092b4d6f8a0c2e4f6";
-const KEY = "9f2c4e6a8b0d1f3a5c7e9b1d3f5a7c9e0b2d4f6a8c0e1b3d5f7a9c1e3b5d7f90";
 const OTHER_KEY = "0b1d3f5a7c9e1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f0a2c4e6b8d0f1a3c5e7b9d";
 const EMAIL = "owner@example.test";
-const PASSWORD = "a passphrase for the prototype";
-const T0 = Date.parse("2026-10-26T12:00:07.000Z");
-const PENDING_LIFETIME_MS = 10 * 60 * 1000;
 
-const hasher = createPasswordHasher();
-const box = createSecretBox(KEY);
-const totp = createTotp();
 const open: SqliteConnection[] = [];
 afterEach(() => {
+  closeRigs();
   for (const connection of open.splice(0)) if (connection.handle.open) connection.close();
 });
 
-type Rig = ReturnType<typeof rigOf> extends Promise<infer R> ? R : never;
-
-/** A migrated database, an owner created by the production use case and a controlled clock. */
-async function rigOf() {
-  const file = path.join(scratchDir("openlife-mfa-"), "app.db");
-  const clock = { now: T0 };
-  let connection = openDatabase(file, { role: "writer", busyTimeoutMs: 5000 });
-  open.push(connection);
-  initializeDatabase(connection, PRODUCT_MIGRATION_PLAN, { instanceId: INSTANCE_ID, createdAt: new Date(T0).toISOString() });
-  const unitOn = (on: SqliteConnection) =>
-    createUnitOfWork(on, (tx) => ({
-      ...bindSignInStores(tx),
-      ...bindOwnerWriters(tx),
-      owners: bindOwnerWriters(tx).owners,
-      mfa: bindMfaStore(tx),
-      access: bindIdentityAccessReader(tx, () => clock.now),
-      audit: bindAppendAudit(tx),
-    }));
-  let unit = unitOn(connection);
-  const created = unit.run((ports) => createOwner(ports, { ownerId: "owner-1", email: EMAIL, passwordHash: "", requestId: "req-0", now: new Date(T0).toISOString() }));
-  expect(created.ok).toBe(true);
-  connection.handle.prepare("UPDATE account SET password = ?").run(await hasher.hash(PASSWORD));
-  return {
-    file,
-    clock,
-    get connection() {
-      return connection;
-    },
-    get unit() {
-      return unit;
-    },
-    /** A restart: the connection is closed and the file opened again. */
-    reopen() {
-      connection.close();
-      connection = openDatabase(file, { role: "writer", busyTimeoutMs: 5000 });
-      open.push(connection);
-      unit = unitOn(connection);
-    },
-    rows: <T>(sql: string) => connection.handle.prepare(sql).all() as T[],
-  };
-}
-
-const done = <T>(value: T) => ({ value, invalidations: [] });
-
-async function passwordSession(r: Rig, tag = "1"): Promise<string> {
-  const outcome = await signInWithPassword(
-    { unit: r.unit, verifier: hasher, decoyHash: "unused", nowMs: () => r.clock.now, newSessionId: () => `session-${tag}`, newSessionToken: () => `token-${tag}` },
-    { email: EMAIL, password: PASSWORD, accountKey: "account", ipKey: "ip", ip: "127.0.0.1", userAgent: "vitest", requestId: `req-${tag}` },
-  );
-  if (outcome.kind !== "granted") throw new Error("the password session was not granted");
-  return outcome.token;
-}
-
-const facts = (r: Rig, token: string): SessionFacts | null => {
-  const read = r.unit.run((ports) => done(ports.sessions.findActive(token, r.clock.now)));
-  return read.ok ? read.value.value : null;
-};
-const mfaRecord = (r: Rig) => {
-  const read = r.unit.run((ports) => done(ports.mfa.read()));
-  if (!read.ok) throw new Error("mfa read failed");
-  return read.value.value;
-};
-
-/** Enrollment, step 1: a pending secret sealed for the generation it will have once active. */
-function beginEnrollment(r: Rig, challengeId: string): { secret: string } {
-  const secret = totp.generateSecret();
-  const generation = mfaRecord(r)?.secretGeneration ?? 0;
-  const sealed = box.seal(secret, { ownerId: "owner-1", generation: generation + 1 });
-  r.unit.run((ports) => {
-    ports.mfa.savePending({ challengeId, secret: sealed, expiresAtMs: r.clock.now + PENDING_LIFETIME_MS });
-    return done(null);
-  });
-  return { secret };
-}
-
-const codeAt = async (secret: string, step: number): Promise<string> => createOTP(Buffer.from(secret, "base64url"), { digits: 6, period: 30 }).hotp(step);
-
-/**
- * Enrollment, step 2: the code is checked against the opened pending secret (async, outside the
- * unit), then one unit activates it, rotates the session and audits. Returns the new token.
- */
-async function confirmEnrollment(r: Rig, oldToken: string, challengeId: string, code: string, newToken: string): Promise<string | null> {
-  const record = mfaRecord(r);
-  if (record?.pending?.challengeId !== challengeId) return null;
-  const secret = box.open(record.pending.secret, { ownerId: "owner-1", generation: record.secretGeneration + 1 });
-  if (secret === null) return null;
-  const step = await totp.verify(secret, code, r.clock.now);
-  if (step === null || step <= (record.lastUsedStep ?? -1)) return null;
-  const old = facts(r, oldToken);
-  if (old === null) return null;
-  const result = r.unit.run((ports) => {
-    const activated = ports.mfa.activatePending({ challengeId, expectedGeneration: record.secretGeneration, usedStep: step, nowMs: r.clock.now });
-    const rotated =
-      activated &&
-      ports.sessions.rotate(oldToken, {
-        sessionId: `session-${newToken}`,
-        token: newToken,
-        ownerId: old.ownerId,
-        createdAtMs: r.clock.now,
-        expiresAtMs: r.clock.now + 30 * 24 * 3600 * 1000,
-        ipAddress: "127.0.0.1",
-        userAgent: "vitest",
-        assurance: "totp",
-        passwordVerifiedAtMs: old.passwordVerifiedAtMs,
-        totpVerifiedAtMs: r.clock.now,
-        accessEpoch: old.accessEpoch,
-      });
-    if (rotated) {
-      ports.audit.append({ ownerId: old.ownerId, action: "mfa.enrolled", entityId: old.ownerId, at: new Date(r.clock.now).toISOString(), requestId: "req-enroll" });
-    }
-    return done(rotated);
-  });
-  return result.ok && result.value.value ? newToken : null;
-}
+type Rig = IdentityRig;
+const passwordSession = async (r: Rig): Promise<string> => (await r.signIn()).token;
+const facts = (r: Rig, token: string): SessionFacts | null => r.facts(token);
+const mfaRecord = (r: Rig) => r.mfa();
+const rigOf = (): Promise<Rig> => createIdentityRig();
+const hasher = createPasswordHasher();
 
 describe("D10.1-AC1 the prototype: password session → enrollment challenge → rotation, read after a restart", () => {
   it("runs end to end; the state of the owner, the factor and the session is in the file after a restart", async () => {
@@ -178,22 +59,22 @@ describe("D10.1-AC1 the prototype: password session → enrollment challenge →
     expect(totp.uri(secret, "OpenLifeDashboard", EMAIL)).toMatch(/^otpauth:\/\/totp\/.+secret=[A-Z2-7]+.*digits=6.*period=30/);
     const step = totpStepAt(r.clock.now);
     // A wrong code and a code two steps away change nothing.
-    expect(await confirmEnrollment(r, passwordToken, "challenge-1", "000000", "token-2")).toBeNull();
-    expect(await confirmEnrollment(r, passwordToken, "challenge-1", await codeAt(secret, step + 2), "token-2")).toBeNull();
+    expect(await confirmEnrollment(r, passwordToken, "challenge-1", "000000", "totp-2")).toBeNull();
+    expect(await confirmEnrollment(r, passwordToken, "challenge-1", await codeAt(secret, step + 2), "totp-2")).toBeNull();
     expect(mfaRecord(r)?.secretGeneration).toBe(0);
     expect(facts(r, passwordToken)?.assurance).toBe("password");
 
-    const promoted = await confirmEnrollment(r, passwordToken, "challenge-1", await codeAt(secret, step), "token-2");
-    expect(promoted).toBe("token-2");
+    const promoted = await confirmEnrollment(r, passwordToken, "challenge-1", await codeAt(secret, step), "totp-2");
+    expect(promoted).toBe("totp-2");
     // The password token stopped working at once; the new session says how it proved itself.
     expect(facts(r, passwordToken)).toBeNull();
-    expect(facts(r, "token-2")).toEqual({ sessionId: "session-token-2", ownerId: "owner-1", assurance: "totp", passwordVerifiedAtMs: T0, totpVerifiedAtMs: T0, accessEpoch: 1 });
+    expect(facts(r, "totp-2")).toEqual({ sessionId: "session-totp-2", ownerId: "owner-1", assurance: "totp", passwordVerifiedAtMs: T0, totpVerifiedAtMs: T0, accessEpoch: 1 });
 
     r.reopen();
     const record = mfaRecord(r);
     expect(record).toMatchObject({ policy: "required", enrollmentState: "awaiting_recovery_ack", secretGeneration: 1, lastUsedStep: step, pending: null });
     expect(box.open(record?.activeSecret ?? "", { ownerId: "owner-1", generation: 1 })).toBe(secret);
-    expect(facts(r, "token-2")?.assurance).toBe("totp");
+    expect(facts(r, "totp-2")?.assurance).toBe("totp");
     expect(facts(r, passwordToken)).toBeNull();
     expect(r.rows<{ n: number }>("SELECT count(*) AS n FROM session_ext")[0]?.n).toBe(1);
     expect(r.rows("SELECT action FROM audit_log WHERE action = 'mfa.enrolled'")).toHaveLength(1);
@@ -206,7 +87,7 @@ describe("D10.1-AC1 the prototype: password session → enrollment challenge →
     const pending = mfaRecord(r)?.pending?.secret ?? "";
     expect(pending).toMatch(/^v1\.[\w-]+\.[\w-]+$/);
     expect(pending).not.toContain(secret);
-    await confirmEnrollment(r, token, "challenge-1", await codeAt(secret, totpStepAt(r.clock.now)), "token-2");
+    await confirmEnrollment(r, token, "challenge-1", await codeAt(secret, totpStepAt(r.clock.now)), "totp-2");
     r.connection.handle.pragma("wal_checkpoint(TRUNCATE)");
     const bytes = readFileSync(r.file);
     expect(bytes.toString("latin1")).not.toContain(secret);
@@ -218,11 +99,11 @@ describe("D10.1-AC1 the prototype: password session → enrollment challenge →
     const token = await passwordSession(r);
     const first = beginEnrollment(r, "challenge-1");
     const step = totpStepAt(r.clock.now);
-    const promoted = await confirmEnrollment(r, token, "challenge-1", await codeAt(first.secret, step), "token-2");
-    expect(promoted).toBe("token-2");
+    const promoted = await confirmEnrollment(r, token, "challenge-1", await codeAt(first.secret, step), "totp-2");
+    expect(promoted).toBe("totp-2");
     // The challenge is spent: the same code and the same challenge confirm nothing.
-    expect(await confirmEnrollment(r, "token-2", "challenge-1", await codeAt(first.secret, step), "token-3")).toBeNull();
-    expect(facts(r, "token-2")?.assurance).toBe("totp");
+    expect(await confirmEnrollment(r, "totp-2", "challenge-1", await codeAt(first.secret, step), "totp-3")).toBeNull();
+    expect(facts(r, "totp-2")?.assurance).toBe("totp");
   });
 
   it("activation is a compare-and-set: of two confirmations of one challenge exactly one wins; an expired or foreign challenge never activates", async () => {
@@ -246,7 +127,7 @@ describe("D10.1-AC1 the prototype: password session → enrollment challenge →
     const token = await passwordSession(r);
     const { secret } = beginEnrollment(r, "challenge-1");
     r.unit.run((ports) => done(ports.sessions.deleteByToken(token)));
-    expect(await confirmEnrollment(r, token, "challenge-1", await codeAt(secret, totpStepAt(r.clock.now)), "token-2")).toBeNull();
+    expect(await confirmEnrollment(r, token, "challenge-1", await codeAt(secret, totpStepAt(r.clock.now)), "totp-2")).toBeNull();
     expect(mfaRecord(r)).toMatchObject({ secretGeneration: 0, activeSecret: null });
     // The rotation inside the unit: a missing old session rolls the activation back.
     expect(() =>
@@ -335,16 +216,16 @@ describe("D10.1-AC2 no public write of assurance; the database decides; a mismat
     expect((await auth.api.getSession({ headers: await cookieFor(token) }))?.session.token).toBe(token);
     // Rotation (promotion): the old cookie is dead immediately.
     const { secret } = beginEnrollment(r, "challenge-1");
-    expect(await confirmEnrollment(r, token, "challenge-1", await codeAt(secret, totpStepAt(r.clock.now)), "token-2")).toBe("token-2");
+    expect(await confirmEnrollment(r, token, "challenge-1", await codeAt(secret, totpStepAt(r.clock.now)), "totp-2")).toBe("totp-2");
     expect(await auth.api.getSession({ headers: await cookieFor(token) })).toBeNull();
-    expect((await auth.api.getSession({ headers: await cookieFor("token-2") }))?.session.token).toBe("token-2");
+    expect((await auth.api.getSession({ headers: await cookieFor("totp-2") }))?.session.token).toBe("totp-2");
     // Revocation: the row is gone, the signed cookie is still well formed, and it authenticates nothing.
     r.unit.run((ports) => done(ports.sessions.deleteAllOfOwner("owner-1")));
-    expect(await auth.api.getSession({ headers: await cookieFor("token-2") })).toBeNull();
-    expect(facts(r, "token-2")).toBeNull();
+    expect(await auth.api.getSession({ headers: await cookieFor("totp-2") })).toBeNull();
+    expect(facts(r, "totp-2")).toBeNull();
     expect(r.rows("SELECT count(*) AS n FROM session_ext")).toEqual([{ n: 0 }]);
     // Expiry: a session whose time has come is not active for our reader either.
-    const fresh = await passwordSession(r, "3");
+    const fresh = await passwordSession(r);
     expect(facts(r, fresh)).not.toBeNull();
     r.clock.now += 30 * 24 * 3600 * 1000;
     expect(facts(r, fresh)).toBeNull();

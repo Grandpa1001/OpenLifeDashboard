@@ -1236,6 +1236,54 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D10.3",
+    ready: true,
+    title: "TOTP vectors, replay ledger as compare-and-set, rollback with the audit, reads that write nothing, migration samples",
+    criteria: ["D10.3-AC1", "D10.3-AC2", "D10.3-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests use the built adapters, migrations and server modules.
+        id: "workspace-build",
+        criteria: ["D10.3-AC1", "D10.3-AC2"],
+        description: "pnpm -r build: the replay ledger, the read unit and the identity ports",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/sqlite/src/transactions/unit-of-work.ts", "packages/sqlite/src/adapters/identity/mfa-store.ts"],
+      },
+      {
+        id: "totp-vectors",
+        criteria: ["D10.3-AC1"],
+        description: "RFC 4226 counters 0 to 9 and the RFC 6238 SHA-1 vectors (8 digits by the library, 6 digits and the matching step by the product), window of one step either side, step boundary",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/identity/totp-vectors.test.ts"],
+        requires: ["tests/unit/identity/totp-vectors.test.ts", "apps/server/src/adapters/auth/totp.ts"],
+      },
+      {
+        id: "mfa-atomicity",
+        criteria: ["D10.3-AC1", "D10.3-AC2"],
+        description:
+          "Real database: two requests with one step give one promotion, the ledger moves forward only, key/generation/nonce of the secret; a failing audit rolls back the consumed step and the promotion or enrollment, a vanished session rolls it back, reads write nothing while the database refuses writes, migration from versions 3 to 5 keeps owner, sessions and audit",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/mfa-atomicity.test.ts"],
+        requires: ["tests/integration/auth/mfa-atomicity.test.ts", "tests/support/mfa-prototype.ts", "tests/support/identity-rig.ts"],
+      },
+      {
+        id: "read-unit",
+        criteria: ["D10.3-AC2"],
+        description: "The read unit refuses every write, takes no write lock, keeps its snapshot, restores query_only and rejects async callbacks, kept handles and nesting",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/sqlite/unit-of-work.test.ts"],
+        requires: ["tests/integration/sqlite/unit-of-work.test.ts"],
+      },
+      ...regressionChecks("D10.3-regression"),
+    ],
+  },
+  {
+    // The parent passes only through its work orders: the mechanism, the policy and the safety of the second factor.
+    id: "D10",
+    ready: true,
+    title: "One second-factor mechanism, its access policy and the atomic adapters",
+    steps: ["D10.1", "D10.2", "D10.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,
