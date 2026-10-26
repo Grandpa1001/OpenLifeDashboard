@@ -972,6 +972,79 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D08.3",
+    ready: true,
+    title: "G0: the image through Compose in a browser, refusals and degraded start; verified versions",
+    criteria: ["D08.3-AC1", "D08.3-AC2", "D08.3-regression"],
+    checks: [
+      {
+        // Runs first: the image test edits the installation's database with the built adapter.
+        id: "workspace-build",
+        criteria: ["D08.3-AC1", "D08.3-AC2"],
+        description: "pnpm -r build: the adapters the G0 image test reads and edits the installation with",
+        command: ["pnpm", "-r", "build"],
+        requires: ["tests/system/g0-image.ts"],
+      },
+      {
+        id: "g0-image-native",
+        criteria: ["D08.3-AC1", "D08.3-AC2"],
+        description: "Image of this commit via Compose: status screen PL/EN in Chromium, health/SPA/404, requestId in the log file, image and container IDs; bad env and tampered migration never ready, read-only logs degraded",
+        command: ["node", "tests/system/g0-image.ts"],
+        requires: ["tests/system/g0-image.ts", "docker/Dockerfile", "docker/compose.yml"],
+        timeoutMs: 25 * 60 * 1000,
+      },
+      {
+        id: "g0-matrix-static",
+        criteria: ["D08.3-AC1", "D08.3-AC2"],
+        description: "Every G0 item and failure-matrix case names a ready report, an existing check and a line written in its test",
+        command: ["node", "tests/verification/g0-matrix-static.ts"],
+        requires: ["tests/verification/g0-matrix-static.ts", "tests/verification/g0-matrix.ts"],
+      },
+      {
+        id: "g0-gate-controls",
+        criteria: ["D08.3-AC1", "D08.3-AC2"],
+        description: "The G0 gate on synthetic reports: complete set passes; failed line or check fails, renamed test fails, missing or stale report is blocked",
+        command: ["node", "tests/verification/g0-gate-controls.ts"],
+        requires: ["tests/verification/g0-gate-controls.ts", "tests/verification/g0-gate.ts"],
+      },
+      {
+        id: "readme-versions",
+        criteria: ["D08.3-AC1"],
+        description: "README's verified runtime equals the pinned Node, pnpm, base image and catalog versions",
+        command: ["node", "tests/verification/readme-versions.ts"],
+        requires: ["tests/verification/readme-versions.ts", "README.md"],
+      },
+      ...regressionChecks("D08.3-regression"),
+    ],
+  },
+  {
+    // The parent passes only through its work orders.
+    id: "D08",
+    ready: true,
+    title: "CI, fixtures, theme and texts, and gate G0 of KM0",
+    steps: ["D08.1", "D08.2", "D08.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
+    // KM0 gate (DEV §8.4): joins the KM0 reports made for this exact code and the D02 reports of
+    // both architectures; does not run the tests again.
+    id: "G0",
+    ready: true,
+    title: "Gate G0: the foundation of KM0 on reports of the same code",
+    steps: ["D02"],
+    criteria: ["G0-reports", "G0-matrix"],
+    checks: [
+      {
+        id: "g0-gate",
+        criteria: ["G0-reports", "G0-matrix"],
+        description: "Reports D01–D08.3 for this code passed; every G0 item and failure-matrix case proved by its passed test or assertion",
+        command: ["node", "tests/verification/g0-gate.ts"],
+        requires: ["tests/verification/g0-gate.ts", "tests/verification/g0-matrix.ts"],
+      },
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

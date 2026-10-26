@@ -2,7 +2,7 @@
 
 A self-hosted, no-code personal life dashboard: build your own registers, dictionaries and screens with widgets, and view them live on your phone, laptop and a large screen.
 
-> **Status: early development.** The server answers `/api/health` and serves a placeholder web app; there is no sign-in or data yet. Nothing here is ready to install or use.
+> **Status: early development (KM0, gate G0).** The image starts from a Compose installation with a real database, snapshots and logs, and the web app shows whether the server is ready. There is no owner account, sign-in or data yet. Nothing here is ready to install or use.
 
 ## Development
 
@@ -81,7 +81,7 @@ docker run --rm -p 127.0.0.1:8080:8080 openlifedashboard:dev
 
 ### Verified runtime
 
-Versions exercised by the verification reports (DEV D02); the release matrix extends this list later.
+Versions exercised by the verification reports; `tests/verification/readme-versions.ts` fails when a pinned version below no longer matches `package.json`, the pnpm catalog or the Dockerfile. The release matrix (KM7) extends this list.
 
 | Component | Version |
 |---|---|
@@ -92,6 +92,21 @@ Versions exercised by the verification reports (DEV D02); the release matrix ext
 | Writer lease | fs-native-extensions 1.5.1 (bundled native binaries): OFD lock on Linux, flock on macOS |
 | Native image runs | linux/amd64 on `ubuntu-24.04`, linux/arm64 on `ubuntu-24.04-arm` (GitHub Actions) |
 | Docker Engine | 28.0.4 on both runners |
+| HTTP server | hono 4.13.13, @hono/node-server 2.1.5 |
+| Web app | react 19.3.1, vite 8.3.5, @tanstack/react-router 1.170.46, i18next 26.5.10, react-i18next 17.1.8 |
+| Schemas | zod 4.6.7 (server and contracts; the web app checks health without it) |
+| Language and tests | typescript 6.0.3, vitest 5.0.5, @playwright/test 1.64.1 with its Chromium, @axe-core/playwright 4.14.0 |
+
+### Gate G0
+
+G0 closes the foundation (KM0): the image of a commit, started by Compose from a test installation, serves the status screen, a real database and a log line that carries the request ID, and refuses or degrades where it must. `pnpm verify:task -- G0` does not run the tests again: it joins the reports of D01–D08 made for exactly the same code (commit and uncommitted changes) and the D02 image reports of linux/amd64 and linux/arm64, then decides every item of G0 and every case of the failure matrix (bad environment, unknown instance metadata, read-only mounts, read-only logs only, symlinks, no space for a snapshot, interrupted initialization, wrong checksum, newer database, second writer, SIGKILL, SIGTERM timeout) from the test or assertion that proved it, listed in `tests/verification/g0-matrix.ts`. A case without its report is blocked, a case whose test failed or is missing fails; the report lists every case. CI runs it as the last job. Locally, run the steps first:
+
+```sh
+pnpm verify:task -- D07      # and the other steps; container checks need Docker
+pnpm verify:task -- G0       # blocked until reports of both image architectures are in .artifacts/arch-reports
+```
+
+G0 does not cover sign-in, the usable owner setup or the Windows/Safari release matrix.
 
 `verify:task` reads `tooling/verification-tasks.ts` and records each check as passed, failed, blocked (missing file, tool or precondition) or not_run. Tasks without defined checks are reported as blocked. CI (`.github/workflows/ci.yml`) runs the same command for every task the map can verify (a check of the workflow fails when one is missing); D00 needs the local specification and stays local.
 

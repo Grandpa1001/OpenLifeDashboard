@@ -8,8 +8,8 @@
 //   --tasks <file>     module exporting `verificationTasks` (default: tooling/verification-tasks.ts)
 //   --artifacts <dir>  where run directories are created (default: <root>/.artifacts)
 import { spawnSync } from "node:child_process";
-import { createHash, randomBytes } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -19,6 +19,7 @@ import {
   type CheckDefinition,
   type TaskDefinition,
 } from "../tooling/verification-tasks.ts";
+import { describeCode, hashFile } from "./support/code-state.ts";
 import { toolInvocation } from "./support/toolchain.ts";
 import { isFile, isJsonObject, listFiles } from "./support/workspaces.ts";
 
@@ -139,38 +140,6 @@ async function loadTasks(file: string): Promise<Map<string, TaskDefinition>> {
   }
   const loaded: unknown = await import(pathToFileURL(file).href);
   return validateTasks(isJsonObject(loaded) ? loaded["verificationTasks"] : undefined);
-}
-
-const sha256 = (data: Buffer | string): string => createHash("sha256").update(data).digest("hex");
-
-function git(root: string, args: readonly string[]): Buffer | null {
-  const run = spawnSync("git", args, { cwd: root, maxBuffer: MAX_LOG_BYTES });
-  return run.status === 0 && !run.error ? run.stdout : null;
-}
-
-/** Code version and the exact state of uncommitted work the evidence refers to (DEV §9.3). */
-function describeCode(root: string): Record<string, unknown> {
-  const head = git(root, ["rev-parse", "HEAD"]);
-  if (!head) {
-    return { git: false };
-  }
-  const diff = git(root, ["diff", "HEAD", "--binary"]) ?? Buffer.alloc(0);
-  const untracked = (git(root, ["ls-files", "--others", "--exclude-standard", "-z"]) ?? Buffer.alloc(0))
-    .toString("utf8")
-    .split("\0")
-    .filter(Boolean)
-    .sort();
-  return {
-    git: true,
-    commit: head.toString("utf8").trim(),
-    dirty: diff.length > 0 || untracked.length > 0,
-    trackedDiffSha256: sha256(diff),
-    untracked: untracked.map((file) => ({ path: file, sha256: hashFile(path.join(root, file)) })),
-  };
-}
-
-function hashFile(file: string): string | null {
-  return isFile(file) ? sha256(readFileSync(file)) : null;
 }
 
 function describeEnvironment(): Record<string, unknown> {

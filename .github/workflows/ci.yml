@@ -47,15 +47,12 @@ jobs:
       - name: Verify D07 (D07.1–D07.3, Compose local mode, persistence and isolation, Docker on the runner)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D07
-      - name: Verify D08.1 (fixtures, isolated test runs, blocking controls)
-        if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D08.1
       - name: Install the Playwright browser
         if: ${{ !cancelled() }}
         run: pnpm exec playwright install --with-deps chromium
-      - name: Verify D08.2 (theme, PL/EN texts, status screen in a browser)
+      - name: Verify D08 (D08.1–D08.3, CI checks, theme and texts, the G0 image in a browser)
         if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D08.2
+        run: pnpm verify:task -- D08
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -106,12 +103,14 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
-  d02:
-    # Joins the per-architecture reports of this commit: D02 passes only with both.
-    name: verify:task D02 (amd64 + arm64)
-    needs: image
+  g0:
+    # Gate G0 (DEV §8.4): joins the reports of the verify job and of both image architectures for
+    # this commit; it runs even when one of them failed, so the gate reports what is missing.
+    name: verify:task G0 (KM0 reports + amd64/arm64)
+    needs: [verify, image]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -121,18 +120,23 @@ jobs:
         run: corepack enable
       - name: Install
         run: pnpm install --frozen-lockfile
+      - name: Download the KM0 reports
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: verification-reports
+          path: .artifacts/ci-reports
       - name: Download architecture reports
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: verification-image-*
           path: .artifacts/arch-reports
-      - name: Verify D02
-        run: pnpm verify:task -- D02
+      - name: Verify G0 (includes D02)
+        run: pnpm verify:task -- G0
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: verification-d02
+          name: verification-g0
           path: .artifacts/
           include-hidden-files: true
           retention-days: 14
