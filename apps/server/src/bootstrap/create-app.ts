@@ -8,6 +8,7 @@ import { installHttpFoundation } from "../http/foundation.js";
 import { publicBootstrap } from "../http/routes/bootstrap.routes.js";
 import { health } from "../http/routes/health.routes.js";
 import { registerIdentityRoutes, type IdentityRouteDependencies } from "../http/routes/identity.routes.js";
+import { registerMfaEnrollmentRoutes, type MfaEnrollmentRouteDependencies } from "../http/routes/mfa-enrollment.routes.js";
 import type { Readiness } from "./readiness.js";
 import { spaFallback, webAssets } from "../http/spa.js";
 
@@ -22,6 +23,7 @@ export type AppDependencies = Readonly<{
   /** Monotonic milliseconds for request durations. */
   nowMs: () => number;
   identity: IdentityRouteDependencies;
+  mfaEnrollment: MfaEnrollmentRouteDependencies;
 }>;
 
 /**
@@ -34,6 +36,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   app.get(HEALTH_PATH, health(dependencies.readiness));
   app.get(PUBLIC_BOOTSTRAP_PATH, publicBootstrap);
   registerIdentityRoutes(app, dependencies.identity);
+  registerMfaEnrollmentRoutes(app, dependencies.mfaEnrollment);
   app.all("/api", apiNotFound);
   app.all("/api/*", apiNotFound);
   app.use("*", webAssets(dependencies.webRoot));

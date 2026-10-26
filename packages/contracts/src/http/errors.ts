@@ -16,6 +16,9 @@ export const API_ERROR_CODES = [
   "SETUP_DATA_REQUIRED",
   "SETUP_DATA_ALREADY_CHOSEN",
   "STEP_UP_REQUIRED",
+  "MFA_INVALID_CODE",
+  "ENROLLMENT_CHANGED",
+  "RECOVERY_BATCH_CHANGED",
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

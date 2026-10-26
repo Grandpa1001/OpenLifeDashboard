@@ -4,6 +4,14 @@ export type { PasswordReset, ResetPasswordCommand } from "./application/reset-pa
 export { createOwner } from "./application/create-owner.js";
 export type { CreateOwnerCommand, OwnerCreated } from "./application/create-owner.js";
 export type { CreateOwnerPorts, CredentialWriter, NewOwnerAccount, OwnerSingletonWriter, ResetPasswordPorts } from "./ports.js";
+export {
+  acknowledgeRecovery,
+  beginEnrollment,
+  confirmEnrollment,
+  ENROLLMENT_CHALLENGE_LIFETIME_MS,
+  reissueRecoveryCodes,
+} from "./application/enroll-totp.js";
+export type { EnrollmentChallenge, EnrollmentDependencies, EnrollmentStatus, IssuedRecoveryCodes } from "./application/enroll-totp.js";
 export { readIdentityStatus, signInWithPassword, signOut } from "./application/sign-in.js";
 export type {
   AuthAttemptOutcome,
@@ -29,11 +37,14 @@ export { SESSION_LIFETIME_MS } from "./domain/session-policy.js";
 export type {
   AuthAttemptStore,
   CredentialReader,
+  EnrollmentCrypto,
+  EnrollmentPorts,
   IdentityAccessReader,
   MfaRecord,
   MfaStore,
   NewSession,
   OwnerCredential,
+  RecoveryCodeStore,
   SessionFacts,
   SessionStore,
   SignInPorts,

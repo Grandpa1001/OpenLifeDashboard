@@ -11,8 +11,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
 import { bindAppendAudit } from "@openlife/sqlite/adapters/audit";
-import { bindIdentityAccessReader, bindOwnerWriters, bindSignInStores } from "@openlife/sqlite/adapters/identity";
+import { bindIdentityAccessReader, bindMfaStore, bindOwnerWriters, bindRecoveryCodeStore, bindSignInStores } from "@openlife/sqlite/adapters/identity";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
+import { createEnrollmentCrypto } from "./adapters/auth/enrollment-crypto.js";
 import { createAttemptKeys } from "./adapters/auth/attempt-keys.js";
 import { checkAuthSchema } from "./adapters/auth/auth-schema.js";
 import { checkMfaIntegration } from "./adapters/auth/mfa-capabilities.js";
@@ -165,6 +166,18 @@ const readiness = createReadiness();
 // through the application's unit of work on the one writer connection (Architektura §9.8).
 const hasher = createPasswordHasher();
 const secret = environment.betterAuthSecret.reveal();
+// One unit of work for the whole identity module: sign-in uses the subset of ports it declares.
+const identityUnit = createUnitOfWork(database.connection, (tx) => ({
+  ...bindSignInStores(tx),
+  owners: bindOwnerWriters(tx).owners,
+  mfa: bindMfaStore(tx),
+  recovery: bindRecoveryCodeStore(tx),
+  access: bindIdentityAccessReader(tx, Date.now),
+  audit: bindAppendAudit(tx),
+}));
+const cookies = createSessionCookies({ instanceId: paths.instanceId, secret });
+const secureCookies = environment.baseUrl.startsWith("https:");
+const newSessionToken = (): string => randomBytes(32).toString("base64url");
 const app = createApp({
   webRoot,
   indexHtml,
@@ -173,24 +186,30 @@ const app = createApp({
   readiness,
   nowMs: () => performance.now(),
   identity: {
-    unit: createUnitOfWork(database.connection, (tx) => ({
-      ...bindSignInStores(tx),
-      owners: bindOwnerWriters(tx).owners,
-      access: bindIdentityAccessReader(tx, Date.now),
-      audit: bindAppendAudit(tx),
-    })),
+    unit: identityUnit,
     verifier: hasher,
     // Verified for an unknown e-mail, so a refusal costs the same as for the owner's.
     decoyHash: await hasher.hash(randomBytes(32).toString("hex")),
-    cookies: createSessionCookies({ instanceId: paths.instanceId, secret }),
+    cookies,
     keys: createAttemptKeys(secret),
     allowedOrigin: environment.baseUrl,
-    secureCookies: environment.baseUrl.startsWith("https:"),
+    secureCookies,
     loginLimiter: createRateLimiter({ limit: LOGIN_REQUESTS_PER_MINUTE, windowMs: LOGIN_LIMIT_WINDOW_MS, nowMs: Date.now }),
     clientIp: (c) => getConnInfo(c).remote.address ?? "unknown",
     nowMs: Date.now,
     newId: randomUUID,
-    newSessionToken: () => randomBytes(32).toString("base64url"),
+    newSessionToken,
+    logger,
+  },
+  mfaEnrollment: {
+    unit: identityUnit,
+    crypto: createEnrollmentCrypto(environment.appEncryptionKey.reveal()),
+    cookies,
+    allowedOrigin: environment.baseUrl,
+    secureCookies,
+    nowMs: Date.now,
+    newId: randomUUID,
+    newSessionToken,
     logger,
   },
 });

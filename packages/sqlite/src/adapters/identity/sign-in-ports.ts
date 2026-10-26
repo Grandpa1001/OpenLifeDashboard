@@ -37,7 +37,9 @@ function bindCredentials(tx: TransactionHandle): CredentialReader {
        JOIN account a ON a.userId = u.id AND a.providerId = 'credential'
       WHERE u.email = ?`,
   );
+  const ownerEmail = tx.prepare(`SELECT u.email AS email FROM instance_state s JOIN "user" u ON u.id = s.owner_id`);
   return {
+    ownerEmail: () => (ownerEmail.get() as { email: string } | undefined)?.email ?? null,
     findOwnerByEmail: (email) => {
       const row = find.get(email) as { ownerId: string; passwordHash: string | null } | undefined;
       return row === undefined || row.passwordHash === null ? null : { ownerId: row.ownerId, passwordHash: row.passwordHash };

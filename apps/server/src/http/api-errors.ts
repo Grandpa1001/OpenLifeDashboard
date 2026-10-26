@@ -19,6 +19,9 @@ const FALLBACK_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   SETUP_DATA_REQUIRED: "Choose the starting data first",
   SETUP_DATA_ALREADY_CHOSEN: "The starting data has already been chosen",
   STEP_UP_REQUIRED: "Confirm with a fresh code",
+  MFA_INVALID_CODE: "The code is not valid",
+  ENROLLMENT_CHANGED: "The enrollment is no longer in the state this request expects",
+  RECOVERY_BATCH_CHANGED: "The recovery codes were replaced; use the current batch",
 };
 
 export function apiErrorResponse(

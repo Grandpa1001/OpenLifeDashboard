@@ -1284,6 +1284,38 @@ const definedLater: readonly TaskDefinition[] = [
     checks: [],
   },
   {
+    id: "D11.1",
+    ready: true,
+    title: "Enrollment of the second factor: begin, confirm, recovery codes, acknowledgment and reissue over real routes",
+    criteria: ["D11.1-AC1", "D11.1-AC2", "D11.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and adapters.
+        id: "workspace-build",
+        criteria: ["D11.1-AC1", "D11.1-AC2"],
+        description: "pnpm -r build: the enrollment use cases, the recovery code store, migration 7 and the four routes",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/identity/application/enroll-totp.ts", "apps/server/src/http/routes/mfa-enrollment.routes.ts"],
+      },
+      {
+        id: "recovery-codes",
+        criteria: ["D11.1-AC2"],
+        description: "Ten codes of ten characters, alphabet without look-alikes, accepted spellings, keyed hashes, malformed input has no hash",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/identity/recovery-codes.test.ts"],
+        requires: ["tests/unit/identity/recovery-codes.test.ts", "apps/server/src/adapters/auth/recovery-codes.ts"],
+      },
+      {
+        id: "mfa-enrollment-http",
+        criteria: ["D11.1-AC1", "D11.1-AC2"],
+        description:
+          "Real server and CLI-created owner: confirm opens no data before the acknowledgment, session promoted and old cookie dead; lost view → new batch by the next TOTP with the secret unchanged; foreign/expired challenge, late acknowledgment, old batch, begin on an enrolled owner, parallel confirm, failing audit (503), no plain codes in database or logs",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/mfa-enrollment-http.test.ts"],
+        requires: ["tests/integration/auth/mfa-enrollment-http.test.ts", "packages/sqlite/src/adapters/identity/recovery-store.ts"],
+      },
+      ...regressionChecks("D11.1-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

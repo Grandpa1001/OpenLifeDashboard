@@ -19,12 +19,12 @@ export const totp = createTotp();
 export const codeAt = (secret: string, step: number): Promise<string> => createOTP(Buffer.from(secret, "base64url"), { digits: 6, period: 30 }).hotp(step);
 
 /** Enrollment, step 1: a pending secret sealed for the generation it will have once active. */
-export function beginEnrollment(r: IdentityRig, challengeId: string, sealedForGeneration?: number): { secret: string } {
+export function beginEnrollment(r: IdentityRig, challengeId: string, sealedForGeneration?: number, sessionId = "session-1"): { secret: string } {
   const secret = totp.generateSecret();
   const generation = r.mfa()?.secretGeneration ?? 0;
   const sealed = box.seal(secret, { ownerId: "owner-1", generation: sealedForGeneration ?? generation + 1 });
   r.unit.run((ports) => {
-    ports.mfa.savePending({ challengeId, secret: sealed, expiresAtMs: r.clock.now + PENDING_LIFETIME_MS });
+    ports.mfa.savePending({ challengeId, secret: sealed, expiresAtMs: r.clock.now + PENDING_LIFETIME_MS, sessionId, expectedGeneration: generation });
     return done(null);
   });
   return { secret };
@@ -67,7 +67,7 @@ export async function confirmEnrollment(r: IdentityRig, oldToken: string, challe
   const old = r.facts(oldToken);
   if (old === null) return null;
   const result = r.unit.run((ports) => {
-    const activated = ports.mfa.activatePending({ challengeId, expectedGeneration: record.secretGeneration, usedStep: step, nowMs: r.clock.now });
+    const activated = ports.mfa.activatePending({ challengeId, sessionId: old.sessionId, expectedGeneration: record.secretGeneration, usedStep: step, nowMs: r.clock.now });
     const rotated = activated && ports.sessions.rotate(oldToken, promotedSession(r, newToken, old));
     if (rotated) {
       ports.audit.append({ ownerId: old.ownerId, action: "mfa.enrolled", entityId: old.ownerId, at: new Date(r.clock.now).toISOString(), requestId: "req-enroll" });

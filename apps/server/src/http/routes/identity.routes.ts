@@ -7,7 +7,6 @@ import type { ReadUnit, UnitOfWork } from "@openlife/core/foundation";
 import { readIdentityStatus, signInWithPassword, signOut, type PasswordVerifier, type SignInPorts } from "@openlife/core/identity";
 import type { Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { AttemptKeys } from "../../adapters/auth/attempt-keys.js";
 import type { SessionCookies } from "../../adapters/auth/session-cookie.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
@@ -16,6 +15,7 @@ import type { AppEnv } from "../app-env.js";
 import { rateLimit, type RateLimiter } from "../middleware/fixed-window-limit.js";
 import { requireSameOrigin } from "../middleware/same-origin.js";
 import { LOGIN_BODY_MAX_BYTES, USER_AGENT_MAX_LENGTH } from "../security-limits.js";
+import { clearSessionCookie, readSessionToken, setSessionCookie } from "../session-cookie-http.js";
 
 export type IdentityRouteDependencies = Readonly<{
   unit: UnitOfWork<SignInPorts> & ReadUnit<SignInPorts>;
@@ -37,11 +37,9 @@ export type IdentityRouteDependencies = Readonly<{
   logger: TechnicalLogger;
 }>;
 
-const cookieAttributes = (secure: boolean) => ({ httpOnly: true, sameSite: "Lax", path: "/", secure }) as const;
-
 export function registerIdentityRoutes(app: Hono<AppEnv>, deps: IdentityRouteDependencies): void {
   const noStore = (c: Context<AppEnv>): void => c.header("Cache-Control", "no-store");
-  const sessionToken = async (c: Context<AppEnv>): Promise<string | null> => deps.cookies.verify(getCookie(c, deps.cookies.name));
+  const sessionToken = (c: Context<AppEnv>): Promise<string | null> => readSessionToken(c, deps.cookies);
   const unavailable = (c: Context<AppEnv>, error: unknown): Response => {
     deps.logger.log({ level: "error", event: "auth.unavailable", requestId: c.get("requestId"), code: "AUTH_UNAVAILABLE", error });
     noStore(c);
@@ -82,11 +80,7 @@ export function registerIdentityRoutes(app: Hono<AppEnv>, deps: IdentityRouteDep
           return apiErrorResponse(c, 401, "INVALID_CREDENTIALS");
         }
         // The session is committed; only now does the browser get its cookie.
-        setCookie(c, deps.cookies.name, await deps.cookies.sign(outcome.token), {
-          ...cookieAttributes(deps.secureCookies),
-          expires: new Date(outcome.expiresAtMs),
-          maxAge: Math.floor((outcome.expiresAtMs - deps.nowMs()) / 1000),
-        });
+        await setSessionCookie(c, deps.cookies, deps.secureCookies, { token: outcome.token, expiresAtMs: outcome.expiresAtMs }, deps.nowMs());
         const status: IdentityStatus = { authenticated: true, nextAction: outcome.nextAction };
         return c.json(status);
       } catch (error) {
@@ -102,7 +96,7 @@ export function registerIdentityRoutes(app: Hono<AppEnv>, deps: IdentityRouteDep
     } catch (error) {
       return unavailable(c, error);
     }
-    deleteCookie(c, deps.cookies.name, cookieAttributes(deps.secureCookies));
+    clearSessionCookie(c, deps.cookies, deps.secureCookies);
     return c.body(null, 204);
   });
 

@@ -14,6 +14,9 @@ type Row = Readonly<{
   pending_challenge_id: string | null;
   pending_secret: string | null;
   pending_expires_at_ms: number | null;
+  pending_session_id: string | null;
+  recovery_batch_id: string | null;
+  recovery_batch_session_id: string | null;
 }>;
 
 export function bindMfaStore(tx: TransactionHandle): MfaStore {
@@ -21,15 +24,17 @@ export function bindMfaStore(tx: TransactionHandle): MfaStore {
     "INSERT INTO mfa_state (singleton, owner_id, policy, enrollment_state, secret_generation) VALUES (1, ?, 'required', 'required', 0)",
   );
   const read = tx.prepare("SELECT * FROM mfa_state");
+  // Only while no secret is active and the generation is the one the caller saw.
   const savePending = tx.prepare(
-    "UPDATE mfa_state SET pending_challenge_id = ?, pending_secret = ?, pending_expires_at_ms = ? WHERE singleton = 1",
+    `UPDATE mfa_state SET pending_challenge_id = ?, pending_secret = ?, pending_expires_at_ms = ?, pending_session_id = ?
+      WHERE singleton = 1 AND enrollment_state = 'required' AND secret_generation = ?`,
   );
   const activate = tx.prepare(
     `UPDATE mfa_state
         SET active_secret = pending_secret, secret_generation = secret_generation + 1, last_used_step = ?,
             enrollment_state = 'awaiting_recovery_ack',
-            pending_challenge_id = NULL, pending_secret = NULL, pending_expires_at_ms = NULL
-      WHERE singleton = 1 AND pending_challenge_id = ? AND pending_expires_at_ms > ? AND secret_generation = ?`,
+            pending_challenge_id = NULL, pending_secret = NULL, pending_expires_at_ms = NULL, pending_session_id = NULL
+      WHERE singleton = 1 AND pending_challenge_id = ? AND pending_session_id = ? AND pending_expires_at_ms > ? AND secret_generation = ?`,
   );
   const consume = tx.prepare(
     `UPDATE mfa_state SET last_used_step = ?
@@ -49,13 +54,19 @@ export function bindMfaStore(tx: TransactionHandle): MfaStore {
         activeSecret: row.active_secret,
         lastUsedStep: row.last_used_step,
         pending:
-          row.pending_challenge_id === null || row.pending_secret === null || row.pending_expires_at_ms === null
+          row.pending_challenge_id === null || row.pending_secret === null || row.pending_expires_at_ms === null || row.pending_session_id === null
             ? null
-            : { challengeId: row.pending_challenge_id, secret: row.pending_secret, expiresAtMs: row.pending_expires_at_ms },
+            : { challengeId: row.pending_challenge_id, secret: row.pending_secret, expiresAtMs: row.pending_expires_at_ms, sessionId: row.pending_session_id },
+        recoveryBatch:
+          row.recovery_batch_id === null || row.recovery_batch_session_id === null
+            ? null
+            : { batchId: row.recovery_batch_id, sessionId: row.recovery_batch_session_id },
       };
     },
     consumeStep: ({ expectedGeneration, step }) => consume.run(step, expectedGeneration, step).changes === 1,
-    savePending: ({ challengeId, secret, expiresAtMs }) => void savePending.run(challengeId, secret, expiresAtMs),
-    activatePending: ({ challengeId, expectedGeneration, usedStep, nowMs }) => activate.run(usedStep, challengeId, nowMs, expectedGeneration).changes === 1,
+    savePending: ({ challengeId, secret, expiresAtMs, sessionId, expectedGeneration }) =>
+      savePending.run(challengeId, secret, expiresAtMs, sessionId, expectedGeneration).changes === 1,
+    activatePending: ({ challengeId, sessionId, expectedGeneration, usedStep, nowMs }) =>
+      activate.run(usedStep, challengeId, sessionId, nowMs, expectedGeneration).changes === 1,
   };
 }

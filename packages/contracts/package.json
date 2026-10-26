@@ -24,11 +24,6 @@
       "types": "./dist/http/errors.d.ts",
       "default": "./dist/http/errors.js"
     },
-    "./http/identity": {
-      "@openlife/source": "./src/http/identity.ts",
-      "types": "./dist/http/identity.d.ts",
-      "default": "./dist/http/identity.js"
-    },
     "./http/health": {
       "@openlife/source": "./src/http/health.ts",
       "types": "./dist/http/health.d.ts",
@@ -38,6 +33,16 @@
       "@openlife/source": "./src/http/health-status.ts",
       "types": "./dist/http/health-status.d.ts",
       "default": "./dist/http/health-status.js"
+    },
+    "./http/identity": {
+      "@openlife/source": "./src/http/identity.ts",
+      "types": "./dist/http/identity.d.ts",
+      "default": "./dist/http/identity.js"
+    },
+    "./http/mfa": {
+      "@openlife/source": "./src/http/mfa.ts",
+      "types": "./dist/http/mfa.d.ts",
+      "default": "./dist/http/mfa.js"
     },
     "./locales": {
       "@openlife/source": "./src/locales.ts",

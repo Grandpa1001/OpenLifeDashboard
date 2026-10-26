@@ -60,6 +60,8 @@ export type OwnerCredential = Readonly<{ ownerId: string; passwordHash: string }
 export interface CredentialReader {
   /** The owner's password credential when `email` (normalized) is the owner's; null otherwise. */
   findOwnerByEmail(email: string): OwnerCredential | null;
+  /** The owner's e-mail, the label of the account in the authenticator app. */
+  ownerEmail(): string | null;
 }
 
 export type NewSession = Readonly<{
@@ -111,7 +113,10 @@ export type MfaRecord = Readonly<{
   activeSecret: string | null;
   /** The last accepted TOTP time step: a step is usable once, only if greater. */
   lastUsedStep: number | null;
-  pending: Readonly<{ challengeId: string; secret: string; expiresAtMs: number }> | null;
+  /** The enrollment in progress, bound to the session that began it. */
+  pending: Readonly<{ challengeId: string; secret: string; expiresAtMs: number; sessionId: string }> | null;
+  /** The current batch of recovery codes and the session that was shown them. */
+  recoveryBatch: Readonly<{ batchId: string; sessionId: string }> | null;
 }>;
 
 /** The one store of the second factor's state (Architektura §9.6). */
@@ -119,8 +124,14 @@ export interface MfaStore {
   /** The state of a new owner: MFA required, enrollment not started. */
   initialize(ownerId: string): void;
   read(): MfaRecord | null;
-  /** Replaces the pending enrollment; the active secret is untouched. */
-  savePending(pending: Readonly<{ challengeId: string; secret: string; expiresAtMs: number }>): void;
+  /**
+   * Replaces the pending enrollment of a session; the active secret is untouched. Only while no
+   * secret is active (`enrollment_state` required, generation `expectedGeneration`); false, with
+   * nothing written, otherwise.
+   */
+  savePending(
+    pending: Readonly<{ challengeId: string; secret: string; expiresAtMs: number; sessionId: string; expectedGeneration: number }>,
+  ): boolean;
   /**
    * Compare-and-set of the replay ledger: records `step` as consumed for the active secret of
    * `expectedGeneration`, only if it is greater than the last consumed step. Of parallel requests
@@ -128,13 +139,65 @@ export interface MfaStore {
    */
   consumeStep(change: Readonly<{ expectedGeneration: number; step: number }>): boolean;
   /**
-   * Compare-and-set: moves the pending secret of `challengeId` to active as generation
-   * `expectedGeneration + 1`, records the consumed step and awaits the recovery acknowledgment.
-   * False, with nothing written, if the challenge expired or the challenge or the generation is
-   * no longer current.
+   * Compare-and-set: moves the pending secret of `challengeId`, begun by `sessionId`, to active as
+   * generation `expectedGeneration + 1`, records the consumed step and awaits the recovery
+   * acknowledgment. False, with nothing written, if the challenge expired, belongs to another
+   * session, or the challenge or the generation is no longer current.
    */
-  activatePending(change: Readonly<{ challengeId: string; expectedGeneration: number; usedStep: number; nowMs: number }>): boolean;
+  activatePending(change: Readonly<{ challengeId: string; sessionId: string; expectedGeneration: number; usedStep: number; nowMs: number }>): boolean;
 }
+
+/** Recovery codes: only hashes are stored, in batches; one batch is current (Architektura §9.7). */
+export interface RecoveryCodeStore {
+  /**
+   * Makes `batchId` the current batch for `sessionId`: the rows of every older batch are removed,
+   * so an old code is gone, and the enrollment awaits the acknowledgment of this very batch.
+   */
+  issueBatch(batch: Readonly<{ batchId: string; sessionId: string; hashes: readonly string[] }>): void;
+  /**
+   * Compare-and-set: completes the enrollment if `batchId` is the current batch, shown to
+   * `sessionId`, and the acknowledgment is still awaited. "batch_changed" if the batch is not the
+   * current one (or another session was shown it), "not_awaited" if nothing is awaited.
+   */
+  acknowledge(request: Readonly<{ batchId: string; sessionId: string }>): "acknowledged" | "batch_changed" | "not_awaited";
+}
+
+/**
+ * What enrolling a TOTP needs from the outside world: randomness, the secret box, the verifier
+ * and the code generator. The server implements it with the secret box, the pinned OTP library
+ * and Node's random source; core stays free of all three.
+ */
+export interface EnrollmentCrypto {
+  generateSecret(): string;
+  /** The `otpauth://` URI for the authenticator app, and the key as the app shows it for typing. */
+  describeSecret(secret: string, account: string): Readonly<{ otpauthUri: string; manualKey: string }>;
+  seal(secret: string, context: Readonly<{ ownerId: string; generation: number }>): string;
+  open(envelope: string, context: Readonly<{ ownerId: string; generation: number }>): string | null;
+  /** The matching time step within the window, or null. */
+  verify(secret: string, code: string, nowMs: number): Promise<number | null>;
+  /** A fresh set of recovery codes: the plain codes to show once, and their hashes to store. */
+  newRecoveryCodes(): Readonly<{ codes: readonly string[]; hashes: readonly string[] }>;
+}
+
+/**
+ * The one source of the current access decision's input (Architektura §18.7): the owner, the
+ * session, the policy, the enrollment, the data choice and the trust, read from one consistent
+ * state on the handle of the unit that also does the protected write. A mutation reads it again
+ * inside its transaction; the actor of an earlier request proves nothing by itself.
+ */
+export interface IdentityAccessReader {
+  current(actor: ActorContext): IdentityAccessSnapshot;
+}
+
+/** The ports of enrolling the second factor (Architektura §9.7, §18.7). */
+export type EnrollmentPorts = Readonly<{
+  sessions: Pick<SessionStore, "findActive" | "rotate">;
+  access: IdentityAccessReader;
+  credentialReader: Pick<CredentialReader, "ownerEmail">;
+  mfa: MfaStore;
+  recovery: RecoveryCodeStore;
+  audit: AppendAudit;
+}>;
 
 export type SignInPorts = Readonly<{
   attempts: AuthAttemptStore;
@@ -152,13 +215,3 @@ export type ResetPasswordPorts = Readonly<{
   sessions: Pick<SessionStore, "deleteAllOfOwner">;
   audit: AppendAudit;
 }>;
-
-/**
- * The one source of the current access decision's input (Architektura §18.7): the owner, the
- * session, the policy, the enrollment, the data choice and the trust, read from one consistent
- * state on the handle of the unit that also does the protected write. A mutation reads it again
- * inside its transaction; the actor of an earlier request proves nothing by itself.
- */
-export interface IdentityAccessReader {
-  current(actor: ActorContext): IdentityAccessSnapshot;
-}

@@ -50,7 +50,7 @@ const hasher = createPasswordHasher();
 describe("D10.1-AC1 the prototype: password session → enrollment challenge → rotation, read after a restart", () => {
   it("runs end to end; the state of the owner, the factor and the session is in the file after a restart", async () => {
     const r = await rigOf();
-    expect(mfaRecord(r)).toEqual({ policy: "required", enrollmentState: "required", secretGeneration: 0, activeSecret: null, lastUsedStep: null, pending: null });
+    expect(mfaRecord(r)).toEqual({ policy: "required", enrollmentState: "required", secretGeneration: 0, activeSecret: null, lastUsedStep: null, pending: null, recoveryBatch: null });
 
     const passwordToken = await passwordSession(r);
     expect(facts(r, passwordToken)).toEqual({ sessionId: "session-1", ownerId: "owner-1", assurance: "password", passwordVerifiedAtMs: T0, totpVerifiedAtMs: null, accessEpoch: 1 });
@@ -110,7 +110,7 @@ describe("D10.1-AC1 the prototype: password session → enrollment challenge →
     const r = await rigOf();
     beginEnrollment(r, "challenge-1");
     const activate = (challengeId: string, expectedGeneration: number, nowMs: number): boolean => {
-      const run = r.unit.run((ports) => done(ports.mfa.activatePending({ challengeId, expectedGeneration, usedStep: 5, nowMs })));
+      const run = r.unit.run((ports) => done(ports.mfa.activatePending({ challengeId, sessionId: "session-1", expectedGeneration, usedStep: 5, nowMs })));
       return run.ok && run.value.value;
     };
     expect(activate("challenge-other", 0, r.clock.now)).toBe(false);
@@ -132,7 +132,7 @@ describe("D10.1-AC1 the prototype: password session → enrollment challenge →
     // The rotation inside the unit: a missing old session rolls the activation back.
     expect(() =>
       r.unit.run((ports) => {
-        const activated = ports.mfa.activatePending({ challengeId: "challenge-1", expectedGeneration: 0, usedStep: 1, nowMs: r.clock.now });
+        const activated = ports.mfa.activatePending({ challengeId: "challenge-1", sessionId: "session-1", expectedGeneration: 0, usedStep: 1, nowMs: r.clock.now });
         if (activated && !ports.sessions.rotate("gone", { sessionId: "s", token: "t", ownerId: "owner-1", createdAtMs: 0, expiresAtMs: 1, ipAddress: null, userAgent: null, assurance: "totp", passwordVerifiedAtMs: 0, totpVerifiedAtMs: 0, accessEpoch: 1 })) {
           throw new Error("rotate refused");
         }
