@@ -925,6 +925,53 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D08.2",
+    ready: true,
+    title: "Theme tokens, PL/EN texts with key checks and the status screen, in a real browser",
+    criteria: ["D08.2-AC1", "D08.2-AC2", "D08.2-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D08.2-AC1", "D08.2-AC2"],
+        description: "pnpm -r build: the SPA with both languages and the typed translation keys",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/app/pages/status-page.tsx", "packages/ui/src/tokens/dark-theme.json"],
+      },
+      {
+        id: "theme-and-locales-unit",
+        criteria: ["D08.2-AC1", "D08.2-AC2"],
+        description: "Token contrast (WCAG) and CSS variables; check:locales on synthetic folders; the ready health body",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/ui", "tests/unit/locales"],
+        requires: ["tests/unit/ui/theme-tokens.test.ts", "tests/unit/locales/check-locales.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D08.2-AC2"],
+        description: "pl and en have the same keys, plural forms and variables",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/common.json", "apps/web/src/locales/en/common.json"],
+      },
+      {
+        id: "locale-controls",
+        criteria: ["D08.2-AC2"],
+        description: "In a test copy: a key removed from en or pl and a literal text in JSX make check:locales, the build or lint exit nonzero",
+        command: ["node", "tests/workspace/locale-controls.ts"],
+        requires: ["tests/workspace/locale-controls.ts", "tests/support/repository-copy.ts"],
+        timeoutMs: COPY_TIMEOUT_MS,
+      },
+      {
+        id: "status-screen-e2e",
+        criteria: ["D08.2-AC1", "D08.2-AC2"],
+        description: "Playwright on the built app: PL/EN ready and unavailable (server stopped, 503), recovery, theme, axe, no form, no host path or key",
+        command: ["node", "tests/verification/e2e.ts"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/status-screen.spec.ts", "tests/e2e/fixtures.ts", "playwright.config.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D08.2-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

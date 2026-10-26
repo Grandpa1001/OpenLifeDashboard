@@ -1,7 +1,16 @@
 {
-  "start": {
+  "status": {
     "title": "OpenLifeDashboard",
-    "status": "Aplikacja jest w budowie. Logowanie i dane pojawią się w kolejnych etapach."
+    "checking": "Sprawdzanie stanu aplikacji…",
+    "ready": {
+      "heading": "Aplikacja działa",
+      "description": "Serwer jest gotowy, a baza danych otwarta. Konto właściciela i logowanie pojawią się w kolejnych wersjach."
+    },
+    "unavailable": {
+      "heading": "Aplikacja jest niedostępna",
+      "description": "Serwer nie odpowiada albo trwa uruchamianie lub prace serwisowe. Spróbuj ponownie za chwilę."
+    },
+    "recheck": "Sprawdź ponownie"
   },
   "notFound": {
     "title": "Nie znaleziono strony",

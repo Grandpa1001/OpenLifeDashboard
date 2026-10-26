@@ -18,6 +18,8 @@ pnpm check:contracts      # package exports, build artifacts and runtime loading
 pnpm test:unit            # pure rules, e.g. the F08 bootstrap cases
 pnpm test:integration     # HTTP tests against the built server (run pnpm build first)
 pnpm fixtures:verify      # the synthetic fixtures of tests/fixtures; -- --self-test adds corruption controls
+pnpm check:locales        # pl and en translations have the same keys, plural forms and variables
+pnpm test:e2e             # Playwright on the built app (pnpm build; pnpm exec playwright install chromium)
 pnpm verify:task -- D01   # every check mapped to a task; report in .artifacts/<run-id>/
 ```
 

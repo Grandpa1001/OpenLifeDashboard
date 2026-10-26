@@ -29,6 +29,11 @@
       "types": "./dist/http/health.d.ts",
       "default": "./dist/http/health.js"
     },
+    "./http/health-status": {
+      "@openlife/source": "./src/http/health-status.ts",
+      "types": "./dist/http/health-status.d.ts",
+      "default": "./dist/http/health-status.js"
+    },
     "./locales": {
       "@openlife/source": "./src/locales.ts",
       "types": "./dist/locales.d.ts",

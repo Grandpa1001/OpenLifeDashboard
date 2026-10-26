@@ -1,7 +1,16 @@
 {
-  "start": {
+  "status": {
     "title": "OpenLifeDashboard",
-    "status": "The application is under construction. Sign-in and data arrive in later stages."
+    "checking": "Checking the application status…",
+    "ready": {
+      "heading": "The application is running",
+      "description": "The server is ready and the database is open. The owner account and sign-in arrive in later versions."
+    },
+    "unavailable": {
+      "heading": "The application is unavailable",
+      "description": "The server does not answer, or it is starting up or under maintenance. Try again in a moment."
+    },
+    "recheck": "Check again"
   },
   "notFound": {
     "title": "Page not found",

@@ -2,10 +2,13 @@
 // Architecture messages start with "[<rule id>]" so negative controls can assert them.
 import js from "@eslint/js";
 import { defineConfig } from "eslint/config";
+import i18next from "eslint-plugin-i18next";
 import tseslint from "typescript-eslint";
 
 const PRODUCT_SOURCES = ["apps/*/src/**/*.{ts,tsx}", "packages/*/src/**/*.{ts,tsx}"];
 const CORE_SOURCES = ["packages/core/src/**/*.{ts,tsx}"];
+// Visible text comes from apps/web/src/locales through i18next keys (Architektura §7.5).
+const UI_SOURCES = ["apps/web/src/**/*.tsx", "packages/ui/src/**/*.tsx", "packages/widgets/src/**/*.tsx"];
 
 // A computed specifier hides the dependency from the import graph (Architektura §13.3).
 const computedDynamicImport = {
@@ -29,6 +32,13 @@ export default defineConfig(
     rules: {
       "no-restricted-syntax": ["error", computedDynamicImport],
     },
+  },
+  {
+    files: UI_SOURCES,
+    plugins: { i18next },
+    // jsx-only: text and attribute values in JSX (aria-label, title, alt…); className and the
+    // like stay allowed by the plugin's defaults.
+    rules: { "i18next/no-literal-string": ["error", { mode: "jsx-only" }] },
   },
   {
     files: CORE_SOURCES,

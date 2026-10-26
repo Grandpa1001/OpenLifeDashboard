@@ -1,0 +1,58 @@
+// Playwright fixtures: the built server of apps/server serving the built SPA, on a fresh test
+// installation per test (DEV §8.3: an isolated instance, never the owner's data). The page's
+// baseURL points at that server, so every test talks to its own process.
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { test as base } from "@playwright/test";
+import { removeScratchDirs } from "../support/scratch.ts";
+import { freshTestInstance, repoRoot, startBuiltServer, waitForExit, type ServerProcess } from "../support/server-process.ts";
+
+const STOP_TIMEOUT_MS = 20_000;
+
+export type RunningServer = ServerProcess &
+  Readonly<{
+    /** Installation keys of this server: must never reach the browser. */
+    secrets: readonly string[];
+    /** SIGTERM and wait for the process to end, as when the app is stopped or restarted. */
+    stop: () => Promise<void>;
+  }>;
+
+/** Texts of the SPA in one language, read from the same files the build uses. */
+export function locale(language: "pl" | "en"): Record<string, unknown> {
+  return JSON.parse(readFileSync(path.join(repoRoot, "apps/web/src/locales", language, "common.json"), "utf8")) as Record<string, unknown>;
+}
+
+/** A text by its dotted key, e.g. text(pl, "status.ready.heading"). */
+export function text(texts: Record<string, unknown>, key: string): string {
+  const value = key.split(".").reduce<unknown>((node, part) => (typeof node === "object" && node !== null ? Reflect.get(node, part) : undefined), texts);
+  if (typeof value !== "string") throw new Error(`no text ${key}`);
+  return value;
+}
+
+export const test = base.extend<{ server: RunningServer }, { scratchCleanup: void }>({
+  scratchCleanup: [
+    // eslint-disable-next-line no-empty-pattern -- Playwright requires the destructuring form.
+    async ({}, use) => {
+      await use();
+      removeScratchDirs();
+    },
+    { scope: "worker", auto: true },
+  ],
+  // eslint-disable-next-line no-empty-pattern -- Playwright requires the destructuring form.
+  server: async ({}, use) => {
+    const installation = freshTestInstance();
+    const server = await startBuiltServer({ installation });
+    const stop = async (): Promise<void> => {
+      if (server.child.exitCode !== null || server.child.signalCode !== null) return;
+      server.child.kill("SIGTERM");
+      await waitForExit(server.child, server.output, STOP_TIMEOUT_MS);
+    };
+    await use({ ...server, secrets: installation.secrets, stop });
+    await stop();
+  },
+  baseURL: async ({ server }, use) => {
+    await use(server.baseUrl);
+  },
+});
+
+export { expect } from "@playwright/test";

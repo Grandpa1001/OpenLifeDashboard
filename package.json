@@ -27,15 +27,20 @@
     "test:integration": "vitest run tests/integration",
     "test:unit": "vitest run tests/unit",
     "prepare:test-instance": "node scripts/prepare-test-instance.ts",
-    "fixtures:verify": "node scripts/fixtures-verify.ts"
+    "fixtures:verify": "node scripts/fixtures-verify.ts",
+    "check:locales": "node scripts/check-locales.ts",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@axe-core/playwright": "catalog:",
     "@eslint/js": "catalog:",
     "@hono/node-server": "catalog:",
     "@openlife/contracts": "workspace:*",
+    "@playwright/test": "catalog:",
     "@types/node": "catalog:",
     "dependency-cruiser": "catalog:",
     "eslint": "catalog:",
+    "eslint-plugin-i18next": "catalog:",
     "hono": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",

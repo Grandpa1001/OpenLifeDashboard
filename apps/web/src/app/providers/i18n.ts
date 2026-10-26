@@ -6,6 +6,15 @@ import plCommon from "../../locales/pl/common.json";
 
 // Until owner preferences exist (D11/D12) the language follows the browser.
 
+// Keys are typed from the Polish source files: t() with a key missing there does not compile.
+// scripts/check-locales.ts keeps every other language to the same keys.
+declare module "i18next" {
+  interface CustomTypeOptions {
+    defaultNS: "common";
+    resources: { common: typeof plCommon };
+  }
+}
+
 export function browserLocale(languages: readonly string[]): Locale {
   for (const language of languages) {
     const base = language.toLowerCase().split("-")[0];
