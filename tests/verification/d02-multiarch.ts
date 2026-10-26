@@ -1,6 +1,7 @@
 // D02.3-AC3: `verify:task -- D02` joins real reports of both architectures. Checks the joining
 // rules on synthetic reports (complete, missing arch, failed, stale commit, dirty tree, build
-// without execution) and that the task map and CI are wired to run them for D02.
+// without execution) and that the task map and CI are wired to run them for D02, directly or
+// through a task that has D02 as a step.
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -97,8 +98,11 @@ check.expect(
   workflow.includes("run: pnpm verify:task -- D02.2") && workflow.includes("run: pnpm verify:task -- D02.3"),
   "CI runs D02.2 and D02.3 on each architecture",
 );
+// The join runs as D02 itself or inside a task that has D02 as a step (gate G0 since D08.3).
+const ran = workflow.flatMap((line) => /^run: pnpm verify:task -- (\S+)$/.exec(line)?.slice(1) ?? []);
+const joining = ran.filter((id) => id === "D02" || verificationTasks.some((task) => task.id === id && task.ready && task.steps?.includes("D02")));
 check.expect(
-  workflow.includes("pattern: verification-image-*") && workflow.includes("run: pnpm verify:task -- D02"),
-  "CI downloads both architecture reports and runs verify:task -- D02",
+  workflow.includes("pattern: verification-image-*") && joining.length > 0,
+  `CI downloads both architecture reports and runs the D02 join (${joining.join(", ") || "none"})`,
 );
 check.finish();
