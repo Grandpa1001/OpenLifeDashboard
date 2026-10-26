@@ -13,6 +13,12 @@ const FALLBACK_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   AUTH_LOCKED: "Too many failed attempts; try again later",
   RATE_LIMITED: "Too many requests; try again later",
   AUTH_UNAVAILABLE: "Sign-in is temporarily unavailable",
+  AUTH_REQUIRED: "Sign in to continue",
+  MFA_REQUIRED: "The second factor is required",
+  RECOVERY_ACK_REQUIRED: "Confirm that the recovery codes are saved",
+  SETUP_DATA_REQUIRED: "Choose the starting data first",
+  SETUP_DATA_ALREADY_CHOSEN: "The starting data has already been chosen",
+  STEP_UP_REQUIRED: "Confirm with a fresh code",
 };
 
 export function apiErrorResponse(

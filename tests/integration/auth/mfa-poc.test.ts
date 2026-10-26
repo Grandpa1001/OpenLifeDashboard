@@ -24,6 +24,7 @@ import { createSecretBox } from "../../../apps/server/dist/adapters/auth/secret-
 import { createTotp, totpStepAt } from "../../../apps/server/dist/adapters/auth/totp.js";
 import { createOwner, signInWithPassword, type SessionFacts } from "../../../packages/core/dist/modules/identity/public.js";
 import { bindAppendAudit } from "../../../packages/sqlite/dist/adapters/audit/append-audit.js";
+import { bindIdentityAccessReader } from "../../../packages/sqlite/dist/adapters/identity/access-reader.js";
 import { bindMfaStore } from "../../../packages/sqlite/dist/adapters/identity/mfa-store.js";
 import { bindOwnerWriters } from "../../../packages/sqlite/dist/adapters/identity/owner-writers.js";
 import { bindSignInStores } from "../../../packages/sqlite/dist/adapters/identity/sign-in-ports.js";
@@ -65,6 +66,7 @@ async function rigOf() {
       ...bindOwnerWriters(tx),
       owners: bindOwnerWriters(tx).owners,
       mfa: bindMfaStore(tx),
+      access: bindIdentityAccessReader(tx, () => clock.now),
       audit: bindAppendAudit(tx),
     }));
   let unit = unitOn(connection);
@@ -170,7 +172,7 @@ describe("D10.1-AC1 the prototype: password session → enrollment challenge →
     expect(mfaRecord(r)).toEqual({ policy: "required", enrollmentState: "required", secretGeneration: 0, activeSecret: null, lastUsedStep: null, pending: null });
 
     const passwordToken = await passwordSession(r);
-    expect(facts(r, passwordToken)).toEqual({ ownerId: "owner-1", assurance: "password", passwordVerifiedAtMs: T0, totpVerifiedAtMs: null, accessEpoch: 1 });
+    expect(facts(r, passwordToken)).toEqual({ sessionId: "session-1", ownerId: "owner-1", assurance: "password", passwordVerifiedAtMs: T0, totpVerifiedAtMs: null, accessEpoch: 1 });
 
     const { secret } = beginEnrollment(r, "challenge-1");
     expect(totp.uri(secret, "OpenLifeDashboard", EMAIL)).toMatch(/^otpauth:\/\/totp\/.+secret=[A-Z2-7]+.*digits=6.*period=30/);
@@ -185,7 +187,7 @@ describe("D10.1-AC1 the prototype: password session → enrollment challenge →
     expect(promoted).toBe("token-2");
     // The password token stopped working at once; the new session says how it proved itself.
     expect(facts(r, passwordToken)).toBeNull();
-    expect(facts(r, "token-2")).toEqual({ ownerId: "owner-1", assurance: "totp", passwordVerifiedAtMs: T0, totpVerifiedAtMs: T0, accessEpoch: 1 });
+    expect(facts(r, "token-2")).toEqual({ sessionId: "session-token-2", ownerId: "owner-1", assurance: "totp", passwordVerifiedAtMs: T0, totpVerifiedAtMs: T0, accessEpoch: 1 });
 
     r.reopen();
     const record = mfaRecord(r);

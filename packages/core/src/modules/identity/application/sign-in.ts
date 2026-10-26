@@ -8,12 +8,10 @@
 // (an audit append that fails), the unit rolls back, no session exists and the caller answers
 // "unavailable".
 import type { Commit, UnitOfWork } from "../../../foundation/public.js";
+import { decideAccess, nextActionFor, type NextAction } from "../domain/access-policy.js";
 import { afterFailure, retryAfterSeconds } from "../domain/lockout.js";
 import { SESSION_LIFETIME_MS } from "../domain/session-policy.js";
 import type { OwnerCredential, SignInPorts } from "../ports.js";
-
-/** What the browser does next; the contract's NEXT_ACTIONS has the same values. */
-export type NextAction = "create_owner" | "login" | "mfa_enrollment";
 
 export interface PasswordVerifier {
   /** False for a wrong password. */
@@ -105,10 +103,11 @@ function decide(
     verified && checked !== null && current !== null && accessEpoch !== null && current.ownerId === checked.ownerId && current.passwordHash === checked.passwordHash;
   if (granted) {
     const token = deps.newSessionToken();
+    const sessionId = deps.newSessionId();
     const expiresAtMs = nowMs + SESSION_LIFETIME_MS;
     ports.attempts.clear(request.accountKey);
     ports.sessions.insert({
-      sessionId: deps.newSessionId(),
+      sessionId,
       token,
       ownerId: checked.ownerId,
       createdAtMs: nowMs,
@@ -129,7 +128,9 @@ function decide(
       ...(request.ip === null ? {} : { ip: request.ip }),
       ...(request.userAgent === null ? {} : { userAgent: request.userAgent }),
     });
-    return { kind: "granted", token, expiresAtMs, nextAction: "mfa_enrollment" };
+    // What happens next comes from the same policy as every later decision, read after the insert.
+    const snapshot = ports.access.current({ ownerId: checked.ownerId, sessionId, requestId: request.requestId, accessEpoch });
+    return { kind: "granted", token, expiresAtMs, nextAction: nextActionFor(snapshot, nowMs) };
   }
 
   ports.attempts.pruneExpired(nowMs);
@@ -153,11 +154,18 @@ function decide(
 
 export type IdentityStatus = Readonly<{ authenticated: boolean; nextAction: NextAction }>;
 
-/** Status from the server state only: the session row, never the cookie alone. */
+/** Status from the server state only: the session row and the current policy, never the cookie alone. */
 export function readIdentityStatus(unit: UnitOfWork<SignInPorts>, token: string | null, nowMs: number): IdentityStatus {
   const read = unit.run((ports) => {
-    if (token !== null && ports.sessions.findActive(token, nowMs) !== null) {
-      return commit<IdentityStatus>({ authenticated: true, nextAction: "mfa_enrollment" });
+    const session = token === null ? null : ports.sessions.findActive(token, nowMs);
+    if (session !== null) {
+      const snapshot = ports.access.current({ ownerId: session.ownerId, sessionId: session.sessionId, requestId: "status", accessEpoch: session.accessEpoch });
+      // A session of a stale epoch is not authenticated: the policy answers AUTH_REQUIRED for it.
+      const decision = decideAccess(snapshot, "data", nowMs);
+      const authenticated = decision.allow || decision.code !== "AUTH_REQUIRED";
+      if (authenticated) {
+        return commit<IdentityStatus>({ authenticated, nextAction: nextActionFor(snapshot, nowMs) });
+      }
     }
     return commit<IdentityStatus>({ authenticated: false, nextAction: ports.owners.hasOwner() ? "login" : "create_owner" });
   });

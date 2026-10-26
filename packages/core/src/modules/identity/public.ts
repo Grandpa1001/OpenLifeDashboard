@@ -8,20 +8,28 @@ export { readIdentityStatus, signInWithPassword, signOut } from "./application/s
 export type {
   AuthAttemptOutcome,
   IdentityStatus,
-  NextAction,
   PasswordVerifier,
   SignInDependencies,
   SignInRequest,
 } from "./application/sign-in.js";
+export { decideAccess, nextActionFor, STEP_UP_FRESH_MS } from "./domain/access-policy.js";
+export type {
+  Assurance,
+  EnrollmentState,
+  MfaPolicy,
+  NextAction,
+  AccessDecision,
+  AccessDenial,
+  AccessOperation,
+  IdentityAccessSnapshot,
+} from "./domain/access-policy.js";
 export { LOCKOUT_DURATION_MS, LOCKOUT_MAX_FAILURES, LOCKOUT_WINDOW_MS } from "./domain/lockout.js";
 export type { LockoutBucket } from "./domain/lockout.js";
 export { SESSION_LIFETIME_MS } from "./domain/session-policy.js";
 export type {
-  Assurance,
   AuthAttemptStore,
   CredentialReader,
-  EnrollmentState,
-  MfaPolicy,
+  IdentityAccessReader,
   MfaRecord,
   MfaStore,
   NewSession,

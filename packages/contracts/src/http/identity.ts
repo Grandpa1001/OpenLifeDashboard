@@ -62,8 +62,11 @@ export const loginRequestSchema = z
 
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 
-/** What the browser does next. `mfa_enrollment` is the only step after a password until D10/D11 decide it. */
-export const NEXT_ACTIONS = ["create_owner", "login", "mfa_enrollment"] as const;
+/**
+ * What the browser does next, decided by the one access policy of core/identity (Architektura
+ * §9.7). `ready` means the data may be opened; it is not a statement about step-up.
+ */
+export const NEXT_ACTIONS = ["create_owner", "login", "mfa_enrollment", "mfa_challenge", "recovery_ack", "setup_data", "ready"] as const;
 export type NextAction = (typeof NEXT_ACTIONS)[number];
 
 export const identityStatusSchema = z.object({ authenticated: z.boolean(), nextAction: z.enum(NEXT_ACTIONS) }).strict();

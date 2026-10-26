@@ -1205,6 +1205,37 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D10.2",
+    ready: true,
+    title: "The one access policy of core/identity, its reader port and adapter, contract codes and nextAction",
+    criteria: ["D10.2-AC1", "D10.2-AC2", "D10.2-regression"],
+    checks: [
+      {
+        // Runs first: the integration test uses the built use cases, adapters and server.
+        id: "workspace-build",
+        criteria: ["D10.2-AC1", "D10.2-AC2"],
+        description: "pnpm -r build: the access policy, the reader adapter, migration 6 and the status route",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/identity/domain/access-policy.ts", "packages/sqlite/src/adapters/identity/access-reader.ts"],
+      },
+      {
+        id: "access-policy-f09",
+        criteria: ["D10.2-AC1", "D10.2-AC2"],
+        description: "All 31 F09 policyCases exactly; order of the checks, independence of policy, enrollment, acknowledgment and data choice; 300000/300001 ms and future time; trusted and recovery never a fresh TOTP",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/identity/access-policy.test.ts"],
+        requires: ["tests/unit/identity/access-policy.test.ts", "tests/fixtures/cases/auth-v1.cases.json"],
+      },
+      {
+        id: "access-reader",
+        criteria: ["D10.2-AC1", "D10.2-AC2"],
+        description: "Real database and server: the snapshot of each situation read from the database and decided by the policy, injected clock at the step-up boundary, status follows the live database, client claims change nothing",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/access-reader.test.ts"],
+        requires: ["tests/integration/auth/access-reader.test.ts", "packages/sqlite/src/migrations/0006-setup-data-choice.ts"],
+      },
+      ...regressionChecks("D10.2-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

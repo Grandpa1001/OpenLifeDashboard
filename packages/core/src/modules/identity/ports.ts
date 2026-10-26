@@ -2,7 +2,9 @@
 // implementations are bound to the handle of one unit of work, so the owner, the credential and
 // the audit entry commit or roll back together.
 import type { AppendAudit } from "../audit/public.js";
+import type { Assurance, EnrollmentState, IdentityAccessSnapshot, MfaPolicy } from "./domain/access-policy.js";
 import type { LockoutBucket } from "./domain/lockout.js";
+import type { ActorContext } from "../../foundation/public.js";
 
 export type NewOwnerAccount = Readonly<{
   ownerId: string;
@@ -60,9 +62,6 @@ export interface CredentialReader {
   findOwnerByEmail(email: string): OwnerCredential | null;
 }
 
-/** How the session proved itself (Architektura §9.7); only a password exists until D11. */
-export type Assurance = "password" | "totp" | "trusted" | "recovery";
-
 export type NewSession = Readonly<{
   sessionId: string;
   token: string;
@@ -80,6 +79,7 @@ export type NewSession = Readonly<{
 
 /** What the database says about a live session; the cookie only points to it. */
 export type SessionFacts = Readonly<{
+  sessionId: string;
   ownerId: string;
   assurance: Assurance;
   passwordVerifiedAtMs: number;
@@ -101,9 +101,6 @@ export interface SessionStore {
   /** Ends every session of the owner (password reset); returns how many existed. */
   deleteAllOfOwner(ownerId: string): number;
 }
-
-export type MfaPolicy = "required" | "disabled" | "reset_required";
-export type EnrollmentState = "required" | "awaiting_recovery_ack" | "complete";
 
 /** Encrypted values are opaque envelopes of the server's secret box; the port never sees a plain secret. */
 export type MfaRecord = Readonly<{
@@ -139,6 +136,7 @@ export type SignInPorts = Readonly<{
   credentialReader: CredentialReader;
   sessions: SessionStore;
   owners: Pick<OwnerSingletonWriter, "hasOwner" | "currentAccessEpoch">;
+  access: IdentityAccessReader;
   audit: AppendAudit;
 }>;
 
@@ -148,3 +146,13 @@ export type ResetPasswordPorts = Readonly<{
   sessions: Pick<SessionStore, "deleteAllOfOwner">;
   audit: AppendAudit;
 }>;
+
+/**
+ * The one source of the current access decision's input (Architektura §18.7): the owner, the
+ * session, the policy, the enrollment, the data choice and the trust, read from one consistent
+ * state on the handle of the unit that also does the protected write. A mutation reads it again
+ * inside its transaction; the actor of an earlier request proves nothing by itself.
+ */
+export interface IdentityAccessReader {
+  current(actor: ActorContext): IdentityAccessSnapshot;
+}

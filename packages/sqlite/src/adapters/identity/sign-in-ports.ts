@@ -46,6 +46,7 @@ function bindCredentials(tx: TransactionHandle): CredentialReader {
 }
 
 type FactsRow = Readonly<{
+  sessionId: string;
   ownerId: string;
   assurance: SessionFacts["assurance"];
   passwordVerifiedAtMs: number;
@@ -61,7 +62,7 @@ function bindSessions(tx: TransactionHandle): SessionStore {
     `INSERT INTO session_ext (session_id, assurance, password_verified_at_ms, totp_verified_at_ms, access_epoch) VALUES (?, ?, ?, ?, ?)`,
   );
   const active = tx.prepare(
-    `SELECT s.userId AS ownerId, e.assurance AS assurance, e.password_verified_at_ms AS passwordVerifiedAtMs,
+    `SELECT s.id AS sessionId, s.userId AS ownerId, e.assurance AS assurance, e.password_verified_at_ms AS passwordVerifiedAtMs,
             e.totp_verified_at_ms AS totpVerifiedAtMs, e.access_epoch AS accessEpoch
        FROM session s
        JOIN instance_state o ON o.owner_id = s.userId

@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
 import { bindAppendAudit } from "@openlife/sqlite/adapters/audit";
-import { bindOwnerWriters, bindSignInStores } from "@openlife/sqlite/adapters/identity";
+import { bindIdentityAccessReader, bindOwnerWriters, bindSignInStores } from "@openlife/sqlite/adapters/identity";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
 import { createAttemptKeys } from "./adapters/auth/attempt-keys.js";
 import { checkAuthSchema } from "./adapters/auth/auth-schema.js";
@@ -176,6 +176,7 @@ const app = createApp({
     unit: createUnitOfWork(database.connection, (tx) => ({
       ...bindSignInStores(tx),
       owners: bindOwnerWriters(tx).owners,
+      access: bindIdentityAccessReader(tx, Date.now),
       audit: bindAppendAudit(tx),
     })),
     verifier: hasher,

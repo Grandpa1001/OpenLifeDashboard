@@ -10,6 +10,12 @@ export const API_ERROR_CODES = [
   "AUTH_LOCKED",
   "RATE_LIMITED",
   "AUTH_UNAVAILABLE",
+  "AUTH_REQUIRED",
+  "MFA_REQUIRED",
+  "RECOVERY_ACK_REQUIRED",
+  "SETUP_DATA_REQUIRED",
+  "SETUP_DATA_ALREADY_CHOSEN",
+  "STEP_UP_REQUIRED",
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
