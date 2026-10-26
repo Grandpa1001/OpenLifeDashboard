@@ -13,10 +13,9 @@ import { runServerEntry, SERVER_ENTRY, startBuiltServer, waitForExit, WEB_INDEX,
 const SHUTDOWN_LIMIT_MS = 15_000;
 const UI_ROUTES = ["/", "/main", "/registers/ksiazki"];
 // Endpoints that later tasks protect; until they exist nothing may answer them with data.
+// Sign-in, sign-out and the identity status exist since D09.3 and have their own tests.
 const FUTURE_PRIVATE_ENDPOINTS = [
   ["POST", "/api/auth/sign-up/email"],
-  ["POST", "/api/auth/sign-in/email"],
-  ["GET", "/api/v1/identity/status"],
   ["GET", "/api/v1/setup/status"],
   ["GET", "/api/v1/registries"],
   ["GET", "/api/v1/export"],

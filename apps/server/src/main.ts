@@ -4,12 +4,19 @@
 // (inspect, initialize, upgrade with a snapshot or reconcile) → auth schema → technical logger → HTTP. Any failure exits 1 before listening; a failure
 // names a code and fields, never a value. Exiting releases the lease with the process; nothing
 // before the lease opens or changes database files.
-import { randomUUID } from "node:crypto";
+import { getConnInfo } from "@hono/node-server/conninfo";
+import { randomBytes, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
+import { bindAppendAudit } from "@openlife/sqlite/adapters/audit";
+import { bindOwnerWriters, bindSignInStores } from "@openlife/sqlite/adapters/identity";
+import { createUnitOfWork } from "@openlife/sqlite/transactions";
+import { createAttemptKeys } from "./adapters/auth/attempt-keys.js";
 import { checkAuthSchema } from "./adapters/auth/auth-schema.js";
+import { createPasswordHasher } from "./adapters/auth/password-hasher.js";
+import { createSessionCookies } from "./adapters/auth/session-cookie.js";
 import { CONTAINER_WORKING_PATHS, installationWorkingPaths } from "./adapters/filesystem/installation-paths.js";
 import { createDatabaseSnapshots } from "./adapters/filesystem/database-snapshots.js";
 import { openMaintenanceGate } from "./adapters/filesystem/maintenance-gate.js";
@@ -21,6 +28,8 @@ import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js"
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
 import { loadBootstrapConfig } from "./bootstrap/bootstrap-config.js";
 import { createApp } from "./bootstrap/create-app.js";
+import { createRateLimiter } from "./http/middleware/fixed-window-limit.js";
+import { LOGIN_LIMIT_WINDOW_MS, LOGIN_REQUESTS_PER_MINUTE } from "./http/security-limits.js";
 import { logLimitsFrom } from "./bootstrap/log-limits.js";
 import { readBuildInfo } from "./bootstrap/build-info.js";
 import { openInstallationDatabase } from "./bootstrap/database.js";
@@ -146,7 +155,38 @@ const logger = createTechnicalLogger({
   sinks: [stdoutSink, logFile],
 });
 const readiness = createReadiness();
-const app = createApp({ webRoot, indexHtml, newRequestId: randomUUID, logger, readiness, nowMs: () => performance.now() });
+// Sign-in composition (D09.3): the library supplies the schema and crypto, every write goes
+// through the application's unit of work on the one writer connection (Architektura §9.8).
+const hasher = createPasswordHasher();
+const secret = environment.betterAuthSecret.reveal();
+const app = createApp({
+  webRoot,
+  indexHtml,
+  newRequestId: randomUUID,
+  logger,
+  readiness,
+  nowMs: () => performance.now(),
+  identity: {
+    unit: createUnitOfWork(database.connection, (tx) => ({
+      ...bindSignInStores(tx),
+      owners: bindOwnerWriters(tx).owners,
+      audit: bindAppendAudit(tx),
+    })),
+    verifier: hasher,
+    // Verified for an unknown e-mail, so a refusal costs the same as for the owner's.
+    decoyHash: await hasher.hash(randomBytes(32).toString("hex")),
+    cookies: createSessionCookies({ instanceId: paths.instanceId, secret }),
+    keys: createAttemptKeys(secret),
+    allowedOrigin: environment.baseUrl,
+    secureCookies: environment.baseUrl.startsWith("https:"),
+    loginLimiter: createRateLimiter({ limit: LOGIN_REQUESTS_PER_MINUTE, windowMs: LOGIN_LIMIT_WINDOW_MS, nowMs: Date.now }),
+    clientIp: (c) => getConnInfo(c).remote.address ?? "unknown",
+    nowMs: Date.now,
+    newId: randomUUID,
+    newSessionToken: () => randomBytes(32).toString("base64url"),
+    logger,
+  },
+});
 try {
   const { server, address } = await startServer(app, host, port);
   // One ordered sequence (§15.2): readiness, started requests, logger, database, and the writer

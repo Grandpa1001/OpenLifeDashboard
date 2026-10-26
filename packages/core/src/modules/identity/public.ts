@@ -2,3 +2,16 @@
 export { createOwner } from "./application/create-owner.js";
 export type { CreateOwnerCommand, OwnerCreated } from "./application/create-owner.js";
 export type { CreateOwnerPorts, CredentialWriter, NewOwnerAccount, OwnerSingletonWriter } from "./ports.js";
+export { readIdentityStatus, signInWithPassword, signOut } from "./application/sign-in.js";
+export type {
+  AuthAttemptOutcome,
+  IdentityStatus,
+  NextAction,
+  PasswordVerifier,
+  SignInDependencies,
+  SignInRequest,
+} from "./application/sign-in.js";
+export { LOCKOUT_DURATION_MS, LOCKOUT_MAX_FAILURES, LOCKOUT_WINDOW_MS } from "./domain/lockout.js";
+export type { LockoutBucket } from "./domain/lockout.js";
+export { SESSION_LIFETIME_MS } from "./domain/session-policy.js";
+export type { AuthAttemptStore, CredentialReader, NewSession, OwnerCredential, SessionStore, SignInPorts } from "./ports.js";

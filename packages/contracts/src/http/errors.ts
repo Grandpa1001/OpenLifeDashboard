@@ -1,7 +1,16 @@
 import { z } from "zod";
 
 /** Stable API error codes; clients translate them (Architektura §6, §7.6). */
-export const API_ERROR_CODES = ["NOT_FOUND", "INTERNAL_ERROR"] as const;
+export const API_ERROR_CODES = [
+  "NOT_FOUND",
+  "INTERNAL_ERROR",
+  "VALIDATION_FAILED",
+  "ORIGIN_FORBIDDEN",
+  "INVALID_CREDENTIALS",
+  "AUTH_LOCKED",
+  "RATE_LIMITED",
+  "AUTH_UNAVAILABLE",
+] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
 

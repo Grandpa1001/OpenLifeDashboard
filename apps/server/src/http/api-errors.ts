@@ -7,10 +7,21 @@ import type { AppEnv } from "./app-env.js";
 const FALLBACK_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   NOT_FOUND: "Not found",
   INTERNAL_ERROR: "Internal server error",
+  VALIDATION_FAILED: "The request is not valid",
+  ORIGIN_FORBIDDEN: "The request origin is not allowed",
+  INVALID_CREDENTIALS: "E-mail or password is incorrect",
+  AUTH_LOCKED: "Too many failed attempts; try again later",
+  RATE_LIMITED: "Too many requests; try again later",
+  AUTH_UNAVAILABLE: "Sign-in is temporarily unavailable",
 };
 
-export function apiErrorResponse(c: Context<AppEnv>, status: ContentfulStatusCode, code: ApiErrorCode): Response {
-  const body: ApiError = { code, message: FALLBACK_MESSAGES[code], details: null, requestId: c.get("requestId") };
+export function apiErrorResponse(
+  c: Context<AppEnv>,
+  status: ContentfulStatusCode,
+  code: ApiErrorCode,
+  details: ApiError["details"] = null,
+): Response {
+  const body: ApiError = { code, message: FALLBACK_MESSAGES[code], details, requestId: c.get("requestId") };
   c.header("Cache-Control", "no-store");
   return c.json(body, status);
 }

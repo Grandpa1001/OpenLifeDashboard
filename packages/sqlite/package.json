@@ -15,9 +15,9 @@
       "default": "./dist/adapters/audit/append-audit.js"
     },
     "./adapters/identity": {
-      "@openlife/source": "./src/adapters/identity/owner-writers.ts",
-      "types": "./dist/adapters/identity/owner-writers.d.ts",
-      "default": "./dist/adapters/identity/owner-writers.js"
+      "@openlife/source": "./src/adapters/identity/public.ts",
+      "types": "./dist/adapters/identity/public.d.ts",
+      "default": "./dist/adapters/identity/public.js"
     },
     "./connection": {
       "@openlife/source": "./src/connection/open-database.ts",

@@ -3,6 +3,7 @@
 import { FOUNDATION_MIGRATION } from "./0001-foundation.js";
 import { IDENTITY_MIGRATION } from "./0002-identity.js";
 import { OWNER_AUDIT_MIGRATION } from "./0003-owner-audit.js";
+import { AUTH_LOCKOUT_MIGRATION } from "./0004-auth-lockout.js";
 import type { MigrationPlan } from "./migration.js";
 
-export const PRODUCT_MIGRATION_PLAN: MigrationPlan = [FOUNDATION_MIGRATION, IDENTITY_MIGRATION, OWNER_AUDIT_MIGRATION];
+export const PRODUCT_MIGRATION_PLAN: MigrationPlan = [FOUNDATION_MIGRATION, IDENTITY_MIGRATION, OWNER_AUDIT_MIGRATION, AUTH_LOCKOUT_MIGRATION];

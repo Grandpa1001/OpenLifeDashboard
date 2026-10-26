@@ -1108,6 +1108,37 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D09.3",
+    ready: true,
+    title: "Explicit sign-in, sign-out and status: session cookie, Origin, persistent lockout, closed auth routes",
+    criteria: ["D09.3-AC1", "D09.3-AC2", "D09.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built use case, adapters and server.
+        id: "workspace-build",
+        criteria: ["D09.3-AC1", "D09.3-AC2"],
+        description: "pnpm -r build: the sign-in use case, the session and lockout adapters, migration 4 and the HTTP routes",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/routes/identity.routes.ts", "packages/sqlite/src/migrations/0004-auth-lockout.ts"],
+      },
+      {
+        id: "sign-in-lockout",
+        criteria: ["D09.3-AC1", "D09.3-AC2"],
+        description: "Use case on a real database with a controlled clock: one session, same outcome for wrong password and foreign e-mail, 5 failures lock 15 min, exact boundary, restart, bucket scope and pruning, audit failure rolls the attempt back",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/sign-in-lockout.test.ts"],
+        requires: ["tests/integration/auth/sign-in-lockout.test.ts", "packages/core/src/modules/identity/application/sign-in.ts", "packages/sqlite/src/adapters/identity/sign-in-ports.ts"],
+      },
+      {
+        id: "sign-in-http",
+        criteria: ["D09.3-AC1", "D09.3-AC2"],
+        description: "Real server and CLI-created owner: cookie attributes, status, sign-out, identical 401 DTO, 429 with Retry-After and restart, rate limit, validation; F09 login-audit-failure-issues-no-session 503; no library route mounted; missing/foreign Origin refused before credentials",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/sign-in-http.test.ts"],
+        requires: ["tests/integration/auth/sign-in-http.test.ts", "apps/server/src/adapters/auth/session-cookie.ts", "apps/server/src/http/middleware/same-origin.ts"],
+      },
+      ...regressionChecks("D09.3-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

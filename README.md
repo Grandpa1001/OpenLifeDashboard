@@ -2,7 +2,7 @@
 
 A self-hosted, no-code personal life dashboard: build your own registers, dictionaries and screens with widgets, and view them live on your phone, laptop and a large screen.
 
-> **Status: early development (KM1).** The foundation (KM0) passed gate G0: the image starts from a Compose installation with a real database, snapshots and logs, and the web app shows whether the server is ready. The database now has the tables of the auth adapter, the owner singleton and the audit trail, and the `create-owner` command creates the owner account (credentials on stdin only); there is no sign-in or data yet. Nothing here is ready to install or use.
+> **Status: early development (KM1).** The foundation (KM0) passed gate G0: the image starts from a Compose installation with a real database, snapshots and logs, and the web app shows whether the server is ready. The database now has the tables of the auth adapter, the owner singleton and the audit trail, and the `create-owner` command creates the owner account (credentials on stdin only), and the server has explicit sign-in, sign-out and status routes with a persistent lockout; there is no second factor or data yet. Nothing here is ready to install or use.
 
 ## Development
 
