@@ -66,7 +66,7 @@ function readRows(file: string, sql: string): unknown[] {
 describe("D04.3 migration plan", () => {
   it("the product plan has consecutive versions, unique IDs and matching declared checksums", () => {
     expect(() => validatePlan(PRODUCT_MIGRATION_PLAN)).not.toThrow();
-    expect(PRODUCT_MIGRATION_PLAN.map((migration) => migration.id)).toEqual(["0001-foundation", "0002-identity", "0003-owner-audit", "0004-auth-lockout"]);
+    expect(PRODUCT_MIGRATION_PLAN.map((migration) => migration.id)).toEqual(["0001-foundation", "0002-identity", "0003-owner-audit", "0004-auth-lockout", "0005-mfa-state"]);
   });
 
   const first = PLAN_A[0];

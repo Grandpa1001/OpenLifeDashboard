@@ -1180,6 +1180,31 @@ const definedLater: readonly TaskDefinition[] = [
     checks: [],
   },
   {
+    id: "D10.1",
+    ready: true,
+    title: "Prototype of the one second-factor mechanism: state, secret box, TOTP step, session promotion, no public write of assurance",
+    criteria: ["D10.1-AC1", "D10.1-AC2", "D10.1-regression"],
+    checks: [
+      {
+        // Runs first: the prototype uses the built adapters, migrations and server modules.
+        id: "workspace-build",
+        criteria: ["D10.1-AC1", "D10.1-AC2"],
+        description: "pnpm -r build: migration 5, the MFA store, the secret box, the TOTP verifier and the capability check",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/adapters/auth/secret-box.ts", "packages/sqlite/src/migrations/0005-mfa-state.ts"],
+      },
+      {
+        id: "mfa-prototype",
+        criteria: ["D10.1-AC1", "D10.1-AC2"],
+        description:
+          "Real database file: password session → enrollment challenge → confirmation → rotated session, read after a restart; secret only as an envelope bound to owner and generation; compare-and-set activation; the library's update-user cannot set assurance; revocation, rotation and expiry read at once; migration 5 backfill and constraints; capability check blocks a mismatching integration",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/mfa-poc.test.ts"],
+        requires: ["tests/integration/auth/mfa-poc.test.ts", "apps/server/src/adapters/auth/mfa-capabilities.ts", "packages/sqlite/src/adapters/identity/mfa-store.ts"],
+      },
+      ...regressionChecks("D10.1-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

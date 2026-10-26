@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "catalog:",
+    "@better-auth/utils": "catalog:",
     "@eslint/js": "catalog:",
     "@hono/node-server": "catalog:",
     "@openlife/contracts": "workspace:*",

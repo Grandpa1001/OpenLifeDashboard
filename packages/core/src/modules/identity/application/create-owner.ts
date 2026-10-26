@@ -27,6 +27,7 @@ export function createOwner(ports: CreateOwnerPorts, command: CreateOwnerCommand
     at: command.now,
   });
   ports.owners.claim({ ownerId: command.ownerId, at: command.now });
+  ports.mfa.initialize(command.ownerId);
   ports.audit.append({
     ownerId: command.ownerId,
     action: "owner.created",

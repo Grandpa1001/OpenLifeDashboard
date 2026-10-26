@@ -10,7 +10,7 @@ import { randomUUID } from "node:crypto";
 import { createOwner } from "@openlife/core/identity";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
 import { bindAppendAudit } from "@openlife/sqlite/adapters/audit";
-import { bindOwnerWriters } from "@openlife/sqlite/adapters/identity";
+import { bindMfaStore, bindOwnerWriters } from "@openlife/sqlite/adapters/identity";
 import { ownerCredentialsSchema } from "@openlife/contracts/http/identity";
 import { createPasswordHasher } from "../adapters/auth/password-hasher.js";
 import { describeError } from "../adapters/logging/describe-error.js";
@@ -38,7 +38,7 @@ if (!opened.ok) {
 }
 const { session } = opened;
 try {
-  const unit = createUnitOfWork(session.connection, (tx) => ({ ...bindOwnerWriters(tx), audit: bindAppendAudit(tx) }));
+  const unit = createUnitOfWork(session.connection, (tx) => ({ ...bindOwnerWriters(tx), mfa: bindMfaStore(tx), audit: bindAppendAudit(tx) }));
   const created = unit.run((ports) =>
     createOwner(ports, { ownerId: randomUUID(), email: credentials.email, passwordHash, requestId, now: new Date().toISOString() }),
   );

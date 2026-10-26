@@ -1,7 +1,7 @@
 // Server process entrypoint: the only place that starts HTTP (Architektura §13.1).
 // Bootstrap order (§4.8, §14.5, §18.6): start options → web app → environment → instance
 // metadata → option set → storage preflight → writer lease → maintenance gate → database
-// (inspect, initialize, upgrade with a snapshot or reconcile) → auth schema → technical logger → HTTP. Any failure exits 1 before listening; a failure
+// (inspect, initialize, upgrade with a snapshot or reconcile) → auth schema → MFA capabilities → technical logger → HTTP. Any failure exits 1 before listening; a failure
 // names a code and fields, never a value. Exiting releases the lease with the process; nothing
 // before the lease opens or changes database files.
 import { getConnInfo } from "@hono/node-server/conninfo";
@@ -15,6 +15,7 @@ import { bindOwnerWriters, bindSignInStores } from "@openlife/sqlite/adapters/id
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
 import { createAttemptKeys } from "./adapters/auth/attempt-keys.js";
 import { checkAuthSchema } from "./adapters/auth/auth-schema.js";
+import { checkMfaIntegration } from "./adapters/auth/mfa-capabilities.js";
 import { createPasswordHasher } from "./adapters/auth/password-hasher.js";
 import { createSessionCookies } from "./adapters/auth/session-cookie.js";
 import { CONTAINER_WORKING_PATHS, installationWorkingPaths } from "./adapters/filesystem/installation-paths.js";
@@ -118,6 +119,11 @@ if (!database.ok) {
 const authSchema = checkAuthSchema(database.connection);
 if (!authSchema.ok) {
   bootstrapFailed(authSchema.code, authSchema.fields);
+}
+// The second-factor libraries must behave as the design assumes before anything is ready (D10.1).
+const mfaIntegration = await checkMfaIntegration();
+if (!mfaIntegration.ok) {
+  bootstrapFailed(mfaIntegration.code, mfaIntegration.fields);
 }
 console.log(
   JSON.stringify({

@@ -167,6 +167,9 @@ catalogs:
     '@axe-core/playwright':
       specifier: 4.14.0
       version: 4.14.0
+    '@better-auth/utils':
+      specifier: 0.5.1
+      version: 0.5.1
     '@eslint/js':
       specifier: 10.0.1
       version: 10.0.1
@@ -256,6 +259,9 @@ importers:
       '@axe-core/playwright':
         specifier: 'catalog:'
         version: 4.14.0(playwright-core@1.64.1)
+      '@better-auth/utils':
+        specifier: 'catalog:'
+        version: 0.5.1
       '@eslint/js':
         specifier: 'catalog:'
         version: 10.0.1(eslint@10.13.0(supports-color@7.2.0))
@@ -307,6 +313,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@better-auth/utils':
+        specifier: 'catalog:'
+        version: 0.5.1
       '@hono/node-server':
         specifier: 'catalog:'
         version: 2.1.5(hono@4.13.13)

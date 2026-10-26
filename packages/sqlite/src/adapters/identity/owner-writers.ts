@@ -27,6 +27,7 @@ export function bindOwnerWriters(tx: TransactionHandle): Readonly<{ owners: Owne
     owners: {
       hasOwner: () => current.get() !== undefined,
       currentOwnerId: () => (current.get() as { ownerId: string } | undefined)?.ownerId ?? null,
+      currentAccessEpoch: () => (current.get() as { accessEpoch: number } | undefined)?.accessEpoch ?? null,
       advanceAccessEpoch: () => {
         advance.run();
         return (current.get() as { accessEpoch: number }).accessEpoch;

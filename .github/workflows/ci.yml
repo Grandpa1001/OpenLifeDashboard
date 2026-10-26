@@ -56,6 +56,9 @@ jobs:
       - name: Verify D09 (D09.1–D09.4, auth adapter, owner, sign-in, reset and cookies)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D09
+      - name: Verify D10.1 (second-factor prototype, secret box, TOTP step, session promotion)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D10.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

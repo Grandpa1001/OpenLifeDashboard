@@ -26,7 +26,7 @@ const ROWS: Readonly<Record<string, readonly string[]>> = {
   "HTTP server": [`hono ${pinned("hono")}`, `@hono/node-server ${pinned("@hono/node-server")}`],
   "Web app": ["react", "vite", "@tanstack/react-router", "i18next", "react-i18next"].map((name) => `${name} ${pinned(name)}`),
   Schemas: [`zod ${pinned("zod")}`],
-  "Auth adapter": [`better-auth ${pinned("better-auth")}`, `@node-rs/argon2 ${pinned("@node-rs/argon2")}`],
+  "Auth adapter": [`better-auth ${pinned("better-auth")}`, `@node-rs/argon2 ${pinned("@node-rs/argon2")}`, `@better-auth/utils ${pinned("@better-auth/utils")}`],
   "Language and tests": ["typescript", "vitest", "@playwright/test", "@axe-core/playwright"].map((name) => `${name} ${pinned(name)}`),
 };
 

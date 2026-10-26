@@ -111,7 +111,7 @@ Versions exercised by the verification reports; `tests/verification/readme-versi
 | HTTP server | hono 4.13.13, @hono/node-server 2.1.5 |
 | Web app | react 19.3.1, vite 8.3.5, @tanstack/react-router 1.170.46, i18next 26.5.10, react-i18next 17.1.8 |
 | Schemas | zod 4.6.7 (server and contracts; the web app checks health without it) |
-| Auth adapter | better-auth 1.7.13 (table schema and crypto primitives; writes go through the application's transactions), @node-rs/argon2 2.2.2 (argon2id, m=19 MiB, t=2, p=1) |
+| Auth adapter | better-auth 1.7.13 (table schema and crypto primitives; writes go through the application's transactions), @node-rs/argon2 2.2.2 (argon2id, m=19 MiB, t=2, p=1), @better-auth/utils 0.5.1 (HOTP for the TOTP check) |
 | Language and tests | typescript 6.0.3, vitest 5.0.5, @playwright/test 1.64.1 with its Chromium, @axe-core/playwright 4.14.0 |
 
 ### Gate G0

@@ -63,7 +63,7 @@ export async function signInWithPassword(deps: SignInDependencies, request: Sign
   const keys = [request.accountKey, request.ipKey];
   const first = deps.unit.run((ports) => {
     const retryAfter = lockedFor(ports, keys, deps.nowMs());
-    return commit({ retryAfter, credential: retryAfter === null ? ports.credentials.findOwnerByEmail(request.email) : null });
+    return commit({ retryAfter, credential: retryAfter === null ? ports.credentialReader.findOwnerByEmail(request.email) : null });
   });
   if (!first.ok) {
     throw new Error("sign-in preflight failed");
@@ -99,8 +99,10 @@ function decide(
   }
   // The credential is read again: a password verified against a hash that has been replaced
   // since step 1 proves nothing about the current one.
-  const current = ports.credentials.findOwnerByEmail(request.email);
-  const granted = verified && checked !== null && current !== null && current.ownerId === checked.ownerId && current.passwordHash === checked.passwordHash;
+  const current = ports.credentialReader.findOwnerByEmail(request.email);
+  const accessEpoch = ports.owners.currentAccessEpoch();
+  const granted =
+    verified && checked !== null && current !== null && accessEpoch !== null && current.ownerId === checked.ownerId && current.passwordHash === checked.passwordHash;
   if (granted) {
     const token = deps.newSessionToken();
     const expiresAtMs = nowMs + SESSION_LIFETIME_MS;
@@ -113,6 +115,10 @@ function decide(
       expiresAtMs,
       ipAddress: request.ip,
       userAgent: request.userAgent,
+      assurance: "password",
+      passwordVerifiedAtMs: nowMs,
+      totpVerifiedAtMs: null,
+      accessEpoch,
     });
     ports.audit.append({
       ownerId: checked.ownerId,

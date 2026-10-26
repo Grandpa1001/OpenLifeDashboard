@@ -16,4 +16,17 @@ export type {
 export { LOCKOUT_DURATION_MS, LOCKOUT_MAX_FAILURES, LOCKOUT_WINDOW_MS } from "./domain/lockout.js";
 export type { LockoutBucket } from "./domain/lockout.js";
 export { SESSION_LIFETIME_MS } from "./domain/session-policy.js";
-export type { AuthAttemptStore, CredentialReader, NewSession, OwnerCredential, SessionStore, SignInPorts } from "./ports.js";
+export type {
+  Assurance,
+  AuthAttemptStore,
+  CredentialReader,
+  EnrollmentState,
+  MfaPolicy,
+  MfaRecord,
+  MfaStore,
+  NewSession,
+  OwnerCredential,
+  SessionFacts,
+  SessionStore,
+  SignInPorts,
+} from "./ports.js";

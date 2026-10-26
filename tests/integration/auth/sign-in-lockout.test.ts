@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createPasswordHasher } from "../../../apps/server/dist/adapters/auth/password-hasher.js";
 import { createOwner, LOCKOUT_DURATION_MS, LOCKOUT_WINDOW_MS, readIdentityStatus, signInWithPassword, signOut, type AuthAttemptOutcome, type PasswordVerifier } from "../../../packages/core/dist/modules/identity/public.js";
 import { bindAppendAudit } from "../../../packages/sqlite/dist/adapters/audit/append-audit.js";
+import { bindMfaStore } from "../../../packages/sqlite/dist/adapters/identity/mfa-store.js";
 import { bindOwnerWriters } from "../../../packages/sqlite/dist/adapters/identity/owner-writers.js";
 import { bindSignInStores } from "../../../packages/sqlite/dist/adapters/identity/sign-in-ports.js";
 import { openDatabase, type SqliteConnection } from "../../../packages/sqlite/dist/connection/open-database.js";
@@ -47,7 +48,7 @@ async function rig(): Promise<Rig> {
   const clock = { now: T0 };
   const unitOf = () =>
     createUnitOfWork(connection, (tx) => ({ ...bindSignInStores(tx), owners: bindOwnerWriters(tx).owners, audit: bindAppendAudit(tx) }));
-  const owner = createUnitOfWork(connection, (tx) => ({ ...bindOwnerWriters(tx), audit: bindAppendAudit(tx) })).run((ports) =>
+  const owner = createUnitOfWork(connection, (tx) => ({ ...bindOwnerWriters(tx), mfa: bindMfaStore(tx), audit: bindAppendAudit(tx) })).run((ports) =>
     createOwner(ports, { ownerId: "owner-1", email: EMAIL, passwordHash: "", requestId: "req-0", now: new Date(T0).toISOString() }),
   );
   expect(owner.ok).toBe(true);
