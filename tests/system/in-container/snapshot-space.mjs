@@ -45,7 +45,8 @@ mkdirSync(path.dirname(databaseFile), { recursive: true });
 const instanceId = randomUUID();
 const sql = "CREATE TABLE space_probe_added (id INTEGER PRIMARY KEY) STRICT;\n";
 const planA = PRODUCT_MIGRATION_PLAN;
-const planB = [...planA, { version: 2, id: "0002-space-probe", sql, checksum: sqlChecksum(sql) }];
+const nextVersion = planA.length + 1;
+const planB = [...planA, { version: nextVersion, id: `${String(nextVersion).padStart(4, "0")}-space-probe`, sql, checksum: sqlChecksum(sql) }];
 const now = () => new Date().toISOString();
 
 const lease = acquireWriterLease(maintenance);

@@ -14,6 +14,7 @@ import path from "node:path";
 import type { JsonObject } from "../../scripts/support/workspaces.ts";
 import { EVIDENCE_DIR_ENV } from "../../tooling/verification-tasks.ts";
 import { createCheck } from "../support/check-report.ts";
+import { VERSION } from "../support/migration-plans.ts";
 import { freeLoopbackPort, prepareComposeInstance, type ComposeInstance } from "../support/compose-instance.ts";
 import { buildAppImage, containerInstanceArgs, docker, requireNativeDocker, type ContainerMounts } from "../support/docker.ts";
 import {
@@ -119,7 +120,7 @@ try {
       await request(name.split(":")[0]?.replace(/\s/g, "") ?? "x");
       const ready = lastReady();
       check.expect(
-        text(ready["database"]) === '{"schemaVersion":1,"created":false}' && text(ready["maintenance"]) === '{"generation":1,"initialized":false}',
+        text(ready["database"]) === JSON.stringify({ schemaVersion: VERSION.a, created: false }) && text(ready["maintenance"]) === '{"generation":1,"initialized":false}',
         `${name}: the app reports an existing installation, not a new one`,
         text({ database: ready["database"], maintenance: ready["maintenance"] }),
       );

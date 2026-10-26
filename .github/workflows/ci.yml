@@ -53,6 +53,9 @@ jobs:
       - name: Verify D08 (D08.1–D08.3, CI checks, theme and texts, the G0 image in a browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D08
+      - name: Verify D09.1 (auth adapter PoC, password hasher, identity schema)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D09.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

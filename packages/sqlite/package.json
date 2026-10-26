@@ -24,6 +24,11 @@
       "types": "./dist/migrations/public.d.ts",
       "default": "./dist/migrations/public.js"
     },
+    "./schema": {
+      "@openlife/source": "./src/schema/table-shape.ts",
+      "types": "./dist/schema/table-shape.d.ts",
+      "default": "./dist/schema/table-shape.js"
+    },
     "./snapshots": {
       "@openlife/source": "./src/snapshots/copy-database.ts",
       "types": "./dist/snapshots/copy-database.d.ts",

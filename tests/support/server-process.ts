@@ -89,7 +89,12 @@ export function runServerEntry(args: readonly string[], env: NodeJS.ProcessEnv =
 /** Runs a built server script (e.g. a CLI under apps/server/dist/cli) to completion. */
 export function runBuiltScript(script: string, args: readonly string[], env: NodeJS.ProcessEnv = process.env): Promise<ProcessExit> {
   const child = spawn(process.execPath, [script, ...args], { cwd: repoRoot, env, stdio: ["ignore", "pipe", "pipe"] });
-  return waitForExit(child, capture(child), STARTUP_TIMEOUT_MS);
+  // A script that unexpectedly keeps running (a server that started instead of refusing) must
+  // not outlive the failed test.
+  return waitForExit(child, capture(child), STARTUP_TIMEOUT_MS).catch((error: unknown) => {
+    child.kill("SIGKILL");
+    throw error;
+  });
 }
 
 export function waitForExit(child: ChildProcess, output: () => string, timeoutMs: number): Promise<ProcessExit> {

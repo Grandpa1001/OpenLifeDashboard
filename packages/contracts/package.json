@@ -24,6 +24,11 @@
       "types": "./dist/http/errors.d.ts",
       "default": "./dist/http/errors.js"
     },
+    "./http/identity": {
+      "@openlife/source": "./src/http/identity.ts",
+      "types": "./dist/http/identity.d.ts",
+      "default": "./dist/http/identity.js"
+    },
     "./http/health": {
       "@openlife/source": "./src/http/health.ts",
       "types": "./dist/http/health.d.ts",

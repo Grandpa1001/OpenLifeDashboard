@@ -15,7 +15,7 @@ import { chmodSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, 
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { verifyDatabaseSnapshot } from "../../../apps/server/dist/adapters/filesystem/database-snapshots.js";
-import { PLAN_B, PLAN_C, PLAN_D, SLOW_C_PLAN } from "../../support/migration-plans.ts";
+import { PLAN_B, PLAN_C, PLAN_D, SLOW_C_PLAN, VERSION } from "../../support/migration-plans.ts";
 import {
   backupsDir,
   databaseFile,
@@ -67,17 +67,17 @@ describe("D05.3-AC1 a crash while taking the snapshot", () => {
     expect(packages(instance)).toEqual([]);
     expect(stagingEntries(instance)).toHaveLength(1);
     expect(readState(instance)).toMatchObject({ generation: 2, activeOperation: { reason: "migrate", phase: "snapshot", snapshotId: null } });
-    expect(inspectAs(instance, PLAN_B)).toEqual({ kind: "current", schemaVersion: 2 });
+    expect(inspectAs(instance, PLAN_B)).toEqual({ kind: "current", schemaVersion: VERSION.b });
     const operationId = activeOperationId(instance);
 
-    expect(await runHolder(instance, "c")).toEqual(opened(3));
+    expect(await runHolder(instance, "c")).toEqual(opened(VERSION.c));
     expect(stagingEntries(instance)).toEqual([]);
     const [pkg, ...others] = packages(instance);
     expect(others).toEqual([]);
-    expect(metaOf(pkg ?? "")).toMatchObject({ operationId, schemaVersion: 2, reason: "pre_migration" });
+    expect(metaOf(pkg ?? "")).toMatchObject({ operationId, schemaVersion: VERSION.b, reason: "pre_migration" });
     expect(readState(instance)).toEqual({ formatVersion: 1, generation: 2, activeOperation: null });
     expect(query(databaseFile(instance), noteSummary)).toEqual(expectedNoteSummary);
-    expect(inspectAs(instance, PLAN_C)).toEqual({ kind: "current", schemaVersion: 3 });
+    expect(inspectAs(instance, PLAN_C)).toEqual({ kind: "current", schemaVersion: VERSION.c });
   });
 
   it("after publication: the finished snapshot is recognized and verified again, no second one is taken", async () => {
@@ -88,10 +88,10 @@ describe("D05.3-AC1 a crash while taking the snapshot", () => {
     expect(none).toEqual([]);
     const before = metaOf(published ?? "");
     expect(readState(instance)).toMatchObject({ generation: 2, activeOperation: { phase: "snapshot", operationId: before.operationId } });
-    expect(inspectAs(instance, PLAN_B)).toEqual({ kind: "current", schemaVersion: 2 });
+    expect(inspectAs(instance, PLAN_B)).toEqual({ kind: "current", schemaVersion: VERSION.b });
     const hashes = packageHashes(published ?? "");
 
-    expect(await runHolder(instance, "c")).toEqual(opened(3));
+    expect(await runHolder(instance, "c")).toEqual(opened(VERSION.c));
     expect(packages(instance)).toEqual([published]);
     expect(packageHashes(published ?? "")).toEqual(hashes);
     expect(readState(instance)).toEqual({ formatVersion: 1, generation: 2, activeOperation: null });
@@ -114,9 +114,9 @@ describe("D05.3-AC1 a crash while taking the snapshot", () => {
     const [published] = packages(instance);
     const snapshotId = metaOf(published ?? "").snapshotId;
     expect(readState(instance)).toMatchObject({ activeOperation: { phase: "migrating", snapshotId } });
-    expect(inspectAs(instance, PLAN_B)).toEqual({ kind: "current", schemaVersion: 2 });
+    expect(inspectAs(instance, PLAN_B)).toEqual({ kind: "current", schemaVersion: VERSION.b });
 
-    expect(await runHolder(instance, "c-slow")).toEqual(opened(3));
+    expect(await runHolder(instance, "c-slow")).toEqual(opened(VERSION.c));
     expect(packages(instance)).toEqual([published]);
     expect(manifestIds(databaseFile(instance))).toEqual(SLOW_C_PLAN.map((migration) => ({ id: migration.id })));
     expect(readState(instance)).toEqual({ formatVersion: 1, generation: 2, activeOperation: null });
@@ -125,7 +125,7 @@ describe("D05.3-AC1 a crash while taking the snapshot", () => {
 
   it("a migration that committed before its operation was closed only closes the operation", async () => {
     const instance = await installationAtB();
-    expect(await runHolder(instance, "c")).toEqual(opened(3));
+    expect(await runHolder(instance, "c")).toEqual(opened(VERSION.c));
     const [published] = packages(instance);
     const meta = metaOf(published ?? "");
     // What a crash between the commit and the next gate write leaves: the phase before the commit.
@@ -134,10 +134,10 @@ describe("D05.3-AC1 a crash while taking the snapshot", () => {
       JSON.stringify({
         formatVersion: 1,
         generation: 2,
-        activeOperation: { operationId: meta.operationId, reason: "migrate", phase: "migrating", startedAt: meta.startedAt, fromSchemaVersion: 2, toSchemaVersion: 3, snapshotId: meta.snapshotId },
+        activeOperation: { operationId: meta.operationId, reason: "migrate", phase: "migrating", startedAt: meta.startedAt, fromSchemaVersion: VERSION.b, toSchemaVersion: VERSION.c, snapshotId: meta.snapshotId },
       }),
     );
-    expect(await runHolder(instance, "c")).toEqual(opened(3));
+    expect(await runHolder(instance, "c")).toEqual(opened(VERSION.c));
     expect(readState(instance)).toEqual({ formatVersion: 1, generation: 2, activeOperation: null });
     expect(packages(instance)).toEqual([published]);
     expect(manifestIds(databaseFile(instance))).toEqual(PLAN_C.map((migration) => ({ id: migration.id })));
@@ -152,7 +152,7 @@ describe("D05.3-AC1 a crash while taking the snapshot", () => {
     closeSync(fd);
     expect(verifyDatabaseSnapshot(damaged ?? "")).toMatchObject({ ok: false, code: "SNAPSHOT_INVALID" });
 
-    expect(await runHolder(instance, "c")).toEqual(opened(3));
+    expect(await runHolder(instance, "c")).toEqual(opened(VERSION.c));
     const published = packages(instance);
     expect(published).toHaveLength(2);
     expect(published).toContain(damaged);
@@ -171,7 +171,7 @@ describe("D05.3-AC1 states reconciliation does not guess", () => {
       JSON.stringify({
         formatVersion: 1,
         generation: 2,
-        activeOperation: { operationId: "0199f3a4-3c1e-7a00-8000-0000000000aa", reason: "migrate", startedAt: "2026-10-25T10:00:00.000Z", fromSchemaVersion: 2, toSchemaVersion: 3, snapshotId: null, ...operation },
+        activeOperation: { operationId: "0199f3a4-3c1e-7a00-8000-0000000000aa", reason: "migrate", startedAt: "2026-10-25T10:00:00.000Z", fromSchemaVersion: VERSION.b, toSchemaVersion: VERSION.c, snapshotId: null, ...operation },
       }),
     );
     return instance;
@@ -180,8 +180,8 @@ describe("D05.3-AC1 states reconciliation does not guess", () => {
   const recovery = { event: "database.refused", code: "MAINTENANCE_RECOVERY_REQUIRED", fields: ["activeOperation"] };
   it.each([
     ["verifying while the database is still at the old version", { phase: "verifying" }, "c"],
-    ["an operation that started from another version", { phase: "snapshot", fromSchemaVersion: 1 }, "c"],
-    ["an operation towards a version this image does not have", { phase: "migrating", toSchemaVersion: 4 }, "c"],
+    ["an operation that started from another version", { phase: "snapshot", fromSchemaVersion: VERSION.a }, "c"],
+    ["an operation towards a version this image does not have", { phase: "migrating", toSchemaVersion: VERSION.d }, "c"],
     ["a standalone snapshot operation", { reason: "snapshot", phase: "staging", snapshotId: "unfinished", fromSchemaVersion: undefined, toSchemaVersion: undefined }, "c"],
   ])("%s → MAINTENANCE_RECOVERY_REQUIRED, database and gate unchanged", async (_name, operation, plan) => {
     const instance = await withActive(operation);
@@ -193,13 +193,13 @@ describe("D05.3-AC1 states reconciliation does not guess", () => {
 
   it("an upgrade operation recorded as snapshot phase while the database already has the new version needs recovery", async () => {
     const instance = await installationAtB();
-    expect(await runHolder(instance, "c")).toEqual(opened(3));
+    expect(await runHolder(instance, "c")).toEqual(opened(VERSION.c));
     writeFileSync(
       stateFile(instance),
       JSON.stringify({
         formatVersion: 1,
         generation: 2,
-        activeOperation: { operationId: "0199f3a4-3c1e-7a00-8000-0000000000bb", reason: "migrate", phase: "snapshot", startedAt: "2026-10-25T10:00:00.000Z", fromSchemaVersion: 2, toSchemaVersion: 3, snapshotId: null },
+        activeOperation: { operationId: "0199f3a4-3c1e-7a00-8000-0000000000bb", reason: "migrate", phase: "snapshot", startedAt: "2026-10-25T10:00:00.000Z", fromSchemaVersion: VERSION.b, toSchemaVersion: VERSION.c, snapshotId: null },
       }),
     );
     expect(await runHolder(instance, "c")).toEqual(recovery);
@@ -210,7 +210,7 @@ describe("D05.3-AC2 a real write error while taking the snapshot", () => {
   /** An installation at plan C whose first upgrade left one good snapshot. */
   async function atCWithGoodSnapshot(): Promise<{ instance: TestInstance; good: string }> {
     const instance = await installationAtB();
-    expect(await runHolder(instance, "c")).toEqual(opened(3));
+    expect(await runHolder(instance, "c")).toEqual(opened(VERSION.c));
     const [good] = packages(instance);
     expect(good).toBeDefined();
     return { instance, good: good ?? "" };
@@ -234,12 +234,12 @@ describe("D05.3-AC2 a real write error while taking the snapshot", () => {
     expect(verifyDatabaseSnapshot(good).ok).toBe(true);
     expect(stagingEntries(instance)).toEqual([]);
     expect(sha256(databaseFile(instance))).toBe(databaseBefore);
-    expect(inspectAs(instance, PLAN_C)).toEqual({ kind: "current", schemaVersion: 3 });
+    expect(inspectAs(instance, PLAN_C)).toEqual({ kind: "current", schemaVersion: VERSION.c });
     expect(tableNames(databaseFile(instance))).toEqual([{ name: "harness_extra" }, { name: "harness_note" }]);
     expect(noteColumns(databaseFile(instance))).toEqual([{ name: "id" }, { name: "text" }, { name: "done" }]);
     expect(readState(instance)).toEqual({ formatVersion: 1, generation: 3, activeOperation: null });
 
-    expect(await runHolder(instance, "d")).toEqual(opened(4));
+    expect(await runHolder(instance, "d")).toEqual(opened(VERSION.d));
     expect(packages(instance)).toHaveLength(2);
     expect(packages(instance)).toContain(good);
     expect(manifestIds(databaseFile(instance))).toEqual(PLAN_D.map((migration) => ({ id: migration.id })));

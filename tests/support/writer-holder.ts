@@ -9,6 +9,7 @@ import { randomUUID } from "node:crypto";
 import { installationWorkingPaths } from "../../apps/server/dist/adapters/filesystem/installation-paths.js";
 import { openMaintenanceGate } from "../../apps/server/dist/adapters/filesystem/maintenance-gate.js";
 import { acquireWriterLease } from "../../apps/server/dist/adapters/filesystem/writer-lease.js";
+import { PRODUCT_MIGRATION_PLAN, targetSchemaVersion } from "../../packages/sqlite/dist/migrations/public.js";
 
 const [dir, ...flags] = process.argv.slice(2);
 if (!dir) {
@@ -33,7 +34,7 @@ if (flags.includes("--begin")) {
   const startedAt = new Date().toISOString();
   const state = opened.gate.begin(
     reason === "init"
-      ? { operationId, reason, phase: "initializing", startedAt, targetSchemaVersion: 1 }
+      ? { operationId, reason, phase: "initializing", startedAt, targetSchemaVersion: targetSchemaVersion(PRODUCT_MIGRATION_PLAN) }
       : { operationId, reason: "snapshot", phase: "staging", startedAt, snapshotId: `holder-${operationId}` },
   );
   if (flags.includes("--complete")) {

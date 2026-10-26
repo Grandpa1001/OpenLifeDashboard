@@ -38,6 +38,7 @@
     "@openlife/contracts": "workspace:*",
     "@playwright/test": "catalog:",
     "@types/node": "catalog:",
+    "better-auth": "catalog:",
     "dependency-cruiser": "catalog:",
     "eslint": "catalog:",
     "eslint-plugin-i18next": "catalog:",

@@ -18,7 +18,7 @@ import {
   type MigrationPlan,
 } from "../../../packages/sqlite/dist/migrations/public.js";
 import { readJsonObject } from "../../../scripts/support/workspaces.ts";
-import { BROKEN_PLAN, FOREIGN_PLAN, PLAN_A, PLAN_B } from "../../support/migration-plans.ts";
+import { BROKEN_PLAN, FOREIGN_PLAN, PLAN_A, PLAN_B, VERSION } from "../../support/migration-plans.ts";
 import { repoRoot } from "../../support/server-process.ts";
 
 const scratch = mkdtempSync(path.join(os.tmpdir(), "openlife-migrations-"));
@@ -66,7 +66,7 @@ function readRows(file: string, sql: string): unknown[] {
 describe("D04.3 migration plan", () => {
   it("the product plan has consecutive versions, unique IDs and matching declared checksums", () => {
     expect(() => validatePlan(PRODUCT_MIGRATION_PLAN)).not.toThrow();
-    expect(PRODUCT_MIGRATION_PLAN.map((migration) => migration.id)).toEqual(["0001-foundation"]);
+    expect(PRODUCT_MIGRATION_PLAN.map((migration) => migration.id)).toEqual(["0001-foundation", "0002-identity"]);
   });
 
   const first = PLAN_A[0];
@@ -95,7 +95,7 @@ describe("D04.3-AC1 initialization of an empty database", () => {
       PLAN_B.map((migration) => ({ version: migration.version, id: migration.id, checksum: migration.checksum, applied_at: CREATED_AT })),
     );
     expect(readRows(file, "SELECT singleton, instance_id, created_at FROM instance")).toEqual([{ singleton: 1, instance_id: INSTANCE_ID, created_at: CREATED_AT }]);
-    expect(inspectDatabase(file, PLAN_B, expected)).toEqual({ kind: "current", schemaVersion: 2 });
+    expect(inspectDatabase(file, PLAN_B, expected)).toEqual({ kind: "current", schemaVersion: VERSION.b });
   });
 
   it("a failing migration leaves no table and the file still inspects as empty", () => {
@@ -129,7 +129,7 @@ describe("D04.3-AC2 classification without changing the file", () => {
 
   it("plan B on a plan A database is a pending upgrade from 1 to 2", () => {
     const file = initialized(PLAN_A);
-    expectUnchanged(file, () => inspectDatabase(file, PLAN_B, expected), { kind: "pending", fromSchemaVersion: 1, toSchemaVersion: 2 });
+    expectUnchanged(file, () => inspectDatabase(file, PLAN_B, expected), { kind: "pending", fromSchemaVersion: VERSION.a, toSchemaVersion: VERSION.b });
   });
 
   it("a database of a newer plan is DATABASE_NEWER for the older image", () => {

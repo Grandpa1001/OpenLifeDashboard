@@ -1045,6 +1045,44 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D09.1",
+    ready: true,
+    title: "Auth adapter PoC: pinned Better Auth, shared password hasher, identity tables and their readiness check",
+    criteria: ["D09.1-AC1", "D09.1-AC2", "D09.1-AC3", "D09.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built adapter, migrations and server.
+        id: "workspace-build",
+        criteria: ["D09.1-AC1", "D09.1-AC2", "D09.1-AC3"],
+        description: "pnpm -r build: the auth adapter, the identity migration and the server bootstrap",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/adapters/auth/auth-options.ts", "packages/sqlite/src/migrations/0002-identity.ts"],
+      },
+      {
+        id: "password-hasher",
+        criteria: ["D09.1-AC1"],
+        description: "argon2id PHC with the declared cost; spaces, Unicode, emoji and shell characters kept; NFKC/NFD forms differ; bounded concurrency; measured cost",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/password-hasher.test.ts"],
+        requires: ["tests/integration/auth/password-hasher.test.ts", "apps/server/src/adapters/auth/password-hasher.ts", "packages/contracts/src/http/identity.ts"],
+      },
+      {
+        id: "auth-adapter-poc",
+        criteria: ["D09.1-AC1", "D09.1-AC2"],
+        description: "better-auth 1.7.13 on a migrated file DB: schema, sign-in with the shared hasher, session read-back; autocommit, after-hook and read-time writes detected",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/adapter-poc.test.ts"],
+        requires: ["tests/integration/auth/adapter-poc.test.ts", "apps/server/src/adapters/auth/auth-schema.ts"],
+      },
+      {
+        id: "auth-schema-readiness",
+        criteria: ["D09.1-AC3"],
+        description: "Real starts: a missing column, index or table or another type → exit 1 AUTH_SCHEMA_INCOMPATIBLE, no repair, file unchanged",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/auth-schema.test.ts"],
+        requires: ["tests/integration/auth/auth-schema.test.ts", "apps/server/src/main.ts", "packages/sqlite/src/schema/table-shape.ts"],
+      },
+      ...regressionChecks("D09.1-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

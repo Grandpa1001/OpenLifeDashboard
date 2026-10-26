@@ -12,6 +12,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { acquireWriterLease } from "../../../apps/server/dist/adapters/filesystem/writer-lease.js";
 import { openDatabase } from "../../../packages/sqlite/dist/connection/open-database.js";
+import { VERSION } from "../../support/migration-plans.ts";
 import { freshTestInstance, outputEvent, startBuiltServer, waitForExit, type ServerProcess } from "../../support/server-process.ts";
 import { serverHasReadEverything } from "../../support/socket-state.ts";
 
@@ -172,7 +173,7 @@ describe("D06.3-AC2 a stop that cannot finish", () => {
     expect(lease.ok).toBe(true);
     if (lease.ok) lease.lease.release();
     const next = await startBuiltServer({ installation: instance });
-    expect(outputEvent(next.output(), "bootstrap.ready")?.["database"]).toEqual({ schemaVersion: 1, created: false });
+    expect(outputEvent(next.output(), "bootstrap.ready")?.["database"]).toEqual({ schemaVersion: VERSION.a, created: false });
     expect(outputEvent(next.output(), "bootstrap.ready")?.["maintenance"]).toEqual({ generation: 1, initialized: false });
     next.child.kill("SIGTERM");
     expect((await waitForExit(next.child, next.output, DEADLINE_MS)).code).toBe(0);

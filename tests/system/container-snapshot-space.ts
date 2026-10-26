@@ -9,6 +9,7 @@ import path from "node:path";
 import { isJsonObject, type JsonObject } from "../../scripts/support/workspaces.ts";
 import { EVIDENCE_DIR_ENV } from "../../tooling/verification-tasks.ts";
 import { createCheck } from "../support/check-report.ts";
+import { VERSION } from "../support/migration-plans.ts";
 import { buildAppImage, docker, requireNativeDocker } from "../support/docker.ts";
 import { repoRoot } from "../support/repository-copy.ts";
 
@@ -70,8 +71,8 @@ try {
       check.expect(refusal["goodUntouched"] === true, "the last good snapshot is byte for byte unchanged and verifies");
       check.expect(text(refusal["staging"]) === "[]" && refusal["freeBytes"] === freeAfterFill, "staging is clean and the space is free again");
       check.expect(refusal["gateActiveOperation"] === null, "the refused operation is closed in the gate");
-      check.expect(text(refusal["inspection"]) === '{"kind":"current","schemaVersion":1}', "the database is still at its version", text(refusal["inspection"]));
-      check.expect(text(observations["retry"]) === '{"ok":true,"schemaVersion":2}', "after space is freed the same upgrade succeeds", text(observations["retry"]));
+      check.expect(text(refusal["inspection"]) === JSON.stringify({ kind: "current", schemaVersion: VERSION.a }), "the database is still at its version", text(refusal["inspection"]));
+      check.expect(text(observations["retry"]) === JSON.stringify({ ok: true, schemaVersion: VERSION.b }), "after space is freed the same upgrade succeeds", text(observations["retry"]));
       check.expect(observations["publishedAfterRetry"] === 2 && observations["goodStillVerifies"] === true, "the retry published a second package next to the good one");
     }
   }

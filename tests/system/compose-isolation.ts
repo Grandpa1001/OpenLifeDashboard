@@ -17,6 +17,7 @@ import path from "node:path";
 import { isJsonObject, type JsonObject } from "../../scripts/support/workspaces.ts";
 import { EVIDENCE_DIR_ENV } from "../../tooling/verification-tasks.ts";
 import { createCheck } from "../support/check-report.ts";
+import { VERSION } from "../support/migration-plans.ts";
 import { freeLoopbackPort, prepareComposeInstance, type ComposeInstance } from "../support/compose-instance.ts";
 import { buildAppImage, containerInstanceArgs, docker, requireNativeDocker } from "../support/docker.ts";
 import {
@@ -190,7 +191,7 @@ try {
       check.expect(restartHealthy, "A: docker compose restart, healthy again", restart.output);
       check.expect(recreateHealthy && containerId(a) !== idBefore, "A: down/up created a new container, healthy again", `${down.output}\n${up.output}`);
       const readyA = lastComposeEvent(compose(a, ["logs", "--no-color", "app"]).output, "bootstrap.ready");
-      check.expect(text(readyA["database"]) === '{"schemaVersion":1,"created":false}', "A after down/up is its existing installation, not a new one", text(readyA));
+      check.expect(text(readyA["database"]) === JSON.stringify({ schemaVersion: VERSION.a, created: false }), "A after down/up is its existing installation, not a new one", text(readyA));
       check.expect(probes.answered > 0 && probes.failed === 0, `B answered every health probe while A was restarted (${probes.answered}/${probes.answered + probes.failed})`);
       const stateB = object(inspect(containerId(b))["State"]);
       check.expect(

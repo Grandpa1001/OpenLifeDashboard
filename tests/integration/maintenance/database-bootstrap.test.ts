@@ -14,7 +14,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { openDatabase } from "../../../packages/sqlite/dist/connection/open-database.js";
 import { inspectDatabase } from "../../../packages/sqlite/dist/migrations/public.js";
-import { PLAN_B, SLOW_PLAN } from "../../support/migration-plans.ts";
+import { PLAN_A, PLAN_B, SLOW_PLAN, VERSION } from "../../support/migration-plans.ts";
 import {
   freshTestInstance,
   outputEvent,
@@ -87,14 +87,14 @@ const failed = (code: string, fields: string[]) => ({ event: "bootstrap.failed",
 describe("D04.3-AC1 initialization and restarts", () => {
   it("a new installation initializes once; two restarts keep manifest, identity and generation", async () => {
     const instance = freshTestInstance();
-    expect(await bootReady(instance)).toEqual({ schemaVersion: 1, created: true });
+    expect(await bootReady(instance)).toEqual({ schemaVersion: VERSION.a, created: true });
     const manifest = readRows(instance, "SELECT version, id, checksum, applied_at FROM schema_migration");
     const identity = readRows(instance, "SELECT instance_id, created_at FROM instance");
-    expect(manifest).toHaveLength(1);
+    expect(manifest).toHaveLength(PLAN_A.length);
     expect(identity).toEqual([{ instance_id: instance.instanceId, created_at: expect.any(String) }]);
 
     for (let restart = 0; restart < 2; restart += 1) {
-      expect(await bootReady(instance)).toEqual({ schemaVersion: 1, created: false });
+      expect(await bootReady(instance)).toEqual({ schemaVersion: VERSION.a, created: false });
       expect(readRows(instance, "SELECT version, id, checksum, applied_at FROM schema_migration")).toEqual(manifest);
       expect(readRows(instance, "SELECT instance_id, created_at FROM instance")).toEqual(identity);
       expect(readState(instance)).toEqual({ formatVersion: 1, generation: 1, activeOperation: null });
@@ -116,10 +116,10 @@ describe("D04.3-AC1 initialization and restarts", () => {
     await waitForExit(holder.child, holder.output, STOP_TIMEOUT_MS);
 
     const interrupted = readState(instance);
-    expect(interrupted).toMatchObject({ generation: 1, activeOperation: { reason: "init", targetSchemaVersion: 2 } });
+    expect(interrupted).toMatchObject({ generation: 1, activeOperation: { reason: "init", targetSchemaVersion: VERSION.b } });
     expect(inspectDatabase(databaseFile(instance), SLOW_PLAN, { instanceId: instance.instanceId, busyTimeoutMs: 5000 })).toEqual({ kind: "empty" });
 
-    expect(await runDatabaseHolder(instance, "slow")).toEqual({ event: "database.opened", schemaVersion: 2, created: true });
+    expect(await runDatabaseHolder(instance, "slow")).toEqual({ event: "database.opened", schemaVersion: VERSION.b, created: true });
     expect(readState(instance)).toEqual({ formatVersion: 1, generation: 1, activeOperation: null });
     expect(readRows(instance, "SELECT id FROM schema_migration ORDER BY version")).toEqual(SLOW_PLAN.map((migration) => ({ id: migration.id })));
   });
@@ -133,7 +133,7 @@ describe("D04.3-AC1 initialization and restarts", () => {
     await waitForExit(holder.child, () => "", STOP_TIMEOUT_MS);
     expect(readState(instance)).toMatchObject({ generation: 2, activeOperation: { reason: "init" } });
 
-    expect(await bootReady(instance)).toEqual({ schemaVersion: 1, created: false });
+    expect(await bootReady(instance)).toEqual({ schemaVersion: VERSION.a, created: false });
     expect(readState(instance)).toEqual({ formatVersion: 1, generation: 2, activeOperation: null });
     expect(sha256(databaseFile(instance))).toBe(databaseBefore);
   });
@@ -181,11 +181,11 @@ describe("D04.3-AC2 refused databases stay unchanged", () => {
       chmodSync(backups, 0o755);
     }
     expect(sha256(databaseFile(instance))).toBe(before);
-    expect(readRows(instance, "SELECT id FROM schema_migration")).toEqual([{ id: "0001-foundation" }]);
+    expect(readRows(instance, "SELECT id FROM schema_migration ORDER BY version")).toEqual(PLAN_A.map((migration) => ({ id: migration.id })));
     expect(readRows(instance, "SELECT name FROM sqlite_schema WHERE name = 'harness_note'")).toEqual([]);
     // The refused migrate operation was recorded and closed; the image of plan A still starts.
     expect(readState(instance)).toEqual({ formatVersion: 1, generation: 2, activeOperation: null });
-    expect(await bootReady(instance)).toEqual({ schemaVersion: 1, created: false });
+    expect(await bootReady(instance)).toEqual({ schemaVersion: VERSION.a, created: false });
   });
 
   it("a changed checksum of an applied migration → MIGRATION_CHECKSUM_MISMATCH", async () => {

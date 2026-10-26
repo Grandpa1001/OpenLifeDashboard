@@ -19,7 +19,7 @@ import {
 } from "../../../apps/server/dist/adapters/filesystem/database-snapshots.js";
 import { openDatabase, type SqliteConnection } from "../../../packages/sqlite/dist/connection/open-database.js";
 import { initializeDatabase, inspectDatabase, type MigrationPlan } from "../../../packages/sqlite/dist/migrations/public.js";
-import { FK_PLAN, PLAN_B } from "../../support/migration-plans.ts";
+import { FK_PLAN, PLAN_B, VERSION } from "../../support/migration-plans.ts";
 
 const scratch = mkdtempSync(path.join(os.tmpdir(), "openlife-snapshots-"));
 const open: SqliteConnection[] = [];
@@ -125,7 +125,7 @@ describe("D05.1-AC1 committed WAL content in a restorable snapshot", () => {
     expect(restored.handle.pragma("integrity_check", { simple: true })).toBe("ok");
     expect(restored.handle.pragma("foreign_key_check")).toEqual([]);
     restored.close();
-    expect(inspectDatabase(restored.handle.name, PLAN_B, { instanceId: INSTANCE_ID, busyTimeoutMs: BUSY_TIMEOUT_MS })).toEqual({ kind: "current", schemaVersion: 2 });
+    expect(inspectDatabase(restored.handle.name, PLAN_B, { instanceId: INSTANCE_ID, busyTimeoutMs: BUSY_TIMEOUT_MS })).toEqual({ kind: "current", schemaVersion: VERSION.b });
 
     // The source writer keeps working; a later row is not in the earlier snapshot.
     insertNotes(src.writer, 1);
@@ -153,7 +153,7 @@ describe("D05.1-AC2 package contents and verification", () => {
         operationId: req.operationId,
         instanceId: INSTANCE_ID,
         reason: "pre_migration",
-        schemaVersion: 2,
+        schemaVersion: VERSION.b,
         buildRevision: "test-revision",
         imageDigest: null,
         databaseBytes: statSync(path.join(pkg, "app.db")).size,
@@ -190,7 +190,7 @@ describe("D05.1-AC2 package contents and verification", () => {
       "meta that disagrees with the copy, checksums rewritten",
       (pkg) => {
         const meta = JSON.parse(readFileSync(path.join(pkg, "meta.json"), "utf8"));
-        writeFileSync(path.join(pkg, "meta.json"), JSON.stringify({ ...meta, schemaVersion: 1 }));
+        writeFileSync(path.join(pkg, "meta.json"), JSON.stringify({ ...meta, schemaVersion: VERSION.a }));
         rewriteChecksums(pkg);
       },
       ["schemaVersion"],

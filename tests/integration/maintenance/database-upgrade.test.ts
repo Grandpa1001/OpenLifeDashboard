@@ -10,7 +10,7 @@ import { chmodSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { verifyDatabaseSnapshot } from "../../../apps/server/dist/adapters/filesystem/database-snapshots.js";
-import { PLAN_B, PLAN_C } from "../../support/migration-plans.ts";
+import { FAILING_C_PLAN, lastMigrationId, ORPHAN_C_PLAN, PLAN_B, PLAN_C, VERSION } from "../../support/migration-plans.ts";
 import {
   backupsDir,
   databaseFile,
@@ -43,7 +43,7 @@ describe("D05.2-AC1 upgrade after a verified snapshot", () => {
     expect(before).toEqual(expectedNoteSummary);
     expect(readState(instance)).toMatchObject({ generation: 1, activeOperation: null });
 
-    expect(await runHolder(instance, "c")).toEqual({ event: "database.opened", schemaVersion: 3, created: false });
+    expect(await runHolder(instance, "c")).toEqual({ event: "database.opened", schemaVersion: VERSION.c, created: false });
 
     // The database: manifest of plan C, the same notes with the new column, the new table.
     expect(manifestIds(databaseFile(instance))).toEqual(PLAN_C.map((migration) => ({ id: migration.id })));
@@ -52,7 +52,7 @@ describe("D05.2-AC1 upgrade after a verified snapshot", () => {
     expect(query(databaseFile(instance), "SELECT count(*) AS count FROM harness_note WHERE done = 0")).toEqual([{ count: NOTES }]);
     expect(tableNames(databaseFile(instance))).toEqual([{ name: "harness_extra" }, { name: "harness_note" }]);
     expect(query(databaseFile(instance), "SELECT instance_id FROM instance")).toEqual([{ instance_id: instance.instanceId }]);
-    expect(inspectAs(instance, PLAN_C)).toEqual({ kind: "current", schemaVersion: 3 });
+    expect(inspectAs(instance, PLAN_C)).toEqual({ kind: "current", schemaVersion: VERSION.c });
     expect(readState(instance)).toEqual({ formatVersion: 1, generation: 2, activeOperation: null });
 
     // The snapshot taken first: verified, version 2, without anything of the migration.
@@ -60,7 +60,7 @@ describe("D05.2-AC1 upgrade after a verified snapshot", () => {
     expect(others).toEqual([]);
     expect(pkg).toBeDefined();
     const verification = verifyDatabaseSnapshot(pkg ?? "");
-    expect(verification).toEqual({ ok: true, meta: expect.objectContaining({ reason: "pre_migration", schemaVersion: 2, instanceId: instance.instanceId }) });
+    expect(verification).toEqual({ ok: true, meta: expect.objectContaining({ reason: "pre_migration", schemaVersion: VERSION.b, instanceId: instance.instanceId }) });
     expect(restoredRows(pkg ?? "", "SELECT id FROM schema_migration ORDER BY version")).toEqual(PLAN_B.map((migration) => ({ id: migration.id })));
     expect(restoredRows(pkg ?? "", noteSummary)).toEqual(before);
     expect(restoredRows(pkg ?? "", "SELECT name FROM pragma_table_info('harness_note') ORDER BY cid")).toEqual([{ name: "id" }, { name: "text" }]);
@@ -71,10 +71,10 @@ describe("D05.2-AC1 upgrade after a verified snapshot", () => {
   it("a restart of the same image after the upgrade changes nothing and takes no second snapshot", async () => {
     const instance = await installationAtB();
     await runHolder(instance, "c");
-    expect(await runHolder(instance, "c")).toEqual({ event: "database.opened", schemaVersion: 3, created: false });
+    expect(await runHolder(instance, "c")).toEqual({ event: "database.opened", schemaVersion: VERSION.c, created: false });
     expect(packages(instance)).toHaveLength(1);
     expect(readState(instance).generation).toBe(2);
-    expect(inspectAs(instance, PLAN_C)).toEqual({ kind: "current", schemaVersion: 3 });
+    expect(inspectAs(instance, PLAN_C)).toEqual({ kind: "current", schemaVersion: VERSION.c });
   });
 
   it("a writer killed inside the migration leaves version 2, the snapshot and the phase; start needs recovery", async () => {
@@ -91,7 +91,7 @@ describe("D05.2-AC1 upgrade after a verified snapshot", () => {
     await waitForExit(holder.child, holder.output, STOP_TIMEOUT_MS);
 
     // Atomic: the unfinished transaction left nothing of version 3.
-    expect(inspectAs(instance, PLAN_B)).toEqual({ kind: "current", schemaVersion: 2 });
+    expect(inspectAs(instance, PLAN_B)).toEqual({ kind: "current", schemaVersion: VERSION.b });
     expect(tableNames(databaseFile(instance))).toEqual([{ name: "harness_note" }]);
     expect(query(databaseFile(instance), noteSummary)).toEqual(expectedNoteSummary);
     const [pkg] = packages(instance);
@@ -99,7 +99,7 @@ describe("D05.2-AC1 upgrade after a verified snapshot", () => {
     expect(verification.ok).toBe(true);
     expect(readState(instance)).toMatchObject({
       generation: 2,
-      activeOperation: { reason: "migrate", phase: "migrating", fromSchemaVersion: 2, toSchemaVersion: 3, snapshotId: verification.ok ? verification.meta.snapshotId : "" },
+      activeOperation: { reason: "migrate", phase: "migrating", fromSchemaVersion: VERSION.b, toSchemaVersion: VERSION.c, snapshotId: verification.ok ? verification.meta.snapshotId : "" },
     });
     // Reconciling a crash during migrate is D05.3: until then every start is refused.
     const exit = await runServerEntry(["--port", "0", "--installation", instance.dir], { PATH: process.env["PATH"] ?? "", ...instance.env });
@@ -110,7 +110,7 @@ describe("D05.2-AC1 upgrade after a verified snapshot", () => {
 
 describe("D05.2-AC2 failures keep the database at its version", () => {
   async function expectUnchangedAtB(instance: TestInstance, before: unknown[]): Promise<void> {
-    expect(inspectAs(instance, PLAN_B)).toEqual({ kind: "current", schemaVersion: 2 });
+    expect(inspectAs(instance, PLAN_B)).toEqual({ kind: "current", schemaVersion: VERSION.b });
     expect(manifestIds(databaseFile(instance))).toEqual(PLAN_B.map((migration) => ({ id: migration.id })));
     expect(tableNames(databaseFile(instance))).toEqual([{ name: "harness_note" }]);
     expect(noteColumns(databaseFile(instance))).toEqual([{ name: "id" }, { name: "text" }]);
@@ -132,29 +132,29 @@ describe("D05.2-AC2 failures keep the database at its version", () => {
     expect(packages(instance)).toEqual([]);
     expect(readState(instance)).toEqual({ formatVersion: 1, generation: 2, activeOperation: null });
 
-    expect(await runHolder(instance, "c")).toEqual({ event: "database.opened", schemaVersion: 3, created: false });
+    expect(await runHolder(instance, "c")).toEqual({ event: "database.opened", schemaVersion: VERSION.c, created: false });
     expect(packages(instance)).toHaveLength(1);
   });
 
   it("a failing third migration rolls back its ALTER and manifest entry; the snapshot of version 2 stays restorable", async () => {
     const instance = await installationAtB();
     const before = query(databaseFile(instance), noteSummary);
-    expect(await runHolder(instance, "c-fails")).toEqual({ event: "database.refused", code: "MIGRATION_FAILED", fields: ["0003-harness-fails"] });
+    expect(await runHolder(instance, "c-fails")).toEqual({ event: "database.refused", code: "MIGRATION_FAILED", fields: [lastMigrationId(FAILING_C_PLAN)] });
 
     await expectUnchangedAtB(instance, before);
     expect(readState(instance)).toEqual({ formatVersion: 1, generation: 2, activeOperation: null });
     const [pkg, ...others] = packages(instance);
     expect(others).toEqual([]);
-    expect(verifyDatabaseSnapshot(pkg ?? "")).toMatchObject({ ok: true, meta: { reason: "pre_migration", schemaVersion: 2 } });
+    expect(verifyDatabaseSnapshot(pkg ?? "")).toMatchObject({ ok: true, meta: { reason: "pre_migration", schemaVersion: VERSION.b } });
     expect(restoredRows(pkg ?? "", noteSummary)).toEqual(before);
     // The image that matches the database still starts it.
-    expect(await runHolder(instance, "b")).toEqual({ event: "database.opened", schemaVersion: 2, created: false });
+    expect(await runHolder(instance, "b")).toEqual({ event: "database.opened", schemaVersion: VERSION.b, created: false });
   });
 
   it("a migration that leaves an orphan row fails its check and is rolled back completely", async () => {
     const instance = await installationAtB();
     const before = query(databaseFile(instance), noteSummary);
-    expect(await runHolder(instance, "c-orphan")).toEqual({ event: "database.refused", code: "MIGRATION_FAILED", fields: ["0003-harness-orphan"] });
+    expect(await runHolder(instance, "c-orphan")).toEqual({ event: "database.refused", code: "MIGRATION_FAILED", fields: [lastMigrationId(ORPHAN_C_PLAN)] });
     await expectUnchangedAtB(instance, before);
     expect(packages(instance)).toHaveLength(1);
   });

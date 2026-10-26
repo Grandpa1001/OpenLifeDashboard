@@ -8,6 +8,7 @@ import path from "node:path";
 import { expect } from "vitest";
 import { openDatabase } from "../../packages/sqlite/dist/connection/open-database.js";
 import { inspectDatabase, type MigrationPlan } from "../../packages/sqlite/dist/migrations/public.js";
+import { VERSION } from "./migration-plans.ts";
 import { sharedScratchDir } from "./scratch.ts";
 import { freshTestInstance, outputEvent, repoRoot, waitForExit } from "./server-process.ts";
 import type { TestInstance } from "./test-instance.ts";
@@ -104,7 +105,7 @@ export async function crashHolderAt(instance: TestInstance, plan: string, freeze
 /** An installation whose database is at plan B (version 2) with notes in a domain table. */
 export async function installationAtB(): Promise<TestInstance> {
   const instance = freshTestInstance();
-  expect(await runHolder(instance, "b")).toEqual({ event: "database.opened", schemaVersion: 2, created: true });
+  expect(await runHolder(instance, "b")).toEqual({ event: "database.opened", schemaVersion: VERSION.b, created: true });
   const writer = openDatabase(databaseFile(instance), { role: "writer", busyTimeoutMs: BUSY_TIMEOUT_MS });
   const insert = writer.handle.prepare("INSERT INTO harness_note (text) VALUES (?)");
   writer.handle.transaction(() => {

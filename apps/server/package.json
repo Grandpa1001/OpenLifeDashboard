@@ -18,9 +18,11 @@
   },
   "dependencies": {
     "@hono/node-server": "catalog:",
+    "@node-rs/argon2": "catalog:",
     "@openlife/contracts": "workspace:*",
     "@openlife/core": "workspace:*",
     "@openlife/sqlite": "workspace:*",
+    "better-auth": "catalog:",
     "fs-native-extensions": "catalog:",
     "hono": "catalog:"
   }
