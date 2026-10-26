@@ -817,6 +817,47 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D07.3",
+    ready: true,
+    title: "Two installations side by side: separate identity, storage, logs and port; shared storage or port refused",
+    criteria: ["D07.3-AC1", "D07.3-AC2", "D07.3-regression"],
+    checks: [
+      {
+        // Runs first: the system test reads both installations from the host with the built adapters.
+        id: "workspace-build",
+        criteria: ["D07.3-AC1", "D07.3-AC2"],
+        description: "pnpm -r build produces the adapters the test reads the installations with",
+        command: ["pnpm", "-r", "build"],
+        requires: ["tests/support/installation-state.ts"],
+      },
+      {
+        id: "compose-isolation-native",
+        criteria: ["D07.3-AC1", "D07.3-AC2"],
+        description: "Real Compose A/B: own IDs, projects, keys, ports, mounts, paths and logs; restart/recreate of A leaves B untouched; third app → INSTANCE_BUSY; taken port starts nothing",
+        command: ["node", "tests/system/compose-isolation.ts"],
+        requires: ["tests/system/compose-isolation.ts", "tests/support/installation-state.ts", "docker/compose.yml", "docker/compose.local.yml"],
+        timeoutMs: 25 * 60 * 1000,
+      },
+      {
+        id: "compose-regression",
+        criteria: ["D07.3-regression"],
+        description: "The D07.1 compose files, the test installation preparer and the mount preflight still hold",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/compose", "tests/integration/compose", "tests/unit/bootstrap/storage-mounts.test.ts"],
+        requires: ["tests/unit/compose/compose-files.test.ts", "tests/integration/compose/compose-instance.test.ts"],
+      },
+      ...regressionChecks("D07.3-regression"),
+    ],
+  },
+  {
+    // The parent passes only through its work orders, each with its real Compose run.
+    id: "D07",
+    ready: true,
+    title: "Compose local mode: persistence and isolation of installations",
+    steps: ["D07.1", "D07.2", "D07.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D02",
     ready: true,
     title: "HTTP/SPA foundation and native app image on amd64 and arm64",
