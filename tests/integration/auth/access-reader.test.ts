@@ -17,6 +17,7 @@ import { bindIdentityAccessReader } from "../../../packages/sqlite/dist/adapters
 import { bindMfaStore } from "../../../packages/sqlite/dist/adapters/identity/mfa-store.js";
 import { bindOwnerWriters } from "../../../packages/sqlite/dist/adapters/identity/owner-writers.js";
 import { bindSignInStores } from "../../../packages/sqlite/dist/adapters/identity/sign-in-ports.js";
+import { bindTrustedDeviceStore } from "../../../packages/sqlite/dist/adapters/identity/trusted-device-store.js";
 import { openDatabase, type SqliteConnection } from "../../../packages/sqlite/dist/connection/open-database.js";
 import { initializeDatabase, PRODUCT_MIGRATION_PLAN } from "../../../packages/sqlite/dist/migrations/public.js";
 import { createUnitOfWork } from "../../../packages/sqlite/dist/transactions/unit-of-work.js";
@@ -54,7 +55,7 @@ async function rigOf(options: { owner?: boolean } = {}) {
     ...bindOwnerWriters(tx),
     owners: bindOwnerWriters(tx).owners,
     mfa: bindMfaStore(tx),
-    access: bindIdentityAccessReader(tx, () => clock.now),
+    trusted: bindTrustedDeviceStore(tx), access: bindIdentityAccessReader(tx, () => clock.now),
     audit: bindAppendAudit(tx),
   }));
   if (options.owner !== false) {
@@ -66,7 +67,7 @@ async function rigOf(options: { owner?: boolean } = {}) {
     sequence += 1;
     const outcome = await signInWithPassword(
       { unit, verifier: hasher, decoyHash: "unused", nowMs: () => clock.now, newSessionId: () => `session-${sequence}`, newSessionToken: () => `token-${sequence}` },
-      { email: EMAIL, password: PASSWORD, accountKey: `account-${sequence}`, ipKey: `ip-${sequence}`, ip: null, userAgent: null, requestId: `req-${sequence}` },
+      { email: EMAIL, password: PASSWORD, accountKey: `account-${sequence}`, ipKey: `ip-${sequence}`, ip: null, userAgent: null, requestId: `req-${sequence}`, trustedTokenHash: null },
     );
     if (outcome.kind !== "granted") throw new Error("not granted");
     return `session-${sequence}`;

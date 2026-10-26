@@ -7,17 +7,17 @@
 // unit, and then does one unit of work that repeats the decisive checks as compare-and-set. A
 // DomainFault inside the unit rolls it back whole; the plain recovery codes exist only in the
 // returned outcome and are never stored.
-import { DomainFault, type Commit, type ReadUnit, type Result, type UnitOfWork } from "../../../foundation/public.js";
-import { decideAccess, nextActionFor, type IdentityAccessSnapshot, type NextAction } from "../domain/access-policy.js";
-import { SESSION_LIFETIME_MS } from "../domain/session-policy.js";
-import type { EnrollmentCrypto, EnrollmentPorts, MfaRecord, NewSession, SessionFacts } from "../ports.js";
+import type { ReadUnit, Result, UnitOfWork } from "../../../foundation/public.js";
+import { nextActionFor, type NextAction } from "../domain/access-policy.js";
+import type { EnrollmentPorts, MfaCrypto } from "../ports.js";
+import { callerOf, commit, context, fail, failed, replacementSession, type Caller } from "./caller.js";
 
 /** How long an enrollment challenge is valid (Architektura §9.7). */
 export const ENROLLMENT_CHALLENGE_LIFETIME_MS = 10 * 60 * 1000;
 
 export type EnrollmentDependencies = Readonly<{
   unit: UnitOfWork<EnrollmentPorts> & ReadUnit<EnrollmentPorts>;
-  crypto: EnrollmentCrypto;
+  crypto: MfaCrypto;
   nowMs: () => number;
   /** Challenge and batch identifiers. */
   newId: () => string;
@@ -37,47 +37,6 @@ export type IssuedRecoveryCodes = Readonly<{
 }>;
 
 export type EnrollmentStatus = Readonly<{ nextAction: NextAction }>;
-
-const fail = (code: ConstructorParameters<typeof DomainFault>[0]["code"]): never => {
-  throw new DomainFault({ code });
-};
-const failed = <T>(code: ConstructorParameters<typeof DomainFault>[0]["code"]): Result<T> => ({ ok: false, error: { code } });
-const commit = <T>(value: T): Commit<T> => ({ value, invalidations: [] });
-
-type Caller = Readonly<{ session: SessionFacts; snapshot: IdentityAccessSnapshot; mfa: MfaRecord; email: string }>;
-
-/** The session of this token and the state around it, or why there is none. */
-function callerOf(ports: EnrollmentPorts, token: string, nowMs: number, requestId: string): Caller | null {
-  const session = ports.sessions.findActive(token, nowMs);
-  const mfa = ports.mfa.read();
-  const email = ports.credentialReader.ownerEmail();
-  if (session === null || mfa === null || email === null) {
-    return null;
-  }
-  const snapshot = ports.access.current({ ownerId: session.ownerId, sessionId: session.sessionId, requestId, accessEpoch: session.accessEpoch });
-  const decision = decideAccess(snapshot, "data", nowMs);
-  // Identity is what matters here; the other denials (factor, acknowledgment, data) are the states being resolved.
-  return !decision.allow && decision.code === "AUTH_REQUIRED" ? null : { session, snapshot, mfa, email };
-}
-
-const context = (caller: Caller, generation: number) => ({ ownerId: caller.session.ownerId, generation });
-
-/** The session that replaces the one that proved the factor: same owner and epoch, assurance totp. */
-function promoted(old: SessionFacts, nowMs: number, sessionId: string, token: string): NewSession {
-  return {
-    sessionId,
-    token,
-    ownerId: old.ownerId,
-    createdAtMs: nowMs,
-    expiresAtMs: nowMs + SESSION_LIFETIME_MS,
-    ipAddress: null,
-    userAgent: null,
-    assurance: "totp",
-    passwordVerifiedAtMs: old.passwordVerifiedAtMs,
-    totpVerifiedAtMs: nowMs,
-    accessEpoch: old.accessEpoch,
-  };
-}
 
 /**
  * Starts an enrollment, or returns the one already running for this session (no second secret).
@@ -182,7 +141,7 @@ export async function confirmEnrollment(
     if (!activated) {
       return fail("ENROLLMENT_CHANGED");
     }
-    const next = promoted(caller.session, nowMs, sessionId, newToken);
+    const next = replacementSession(caller.session, { assurance: "totp", totpVerifiedAtMs: nowMs }, nowMs, { sessionId, token: newToken });
     if (!ports.sessions.rotate(token, next)) {
       return fail("AUTH_REQUIRED");
     }
@@ -236,7 +195,7 @@ export async function reissueRecoveryCodes(
     if (!ports.mfa.consumeStep({ expectedGeneration: caller.mfa.secretGeneration, step })) {
       return fail("MFA_INVALID_CODE");
     }
-    const next = promoted(caller.session, nowMs, sessionId, newToken);
+    const next = replacementSession(caller.session, { assurance: "totp", totpVerifiedAtMs: nowMs }, nowMs, { sessionId, token: newToken });
     if (!ports.sessions.rotate(token, next)) {
       return fail("AUTH_REQUIRED");
     }

@@ -61,7 +61,7 @@ function bindSessions(tx: TransactionHandle): SessionStore {
     `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, ipAddress, userAgent, userId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const insertExt = tx.prepare(
-    `INSERT INTO session_ext (session_id, assurance, password_verified_at_ms, totp_verified_at_ms, access_epoch) VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO session_ext (session_id, assurance, password_verified_at_ms, totp_verified_at_ms, access_epoch, trusted_device_id) VALUES (?, ?, ?, ?, ?, ?)`,
   );
   const active = tx.prepare(
     `SELECT s.id AS sessionId, s.userId AS ownerId, e.assurance AS assurance, e.password_verified_at_ms AS passwordVerifiedAtMs,
@@ -84,7 +84,7 @@ function bindSessions(tx: TransactionHandle): SessionStore {
       session.userAgent,
       session.ownerId,
     );
-    insertExt.run(session.sessionId, session.assurance, session.passwordVerifiedAtMs, session.totpVerifiedAtMs, session.accessEpoch);
+    insertExt.run(session.sessionId, session.assurance, session.passwordVerifiedAtMs, session.totpVerifiedAtMs, session.accessEpoch, session.trustedDeviceId);
   };
   return {
     insert,

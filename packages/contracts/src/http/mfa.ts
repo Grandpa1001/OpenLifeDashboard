@@ -9,6 +9,8 @@ export const MFA_ENROLLMENT_BEGIN_PATH = "/api/v1/mfa/enrollment/begin";
 export const MFA_ENROLLMENT_CONFIRM_PATH = "/api/v1/mfa/enrollment/confirm";
 export const MFA_RECOVERY_REISSUE_PATH = "/api/v1/mfa/enrollment/recovery/reissue";
 export const MFA_RECOVERY_ACK_PATH = "/api/v1/mfa/enrollment/recovery/ack";
+export const MFA_VERIFY_PATH = "/api/v1/mfa/verify";
+export const MFA_STEP_UP_PATH = "/api/v1/mfa/step-up";
 
 /** A TOTP code as the authenticator app shows it. */
 export const totpCodeSchema = z.string().regex(/^\d{6}$/);
@@ -18,6 +20,25 @@ export const beginEnrollmentRequestSchema = z.object({}).strict();
 export const confirmEnrollmentRequestSchema = z.object({ challengeId: identifierSchema, code: totpCodeSchema }).strict();
 export const reissueRecoveryRequestSchema = z.object({ code: totpCodeSchema }).strict();
 export const acknowledgeRecoveryRequestSchema = z.object({ batchId: identifierSchema }).strict();
+
+/**
+ * A TOTP (which the owner may ask to remember on this device) or a recovery code; never both.
+ * A recovery code is typed by hand, so its spelling is free within a size bound.
+ */
+export const verifyRequestSchema = z.union([
+  z.object({ code: totpCodeSchema, rememberDevice: z.boolean().optional() }).strict(),
+  z.object({ recoveryCode: z.string().min(1).max(32) }).strict(),
+]);
+export const stepUpRequestSchema = z.object({ code: totpCodeSchema }).strict();
+
+export const mfaVerifiedSchema = z
+  .object({
+    nextAction: z.enum(NEXT_ACTIONS),
+    /** After a recovery code only: how many are left. */
+    remainingRecoveryCodes: z.number().int().min(0).optional(),
+  })
+  .strict();
+export type MfaVerifiedDto = z.infer<typeof mfaVerifiedSchema>;
 
 export const enrollmentChallengeSchema = z
   .object({

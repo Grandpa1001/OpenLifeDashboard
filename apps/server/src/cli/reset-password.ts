@@ -9,7 +9,7 @@ import { randomUUID } from "node:crypto";
 import { resetPasswordInputSchema } from "@openlife/contracts/http/identity";
 import { resetOwnerPassword } from "@openlife/core/identity";
 import { bindAppendAudit } from "@openlife/sqlite/adapters/audit";
-import { bindOwnerWriters, bindSignInStores } from "@openlife/sqlite/adapters/identity";
+import { bindOwnerWriters, bindSignInStores, bindTrustedDeviceStore } from "@openlife/sqlite/adapters/identity";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
 import { createPasswordHasher } from "../adapters/auth/password-hasher.js";
 import { describeError } from "../adapters/logging/describe-error.js";
@@ -38,13 +38,13 @@ const { session } = opened;
 try {
   const unit = createUnitOfWork(session.connection, (tx) => {
     const { owners, credentials } = bindOwnerWriters(tx);
-    return { owners, credentials, sessions: bindSignInStores(tx).sessions, audit: bindAppendAudit(tx) };
+    return { owners, credentials, sessions: bindSignInStores(tx).sessions, trusted: bindTrustedDeviceStore(tx), audit: bindAppendAudit(tx) };
   });
-  const reset = unit.run((ports) => resetOwnerPassword(ports, { passwordHash, requestId, now: new Date().toISOString() }));
+  const reset = unit.run((ports) => resetOwnerPassword(ports, { passwordHash, requestId, now: new Date().toISOString(), nowMs: Date.now() }));
   if (!reset.ok) {
     refuse(reset.error.code, reset.error.fields ?? []);
   }
-  console.log(JSON.stringify({ event: "owner.password_reset", accessEpoch: reset.value.value.accessEpoch, revokedSessions: reset.value.value.revokedSessions, requestId }));
+  console.log(JSON.stringify({ event: "owner.password_reset", accessEpoch: reset.value.value.accessEpoch, revokedSessions: reset.value.value.revokedSessions, revokedDevices: reset.value.value.revokedDevices, requestId }));
 } catch (error) {
   // The unit has rolled back; the error is described by class and code only.
   refuse("COMMAND_FAILED", [], { error: describeError(error) });

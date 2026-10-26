@@ -14,6 +14,8 @@ export function bindRecoveryCodeStore(tx: TransactionHandle): RecoveryCodeStore 
       WHERE singleton = 1 AND enrollment_state = 'awaiting_recovery_ack' AND recovery_batch_id = ? AND recovery_batch_session_id = ?`,
   );
   const state = tx.prepare("SELECT enrollment_state AS state, recovery_batch_id AS batchId FROM mfa_state WHERE singleton = 1");
+  const consume = tx.prepare("UPDATE recovery_code SET used_at_ms = ? WHERE code_hash = ? AND used_at_ms IS NULL");
+  const remaining = tx.prepare("SELECT count(*) AS n FROM recovery_code WHERE used_at_ms IS NULL");
   return {
     issueBatch: ({ batchId, sessionId, hashes }) => {
       clear.run();
@@ -30,5 +32,6 @@ export function bindRecoveryCodeStore(tx: TransactionHandle): RecoveryCodeStore 
       }
       return "batch_changed";
     },
+    consume: ({ hash, nowMs }) => (consume.run(nowMs, hash).changes === 1 ? { remaining: (remaining.get() as { n: number }).n } : null),
   };
 }

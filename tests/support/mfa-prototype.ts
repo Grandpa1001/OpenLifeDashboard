@@ -51,6 +51,7 @@ const promotedSession = (r: IdentityRig, newToken: string, old: NonNullable<Retu
   passwordVerifiedAtMs: old.passwordVerifiedAtMs,
   totpVerifiedAtMs: r.clock.now,
   accessEpoch: old.accessEpoch,
+  trustedDeviceId: null,
 });
 
 /**

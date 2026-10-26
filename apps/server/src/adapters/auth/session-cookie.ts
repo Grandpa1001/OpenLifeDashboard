@@ -6,7 +6,7 @@
 import { constantTimeEqual, makeSignature } from "better-auth/crypto";
 import { authCookiePrefix } from "./auth-options.js";
 
-export type SessionCookies = Readonly<{
+export type SignedCookie = Readonly<{
   /** Cookie name of this installation. */
   name: string;
   /** Value to store for a token. */
@@ -15,18 +15,30 @@ export type SessionCookies = Readonly<{
   verify: (value: string | undefined) => Promise<string | null>;
 }>;
 
-export function createSessionCookies(inputs: Readonly<{ instanceId: string; secret: string }>): SessionCookies {
+/** The signed cookie of a name: a session pointer, or the token of a trusted device (D11.2). */
+export function createSignedCookie(name: string, secret: string): SignedCookie {
   return {
-    name: `${authCookiePrefix(inputs.instanceId)}.session_token`,
-    sign: async (token) => `${token}.${await makeSignature(token, inputs.secret)}`,
+    name,
+    sign: async (token) => `${token}.${await makeSignature(token, secret)}`,
     verify: async (value) => {
       const separator = value?.lastIndexOf(".") ?? -1;
       if (value === undefined || separator < 1) {
         return null;
       }
       const token = value.slice(0, separator);
-      const expected = await makeSignature(token, inputs.secret);
+      const expected = await makeSignature(token, secret);
       return constantTimeEqual(value.slice(separator + 1), expected) ? token : null;
     },
   };
+}
+
+export type SessionCookies = SignedCookie;
+
+export function createSessionCookies(inputs: Readonly<{ instanceId: string; secret: string }>): SessionCookies {
+  return createSignedCookie(`${authCookiePrefix(inputs.instanceId)}.session_token`, inputs.secret);
+}
+
+/** The cookie of this installation's trusted device, prefixed like the session cookie (Architektura §9.6). */
+export function createTrustedDeviceCookies(inputs: Readonly<{ instanceId: string; secret: string }>): SignedCookie {
+  return createSignedCookie(`${authCookiePrefix(inputs.instanceId)}.trusted_device`, inputs.secret);
 }

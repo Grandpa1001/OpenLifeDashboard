@@ -16,6 +16,7 @@ import { bindIdentityAccessReader } from "../../../packages/sqlite/dist/adapters
 import { bindMfaStore } from "../../../packages/sqlite/dist/adapters/identity/mfa-store.js";
 import { bindOwnerWriters } from "../../../packages/sqlite/dist/adapters/identity/owner-writers.js";
 import { bindSignInStores } from "../../../packages/sqlite/dist/adapters/identity/sign-in-ports.js";
+import { bindTrustedDeviceStore } from "../../../packages/sqlite/dist/adapters/identity/trusted-device-store.js";
 import { openDatabase, type SqliteConnection } from "../../../packages/sqlite/dist/connection/open-database.js";
 import { initializeDatabase, PRODUCT_MIGRATION_PLAN } from "../../../packages/sqlite/dist/migrations/public.js";
 import { createUnitOfWork } from "../../../packages/sqlite/dist/transactions/unit-of-work.js";
@@ -48,7 +49,7 @@ async function rig(): Promise<Rig> {
   initializeDatabase(connection, PRODUCT_MIGRATION_PLAN, { instanceId: INSTANCE_ID, createdAt: new Date(T0).toISOString() });
   const clock = { now: T0 };
   const unitOf = () =>
-    createUnitOfWork(connection, (tx) => ({ ...bindSignInStores(tx), owners: bindOwnerWriters(tx).owners, access: bindIdentityAccessReader(tx, () => clock.now), audit: bindAppendAudit(tx) }));
+    createUnitOfWork(connection, (tx) => ({ ...bindSignInStores(tx), owners: bindOwnerWriters(tx).owners, mfa: bindMfaStore(tx), trusted: bindTrustedDeviceStore(tx), access: bindIdentityAccessReader(tx, () => clock.now), audit: bindAppendAudit(tx) }));
   const owner = createUnitOfWork(connection, (tx) => ({ ...bindOwnerWriters(tx), mfa: bindMfaStore(tx), audit: bindAppendAudit(tx) })).run((ports) =>
     createOwner(ports, { ownerId: "owner-1", email: EMAIL, passwordHash: "", requestId: "req-0", now: new Date(T0).toISOString() }),
   );
@@ -74,7 +75,7 @@ async function rig(): Promise<Rig> {
           newSessionId: () => `session-${sequence}`,
           newSessionToken: () => `token-${sequence}`,
         },
-        { email, password: options.password ?? PASSWORD, accountKey: `account:${email}`, ipKey: `ip:${ip}`, ip, userAgent: "vitest", requestId: `req-${sequence}` },
+        { email, password: options.password ?? PASSWORD, accountKey: `account:${email}`, ipKey: `ip:${ip}`, ip, userAgent: "vitest", requestId: `req-${sequence}`, trustedTokenHash: null },
       );
     },
     count: (table) => (connection.handle.prepare(`SELECT count(*) FROM "${table}"`).pluck().get() as number),
@@ -179,10 +180,10 @@ describe("D09.3-AC1 sign-in outcomes", () => {
     r.connection().close();
     const reopened = openDatabase(r.file, { role: "writer", busyTimeoutMs: 5000 });
     open.push(reopened);
-    const unit = createUnitOfWork(reopened, (tx) => ({ ...bindSignInStores(tx), owners: bindOwnerWriters(tx).owners, access: bindIdentityAccessReader(tx, () => T0 + 5000), audit: bindAppendAudit(tx) }));
+    const unit = createUnitOfWork(reopened, (tx) => ({ ...bindSignInStores(tx), owners: bindOwnerWriters(tx).owners, mfa: bindMfaStore(tx), trusted: bindTrustedDeviceStore(tx), access: bindIdentityAccessReader(tx, () => T0 + 5000), audit: bindAppendAudit(tx) }));
     const outcome = await signInWithPassword(
       { unit, verifier: hasher, decoyHash: "unused", nowMs: () => T0 + 5000, newSessionId: () => "s", newSessionToken: () => "t" },
-      { email: EMAIL, password: PASSWORD, accountKey: `account:${EMAIL}`, ipKey: "ip:203.0.113.1", ip: "203.0.113.1", userAgent: null, requestId: "req-restart" },
+      { email: EMAIL, password: PASSWORD, accountKey: `account:${EMAIL}`, ipKey: "ip:203.0.113.1", ip: "203.0.113.1", userAgent: null, requestId: "req-restart", trustedTokenHash: null },
     );
     expect(outcome).toEqual({ kind: "locked", retryAfterSeconds: 895 });
   });
@@ -247,7 +248,7 @@ describe("D09.3-AC2 the attempt is atomic", () => {
     const r = await rig();
     const granted = await r.attempt();
     if (granted.kind !== "granted") throw new Error("expected a session");
-    const unit = createUnitOfWork(r.connection(), (tx) => ({ ...bindSignInStores(tx), owners: bindOwnerWriters(tx).owners, access: bindIdentityAccessReader(tx, () => r.clock.now), audit: bindAppendAudit(tx) }));
+    const unit = createUnitOfWork(r.connection(), (tx) => ({ ...bindSignInStores(tx), owners: bindOwnerWriters(tx).owners, mfa: bindMfaStore(tx), trusted: bindTrustedDeviceStore(tx), access: bindIdentityAccessReader(tx, () => r.clock.now), audit: bindAppendAudit(tx) }));
     expect(readIdentityStatus(unit, granted.token, r.clock.now)).toEqual({ authenticated: true, nextAction: "mfa_enrollment" });
     expect(readIdentityStatus(unit, granted.token, granted.expiresAtMs)).toEqual({ authenticated: false, nextAction: "login" });
     expect(readIdentityStatus(unit, "not-a-token", r.clock.now)).toEqual({ authenticated: false, nextAction: "login" });

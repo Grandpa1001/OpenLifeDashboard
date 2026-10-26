@@ -41,6 +41,8 @@ export type SignInRequest = Readonly<{
   ip: string | null;
   userAgent: string | null;
   requestId: string;
+  /** Hash of the trusted-device token the browser sent, if any; trust is checked, never assumed. */
+  trustedTokenHash: string | null;
 }>;
 
 /** Approved outcome of an attempt; a refusal carries no session or token. */
@@ -100,6 +102,12 @@ function decide(
   const granted =
     verified && checked !== null && current !== null && accessEpoch !== null && current.ownerId === checked.ownerId && current.passwordHash === checked.passwordHash;
   if (granted) {
+    // A valid trusted device stands in for the second factor of an enrolled owner, only then.
+    const mfa = ports.mfa.read();
+    const device =
+      request.trustedTokenHash !== null && mfa?.policy === "required" && mfa.enrollmentState === "complete"
+        ? ports.trusted.findValid(request.trustedTokenHash, nowMs)
+        : null;
     const token = deps.newSessionToken();
     const sessionId = deps.newSessionId();
     const expiresAtMs = nowMs + SESSION_LIFETIME_MS;
@@ -112,10 +120,12 @@ function decide(
       expiresAtMs,
       ipAddress: request.ip,
       userAgent: request.userAgent,
-      assurance: "password",
+      assurance: device === null ? "password" : "trusted",
       passwordVerifiedAtMs: nowMs,
+      // Trust never produces a TOTP time: a step-up still needs a fresh code.
       totpVerifiedAtMs: null,
       accessEpoch,
+      trustedDeviceId: device?.deviceId ?? null,
     });
     ports.audit.append({
       ownerId: checked.ownerId,
@@ -123,6 +133,7 @@ function decide(
       entityId: request.requestId,
       at: new Date(nowMs).toISOString(),
       requestId: request.requestId,
+      details: { trusted: device !== null },
       ...(request.ip === null ? {} : { ip: request.ip }),
       ...(request.userAgent === null ? {} : { userAgent: request.userAgent }),
     });

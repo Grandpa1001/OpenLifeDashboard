@@ -8,7 +8,9 @@ import { bindAppendAudit } from "../../packages/sqlite/dist/adapters/audit/appen
 import { bindIdentityAccessReader } from "../../packages/sqlite/dist/adapters/identity/access-reader.js";
 import { bindMfaStore } from "../../packages/sqlite/dist/adapters/identity/mfa-store.js";
 import { bindOwnerWriters } from "../../packages/sqlite/dist/adapters/identity/owner-writers.js";
+import { bindRecoveryCodeStore } from "../../packages/sqlite/dist/adapters/identity/recovery-store.js";
 import { bindSignInStores } from "../../packages/sqlite/dist/adapters/identity/sign-in-ports.js";
+import { bindTrustedDeviceStore } from "../../packages/sqlite/dist/adapters/identity/trusted-device-store.js";
 import { openDatabase, type SqliteConnection } from "../../packages/sqlite/dist/connection/open-database.js";
 import { initializeDatabase, PRODUCT_MIGRATION_PLAN } from "../../packages/sqlite/dist/migrations/public.js";
 import { createUnitOfWork } from "../../packages/sqlite/dist/transactions/unit-of-work.js";
@@ -42,6 +44,8 @@ export async function createIdentityRig(options: { owner?: boolean } = {}) {
       ...bindOwnerWriters(tx),
       owners: bindOwnerWriters(tx).owners,
       mfa: bindMfaStore(tx),
+      recovery: bindRecoveryCodeStore(tx),
+      trusted: bindTrustedDeviceStore(tx),
       access: bindIdentityAccessReader(tx, () => clock.now),
       audit: bindAppendAudit(tx),
     }));
@@ -74,7 +78,7 @@ export async function createIdentityRig(options: { owner?: boolean } = {}) {
       const tag = String(sequence);
       const outcome = await signInWithPassword(
         { unit, verifier: hasher, decoyHash: "unused", nowMs: () => clock.now, newSessionId: () => `session-${tag}`, newSessionToken: () => `token-${tag}` },
-        { email: RIG_EMAIL, password: RIG_PASSWORD, accountKey: `account-${tag}`, ipKey: `ip-${tag}`, ip: "127.0.0.1", userAgent: "vitest", requestId: `req-${tag}` },
+        { email: RIG_EMAIL, password: RIG_PASSWORD, accountKey: `account-${tag}`, ipKey: `ip-${tag}`, ip: "127.0.0.1", userAgent: "vitest", requestId: `req-${tag}`, trustedTokenHash: null },
       );
       if (outcome.kind !== "granted") throw new Error("the rig session was not granted");
       return { token: outcome.token, sessionId: `session-${tag}` };

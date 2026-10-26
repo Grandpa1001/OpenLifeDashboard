@@ -110,7 +110,7 @@ describe("D09.4-AC1 reset-password", () => {
     expect(await createPasswordHasher().verify(after.password ?? "", NEW_PASSWORD)).toBe(true);
     expect(await createPasswordHasher().verify(after.password ?? "", OLD_PASSWORD)).toBe(false);
     expect(query(instance, "SELECT actor, entity, details FROM audit_log WHERE action = 'owner.password_reset'")).toEqual([
-      { actor: expect.any(String), entity: "owner", details: '{"accessEpoch":2,"revokedSessions":2}' },
+      { actor: expect.any(String), entity: "owner", details: '{"accessEpoch":2,"revokedSessions":2,"revokedDevices":0}' },
     ]);
 
     server = await serve(instance);

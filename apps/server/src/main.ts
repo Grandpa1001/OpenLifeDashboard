@@ -11,14 +11,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
 import { bindAppendAudit } from "@openlife/sqlite/adapters/audit";
-import { bindIdentityAccessReader, bindMfaStore, bindOwnerWriters, bindRecoveryCodeStore, bindSignInStores } from "@openlife/sqlite/adapters/identity";
+import { bindIdentityAccessReader, bindMfaStore, bindOwnerWriters, bindRecoveryCodeStore, bindSignInStores, bindTrustedDeviceStore } from "@openlife/sqlite/adapters/identity";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
-import { createEnrollmentCrypto } from "./adapters/auth/enrollment-crypto.js";
+import { createMfaCrypto } from "./adapters/auth/mfa-crypto.js";
 import { createAttemptKeys } from "./adapters/auth/attempt-keys.js";
 import { checkAuthSchema } from "./adapters/auth/auth-schema.js";
 import { checkMfaIntegration } from "./adapters/auth/mfa-capabilities.js";
 import { createPasswordHasher } from "./adapters/auth/password-hasher.js";
-import { createSessionCookies } from "./adapters/auth/session-cookie.js";
+import { createSessionCookies, createTrustedDeviceCookies } from "./adapters/auth/session-cookie.js";
 import { CONTAINER_WORKING_PATHS, installationWorkingPaths } from "./adapters/filesystem/installation-paths.js";
 import { createDatabaseSnapshots } from "./adapters/filesystem/database-snapshots.js";
 import { openMaintenanceGate } from "./adapters/filesystem/maintenance-gate.js";
@@ -172,10 +172,13 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   owners: bindOwnerWriters(tx).owners,
   mfa: bindMfaStore(tx),
   recovery: bindRecoveryCodeStore(tx),
+  trusted: bindTrustedDeviceStore(tx),
   access: bindIdentityAccessReader(tx, Date.now),
   audit: bindAppendAudit(tx),
 }));
 const cookies = createSessionCookies({ instanceId: paths.instanceId, secret });
+const trustedDeviceCookies = createTrustedDeviceCookies({ instanceId: paths.instanceId, secret });
+const mfaCrypto = createMfaCrypto(environment.appEncryptionKey.reveal());
 const secureCookies = environment.baseUrl.startsWith("https:");
 const newSessionToken = (): string => randomBytes(32).toString("base64url");
 const app = createApp({
@@ -191,6 +194,7 @@ const app = createApp({
     // Verified for an unknown e-mail, so a refusal costs the same as for the owner's.
     decoyHash: await hasher.hash(randomBytes(32).toString("hex")),
     cookies,
+    trustedDevice: { cookies: trustedDeviceCookies, hash: mfaCrypto.hashTrustedDeviceToken },
     keys: createAttemptKeys(secret),
     allowedOrigin: environment.baseUrl,
     secureCookies,
@@ -203,8 +207,20 @@ const app = createApp({
   },
   mfaEnrollment: {
     unit: identityUnit,
-    crypto: createEnrollmentCrypto(environment.appEncryptionKey.reveal()),
+    crypto: mfaCrypto,
     cookies,
+    allowedOrigin: environment.baseUrl,
+    secureCookies,
+    nowMs: Date.now,
+    newId: randomUUID,
+    newSessionToken,
+    logger,
+  },
+  mfaVerification: {
+    unit: identityUnit,
+    crypto: mfaCrypto,
+    cookies,
+    trustedDeviceCookies,
     allowedOrigin: environment.baseUrl,
     secureCookies,
     nowMs: Date.now,

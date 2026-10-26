@@ -11,9 +11,11 @@ export type ResetPasswordCommand = Readonly<{
   requestId: string;
   /** ISO-8601 UTC. */
   now: string;
+  /** The same instant in milliseconds, for the revocation time of the trusted devices. */
+  nowMs: number;
 }>;
 
-export type PasswordReset = Readonly<{ accessEpoch: number; revokedSessions: number }>;
+export type PasswordReset = Readonly<{ accessEpoch: number; revokedSessions: number; revokedDevices: number }>;
 
 /** Runs inside `UnitOfWork.run`; the ports are bound to its handle. */
 export function resetOwnerPassword(ports: ResetPasswordPorts, command: ResetPasswordCommand): Commit<PasswordReset> {
@@ -23,13 +25,15 @@ export function resetOwnerPassword(ports: ResetPasswordPorts, command: ResetPass
   }
   const accessEpoch = ports.owners.advanceAccessEpoch();
   const revokedSessions = ports.sessions.deleteAllOfOwner(ownerId);
+  // A trusted device is not a way around a password that was just replaced.
+  const revokedDevices = ports.trusted.revokeAll(command.nowMs);
   ports.audit.append({
     ownerId,
     action: "owner.password_reset",
     entityId: ownerId,
     at: command.now,
     requestId: command.requestId,
-    details: { accessEpoch, revokedSessions },
+    details: { accessEpoch, revokedSessions, revokedDevices },
   });
-  return { value: { accessEpoch, revokedSessions }, invalidations: [] };
+  return { value: { accessEpoch, revokedSessions, revokedDevices }, invalidations: [] };
 }

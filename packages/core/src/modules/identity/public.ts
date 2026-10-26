@@ -12,6 +12,8 @@ export {
   reissueRecoveryCodes,
 } from "./application/enroll-totp.js";
 export type { EnrollmentChallenge, EnrollmentDependencies, EnrollmentStatus, IssuedRecoveryCodes } from "./application/enroll-totp.js";
+export { stepUp, verifyRecoveryCode, verifyTotp } from "./application/verify-mfa.js";
+export type { MfaProof, VerificationDependencies } from "./application/verify-mfa.js";
 export { readIdentityStatus, signInWithPassword, signOut } from "./application/sign-in.js";
 export type {
   AuthAttemptOutcome,
@@ -33,11 +35,11 @@ export type {
 } from "./domain/access-policy.js";
 export { LOCKOUT_DURATION_MS, LOCKOUT_MAX_FAILURES, LOCKOUT_WINDOW_MS } from "./domain/lockout.js";
 export type { LockoutBucket } from "./domain/lockout.js";
-export { SESSION_LIFETIME_MS } from "./domain/session-policy.js";
+export { SESSION_LIFETIME_MS, TRUSTED_DEVICE_LIFETIME_MS } from "./domain/session-policy.js";
 export type {
   AuthAttemptStore,
   CredentialReader,
-  EnrollmentCrypto,
+  MfaCrypto,
   EnrollmentPorts,
   IdentityAccessReader,
   MfaRecord,
@@ -48,4 +50,6 @@ export type {
   SessionFacts,
   SessionStore,
   SignInPorts,
+  TrustedDeviceStore,
+  VerificationPorts,
 } from "./ports.js";

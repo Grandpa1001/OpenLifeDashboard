@@ -133,7 +133,7 @@ describe("D10.1-AC1 the prototype: password session → enrollment challenge →
     expect(() =>
       r.unit.run((ports) => {
         const activated = ports.mfa.activatePending({ challengeId: "challenge-1", sessionId: "session-1", expectedGeneration: 0, usedStep: 1, nowMs: r.clock.now });
-        if (activated && !ports.sessions.rotate("gone", { sessionId: "s", token: "t", ownerId: "owner-1", createdAtMs: 0, expiresAtMs: 1, ipAddress: null, userAgent: null, assurance: "totp", passwordVerifiedAtMs: 0, totpVerifiedAtMs: 0, accessEpoch: 1 })) {
+        if (activated && !ports.sessions.rotate("gone", { sessionId: "s", token: "t", ownerId: "owner-1", createdAtMs: 0, expiresAtMs: 1, ipAddress: null, userAgent: null, assurance: "totp", passwordVerifiedAtMs: 0, totpVerifiedAtMs: 0, accessEpoch: 1, trustedDeviceId: null })) {
           throw new Error("rotate refused");
         }
         return done(null);

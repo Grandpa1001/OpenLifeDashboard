@@ -15,33 +15,26 @@ import {
   type EnrollmentChallengeDto,
   type IssuedRecoveryCodesDto,
 } from "@openlife/contracts/http/mfa";
-import type { ApiErrorCode } from "@openlife/contracts/http/errors";
 import type { ReadUnit, UnitOfWork } from "@openlife/core/foundation";
 import {
   acknowledgeRecovery,
   beginEnrollment,
   confirmEnrollment,
   reissueRecoveryCodes,
-  type EnrollmentCrypto,
+  type MfaCrypto,
   type EnrollmentDependencies,
   type EnrollmentPorts,
 } from "@openlife/core/identity";
 import type { Context, Hono } from "hono";
-import { bodyLimit } from "hono/body-limit";
-import type { z } from "zod";
 import type { SessionCookies } from "../../adapters/auth/session-cookie.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
-import { apiErrorResponse } from "../api-errors.js";
 import type { AppEnv } from "../app-env.js";
-import { requireSameOrigin } from "../middleware/same-origin.js";
-import { readSessionToken, setSessionCookie } from "../session-cookie-http.js";
-
-/** An enrollment request is a few short fields; more is refused before it is read. */
-const BODY_MAX_BYTES = 1024;
+import { createMfaOperationKit } from "../mfa-operation.js";
+import { setSessionCookie } from "../session-cookie-http.js";
 
 export type MfaEnrollmentRouteDependencies = Readonly<{
   unit: UnitOfWork<EnrollmentPorts> & ReadUnit<EnrollmentPorts>;
-  crypto: EnrollmentCrypto;
+  crypto: MfaCrypto;
   cookies: SessionCookies;
   allowedOrigin: string;
   secureCookies: boolean;
@@ -52,13 +45,6 @@ export type MfaEnrollmentRouteDependencies = Readonly<{
   logger: TechnicalLogger;
 }>;
 
-const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 409>>> = {
-  AUTH_REQUIRED: 401,
-  MFA_INVALID_CODE: 401,
-  ENROLLMENT_CHANGED: 409,
-  RECOVERY_BATCH_CHANGED: 409,
-};
-
 export function registerMfaEnrollmentRoutes(app: Hono<AppEnv>, deps: MfaEnrollmentRouteDependencies): void {
   const enrollment: EnrollmentDependencies = {
     unit: deps.unit,
@@ -68,35 +54,7 @@ export function registerMfaEnrollmentRoutes(app: Hono<AppEnv>, deps: MfaEnrollme
     newSessionId: deps.newId,
     newSessionToken: deps.newSessionToken,
   };
-  const guard = [
-    requireSameOrigin(deps.allowedOrigin),
-    bodyLimit({ maxSize: BODY_MAX_BYTES, onError: (c: Context<AppEnv>) => apiErrorResponse(c, 422, "VALIDATION_FAILED") }),
-  ] as const;
-
-  /** Common frame: no-store, a valid body, a verified session cookie, and errors that are not answers. */
-  const operation = <S extends z.ZodType>(schema: S, run: (c: Context<AppEnv>, token: string, body: z.infer<S>) => Promise<Response>) =>
-    async (c: Context<AppEnv>): Promise<Response> => {
-      c.header("Cache-Control", "no-store");
-      const body = schema.safeParse(await c.req.json().catch(() => undefined));
-      if (!body.success) {
-        return apiErrorResponse(c, 422, "VALIDATION_FAILED");
-      }
-      const token = await readSessionToken(c, deps.cookies);
-      if (token === null) {
-        return apiErrorResponse(c, 401, "AUTH_REQUIRED");
-      }
-      try {
-        return await run(c, token, body.data);
-      } catch (error) {
-        deps.logger.log({ level: "error", event: "mfa.unavailable", requestId: c.get("requestId"), code: "AUTH_UNAVAILABLE", error });
-        return apiErrorResponse(c, 503, "AUTH_UNAVAILABLE");
-      }
-    };
-
-  const refused = (c: Context<AppEnv>, code: string): Response => {
-    const known = code as ApiErrorCode;
-    return apiErrorResponse(c, STATUS[known] ?? 409, known);
-  };
+  const { guard, operation, refused } = createMfaOperationKit({ allowedOrigin: deps.allowedOrigin, cookies: deps.cookies, logger: deps.logger });
 
   const issued = async (
     c: Context<AppEnv>,

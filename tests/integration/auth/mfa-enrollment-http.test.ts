@@ -13,104 +13,28 @@ import path from "node:path";
 import { apiErrorSchema } from "@openlife/contracts/http/errors";
 import { identityStatusSchema } from "@openlife/contracts/http/identity";
 import { enrollmentChallengeSchema, issuedRecoveryCodesSchema } from "@openlife/contracts/http/mfa";
-import { createOTP } from "@better-auth/utils/otp";
 import { afterEach, describe, expect, it } from "vitest";
 import { authCookiePrefix } from "../../../apps/server/dist/adapters/auth/auth-options.js";
 import { openDatabase } from "../../../packages/sqlite/dist/connection/open-database.js";
-import { repoRoot, runBuiltScript, startBuiltServer, startedInstallation, waitForExit, type ServerProcess } from "../../support/server-process.ts";
-import type { TestInstance } from "../../support/test-instance.ts";
+import {
+  ack,
+  begin,
+  codeOf,
+  confirm,
+  count,
+  enrolled,
+  installation,
+  mfaState,
+  post,
+  query,
+  reissue,
+  secretOf,
+  signIn,
+  status,
+  stopServers,
+} from "../../support/auth-http.ts";
 
-const CREATE_OWNER = path.join(repoRoot, "apps/server/dist/cli/create-owner.js");
-const EMAIL = "owner@example.test";
-const PASSWORD = "a passphrase for the enrollment";
-const ORIGIN = "http://localhost:8080";
-
-const running: ServerProcess[] = [];
-afterEach(async () => {
-  for (const server of running.splice(0)) {
-    if (server.child.exitCode === null) {
-      server.child.kill("SIGTERM");
-      await waitForExit(server.child, server.output, 15_000);
-    }
-  }
-});
-
-type Installation = Readonly<{ instance: TestInstance; server: ServerProcess }>;
-
-async function installation(): Promise<Installation> {
-  const instance = await startedInstallation();
-  const created = await runBuiltScript(CREATE_OWNER, ["--installation", instance.dir], { PATH: process.env["PATH"] ?? "", ...instance.env }, JSON.stringify({ email: EMAIL, password: PASSWORD }));
-  expect(created.code, created.output).toBe(0);
-  const server = await startBuiltServer({ installation: { dir: instance.dir, env: instance.env } });
-  running.push(server);
-  return { instance, server };
-}
-
-type Reply = Readonly<{ status: number; headers: Headers; text: string; json: () => unknown; cookie: string | null }>;
-
-async function post(server: ServerProcess, route: string, body: unknown, init: { cookie?: string | null; origin?: string | null } = {}): Promise<Reply> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const origin = init.origin === undefined ? ORIGIN : init.origin;
-  if (origin !== null) headers["Origin"] = origin;
-  if (init.cookie) headers["Cookie"] = init.cookie;
-  const response = await fetch(`${server.baseUrl}${route}`, { method: "POST", headers, body: typeof body === "string" ? body : JSON.stringify(body) });
-  const text = await response.text();
-  return { status: response.status, headers: response.headers, text, json: () => JSON.parse(text) as unknown, cookie: response.headers.getSetCookie()[0]?.split(";")[0] ?? null };
-}
-
-const signIn = (server: ServerProcess) => post(server, "/api/auth/sign-in/email", { email: EMAIL, password: PASSWORD });
-const begin = (server: ServerProcess, cookie: string | null) => post(server, "/api/v1/mfa/enrollment/begin", {}, { cookie });
-const confirm = (server: ServerProcess, cookie: string | null, challengeId: string, code: string) => post(server, "/api/v1/mfa/enrollment/confirm", { challengeId, code }, { cookie });
-const reissue = (server: ServerProcess, cookie: string | null, code: string) => post(server, "/api/v1/mfa/enrollment/recovery/reissue", { code }, { cookie });
-const ack = (server: ServerProcess, cookie: string | null, batchId: string) => post(server, "/api/v1/mfa/enrollment/recovery/ack", { batchId }, { cookie });
-async function status(server: ServerProcess, cookie: string | null) {
-  const response = await fetch(`${server.baseUrl}/api/v1/identity/status`, { headers: cookie ? { Cookie: cookie } : {} });
-  return identityStatusSchema.parse(await response.json());
-}
-
-const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-/** The secret bytes of an otpauth URI, the way an authenticator app reads them. */
-function secretOf(otpauthUri: string): Buffer {
-  const encoded = new URL(otpauthUri).searchParams.get("secret") ?? "";
-  let bits = 0;
-  let value = 0;
-  const bytes: number[] = [];
-  for (const char of encoded.replace(/=+$/, "")) {
-    value = (value << 5) | BASE32.indexOf(char);
-    bits += 5;
-    if (bits >= 8) {
-      bits -= 8;
-      bytes.push((value >>> bits) & 0xff);
-    }
-  }
-  return Buffer.from(bytes);
-}
-const codeOf = (secret: Buffer, stepOffset = 0): Promise<string> => createOTP(secret, { digits: 6, period: 30 }).hotp(Math.floor(Date.now() / 30_000) + stepOffset);
-
-function query<T>(instance: TestInstance, sql: string): T[] {
-  const reader = openDatabase(path.join(instance.dir, "data", "app.db"), { role: "reader", busyTimeoutMs: 5000 });
-  try {
-    return reader.handle.prepare(sql).all() as T[];
-  } finally {
-    reader.close();
-  }
-}
-const mfaState = (instance: TestInstance) =>
-  query<{ enrollment_state: string; secret_generation: number; active_secret: string | null; pending_challenge_id: string | null; recovery_batch_id: string | null }>(
-    instance,
-    "SELECT enrollment_state, secret_generation, active_secret, pending_challenge_id, recovery_batch_id FROM mfa_state",
-  )[0];
-const count = (instance: TestInstance, table: string): number => query<{ n: number }>(instance, `SELECT count(*) AS n FROM "${table}"`)[0]?.n ?? -1;
-
-/** Password session → begin → confirm: the common start. */
-async function enrolled(setup: Installation) {
-  const login = await signIn(setup.server);
-  const passwordCookie = login.cookie ?? "";
-  const challenge = enrollmentChallengeSchema.parse((await begin(setup.server, passwordCookie)).json());
-  const secret = secretOf(challenge.otpauthUri);
-  const confirmed = await confirm(setup.server, passwordCookie, challenge.challengeId, await codeOf(secret));
-  return { passwordCookie, challenge, secret, confirmed, codes: confirmed.status === 200 ? issuedRecoveryCodesSchema.parse(confirmed.json()) : null };
-}
+afterEach(stopServers);
 
 describe("D11.1-AC1 begin → confirm → acknowledge", () => {
   it("runs end to end: the data stay closed until the acknowledgment, the session is promoted, the codes are shown once", async () => {

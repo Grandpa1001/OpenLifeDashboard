@@ -77,6 +77,8 @@ export type NewSession = Readonly<{
   /** Set only by a verified TOTP (a recovery code or trust never produces it). */
   totpVerifiedAtMs: number | null;
   accessEpoch: number;
+  /** The trusted device that granted a `trusted` session; null for every other assurance. */
+  trustedDeviceId: string | null;
 }>;
 
 /** What the database says about a live session; the cookie only points to it. */
@@ -160,6 +162,20 @@ export interface RecoveryCodeStore {
    * current one (or another session was shown it), "not_awaited" if nothing is awaited.
    */
   acknowledge(request: Readonly<{ batchId: string; sessionId: string }>): "acknowledged" | "batch_changed" | "not_awaited";
+  /**
+   * Compare-and-set: marks the code with this hash as used, if it is in the current batch and
+   * unused. Of parallel requests with one code exactly one gets the result, the others null.
+   */
+  consume(request: Readonly<{ hash: string; nowMs: number }>): Readonly<{ remaining: number }> | null;
+}
+
+/** Trusted devices (Architektura §9.3): a long-lived token whose hash is stored, expiring 30 days after creation. */
+export interface TrustedDeviceStore {
+  create(device: Readonly<{ deviceId: string; tokenHash: string; createdAtMs: number; expiresAtMs: number }>): void;
+  /** The device of this token hash if it is not revoked and has not expired. Writes nothing. */
+  findValid(tokenHash: string, nowMs: number): Readonly<{ deviceId: string }> | null;
+  /** Revokes every device (password reset, MFA reset); returns how many were still valid. */
+  revokeAll(nowMs: number): number;
 }
 
 /**
@@ -167,7 +183,7 @@ export interface RecoveryCodeStore {
  * and the code generator. The server implements it with the secret box, the pinned OTP library
  * and Node's random source; core stays free of all three.
  */
-export interface EnrollmentCrypto {
+export interface MfaCrypto {
   generateSecret(): string;
   /** The `otpauth://` URI for the authenticator app, and the key as the app shows it for typing. */
   describeSecret(secret: string, account: string): Readonly<{ otpauthUri: string; manualKey: string }>;
@@ -177,6 +193,11 @@ export interface EnrollmentCrypto {
   verify(secret: string, code: string, nowMs: number): Promise<number | null>;
   /** A fresh set of recovery codes: the plain codes to show once, and their hashes to store. */
   newRecoveryCodes(): Readonly<{ codes: readonly string[]; hashes: readonly string[] }>;
+  /** The stored form of a typed recovery code in any accepted spelling; null if it cannot be one. */
+  hashRecoveryCode(typed: string): string | null;
+  /** A new device token, and the hash that is stored for it. */
+  newTrustedDeviceToken(): string;
+  hashTrustedDeviceToken(token: string): string;
 }
 
 /**
@@ -205,6 +226,8 @@ export type SignInPorts = Readonly<{
   credentialReader: CredentialReader;
   sessions: SessionStore;
   owners: Pick<OwnerSingletonWriter, "hasOwner" | "currentAccessEpoch">;
+  mfa: Pick<MfaStore, "read">;
+  trusted: Pick<TrustedDeviceStore, "findValid">;
   access: IdentityAccessReader;
   audit: AppendAudit;
 }>;
@@ -213,5 +236,9 @@ export type ResetPasswordPorts = Readonly<{
   owners: OwnerSingletonWriter;
   credentials: CredentialWriter;
   sessions: Pick<SessionStore, "deleteAllOfOwner">;
+  trusted: Pick<TrustedDeviceStore, "revokeAll">;
   audit: AppendAudit;
 }>;
+
+/** The ports of proving the second factor: a TOTP or a recovery code at login, and the step-up. */
+export type VerificationPorts = EnrollmentPorts & Readonly<{ trusted: Pick<TrustedDeviceStore, "create"> }>;

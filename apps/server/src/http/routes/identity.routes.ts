@@ -8,7 +8,7 @@ import { readIdentityStatus, signInWithPassword, signOut, type PasswordVerifier,
 import type { Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { AttemptKeys } from "../../adapters/auth/attempt-keys.js";
-import type { SessionCookies } from "../../adapters/auth/session-cookie.js";
+import type { SessionCookies, SignedCookie } from "../../adapters/auth/session-cookie.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
 import { apiErrorResponse } from "../api-errors.js";
 import type { AppEnv } from "../app-env.js";
@@ -22,6 +22,8 @@ export type IdentityRouteDependencies = Readonly<{
   verifier: PasswordVerifier;
   decoyHash: string;
   cookies: SessionCookies;
+  /** The trusted-device cookie and the hash under which a token is stored (D11.2). */
+  trustedDevice: Readonly<{ cookies: SignedCookie; hash: (token: string) => string }>;
   keys: AttemptKeys;
   /** Origin of BASE_URL: the only Origin a browser mutation may carry. */
   allowedOrigin: string;
@@ -60,6 +62,7 @@ export function registerIdentityRoutes(app: Hono<AppEnv>, deps: IdentityRouteDep
       const email = normalizeOwnerEmail(body.data.email);
       const ip = deps.clientIp(c);
       const userAgent = c.req.header("User-Agent")?.slice(0, USER_AGENT_MAX_LENGTH) ?? null;
+      const trustedToken = await readSessionToken(c, deps.trustedDevice.cookies);
       try {
         const outcome = await signInWithPassword(
           {
@@ -70,7 +73,7 @@ export function registerIdentityRoutes(app: Hono<AppEnv>, deps: IdentityRouteDep
             newSessionId: deps.newId,
             newSessionToken: deps.newSessionToken,
           },
-          { email, password: body.data.password, accountKey: deps.keys.account(email), ipKey: deps.keys.ip(ip), ip, userAgent, requestId: c.get("requestId") },
+          { email, password: body.data.password, accountKey: deps.keys.account(email), ipKey: deps.keys.ip(ip), ip, userAgent, requestId: c.get("requestId"), trustedTokenHash: trustedToken === null ? null : deps.trustedDevice.hash(trustedToken) },
         );
         if (outcome.kind === "locked") {
           c.header("Retry-After", String(outcome.retryAfterSeconds));

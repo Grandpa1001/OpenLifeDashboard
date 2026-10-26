@@ -1316,6 +1316,31 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D11.2",
+    ready: true,
+    title: "Second factor at login: TOTP, recovery code, trusted device, step-up; rotation and the durable replay ledger",
+    criteria: ["D11.2-AC1", "D11.2-AC2", "D11.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and adapters.
+        id: "workspace-build",
+        criteria: ["D11.2-AC1", "D11.2-AC2"],
+        description: "pnpm -r build: the proof use cases, the trusted device store, migration 8 and the verify and step-up routes",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/identity/application/verify-mfa.ts", "apps/server/src/http/routes/mfa-verification.routes.ts"],
+      },
+      {
+        id: "mfa-verify-http",
+        criteria: ["D11.2-AC1", "D11.2-AC2"],
+        description:
+          "Real server and CLI-created owner: TOTP and recovery code at login with rotation, F09 parallel-totp-use and parallel-recovery-use, a recovery code lowers the rest by one and gives no TOTP time or trust, trusted device by hash with fixed expiry and revocation, step-up with a fresh TOTP, used step and code refused also after a restart, failing audit spends no factor and publishes nothing, password reset revokes devices, no plain codes or tokens in database or logs",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/mfa-verify-http.test.ts"],
+        requires: ["tests/integration/auth/mfa-verify-http.test.ts", "tests/support/auth-http.ts", "packages/sqlite/src/adapters/identity/trusted-device-store.ts"],
+      },
+      ...regressionChecks("D11.2-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,
