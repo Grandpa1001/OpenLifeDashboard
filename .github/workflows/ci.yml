@@ -62,15 +62,12 @@ jobs:
       - name: Verify D11 (D11.1–D11.4, second factor, lockouts, first setup)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D11
-      - name: Verify D12.1 (sign-in and second-factor screens in a real browser)
+      - name: Verify D12 (D12.1–D12.3, sign-in, enrollment and first setup in a real browser)
         if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D12.1
-      - name: Verify D12.2 (enrollment of the second factor in a real browser)
+        run: pnpm verify:task -- D12
+      - name: Verify D13.1 (route inventory and request authority on raw HTTP)
         if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D12.2
-      - name: Verify D12.3 (minimal setup and sign-out across tabs in a real browser)
-        if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D12.3
+        run: pnpm verify:task -- D13.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

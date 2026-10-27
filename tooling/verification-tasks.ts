@@ -1420,6 +1420,15 @@ const definedLater: readonly TaskDefinition[] = [
     criteria: [],
     checks: [],
   },
+  // The parent passes only through its work orders: the sign-in, the enrollment and the first setup in a browser.
+  {
+    id: "D12",
+    ready: true,
+    title: "Sign-in, second factor and minimal setup in the browser",
+    steps: ["D12.1", "D12.2", "D12.3"],
+    criteria: [],
+    checks: [],
+  },
   {
     id: "D12.1",
     ready: true,
@@ -1538,6 +1547,32 @@ const definedLater: readonly TaskDefinition[] = [
         timeoutMs: 15 * 60 * 1000,
       },
       ...regressionChecks("D12.3-regression"),
+    ],
+  },
+  {
+    id: "D13.1",
+    ready: true,
+    title: "Inventory of the real routes, Origin, privileged fields and undocumented auth helpers on raw HTTP",
+    criteria: ["D13.1-AC1", "D13.1-AC2", "D13.1-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests start the built server.
+        id: "workspace-build",
+        criteria: ["D13.1-AC1", "D13.1-AC2"],
+        description: "pnpm -r build produces the server the raw HTTP tests start",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/routes/setup.routes.ts", "tests/support/route-inventory.ts"],
+      },
+      {
+        id: "route-inventory",
+        criteria: ["D13.1-AC1", "D13.1-AC2"],
+        description:
+          "Registered routes equal the inventory; every state (none, password only, awaiting the acknowledgment, data unchosen, empty chosen, complete, a new password session) meets the contract on the same GET/PUT preferences with a positive control; foreign, missing and null Origin, privileged fields, foreign owner/session identifiers and undocumented auth helpers change nothing; audit and answers carry no authentication material",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/route-inventory.test.ts"],
+        requires: ["tests/integration/auth/route-inventory.test.ts", "tests/support/route-inventory.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D13.1-regression"),
     ],
   },
   {
