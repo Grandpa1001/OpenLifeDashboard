@@ -127,6 +127,8 @@ G0 does not cover sign-in, the usable owner setup or the Windows/Safari release 
 
 `verify:task` reads `tooling/verification-tasks.ts` and records each check as passed, failed, blocked (missing file, tool or precondition) or not_run. Tasks without defined checks are reported as blocked. CI (`.github/workflows/ci.yml`) runs the same command for every task the map can verify (a check of the workflow fails when one is missing); D00 needs the local specification and stays local.
 
+CI has two tiers. Every push and pull request runs the fast tier: the checks of the code that changes from step to step (D01, D09–D14 with real SQLite and raw HTTP, and the built app in a browser, D12), in two parallel jobs. The full tier adds Docker, Compose, the images on both architectures and the gates G0 and D13 (the handover), and runs every night, by hand (workflow_dispatch), when a commit message contains `[full]` (use it before a gate or a release), and when a commit touches what those checks are about (`docker/`, the bootstrap, the migrations and the connection, the workflow, the verification map, the lockfile). A gate is never decided on a partial set of reports. A push to `main` is never cancelled by a newer one; only a pull request replaces its older run.
+
 Workspace packages import each other only by package name through `exports`. Every export maps three conditions: `@openlife/source` (TypeScript source, used by the boundary checks), `types` and `default` (build output).
 
 Workspace layout:

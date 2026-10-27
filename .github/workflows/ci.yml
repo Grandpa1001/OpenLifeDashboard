@@ -1,20 +1,170 @@
 name: CI
 
+# Two tiers (DEV §8). Every push and pull request runs the fast tier: the checks of the code that
+# changes from step to step (lint, types, architecture, unit and integration on real SQLite, the
+# browser tests of the built app). The full tier adds what is slow and rarely affected — Docker,
+# Compose, the images on both architectures, the G0 and handover gates — and runs
+#   - every night,
+#   - by hand (workflow_dispatch),
+#   - when a commit message contains [full] (before a gate, before a release),
+#   - when the commit touches what the slow checks are about (docker/, the bootstrap, the
+#     migrations and the connection, the workflow, the verification map, the lockfile).
+# The gates read the reports of the full tier only; a gate is never decided on a partial set.
+
 on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer push to a pull request replaces the older run; a push to main is never cancelled, so
+  # every commit gets its own result.
+  group: ci-${{ github.event_name }}-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  verify:
-    name: verify:task
+  changes:
+    name: which tier
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      full: ${{ steps.decide.outputs.full }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Decide whether the full tier runs
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          full=false
+          reason="nothing slow was touched"
+          if [ "$EVENT" = schedule ] || [ "$EVENT" = workflow_dispatch ]; then
+            full=true
+            reason="$EVENT"
+          elif printf '%s' "$COMMIT_MESSAGE" | grep -qi '\[full\]'; then
+            full=true
+            reason="[full] in the commit message"
+          else
+            base="$BASE_SHA"
+            if [ "$EVENT" = push ]; then base="$BEFORE"; fi
+            if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+              full=true
+              reason="no base commit to compare with"
+            else
+              changed=$(git diff --name-only "$base" "$GITHUB_SHA")
+              pattern='^(docker/|\.github/|scripts/|tooling/verification-tasks\.ts|apps/server/src/bootstrap/|apps/server/src/adapters/(filesystem|logging)/|packages/sqlite/src/(migrations|connection|snapshots)/|pnpm-lock\.yaml|pnpm-workspace\.yaml|package\.json|\.node-version)'
+              if printf '%s\n' "$changed" | grep -Eq "$pattern"; then
+                full=true
+                reason="a file of the slow checks changed"
+              fi
+            fi
+          fi
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+          echo "Full tier: $full ($reason)"
+
+  fast-core:
+    name: fast tier (code, SQLite, HTTP)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Verify D01
+        run: pnpm verify:task -- D01
+      # Each task's report is evidence of its own: a failing step must not hide the later ones.
+      - name: Verify D09 (D09.1–D09.4, auth adapter, owner, sign-in, reset and cookies)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D09
+      - name: Verify D10 (D10.1–D10.3, second-factor mechanism, access policy, atomic adapters)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D10
+      - name: Verify D11 (D11.1–D11.4, second factor, lockouts, first setup)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D11
+      - name: Verify D13.1 (route inventory and request authority on raw HTTP)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D13.1
+      - name: Verify D13.2 (request authority at the commit, atomic audit failure)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D13.2
+      - name: Verify D14.1 (rules of the registry catalog)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D14.1
+      - name: Verify D14.2 (catalog and tables of registries on real SQLite)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D14.2
+      - name: Verify D14.3 (creating and listing registries over HTTP)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D14.3
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-fast-core
+          path: .artifacts/
+          # The report directory is a dot-directory, which upload-artifact skips by default.
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+
+  fast-browser:
+    name: fast tier (the built app in a browser)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Cache the Playwright browser
+        id: browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install the Playwright browser
+        if: steps.browser.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install the system libraries of the cached browser
+        if: steps.browser.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+      - name: Verify D12 (D12.1–D12.3, sign-in, enrollment and first setup in a real browser)
+        run: pnpm verify:task -- D12
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-fast-browser
+          path: .artifacts/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+
+  full:
+    name: verify:task (full tier)
+    needs: changes
+    if: ${{ needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -47,9 +197,18 @@ jobs:
       - name: Verify D07 (D07.1–D07.3, Compose local mode, persistence and isolation, Docker on the runner)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D07
+      - name: Cache the Playwright browser
+        id: browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
         run: pnpm exec playwright install --with-deps chromium
+      - name: Install the system libraries of the cached browser
+        if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
+        run: pnpm exec playwright install-deps chromium
       - name: Verify D08 (D08.1–D08.3, CI checks, theme and texts, the G0 image in a browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D08
@@ -95,7 +254,6 @@ jobs:
         with:
           name: verification-reports
           path: .artifacts/
-          # The report directory is a dot-directory, which upload-artifact skips by default.
           include-hidden-files: true
           retention-days: 14
           if-no-files-found: error
@@ -103,7 +261,7 @@ jobs:
   image:
     # D02.2/D02.3 must run natively on each architecture; emulation is not accepted as evidence.
     name: verify:task D02.2-D02.3 (linux/${{ matrix.arch }})
-    needs: verify
+    needs: full
     strategy:
       fail-fast: false
       matrix:
@@ -140,11 +298,12 @@ jobs:
           if-no-files-found: error
 
   g0:
-    # Gate G0 (DEV §8.4): joins the reports of the verify job and of both image architectures for
-    # this commit; it runs even when one of them failed, so the gate reports what is missing.
+    # Gate G0 (DEV §8.4): joins the reports of the full job and of both image architectures for
+    # this commit; it runs even when one of them failed, so the gate reports what is missing. It
+    # never runs on a partial set: when the full tier is skipped, so is the gate.
     name: verify:task G0 (KM0 reports + amd64/arm64)
-    needs: [verify, image]
-    if: ${{ !cancelled() }}
+    needs: [full, image]
+    if: ${{ !cancelled() && needs.full.result != 'skipped' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
