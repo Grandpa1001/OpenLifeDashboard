@@ -77,7 +77,7 @@ test.describe("the first setup from an empty installation", () => {
     await expect(page).toHaveURL(`${owner.baseUrl}/main`);
   });
 
-  test("a restart resumes the stage: no second enrollment, the choice and the preferences are kept", async ({ page, ownerServer }) => {
+  test("F09 minimal-setup-resumes-after-restart: a restart resumes the stage: no second enrollment, the choice and the preferences are kept", async ({ page, ownerServer }) => {
     const owner = await ownerServer("password_only");
     await signIn(page, owner);
     const key = (await page.locator(".manual-key").innerText()).replaceAll(/\s/g, "");
@@ -150,7 +150,7 @@ test.describe("the first setup from an empty installation", () => {
 });
 
 test.describe("signing out", () => {
-  test("ends the session in the other tabs at once, empties their private state and kills the old cookie", async ({ page, context, ownerServer, playwright }) => {
+  test("F09 logout-clears-browser-private-cache: ends the session in the other tabs at once, empties their private state and kills the old cookie", async ({ page, context, ownerServer, playwright }) => {
     const owner = await ownerServer("ready");
     await signIn(page, owner);
     await page.getByLabel(text(auth, "mfa.codeLabel")).fill(await owner.code(1));

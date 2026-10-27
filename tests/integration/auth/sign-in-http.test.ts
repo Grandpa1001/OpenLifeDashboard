@@ -160,7 +160,7 @@ describe("D09.3-AC1 sign-in, status and sign-out", () => {
     expect(query(instance, `SELECT request_id FROM audit_log WHERE action = 'login.failed' AND request_id = '${apiErrorSchema.parse(wrong.json()).requestId}'`)).toHaveLength(1);
   });
 
-  it("the fifth failure answers 429 AUTH_LOCKED with Retry-After; the lock holds for the correct password, a spoofed X-Forwarded-For and a restart", async () => {
+  it("F09 password-lockout-survives-restart: the fifth failure answers 429 AUTH_LOCKED with Retry-After; the lock holds for the correct password, a spoofed X-Forwarded-For and a restart", async () => {
     const instance = await ownerInstallation();
     let server = await serve(instance);
     const spoof = (index: number) => ({ "X-Forwarded-For": `198.51.100.${index}` });

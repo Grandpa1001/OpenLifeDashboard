@@ -62,7 +62,7 @@ describe("D13.2-AC1 a request is decided where it commits", () => {
     expect(settings(h)).toBe(1);
   });
 
-  it("a sign-out of the same session between the middleware and the commit: 401, the preferences are not written", async () => {
+  it("F09 logout-before-protected-commit: a sign-out of the same session between the middleware and the commit: 401, the preferences are not written", async () => {
     const h = await createAppHarness();
     const owner = await ready(h);
     h.interruptNextWrite(() => endAllSessions(h));

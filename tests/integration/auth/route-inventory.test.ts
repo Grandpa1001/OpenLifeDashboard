@@ -125,7 +125,7 @@ describe("D13.1-AC2 what a request may not decide", () => {
     return session;
   }
 
-  it("a foreign, a missing or a null Origin refuses every mutation and changes nothing, a session past the gate included", async () => {
+  it("F09 foreign-origin-write-rejected: a foreign, a missing or a null Origin refuses every mutation and changes nothing, a session past the gate included", async () => {
     const setup = await installation();
     const session = await readyOwner(setup);
     const before = snapshot(setup);
@@ -143,7 +143,7 @@ describe("D13.1-AC2 what a request may not decide", () => {
     expect(snapshot(setup)).not.toBe(before);
   });
 
-  it("privileged fields are refused by the strict contracts and change neither the data nor the permission", async () => {
+  it("F09 client-cannot-forge-assurance: privileged fields are refused by the strict contracts and change neither the data nor the permission", async () => {
     const setup = await installation();
     const { server } = setup;
     const first = await enrolled(setup);

@@ -49,14 +49,16 @@ async function reissueWith(page: Page, code: string): Promise<void> {
 const readable = (page: Page): Promise<string> =>
   page.evaluate<string>("JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage }, cookie: document.cookie, url: location.href })");
 
-async function enrolOnPage(page: Page, owner: { baseUrl: string; email: string; password: string }): Promise<{ secret: Buffer; codes: string[]; keyShown: string }> {
+async function enrolOnPage(page: Page, owner: { baseUrl: string; email: string; password: string }): Promise<{ secret: Buffer; codes: string[]; keyShown: string; confirmCode: string }> {
   await signIn(page, owner.baseUrl, owner.email, owner.password);
   await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
   const keyShown = (await page.locator(".manual-key").innerText()).trim();
   const secret = await secretShown(page);
-  await confirmWith(page, await codeOf(secret));
+  // The code that confirmed the enrollment, kept: its time step is spent whatever the clock says later.
+  const confirmCode = await codeOf(secret);
+  await confirmWith(page, confirmCode);
   await expect(page.getByRole("heading", { level: 2 })).toHaveText(text(setup, "recovery.heading"));
-  return { secret, codes: await recoveryCodesOf(page), keyShown };
+  return { secret, codes: await recoveryCodesOf(page), keyShown, confirmCode };
 }
 
 test.describe("the authenticator step", () => {
@@ -168,7 +170,7 @@ test.describe("the recovery codes", () => {
     await expectNoViolations(page);
 
     // The step that confirmed the enrollment is spent: the app's next code is needed, and the step stays.
-    await reissueWith(page, await codeOf(first.secret));
+    await reissueWith(page, first.confirmCode);
     await expect(page.getByRole("alert")).toContainText(text(errors, "MFA_INVALID_CODE"));
     await expect(page.getByRole("heading", { level: 2 })).toHaveText(text(setup, "recovery.lostHeading"));
 

@@ -71,6 +71,12 @@ jobs:
       - name: Verify D13.2 (request authority at the commit, atomic audit failure)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D13.2
+      - name: Verify D13.3 (handover of the auth and setup work, joins the reports above)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D13.3
+      - name: Verify D13 (the parent, D13.1–D13.3 together, closes the auth and setup work)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D13
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

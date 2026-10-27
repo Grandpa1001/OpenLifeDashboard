@@ -1602,6 +1602,40 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D13.3",
+    ready: true,
+    title: "Handover of the auth and setup work: the reports of D09–D13 joined, item by item",
+    criteria: ["D13.3-AC1", "D13.3-AC2", "D13.3-regression"],
+    checks: [
+      {
+        id: "handover-controls",
+        criteria: ["D13.3-AC2"],
+        description:
+          "The handover on synthetic reports: a complete set passes; a failed or renamed flow test, a missing replay or Origin test, a failed check, a flow of the fixture without evidence, a flow no longer in the fixture and a wrong number of policy cases fail; a missing report or one of other code is blocked",
+        command: ["node", "tests/verification/auth-handover-controls.ts"],
+        requires: ["tests/verification/auth-handover-controls.ts", "tests/verification/auth-handover.ts", "tests/verification/auth-handover-matrix.ts"],
+      },
+      {
+        id: "handover",
+        criteria: ["D13.3-AC1", "D13.3-AC2"],
+        description:
+          "Joins the reports of D09, D10, D11, D12, D13.1 and D13.2 for exactly this code and decides every F09 flow (read from the fixture), the 31 policy cases and the mandatory items (rotation, replay, Origin, acknowledgment, no way around the auth, atomic audit, no secrets, the browser flow) from the logs; lists the adapter versions, the hashes and what was not run (SSE/export, import, Designer, security panel, other browsers, the container image). It runs no test: run the steps first",
+        command: ["node", "tests/verification/auth-handover.ts"],
+        requires: ["tests/verification/auth-handover.ts", "tests/verification/auth-handover-matrix.ts", "tests/verification/report-join.ts", "tests/fixtures/cases/auth-v1.cases.json"],
+      },
+      ...regressionChecks("D13.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the routes, the commit-time authority and the handover.
+  {
+    id: "D13",
+    ready: true,
+    title: "Review of the routes, policies and audit of the auth work, and its handover",
+    steps: ["D13.1", "D13.2", "D13.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,
