@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -1720,6 +1720,31 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D14.1", "D14.2", "D14.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D15.1",
+    ready: true,
+    title: "Rules of one record: canonical values, required, defaults, unknown and system fields, limits, canonical request",
+    criteria: ["D15.1-AC1", "D15.1-AC2", "D15.1-regression"],
+    checks: [
+      {
+        // Runs first: the unit tests import the built core.
+        id: "workspace-build",
+        criteria: ["D15.1-AC1", "D15.1-AC2"],
+        description: "pnpm -r build produces core with the record rules and the ports of the records",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/registries/domain/record-rules.ts", "packages/core/src/modules/registries/ports.ts"],
+      },
+      {
+        id: "record-rules",
+        criteria: ["D15.1-AC1", "D15.1-AC2"],
+        description:
+          "The eight cases of record-validation.cases.json on the schema of F01 and every record of F01; defaults, explicit null; every type with good and bad values; required white space; text limit in code points and record limit in UTF-8 bytes on their edge; all problems at once with their paths; __proto__ and non-objects; the canonical text of a request; what a list may be sorted by; the rules read nothing from outside",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/registries"],
+        requires: ["tests/unit/registries/record-rules.test.ts", "tests/fixtures/cases/record-validation.cases.json", "tests/fixtures/books/books-v1.export.json"],
+      },
+      ...regressionChecks("D15.1-regression"),
+    ],
   },
   {
     // The parent passes only through its work orders, each with its real Compose run.

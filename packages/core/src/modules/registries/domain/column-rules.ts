@@ -53,14 +53,21 @@ function decimalsOk(value: number, places: number): boolean {
   return Math.abs(value * 10 ** places - scaled) < 1e-6 * Math.max(1, Math.abs(scaled));
 }
 
-/** Whether `value` may be the default of a column of `type`: null always, otherwise the shape of the type. */
-export function isValidDefault(type: ColumnType, options: ColumnTypeOptions, value: unknown, textMaxChars: number): value is CellValue {
+const codePoints = (text: string): number => Array.from(text).length;
+
+/**
+ * Whether `value` is a well-formed value of a column of `type` in the canonical form of the API
+ * (money in units × 100, dates as `YYYY-MM-DD`, date-times as ISO 8601 UTC, times as `HH:MM`). Null
+ * is always well-formed here; whether it is allowed is the column's `required`. Text and choice are
+ * limited in code points. The same rule serves the default of a column and the value of a record.
+ */
+export function isValidCellValue(type: ColumnType, options: ColumnTypeOptions, value: unknown, textMaxCodePoints: number): value is CellValue {
   if (value === null) return true;
   switch (type) {
     case "text":
-      return typeof value === "string" && value.length <= textMaxChars;
+      return typeof value === "string" && codePoints(value) <= textMaxCodePoints;
     case "choice":
-      return typeof value === "string" && value.length > 0 && value.length <= textMaxChars;
+      return typeof value === "string" && value.length > 0 && codePoints(value) <= textMaxCodePoints;
     case "number":
       return typeof value === "number" && Number.isFinite(value) && decimalsOk(value, options.decimalPlaces ?? 0);
     case "money":
@@ -81,3 +88,6 @@ export function isValidDefault(type: ColumnType, options: ColumnTypeOptions, val
       return typeof value === "string" && TIME.test(value);
   }
 }
+
+/** Whether `value` may be the default of a column: the rule of a value of that column. */
+export const isValidDefault = isValidCellValue;
