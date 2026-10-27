@@ -108,6 +108,22 @@ describe("D06.3-AC1 an orderly stop", () => {
     expect(exit.output).not.toContain("stop_timeout");
   });
 
+  it("a connection that never sent a byte (a browser's socket opened ahead of need) does not hold the stop", async () => {
+    const server = await startBuiltServer({ installation: freshTestInstance() });
+    const port = Number(new URL(server.baseUrl).port);
+    const silent = net.connect(port, "127.0.0.1");
+    await new Promise<void>((resolve, reject) => silent.once("connect", resolve).once("error", reject));
+    const closed = new Promise<void>((resolve) => silent.once("close", () => resolve()));
+    // The server has accepted it (a request on another connection is answered after the accept).
+    expect((await fetch(`${server.baseUrl}/api/health`)).status).toBe(200);
+    const started = Date.now();
+    server.child.kill("SIGTERM");
+    const exit = await waitForExit(server.child, server.output, DEADLINE_MS);
+    expect(exit.code, exit.output).toBe(0);
+    expect(Date.now() - started).toBeLessThan(5_000);
+    await closed;
+  });
+
   it("the lease is given up last: when it becomes free the WAL is already gone and the database is intact", async () => {
     const instance = freshTestInstance();
     const server = await startBuiltServer({ installation: instance });

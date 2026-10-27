@@ -108,7 +108,10 @@ test.describe("the first setup from an empty installation", () => {
     await page.getByRole("button", { name: text(setup, "preferences.save") }).click();
     await expect(page).toHaveURL(`${owner.baseUrl}/main`);
 
-    // Restart 3: a new sign-in goes straight to the private screen in the saved language.
+    // Restart 3: a new sign-in goes straight to the private screen in the saved language. The
+    // page first settles (the guards re-ask after a save), so the restart does not cut a request.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(text(plCommon, "main.title"));
+    await page.waitForLoadState("networkidle");
     await owner.restart(() => execute(owner.instance, "UPDATE mfa_state SET last_used_step = last_used_step - 10"));
     await page.getByRole("button", { name: text(plCommon, "main.signOut") }).click();
     await page.getByRole("button", { name: text(locale("pl", "auth"), "language.en") }).click();

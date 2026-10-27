@@ -52,10 +52,14 @@ export const test = base.extend<{ server: RunningServer; ownerServer: (stage: Ow
     await stop();
   },
   // An installation with an owner at the requested stage of the setup, reachable by the browser at
-  // its own address; every one started here is stopped after the test.
-  // eslint-disable-next-line no-empty-pattern -- Playwright requires the destructuring form.
-  ownerServer: async ({}, use) => {
+  // its own address; every one started here is stopped after the test. The browser context is
+  // closed first: Chromium keeps speculative connections open that never send a request, and the
+  // server's orderly stop waits for a connection that has not finished its headers until its own
+  // deadline (§15.2). (The `server` fixture is below the context in the dependency order, so the
+  // context is already closed when it stops.)
+  ownerServer: async ({ context }, use) => {
     await use((stage) => browserOwner(stage));
+    await context.close();
     await stopServers();
   },
   baseURL: async ({ server }, use) => {
