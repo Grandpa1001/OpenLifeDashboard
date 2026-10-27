@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -1634,6 +1634,31 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D13.1", "D13.2", "D13.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D14.1",
+    ready: true,
+    title: "Rules of the registry catalog: symbols and their suggestion, column types, options, defaults, limits",
+    criteria: ["D14.1-AC1", "D14.1-AC2", "D14.1-regression"],
+    checks: [
+      {
+        // Runs first: the unit tests import the built core.
+        id: "workspace-build",
+        criteria: ["D14.1-AC1", "D14.1-AC2"],
+        description: "pnpm -r build produces core with the registries module",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/registries/public.ts", "packages/core/package.json"],
+      },
+      {
+        id: "registry-rules",
+        criteria: ["D14.1-AC1", "D14.1-AC2"],
+        description:
+          "Załącznik C examples give the exact suggestion (collisions _2/_3, reserved id, 40 characters); hostile symbols (SQL, quotes, Unicode, upper case, newline) and reserved words are refused with their own codes; types, options, defaults and the 200/60/10 000 limits (also other limits given as a dependency) are enforced; the registry of F01 is a valid definition; the rules read nothing from outside",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/registries"],
+        requires: ["tests/unit/registries/registry-rules.test.ts", "tests/fixtures/books/books-v1.export.json"],
+      },
+      ...regressionChecks("D14.1-regression"),
+    ],
   },
   {
     // The parent passes only through its work orders, each with its real Compose run.

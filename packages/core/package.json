@@ -29,6 +29,11 @@
       "types": "./dist/modules/maintenance/public.d.ts",
       "default": "./dist/modules/maintenance/public.js"
     },
+    "./registries": {
+      "@openlife/source": "./src/modules/registries/public.ts",
+      "types": "./dist/modules/registries/public.d.ts",
+      "default": "./dist/modules/registries/public.js"
+    },
     "./settings": {
       "@openlife/source": "./src/modules/settings/public.ts",
       "types": "./dist/modules/settings/public.d.ts",
