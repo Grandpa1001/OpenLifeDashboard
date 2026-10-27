@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { describeFailure, type ErrorMessage } from "../../../lib/failures/error-message.js";
@@ -26,6 +26,9 @@ export function MainPage() {
   return (
     <main className="auth-page">
       <h1>{t("main.title")}</h1>
+      <nav aria-label={t("main.navigation")}>
+        <Link to="/registers">{t("main.registers")}</Link>
+      </nav>
       <p>{t("main.empty")}</p>
       {problem === null ? null : <FailureAlert message={problem} />}
       <button type="button" onClick={() => void leave()}>

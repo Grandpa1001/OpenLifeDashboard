@@ -1,0 +1,13 @@
+{
+  "title": "Rejestry",
+  "list": {
+    "mine": "Moje rejestry",
+    "loading": "Wczytywanie rejestrów…",
+    "empty": "Nie masz jeszcze żadnego rejestru.",
+    "retry": "Spróbuj ponownie",
+    "columns_one": "{{count}} kolumna",
+    "columns_few": "{{count}} kolumny",
+    "columns_many": "{{count}} kolumn",
+    "columns_other": "{{count}} kolumny"
+  }
+}

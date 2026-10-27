@@ -20,7 +20,9 @@
   "main": {
     "title": "Ekran główny",
     "signOut": "Wyloguj",
-    "empty": "Na razie nic tu nie ma. Ekrany i dane pojawią się w kolejnych wersjach."
+    "empty": "Na razie nic tu nie ma. Ekrany i dane pojawią się w kolejnych wersjach.",
+    "navigation": "Nawigacja",
+    "registers": "Rejestry"
   },
   "gate": {
     "unavailable": {

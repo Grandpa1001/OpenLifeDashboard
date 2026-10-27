@@ -4,6 +4,7 @@ import { createRootRouteWithContext, createRoute, createRouter, Outlet, redirect
 import { LoginPage } from "../../features/auth/pages/login-page.js";
 import { MfaPage } from "../../features/auth/pages/mfa-page.js";
 import { MainPage } from "../../features/dashboard/pages/main-page.js";
+import { RegistersPage } from "../../features/registers/pages/registers-page.js";
 import { SetupPage, type PendingStep } from "../../features/setup/pages/setup-page.js";
 import { setInterfaceLanguage } from "../../lib/language.js";
 import { currentIdentityStatus } from "../../lib/session/identity-status.js";
@@ -57,20 +58,29 @@ const mfaRoute = createRoute({
   component: MfaPage,
 });
 
+/** The guard of every private screen: the gate passed and the setup complete; the saved language follows the owner to every browser. */
+async function admitPrivate(context: RouterContext): Promise<void> {
+  await admit(context, "ready");
+  // The private screen opens when the setup is complete; until then the setup is where the owner belongs.
+  const setup = await currentOwnerSetup(context.queryClient);
+  if (setup.stage !== "complete") {
+    throw redirect({ to: "/setup" });
+  }
+  if (setup.preferences !== null) setInterfaceLanguage(setup.preferences.locale);
+}
+
 const mainRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/main",
-  beforeLoad: async ({ context }) => {
-    await admit(context, "ready");
-    // The private screen opens when the setup is complete; until then the setup is where the owner belongs.
-    const setup = await currentOwnerSetup(context.queryClient);
-    if (setup.stage !== "complete") {
-      throw redirect({ to: "/setup" });
-    }
-    // The saved language follows the owner to every browser.
-    if (setup.preferences !== null) setInterfaceLanguage(setup.preferences.locale);
-  },
+  beforeLoad: ({ context }) => admitPrivate(context),
   component: MainPage,
+});
+
+const registersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/registers",
+  beforeLoad: ({ context }) => admitPrivate(context),
+  component: RegistersPage,
 });
 
 const setupRoute = createRoute({
@@ -99,7 +109,7 @@ const setupRoute = createRoute({
 
 export function createAppRouter(queryClient: QueryClient) {
   return createRouter({
-    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute]),
+    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute, registersRoute]),
     context: { queryClient },
     defaultPreload: false,
   });

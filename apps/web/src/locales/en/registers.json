@@ -1,0 +1,11 @@
+{
+  "title": "Registries",
+  "list": {
+    "mine": "My registries",
+    "loading": "Loading registries…",
+    "empty": "You have no registries yet.",
+    "retry": "Try again",
+    "columns_one": "{{count}} column",
+    "columns_other": "{{count}} columns"
+  }
+}

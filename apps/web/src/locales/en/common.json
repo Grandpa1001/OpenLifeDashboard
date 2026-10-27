@@ -20,7 +20,9 @@
   "main": {
     "title": "Main screen",
     "signOut": "Sign out",
-    "empty": "There is nothing here yet. Screens and data arrive in later versions."
+    "empty": "There is nothing here yet. Screens and data arrive in later versions.",
+    "navigation": "Navigation",
+    "registers": "Registries"
   },
   "gate": {
     "unavailable": {

@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -1806,6 +1806,39 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D15.1", "D15.2", "D15.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D16.1",
+    ready: true,
+    title: "The list of registries in the browser: route behind the gate, cards, loading, empty and error states",
+    criteria: ["D16.1-AC1", "D16.1-AC2", "D16.1-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D16.1-AC1", "D16.1-AC2"],
+        description: "pnpm -r build: the SPA with the registries route and its API layer",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/registers/pages/registers-page.tsx", "apps/web/src/features/registers/api/registries.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D16.1-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all five namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/registers.json", "apps/web/src/locales/en/registers.json"],
+      },
+      {
+        id: "registers-e2e",
+        criteria: ["D16.1-AC1", "D16.1-AC2"],
+        description:
+          "Playwright on a fresh installation: from the private screen to an empty list, a card with the name, the symbol and the number of columns (singular and plural), a name with markup shown as text that runs nothing; without a session and with a password session the page leads to the sign-in and the second factor; a failing connection and a server error show the alert with the reference code and 'try again' works; an answer off the contract is not believed; a session that ended while the page was open leads to the sign-in; axe",
+        command: ["node", "tests/verification/e2e.ts", "registers"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/registers.spec.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D16.1-regression"),
+    ],
   },
   {
     // The parent passes only through its work orders, each with its real Compose run.

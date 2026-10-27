@@ -3,4 +3,5 @@
 export const queryKeys = {
   identity: { status: ["identity", "status"] as const },
   setup: { owner: ["setup", "owner"] as const },
+  registries: { list: ["registries", "list"] as const },
 } as const;

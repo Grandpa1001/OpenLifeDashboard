@@ -4,10 +4,12 @@ import { initReactI18next } from "react-i18next";
 import enAuth from "../../locales/en/auth.json";
 import enCommon from "../../locales/en/common.json";
 import enErrors from "../../locales/en/errors.json";
+import enRegisters from "../../locales/en/registers.json";
 import enSetup from "../../locales/en/setup.json";
 import plAuth from "../../locales/pl/auth.json";
 import plCommon from "../../locales/pl/common.json";
 import plErrors from "../../locales/pl/errors.json";
+import plRegisters from "../../locales/pl/registers.json";
 import plSetup from "../../locales/pl/setup.json";
 
 // The language follows the browser until the owner saves a preference (D12.3), and the sign-in
@@ -18,7 +20,7 @@ import plSetup from "../../locales/pl/setup.json";
 declare module "i18next" {
   interface CustomTypeOptions {
     defaultNS: "common";
-    resources: { common: typeof plCommon; auth: typeof plAuth; errors: typeof plErrors; setup: typeof plSetup };
+    resources: { common: typeof plCommon; auth: typeof plAuth; errors: typeof plErrors; registers: typeof plRegisters; setup: typeof plSetup };
   }
 }
 
@@ -39,8 +41,8 @@ export async function initI18n(locale: Locale): Promise<typeof i18next> {
     fallbackLng: SOURCE_LOCALE,
     supportedLngs: SUPPORTED_LOCALES,
     defaultNS: "common",
-    ns: ["common", "auth", "errors", "setup"],
-    resources: { pl: { common: plCommon, auth: plAuth, errors: plErrors, setup: plSetup }, en: { common: enCommon, auth: enAuth, errors: enErrors, setup: enSetup } },
+    ns: ["common", "auth", "errors", "registers", "setup"],
+    resources: { pl: { common: plCommon, auth: plAuth, errors: plErrors, registers: plRegisters, setup: plSetup }, en: { common: enCommon, auth: enAuth, errors: enErrors, registers: enRegisters, setup: enSetup } },
     interpolation: { escapeValue: false }, // React escapes rendered text.
   });
   return i18next;
