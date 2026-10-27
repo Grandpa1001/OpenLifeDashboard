@@ -32,6 +32,7 @@ export function bindRecoveryCodeStore(tx: TransactionHandle): RecoveryCodeStore 
       }
       return "batch_changed";
     },
+    discardAll: () => void clear.run(),
     consume: ({ hash, nowMs }) => (consume.run(nowMs, hash).changes === 1 ? { remaining: (remaining.get() as { n: number }).n } : null),
   };
 }

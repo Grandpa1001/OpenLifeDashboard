@@ -17,6 +17,7 @@ export const OWNER_PASSWORD = "a passphrase for the second factor";
 export const ORIGIN = "http://localhost:8080";
 export const CREATE_OWNER = path.join(repoRoot, "apps/server/dist/cli/create-owner.js");
 export const RESET_PASSWORD = path.join(repoRoot, "apps/server/dist/cli/reset-password.js");
+export const RESET_MFA = path.join(repoRoot, "apps/server/dist/cli/reset-mfa.js");
 
 export type Installation = Readonly<{ instance: TestInstance; server: ServerProcess }>;
 
@@ -64,16 +65,19 @@ export type Reply = Readonly<{
   setCookies: string[];
 }>;
 
-export async function post(server: ServerProcess, route: string, body: unknown, init: { cookie?: string | null | undefined; origin?: string | null } = {}): Promise<Reply> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+export async function send(server: ServerProcess, method: string, route: string, body: unknown, init: { cookie?: string | null | undefined; origin?: string | null } = {}): Promise<Reply> {
+  const headers: Record<string, string> = {};
   const origin = init.origin === undefined ? ORIGIN : init.origin;
   if (origin !== null) headers["Origin"] = origin;
   if (init.cookie) headers["Cookie"] = init.cookie;
-  const response = await fetch(`${server.baseUrl}${route}`, { method: "POST", headers, body: typeof body === "string" ? body : JSON.stringify(body) });
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const response = await fetch(`${server.baseUrl}${route}`, { method, headers, ...(body === undefined ? {} : { body: typeof body === "string" ? body : JSON.stringify(body) }) });
   const text = await response.text();
   const setCookies = response.headers.getSetCookie();
   return { status: response.status, headers: response.headers, text, json: () => JSON.parse(text) as unknown, cookie: setCookies[0]?.split(";")[0] ?? null, cookies: setCookies.map((line) => line.split(";")[0] ?? ""), setCookies };
 }
+
+export const post = (server: ServerProcess, route: string, body: unknown, init: { cookie?: string | null | undefined; origin?: string | null } = {}): Promise<Reply> => send(server, "POST", route, body, init);
 
 /** Signs in; `cookie` carries what the browser already holds, e.g. a trusted-device cookie. */
 export const signIn = (server: ServerProcess, cookie?: string | null) => post(server, "/api/auth/sign-in/email", { email: OWNER_EMAIL, password: OWNER_PASSWORD }, { cookie });
@@ -83,6 +87,11 @@ export const reissue = (server: ServerProcess, cookie: string | null, code: stri
 export const ack = (server: ServerProcess, cookie: string | null, batchId: string) => post(server, "/api/v1/mfa/enrollment/recovery/ack", { batchId }, { cookie });
 export const verify = (server: ServerProcess, cookie: string | null, body: unknown) => post(server, "/api/v1/mfa/verify", body, { cookie });
 export const stepUp = (server: ServerProcess, cookie: string | null, code: string) => post(server, "/api/v1/mfa/step-up", { code }, { cookie });
+
+export const setupStatus = (server: ServerProcess, cookie: string | null) => send(server, "GET", "/api/v1/setup/status", undefined, { cookie });
+export const chooseEmpty = (server: ServerProcess, cookie: string | null) => post(server, "/api/v1/setup/choose-empty", {}, { cookie });
+export const getPreferences = (server: ServerProcess, cookie: string | null) => send(server, "GET", "/api/v1/setup/preferences", undefined, { cookie });
+export const putPreferences = (server: ServerProcess, cookie: string | null, body: unknown) => send(server, "PUT", "/api/v1/setup/preferences", body, { cookie });
 
 export async function status(server: ServerProcess, cookie: string | null) {
   const response = await fetch(`${server.baseUrl}/api/v1/identity/status`, { headers: cookie ? { Cookie: cookie } : {} });

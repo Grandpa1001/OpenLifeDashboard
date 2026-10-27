@@ -12,7 +12,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
 import { bindAppendAudit } from "@openlife/sqlite/adapters/audit";
-import { bindIdentityAccessReader, bindMfaStore, bindOwnerWriters, bindRecoveryCodeStore, bindSignInStores, bindTrustedDeviceStore } from "@openlife/sqlite/adapters/identity";
+import { bindIdentityAccessReader, bindMfaStore, bindOwnerWriters, bindRecoveryCodeStore, bindSetupStateStore, bindSignInStores, bindTrustedDeviceStore } from "@openlife/sqlite/adapters/identity";
+import { bindOwnerPreferencesStore } from "@openlife/sqlite/adapters/settings";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
 import { createMfaCrypto } from "./adapters/auth/mfa-crypto.js";
 import { createAttemptKeys } from "./adapters/auth/attempt-keys.js";
@@ -175,6 +176,8 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   mfa: bindMfaStore(tx),
   recovery: bindRecoveryCodeStore(tx),
   trusted: bindTrustedDeviceStore(tx),
+  setup: bindSetupStateStore(tx),
+  preferences: bindOwnerPreferencesStore(tx),
   access: bindIdentityAccessReader(tx, Date.now),
   audit: bindAppendAudit(tx),
 }));
@@ -236,6 +239,7 @@ const app = createApp({
     newSessionToken,
     logger,
   },
+  setup: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
 });
 try {
   const { server, address } = await startServer(app, host, port);

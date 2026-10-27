@@ -59,15 +59,9 @@ jobs:
       - name: Verify D10 (D10.1–D10.3, second-factor mechanism, access policy, atomic adapters)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D10
-      - name: Verify D11.1 (enrollment of the second factor, recovery codes)
+      - name: Verify D11 (D11.1–D11.4, second factor, lockouts, first setup)
         if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D11.1
-      - name: Verify D11.2 (second factor at login, trusted devices, step-up)
-        if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D11.2
-      - name: Verify D11.3 (lockout of the second factor)
-        if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D11.3
+        run: pnpm verify:task -- D11
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

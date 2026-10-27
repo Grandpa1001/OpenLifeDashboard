@@ -147,6 +147,12 @@ export interface MfaStore {
    * session, or the challenge or the generation is no longer current.
    */
   activatePending(change: Readonly<{ challengeId: string; sessionId: string; expectedGeneration: number; usedStep: number; nowMs: number }>): boolean;
+  /**
+   * Administrative reset (`reset-mfa`, Architektura §9.6): the secret, its ledger, the pending
+   * enrollment and the recovery batch are gone, and a new enrollment is required. The policy and
+   * the stage name what the owner must do next; nothing outside the factor is touched.
+   */
+  resetFactor(): void;
 }
 
 /** Recovery codes: only hashes are stored, in batches; one batch is current (Architektura §9.7). */
@@ -167,6 +173,8 @@ export interface RecoveryCodeStore {
    * unused. Of parallel requests with one code exactly one gets the result, the others null.
    */
   consume(request: Readonly<{ hash: string; nowMs: number }>): Readonly<{ remaining: number }> | null;
+  /** Removes every code, used or not (`reset-mfa`). */
+  discardAll(): void;
 }
 
 /** Trusted devices (Architektura §9.3): a long-lived token whose hash is stored, expiring 30 days after creation. */
@@ -244,3 +252,30 @@ export type ResetPasswordPorts = Readonly<{
 
 /** The ports of proving the second factor: a TOTP or a recovery code at login, and the step-up. */
 export type VerificationPorts = EnrollmentPorts & Readonly<{ trusted: Pick<TrustedDeviceStore, "create"> }>;
+
+/** The owner's one-time choice of the starting data (Architektura §9.7, §18.7). */
+export interface SetupStateStore {
+  /**
+   * Compare-and-set: records "empty" unless imported data were chosen. "chosen" the first time,
+   * "already_empty" when repeated (idempotent), "imported" when it was refused.
+   */
+  chooseEmpty(): "chosen" | "already_empty" | "imported";
+}
+
+/** The ports of choosing the starting data. */
+export type ChooseDataPorts = Readonly<{
+  sessions: Pick<SessionStore, "findActive">;
+  access: IdentityAccessReader;
+  setup: SetupStateStore;
+  audit: AppendAudit;
+}>;
+
+/** The ports of the administrative `reset-mfa`. */
+export type ResetMfaPorts = Readonly<{
+  owners: Pick<OwnerSingletonWriter, "currentOwnerId" | "advanceAccessEpoch">;
+  mfa: Pick<MfaStore, "resetFactor">;
+  recovery: Pick<RecoveryCodeStore, "discardAll">;
+  sessions: Pick<SessionStore, "deleteAllOfOwner">;
+  trusted: Pick<TrustedDeviceStore, "revokeAll">;
+  audit: AppendAudit;
+}>;

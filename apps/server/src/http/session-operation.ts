@@ -1,6 +1,7 @@
-// The frame every second-factor route shares (Architektura §9.7, §18.7): a browser mutation with
-// a matching Origin, a small strict body, no caching, a verified session cookie, and an error in a
-// unit of work (a failing audit included) answered as unavailable, never as a result.
+// The frame every route of a signed-in owner shares (Architektura §9.7, §18.7): a browser mutation
+// with a matching Origin, a small strict body, no caching, a verified session cookie, and an error
+// in a unit of work (a failing audit included) answered as unavailable, never as a result. Reads
+// (GET) have the same frame without a body and without the Origin check.
 import type { ApiErrorCode } from "@openlife/contracts/http/errors";
 import type { Failure } from "@openlife/core/foundation";
 import type { Context } from "hono";
@@ -26,17 +27,20 @@ const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 403 | 409 | 429>>> = {
   STEP_UP_REQUIRED: 403,
   ENROLLMENT_CHANGED: 409,
   RECOVERY_BATCH_CHANGED: 409,
+  SETUP_DATA_ALREADY_CHOSEN: 409,
 };
 
-export type MfaOperationKit = Readonly<{
+export type SessionOperationKit = Readonly<{
   /** Origin check and body limit, in this order, before the handler. */
   guard: readonly [ReturnType<typeof requireSameOrigin>, ReturnType<typeof bodyLimit>];
   operation: <S extends z.ZodType>(schema: S, run: (c: Context<AppEnv>, token: string, body: z.infer<S>) => Promise<Response>) => (c: Context<AppEnv>) => Promise<Response>;
+  /** A read: no body, no Origin check (a safe method), the same session and error handling. */
+  read: (run: (c: Context<AppEnv>, token: string) => Promise<Response> | Response) => (c: Context<AppEnv>) => Promise<Response>;
   /** The answer for a use case's failure; a lock carries Retry-After and the seconds in its details. */
   refused: (c: Context<AppEnv>, failure: Failure) => Response;
 }>;
 
-export function createMfaOperationKit(options: Readonly<{ allowedOrigin: string; cookies: SignedCookie; logger: TechnicalLogger }>): MfaOperationKit {
+export function createSessionOperationKit(options: Readonly<{ allowedOrigin: string; cookies: SignedCookie; logger: TechnicalLogger }>): SessionOperationKit {
   return {
     guard: [
       requireSameOrigin(options.allowedOrigin),
@@ -56,6 +60,19 @@ export function createMfaOperationKit(options: Readonly<{ allowedOrigin: string;
         return await run(c, token, body.data);
       } catch (error) {
         options.logger.log({ level: "error", event: "mfa.unavailable", requestId: c.get("requestId"), code: "AUTH_UNAVAILABLE", error });
+        return apiErrorResponse(c, 503, "AUTH_UNAVAILABLE");
+      }
+    },
+    read: (run) => async (c) => {
+      c.header("Cache-Control", "no-store");
+      const token = await readSessionToken(c, options.cookies);
+      if (token === null) {
+        return apiErrorResponse(c, 401, "AUTH_REQUIRED");
+      }
+      try {
+        return await run(c, token);
+      } catch (error) {
+        options.logger.log({ level: "error", event: "session.unavailable", requestId: c.get("requestId"), code: "AUTH_UNAVAILABLE", error });
         return apiErrorResponse(c, 503, "AUTH_UNAVAILABLE");
       }
     },

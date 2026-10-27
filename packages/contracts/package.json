@@ -44,6 +44,11 @@
       "types": "./dist/http/mfa.d.ts",
       "default": "./dist/http/mfa.js"
     },
+    "./http/setup": {
+      "@openlife/source": "./src/http/setup.ts",
+      "types": "./dist/http/setup.d.ts",
+      "default": "./dist/http/setup.js"
+    },
     "./locales": {
       "@openlife/source": "./src/locales.ts",
       "types": "./dist/locales.d.ts",

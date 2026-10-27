@@ -19,6 +19,11 @@
       "types": "./dist/adapters/identity/public.d.ts",
       "default": "./dist/adapters/identity/public.js"
     },
+    "./adapters/settings": {
+      "@openlife/source": "./src/adapters/settings/public.ts",
+      "types": "./dist/adapters/settings/public.d.ts",
+      "default": "./dist/adapters/settings/public.js"
+    },
     "./connection": {
       "@openlife/source": "./src/connection/open-database.ts",
       "types": "./dist/connection/open-database.d.ts",

@@ -11,7 +11,7 @@ import type { AttemptKeys } from "../../adapters/auth/attempt-keys.js";
 import type { SignedCookie } from "../../adapters/auth/session-cookie.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
 import type { AppEnv } from "../app-env.js";
-import { createMfaOperationKit } from "../mfa-operation.js";
+import { createSessionOperationKit } from "../session-operation.js";
 import { setSessionCookie } from "../session-cookie-http.js";
 
 export type MfaVerificationRouteDependencies = Readonly<{
@@ -43,7 +43,7 @@ export function registerMfaVerificationRoutes(app: Hono<AppEnv>, deps: MfaVerifi
   };
   /** Who is asking, for the audit and for the bucket of the client address. */
   const attemptOf = (c: Context<AppEnv>) => ({ requestId: c.get("requestId"), ipKey: deps.keys.mfaIp(deps.clientIp(c)) });
-  const { guard, operation, refused } = createMfaOperationKit({ allowedOrigin: deps.allowedOrigin, cookies: deps.cookies, logger: deps.logger });
+  const { guard, operation, refused } = createSessionOperationKit({ allowedOrigin: deps.allowedOrigin, cookies: deps.cookies, logger: deps.logger });
 
   /** The unit has committed: only now do the cookies of the proof reach the browser. */
   const proven = async (c: Context<AppEnv>, proof: MfaProof): Promise<Response> => {

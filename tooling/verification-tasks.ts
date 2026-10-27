@@ -1380,6 +1380,47 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D11.4",
+    ready: true,
+    title: "First setup backend: stage, choice of the starting data, preferences, and the reset-mfa command",
+    criteria: ["D11.4-AC1", "D11.4-AC2", "D11.4-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server, the CLIs and the adapters.
+        id: "workspace-build",
+        criteria: ["D11.4-AC1", "D11.4-AC2"],
+        description: "pnpm -r build: the setup use cases, the settings port and adapter, migration 9, the setup routes and the reset-mfa command",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/settings/application/setup.ts", "apps/server/src/cli/reset-mfa.ts"],
+      },
+      {
+        id: "setup-http",
+        criteria: ["D11.4-AC1", "D11.4-AC2"],
+        description:
+          "Real server and CLI-created owner: F09 lost-recovery-view-requires-new-batch on the real routes; stages, atomic idempotent choice, preferences saved over a restart; refusals before the acknowledgment, before the factor and before the choice of data; imported never replaced; failing audit changes nothing; ended session cannot write; no import route",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/setup-http.test.ts"],
+        requires: ["tests/integration/auth/setup-http.test.ts", "apps/server/src/http/routes/setup.routes.ts"],
+      },
+      {
+        id: "reset-mfa",
+        criteria: ["D11.4-AC2"],
+        description: "reset-mfa removes the factor, sessions and trust and requires a new enrollment, keeping password, data choice and preferences; running app, failing audit and arguments change nothing; regression: reset-password revokes trust and forces no enrollment",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/reset-mfa.test.ts"],
+        requires: ["tests/integration/auth/reset-mfa.test.ts", "packages/core/src/modules/identity/application/reset-mfa.ts"],
+      },
+      ...regressionChecks("D11.4-regression"),
+    ],
+  },
+  {
+    // The parent passes only through its work orders: enrolling, proving, locking and the first setup.
+    id: "D11",
+    ready: true,
+    title: "Second factor backend, lockouts and the first setup",
+    steps: ["D11.1", "D11.2", "D11.3", "D11.4"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

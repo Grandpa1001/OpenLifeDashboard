@@ -32,9 +32,16 @@ export function bindMfaStore(tx: TransactionHandle): MfaStore {
   const activate = tx.prepare(
     `UPDATE mfa_state
         SET active_secret = pending_secret, secret_generation = secret_generation + 1, last_used_step = ?,
-            enrollment_state = 'awaiting_recovery_ack',
+            policy = 'required', enrollment_state = 'awaiting_recovery_ack',
             pending_challenge_id = NULL, pending_secret = NULL, pending_expires_at_ms = NULL, pending_session_id = NULL
       WHERE singleton = 1 AND pending_challenge_id = ? AND pending_session_id = ? AND pending_expires_at_ms > ? AND secret_generation = ?`,
+  );
+  const reset = tx.prepare(
+    `UPDATE mfa_state
+        SET policy = 'reset_required', enrollment_state = 'required', secret_generation = 0, active_secret = NULL, last_used_step = NULL,
+            pending_challenge_id = NULL, pending_secret = NULL, pending_expires_at_ms = NULL, pending_session_id = NULL,
+            recovery_batch_id = NULL, recovery_batch_session_id = NULL
+      WHERE singleton = 1`,
   );
   const consume = tx.prepare(
     `UPDATE mfa_state SET last_used_step = ?
@@ -64,6 +71,7 @@ export function bindMfaStore(tx: TransactionHandle): MfaStore {
       };
     },
     consumeStep: ({ expectedGeneration, step }) => consume.run(step, expectedGeneration, step).changes === 1,
+    resetFactor: () => void reset.run(),
     savePending: ({ challengeId, secret, expiresAtMs, sessionId, expectedGeneration }) =>
       savePending.run(challengeId, secret, expiresAtMs, sessionId, expectedGeneration).changes === 1,
     activatePending: ({ challengeId, sessionId, expectedGeneration, usedStep, nowMs }) =>

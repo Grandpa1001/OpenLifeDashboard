@@ -1,4 +1,10 @@
 // Public API of the identity module (Architektura §13.2, §18.7).
+export { chooseEmptyData } from "./application/choose-data.js";
+export type { ChooseDataDependencies, DataChosen } from "./application/choose-data.js";
+export { resetOwnerMfa } from "./application/reset-mfa.js";
+export type { MfaReset, ResetMfaCommand } from "./application/reset-mfa.js";
+export { resolveSessionAccess } from "./application/session-access.js";
+export type { SessionAccess } from "./application/session-access.js";
 export { resetOwnerPassword } from "./application/reset-password.js";
 export type { PasswordReset, ResetPasswordCommand } from "./application/reset-password.js";
 export { createOwner } from "./application/create-owner.js";
@@ -39,6 +45,7 @@ export type { LockoutBucket } from "./domain/lockout.js";
 export { SESSION_LIFETIME_MS, TRUSTED_DEVICE_LIFETIME_MS } from "./domain/session-policy.js";
 export type {
   AuthAttemptStore,
+  ChooseDataPorts,
   CredentialReader,
   MfaCrypto,
   EnrollmentPorts,
@@ -48,7 +55,9 @@ export type {
   NewSession,
   OwnerCredential,
   RecoveryCodeStore,
+  ResetMfaPorts,
   SessionFacts,
+  SetupStateStore,
   SessionStore,
   SignInPorts,
   TrustedDeviceStore,
