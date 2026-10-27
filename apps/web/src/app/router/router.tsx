@@ -4,6 +4,7 @@ import { createRootRouteWithContext, createRoute, createRouter, Outlet, redirect
 import { LoginPage } from "../../features/auth/pages/login-page.js";
 import { MfaPage } from "../../features/auth/pages/mfa-page.js";
 import { MainPage } from "../../features/dashboard/pages/main-page.js";
+import { RegistryPage } from "../../features/registers/pages/registry-page.js";
 import { RegistersPage } from "../../features/registers/pages/registers-page.js";
 import { SetupPage, type PendingStep } from "../../features/setup/pages/setup-page.js";
 import { setInterfaceLanguage } from "../../lib/language.js";
@@ -107,9 +108,18 @@ const setupRoute = createRoute({
   },
 });
 
+const registryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/registers/$symbol",
+  beforeLoad: ({ context }) => admitPrivate(context),
+  component: function RegistryRoute() {
+    return <RegistryPage symbol={registryRoute.useParams().symbol} />;
+  },
+});
+
 export function createAppRouter(queryClient: QueryClient) {
   return createRouter({
-    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute, registersRoute]),
+    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute, registersRoute, registryRoute]),
     context: { queryClient },
     defaultPreload: false,
   });

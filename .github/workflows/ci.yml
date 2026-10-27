@@ -166,6 +166,9 @@ jobs:
       - name: Verify D16.2 (the form of a new registry in a real browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D16.2
+      - name: Verify D16.3 (the records of a registry in a real browser)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D16.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -245,6 +248,12 @@ jobs:
       - name: Verify D16.2 (the form of a new registry in a real browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D16.2
+      - name: Verify D16.3 (the records of a registry in a real browser)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D16.3
+      - name: Verify D16 (the parent, D16.1–D16.3 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D16
       - name: Verify D13.1 (route inventory and request authority on raw HTTP)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D13.1

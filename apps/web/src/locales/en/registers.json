@@ -60,5 +60,42 @@
     "LIMIT_COLUMNS": "Too many columns.",
     "LIMIT_REGISTRIES": "The limit of registries is reached.",
     "UNKNOWN": "This value is not valid."
+  },
+  "registry": {
+    "loading": "Loading the registry…",
+    "notFound": "There is no such registry."
+  },
+  "table": {
+    "heading": "Records",
+    "loading": "Loading the records…",
+    "empty": "—",
+    "empty_registry": "This registry has no records yet.",
+    "pager": "Pages of records",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {{page}} of {{pages}}",
+    "total_one": "{{count}} record in total",
+    "total_other": "{{count}} records in total"
+  },
+  "record": {
+    "add": "Add",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "required": "required",
+    "none": "None",
+    "yes": "Yes",
+    "no": "No",
+    "moneyHint": "An amount, e.g. 10.37.",
+    "added": "The record was added."
+  },
+  "recordIssues": {
+    "VALUE_REQUIRED": "This field is required.",
+    "VALUE_INVALID": "This value does not fit the type of the column.",
+    "FIELD_UNKNOWN": "The registry has no such column.",
+    "FIELD_SYSTEM": "This field is a system field.",
+    "RECORD_TOO_LARGE": "The record is too large.",
+    "VALUES_NOT_OBJECT": "The values are not valid.",
+    "UNKNOWN": "This value is not valid."
   }
 }

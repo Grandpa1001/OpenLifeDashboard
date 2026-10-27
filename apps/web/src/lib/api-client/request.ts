@@ -20,6 +20,8 @@ export type ApiRequest<S extends z.ZodType | null> = Readonly<{
   path: string;
   /** Sent as JSON exactly as given: nothing is trimmed or normalized on the way. */
   body?: unknown;
+  /** Extra request headers, e.g. the `Idempotency-Key` of an add. */
+  headers?: Readonly<Record<string, string>>;
   /** The contract of a successful answer; null for an answer without a body (204). */
   schema: S;
   signal?: AbortSignal | undefined;
@@ -56,7 +58,7 @@ export async function apiRequest<S extends z.ZodType | null>(request: ApiRequest
       method: request.method,
       credentials: "same-origin",
       cache: "no-store",
-      headers: { accept: "application/json", ...(request.body === undefined ? {} : { "content-type": "application/json" }) },
+      headers: { accept: "application/json", ...(request.body === undefined ? {} : { "content-type": "application/json" }), ...request.headers },
       ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
       ...(request.signal === undefined ? {} : { signal: request.signal }),
     });

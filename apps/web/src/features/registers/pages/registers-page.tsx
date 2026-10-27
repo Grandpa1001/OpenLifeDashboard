@@ -27,7 +27,11 @@ function RegistryCard({ registry }: Readonly<{ registry: RegistryDto }>) {
   const { t } = useTranslation("registers");
   return (
     <li className="card registry-card">
-      <h3>{registry.displayName}</h3>
+      <h3>
+        <Link to="/registers/$symbol" params={{ symbol: registry.symbol }}>
+          {registry.displayName}
+        </Link>
+      </h3>
       <p>
         <span className="registry-symbol">{registry.symbol}</span> · {t("list.columns", { count: registry.columns.length })}
       </p>

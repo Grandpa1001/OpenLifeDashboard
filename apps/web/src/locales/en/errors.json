@@ -12,6 +12,8 @@
   "VALIDATION_FAILED": "The form data is not valid.",
   "REGISTRY_SYMBOL_TAKEN": "A registry with this symbol exists or existed. Choose another symbol.",
   "REGISTRY_LIMIT_EXCEEDED": "The limit of registries is reached. Delete an unused registry to add a new one.",
+  "SCHEMA_CHANGED": "The registry changed since the form was opened. Check the fields and save again.",
+  "IDEMPOTENCY_CONFLICT": "This save was already made with other data. Try again.",
   "AUTH_UNAVAILABLE": "Sign-in is temporarily unavailable. Try again in a moment.",
   "ORIGIN_FORBIDDEN": "The request was rejected. Open the application at its proper address.",
   "INTERNAL_ERROR": "A server error occurred. Try again in a moment.",

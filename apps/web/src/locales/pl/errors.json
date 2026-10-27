@@ -16,6 +16,8 @@
   "VALIDATION_FAILED": "Dane formularza są nieprawidłowe.",
   "REGISTRY_SYMBOL_TAKEN": "Rejestr o tym symbolu istnieje lub istniał. Wybierz inny symbol.",
   "REGISTRY_LIMIT_EXCEEDED": "Osiągnięto limit rejestrów. Usuń nieużywany rejestr, aby dodać nowy.",
+  "SCHEMA_CHANGED": "Rejestr zmienił się od otwarcia formularza. Sprawdź pola i zapisz ponownie.",
+  "IDEMPOTENCY_CONFLICT": "Ten zapis został już wykonany z innymi danymi. Spróbuj ponownie.",
   "AUTH_UNAVAILABLE": "Logowanie jest chwilowo niedostępne. Spróbuj ponownie za chwilę.",
   "ORIGIN_FORBIDDEN": "Żądanie zostało odrzucone. Otwórz aplikację pod jej właściwym adresem.",
   "INTERNAL_ERROR": "Wystąpił błąd serwera. Spróbuj ponownie za chwilę.",

@@ -62,5 +62,44 @@
     "LIMIT_COLUMNS": "Za dużo kolumn.",
     "LIMIT_REGISTRIES": "Osiągnięto limit rejestrów.",
     "UNKNOWN": "Ta wartość nie jest prawidłowa."
+  },
+  "registry": {
+    "loading": "Wczytywanie rejestru…",
+    "notFound": "Nie ma takiego rejestru."
+  },
+  "table": {
+    "heading": "Rekordy",
+    "loading": "Wczytywanie rekordów…",
+    "empty": "—",
+    "empty_registry": "Ten rejestr nie ma jeszcze rekordów.",
+    "pager": "Strony rekordów",
+    "previous": "Poprzednia",
+    "next": "Następna",
+    "page": "Strona {{page}} z {{pages}}",
+    "total_one": "Razem: {{count}} rekord",
+    "total_few": "Razem: {{count}} rekordy",
+    "total_many": "Razem: {{count}} rekordów",
+    "total_other": "Razem: {{count}} rekordu"
+  },
+  "record": {
+    "add": "Dodaj",
+    "save": "Zapisz",
+    "saving": "Zapisywanie…",
+    "cancel": "Anuluj",
+    "required": "wymagane",
+    "none": "Brak",
+    "yes": "Tak",
+    "no": "Nie",
+    "moneyHint": "Kwota, np. 10,37.",
+    "added": "Dodano rekord."
+  },
+  "recordIssues": {
+    "VALUE_REQUIRED": "To pole jest wymagane.",
+    "VALUE_INVALID": "Ta wartość nie pasuje do typu kolumny.",
+    "FIELD_UNKNOWN": "Rejestr nie ma takiej kolumny.",
+    "FIELD_SYSTEM": "To pole jest systemowe.",
+    "RECORD_TOO_LARGE": "Rekord jest za duży.",
+    "VALUES_NOT_OBJECT": "Nieprawidłowe wartości.",
+    "UNKNOWN": "Ta wartość nie jest prawidłowa."
   }
 }

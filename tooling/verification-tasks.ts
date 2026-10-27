@@ -1881,6 +1881,55 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D16.3",
+    ready: true,
+    title: "The records of a registry in the browser: the table with server paging and the window that adds a record",
+    criteria: ["D16.3-AC1", "D16.3-AC2", "D16.3-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D16.3-AC1", "D16.3-AC2"],
+        description: "pnpm -r build: the SPA with the registry page, the table of records and the window that adds one",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/registers/pages/registry-page.tsx", "apps/web/src/features/registers/components/add-record-dialog.tsx", "apps/web/src/features/registers/components/records-table.tsx"],
+      },
+      {
+        id: "record-input",
+        criteria: ["D16.3-AC1"],
+        description: "An amount typed as 10,37 is 1037 and survives the round trip, a number and a boolean are parsed or refused, the wall of a zone and its UTC instant (winter, summer, the repeated and the skipped hour of a clock change, impossible dates), values are read in the owner's language and zone",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web"],
+        requires: ["tests/unit/web/record-input.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D16.3-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all five namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/registers.json", "apps/web/src/locales/en/registers.json"],
+      },
+      {
+        id: "records-e2e",
+        criteria: ["D16.3-AC1", "D16.3-AC2"],
+        description:
+          "Playwright on a fresh installation: Książki and its first record from the browser alone (a field for every column, the required one marked, the defaults of the catalog in place, the window closes after the answer of the server, values read by their types, the amount in grosze and the date-time in UTC on the server), 25 records as pages of 10, 10 and 5 with the count and the newest first, a new record on the first page; markup in a value is text; a record without a title leaves the window open with the message at the field and nothing stored (white space too), a value of no type is told without a request and a refusal of the server at its field, a response lost after the commit is repeated as the same record and a changed value gets a new key, a changed schema is told and nothing typed is lost, an ended session leads to the sign-in, a failing server keeps the window, Escape and Cancel return the focus, an unknown registry; the parent smoke from the form to the record; axe",
+        command: ["node", "tests/verification/e2e.ts", "records"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/records.spec.ts", "tests/e2e/owner-session.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D16.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the list, the form and the records in a real browser.
+  {
+    id: "D16",
+    ready: true,
+    title: "Minimal UI of registries: the list, the form of a new registry, the records and the window that adds one",
+    steps: ["D16.1", "D16.2", "D16.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,
