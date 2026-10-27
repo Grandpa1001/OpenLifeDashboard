@@ -1,0 +1,22 @@
+{
+  "INVALID_CREDENTIALS": "Adres e-mail lub hasło jest nieprawidłowe.",
+  "AUTH_LOCKED_one": "Zbyt wiele nieudanych prób. Spróbuj ponownie za {{count}} minutę.",
+  "AUTH_LOCKED_few": "Zbyt wiele nieudanych prób. Spróbuj ponownie za {{count}} minuty.",
+  "AUTH_LOCKED_many": "Zbyt wiele nieudanych prób. Spróbuj ponownie za {{count}} minut.",
+  "AUTH_LOCKED_other": "Zbyt wiele nieudanych prób. Spróbuj ponownie za {{count}} minuty.",
+  "RATE_LIMITED_one": "Zbyt wiele żądań. Spróbuj ponownie za {{count}} minutę.",
+  "RATE_LIMITED_few": "Zbyt wiele żądań. Spróbuj ponownie za {{count}} minuty.",
+  "RATE_LIMITED_many": "Zbyt wiele żądań. Spróbuj ponownie za {{count}} minut.",
+  "RATE_LIMITED_other": "Zbyt wiele żądań. Spróbuj ponownie za {{count}} minuty.",
+  "MFA_INVALID_CODE": "Kod jest nieprawidłowy albo został już użyty. Sprawdź kod i spróbuj ponownie.",
+  "ENROLLMENT_CHANGED": "Stan konfiguracji się zmienił. Odśwież stronę.",
+  "AUTH_REQUIRED": "Sesja wygasła. Zaloguj się ponownie.",
+  "VALIDATION_FAILED": "Dane formularza są nieprawidłowe.",
+  "AUTH_UNAVAILABLE": "Logowanie jest chwilowo niedostępne. Spróbuj ponownie za chwilę.",
+  "ORIGIN_FORBIDDEN": "Żądanie zostało odrzucone. Otwórz aplikację pod jej właściwym adresem.",
+  "INTERNAL_ERROR": "Wystąpił błąd serwera. Spróbuj ponownie za chwilę.",
+  "NETWORK": "Brak połączenia z serwerem. Sprawdź połączenie i spróbuj ponownie.",
+  "INVALID_RESPONSE": "Serwer odpowiedział w nieoczekiwany sposób. Spróbuj ponownie.",
+  "UNKNOWN": "Nie udało się wykonać operacji. Spróbuj ponownie.",
+  "requestReference": "Kod referencyjny: {{requestId}}"
+}

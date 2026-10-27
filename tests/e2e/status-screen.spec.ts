@@ -76,7 +76,7 @@ test.describe("English", () => {
   });
 
   test("an unknown screen: not found, with the way back", async ({ page }) => {
-    await page.goto("/setup");
+    await page.goto("/does-not-exist");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(text(en, "notFound.title"));
     await page.getByRole("link", { name: text(en, "notFound.backHome") }).click();
     await expect(page.getByRole("status")).toContainText(text(en, "status.ready.heading"));

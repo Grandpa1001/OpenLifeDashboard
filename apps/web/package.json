@@ -19,6 +19,7 @@
   "dependencies": {
     "@openlife/contracts": "workspace:*",
     "@openlife/ui": "workspace:*",
+    "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
     "i18next": "catalog:",
     "react": "catalog:",

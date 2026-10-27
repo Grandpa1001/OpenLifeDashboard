@@ -1,0 +1,18 @@
+{
+  "INVALID_CREDENTIALS": "The e-mail address or password is incorrect.",
+  "AUTH_LOCKED_one": "Too many failed attempts. Try again in {{count}} minute.",
+  "AUTH_LOCKED_other": "Too many failed attempts. Try again in {{count}} minutes.",
+  "RATE_LIMITED_one": "Too many requests. Try again in {{count}} minute.",
+  "RATE_LIMITED_other": "Too many requests. Try again in {{count}} minutes.",
+  "MFA_INVALID_CODE": "The code is not valid or has already been used. Check the code and try again.",
+  "ENROLLMENT_CHANGED": "The setup state has changed. Reload the page.",
+  "AUTH_REQUIRED": "The session has expired. Sign in again.",
+  "VALIDATION_FAILED": "The form data is not valid.",
+  "AUTH_UNAVAILABLE": "Sign-in is temporarily unavailable. Try again in a moment.",
+  "ORIGIN_FORBIDDEN": "The request was rejected. Open the application at its proper address.",
+  "INTERNAL_ERROR": "A server error occurred. Try again in a moment.",
+  "NETWORK": "No connection to the server. Check the connection and try again.",
+  "INVALID_RESPONSE": "The server answered in an unexpected way. Try again.",
+  "UNKNOWN": "The operation could not be completed. Try again.",
+  "requestReference": "Reference code: {{requestId}}"
+}

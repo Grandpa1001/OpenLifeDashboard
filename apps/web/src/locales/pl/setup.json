@@ -1,0 +1,15 @@
+{
+  "title": "Konfiguracja",
+  "ownerMissing": {
+    "heading": "Konto właściciela nie zostało jeszcze utworzone",
+    "description": "Konta nie da się założyć w przeglądarce. Utwórz je poleceniem create-owner na serwerze, zgodnie z opisem w README, a następnie odśwież tę stronę."
+  },
+  "pending": {
+    "heading": "Kolejny krok konfiguracji",
+    "unavailable": "Ten krok nie jest jeszcze dostępny w tej wersji aplikacji.",
+    "mfa_enrollment": "Skonfiguruj aplikację uwierzytelniającą (TOTP).",
+    "recovery_ack": "Potwierdź zapisanie kodów zapasowych.",
+    "setup_data": "Wybierz dane początkowe i ustawienia."
+  },
+  "signOut": "Wyloguj"
+}

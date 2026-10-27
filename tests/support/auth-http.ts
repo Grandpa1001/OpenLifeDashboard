@@ -7,10 +7,15 @@ import path from "node:path";
 import { identityStatusSchema } from "@openlife/contracts/http/identity";
 import { enrollmentChallengeSchema, issuedRecoveryCodesSchema, type IssuedRecoveryCodesDto } from "@openlife/contracts/http/mfa";
 import { createOTP } from "@better-auth/utils/otp";
-import { expect } from "vitest";
 import { openDatabase } from "../../packages/sqlite/dist/connection/open-database.js";
+import { freeLoopbackPort } from "./compose-instance.ts";
 import { repoRoot, runBuiltScript, startBuiltServer, startedInstallation, waitForExit, type ServerProcess } from "./server-process.ts";
 import type { TestInstance } from "./test-instance.ts";
+
+/** A failed precondition of a test installation: it stops the test with the reason. */
+function must(condition: boolean, reason: string): void {
+  if (!condition) throw new Error(reason);
+}
 
 export const OWNER_EMAIL = "owner@example.test";
 export const OWNER_PASSWORD = "a passphrase for the second factor";
@@ -22,6 +27,8 @@ export const RESET_MFA = path.join(repoRoot, "apps/server/dist/cli/reset-mfa.js"
 export type Installation = Readonly<{ instance: TestInstance; server: ServerProcess }>;
 
 const running: ServerProcess[] = [];
+/** The Origin a server accepts when it is not the default one: a browser reaches it at its own address. */
+const originOf = new WeakMap<ServerProcess, string>();
 
 /** Stops every server a test started; call it from afterEach. */
 export async function stopServers(): Promise<void> {
@@ -33,22 +40,24 @@ export async function stopServers(): Promise<void> {
   }
 }
 
-export async function serve(instance: TestInstance): Promise<ServerProcess> {
-  const server = await startBuiltServer({ installation: { dir: instance.dir, env: instance.env } });
+export async function serve(instance: TestInstance, at?: Readonly<{ port: number; origin: string }>): Promise<ServerProcess> {
+  const server = await startBuiltServer({ installation: { dir: instance.dir, env: instance.env }, ...(at === undefined ? {} : { args: ["--port", String(at.port)] }) });
+  if (at !== undefined) originOf.set(server, at.origin);
   running.push(server);
   return server;
 }
 
 export async function stopServer(server: ServerProcess): Promise<void> {
   server.child.kill("SIGTERM");
-  expect((await waitForExit(server.child, server.output, 15_000)).code).toBe(0);
+  const exit = await waitForExit(server.child, server.output, 15_000);
+  must(exit.code === 0, `the server did not stop cleanly:\n${exit.output}`);
 }
 
-/** A new installation with its owner and a running server. */
-export async function installation(): Promise<Installation> {
+/** A new installation with its owner and a running server; the password may be chosen. */
+export async function installation(password: string = OWNER_PASSWORD): Promise<Installation> {
   const instance = await startedInstallation();
-  const created = await runBuiltScript(CREATE_OWNER, ["--installation", instance.dir], { PATH: process.env["PATH"] ?? "", ...instance.env }, JSON.stringify({ email: OWNER_EMAIL, password: OWNER_PASSWORD }));
-  expect(created.code, created.output).toBe(0);
+  const created = await runBuiltScript(CREATE_OWNER, ["--installation", instance.dir], { PATH: process.env["PATH"] ?? "", ...instance.env }, JSON.stringify({ email: OWNER_EMAIL, password }));
+  must(created.code === 0, `create-owner failed:\n${created.output}`);
   return { instance, server: await serve(instance) };
 }
 
@@ -67,7 +76,7 @@ export type Reply = Readonly<{
 
 export async function send(server: ServerProcess, method: string, route: string, body: unknown, init: { cookie?: string | null | undefined; origin?: string | null } = {}): Promise<Reply> {
   const headers: Record<string, string> = {};
-  const origin = init.origin === undefined ? ORIGIN : init.origin;
+  const origin = init.origin === undefined ? (originOf.get(server) ?? ORIGIN) : init.origin;
   if (origin !== null) headers["Origin"] = origin;
   if (init.cookie) headers["Cookie"] = init.cookie;
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -80,7 +89,7 @@ export async function send(server: ServerProcess, method: string, route: string,
 export const post = (server: ServerProcess, route: string, body: unknown, init: { cookie?: string | null | undefined; origin?: string | null } = {}): Promise<Reply> => send(server, "POST", route, body, init);
 
 /** Signs in; `cookie` carries what the browser already holds, e.g. a trusted-device cookie. */
-export const signIn = (server: ServerProcess, cookie?: string | null) => post(server, "/api/auth/sign-in/email", { email: OWNER_EMAIL, password: OWNER_PASSWORD }, { cookie });
+export const signIn = (server: ServerProcess, cookie?: string | null, password: string = OWNER_PASSWORD) => post(server, "/api/auth/sign-in/email", { email: OWNER_EMAIL, password }, { cookie });
 export const begin = (server: ServerProcess, cookie: string | null) => post(server, "/api/v1/mfa/enrollment/begin", {}, { cookie });
 export const confirm = (server: ServerProcess, cookie: string | null, challengeId: string, code: string) => post(server, "/api/v1/mfa/enrollment/confirm", { challengeId, code }, { cookie });
 export const reissue = (server: ServerProcess, cookie: string | null, code: string) => post(server, "/api/v1/mfa/enrollment/recovery/reissue", { code }, { cookie });
@@ -147,8 +156,8 @@ export const mfaState = (instance: TestInstance) =>
 export const count = (instance: TestInstance, table: string): number => query<{ n: number }>(instance, `SELECT count(*) AS n FROM "${table}"`)[0]?.n ?? -1;
 
 /** Password session → begin → confirm: an owner whose TOTP is active and whose codes await the acknowledgment. */
-export async function enrolled(setup: Installation) {
-  const login = await signIn(setup.server);
+export async function enrolled(setup: Installation, password: string = OWNER_PASSWORD) {
+  const login = await signIn(setup.server, null, password);
   const passwordCookie = login.cookie ?? "";
   const challenge = enrollmentChallengeSchema.parse((await begin(setup.server, passwordCookie)).json());
   const secret = secretOf(challenge.otpauthUri);
@@ -158,11 +167,70 @@ export async function enrolled(setup: Installation) {
 }
 
 /** An owner who enrolled and acknowledged the codes, with the starting data chosen as empty (D11.4 will do that over HTTP). */
-export async function readyOwner(setup: Installation) {
-  const first = await enrolled(setup);
+export async function readyOwner(setup: Installation, password: string = OWNER_PASSWORD) {
+  const first = await enrolled(setup, password);
   const codes = first.codes;
   if (codes === null) throw new Error("the enrollment did not issue codes");
-  expect((await ack(setup.server, first.confirmed.cookie, codes.batchId)).status).toBe(200);
+  const acknowledged = await ack(setup.server, first.confirmed.cookie, codes.batchId);
+  must(acknowledged.status === 200, "the recovery codes were not acknowledged");
   execute(setup.instance, "UPDATE instance_state SET data_choice = 'empty'");
   return { secret: first.secret, codes: codes.recoveryCodes, sessionCookie: first.confirmed.cookie ?? "" };
+}
+
+/** Where the setup of a browser-test owner stands. */
+export type OwnerStage = "password_only" | "awaiting_ack" | "data_unchosen" | "ready";
+
+export type BrowserOwner = Readonly<{
+  baseUrl: string;
+  instance: TestInstance;
+  email: string;
+  password: string;
+  /** The authenticator secret and the recovery codes, when the stage has them. */
+  secret: Buffer | null;
+  recoveryCodes: readonly string[];
+  /** The code of the current time step plus `offset`, as an authenticator app shows it. */
+  code: (offset?: number) => Promise<string>;
+  stop: () => Promise<void>;
+}>;
+
+/**
+ * An installation a browser can use: its BASE_URL is the address the browser opens (the server
+ * only accepts a mutation from its own origin), the owner's password has spaces at both ends
+ * (it must reach the server untrimmed), and the setup stands at the requested stage, made by the
+ * real routes from an API session that is not the browser's.
+ */
+export async function browserOwner(stage: OwnerStage, password = "  a spaced pass phrase 🔐  "): Promise<BrowserOwner> {
+  const port = await freeLoopbackPort();
+  const origin = `http://127.0.0.1:${port}`;
+  const instance = await startedInstallation({ baseUrl: origin });
+  const created = await runBuiltScript(CREATE_OWNER, ["--installation", instance.dir], { PATH: process.env["PATH"] ?? "", ...instance.env }, JSON.stringify({ email: OWNER_EMAIL, password }));
+  must(created.code === 0, `create-owner failed:\n${created.output}`);
+  const server = await serve(instance, { port, origin });
+  const setup: Installation = { instance, server };
+  let secret: Buffer | null = null;
+  let recoveryCodes: readonly string[] = [];
+  if (stage !== "password_only") {
+    const first = await enrolled(setup, password);
+    secret = first.secret;
+    recoveryCodes = first.codes?.recoveryCodes ?? [];
+    if (stage !== "awaiting_ack") {
+      const acknowledged = await ack(server, first.confirmed.cookie, first.codes?.batchId ?? "");
+      must(acknowledged.status === 200, "the recovery codes were not acknowledged");
+      if (stage === "ready") {
+        const chosen = await post(server, "/api/v1/setup/choose-empty", {}, { cookie: first.confirmed.cookie });
+        must(chosen.status === 200, "the starting data were not chosen");
+      }
+    }
+  }
+  const owner = secret;
+  return {
+    baseUrl: origin,
+    instance,
+    email: OWNER_EMAIL,
+    password,
+    secret: owner,
+    recoveryCodes,
+    code: (offset = 0) => (owner === null ? Promise.reject(new Error("this stage has no authenticator secret")) : codeOf(owner, offset)),
+    stop: () => stopServer(server),
+  };
 }

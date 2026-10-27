@@ -1,9 +1,10 @@
+import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useServiceStatus } from "../api/service-status.js";
 
 /**
- * Start screen until the owner's sign-in exists (D09–D12): whether the server is ready or not.
- * It offers no form and shows no installation detail (paths, keys, versions), only the status.
+ * The start screen: whether the server is ready or not, and the way into the application. It has
+ * no form and shows no installation detail (paths, keys, versions), only the status.
  */
 export function StatusPage() {
   const { t } = useTranslation("common");
@@ -25,9 +26,12 @@ export function StatusPage() {
             </>
           )}
         </div>
-        <button type="button" onClick={recheck} disabled={status === "checking"}>
-          {t("status.recheck")}
-        </button>
+        <div className="status-actions">
+          <button type="button" onClick={recheck} disabled={status === "checking"}>
+            {t("status.recheck")}
+          </button>
+          {status === "ready" ? <Link to="/login">{t("status.signIn")}</Link> : null}
+        </div>
       </section>
     </main>
   );

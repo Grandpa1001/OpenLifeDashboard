@@ -1,17 +1,24 @@
 import { SOURCE_LOCALE, SUPPORTED_LOCALES, type Locale } from "@openlife/contracts/locales";
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
+import enAuth from "../../locales/en/auth.json";
 import enCommon from "../../locales/en/common.json";
+import enErrors from "../../locales/en/errors.json";
+import enSetup from "../../locales/en/setup.json";
+import plAuth from "../../locales/pl/auth.json";
 import plCommon from "../../locales/pl/common.json";
+import plErrors from "../../locales/pl/errors.json";
+import plSetup from "../../locales/pl/setup.json";
 
-// Until owner preferences exist (D11/D12) the language follows the browser.
+// The language follows the browser until the owner saves a preference (D12.3), and the sign-in
+// screens offer a switch for the session.
 
 // Keys are typed from the Polish source files: t() with a key missing there does not compile.
 // scripts/check-locales.ts keeps every other language to the same keys.
 declare module "i18next" {
   interface CustomTypeOptions {
     defaultNS: "common";
-    resources: { common: typeof plCommon };
+    resources: { common: typeof plCommon; auth: typeof plAuth; errors: typeof plErrors; setup: typeof plSetup };
   }
 }
 
@@ -32,8 +39,8 @@ export async function initI18n(locale: Locale): Promise<typeof i18next> {
     fallbackLng: SOURCE_LOCALE,
     supportedLngs: SUPPORTED_LOCALES,
     defaultNS: "common",
-    ns: ["common"],
-    resources: { pl: { common: plCommon }, en: { common: enCommon } },
+    ns: ["common", "auth", "errors", "setup"],
+    resources: { pl: { common: plCommon, auth: plAuth, errors: plErrors, setup: plSetup }, en: { common: enCommon, auth: enAuth, errors: enErrors, setup: enSetup } },
     interpolation: { escapeValue: false }, // React escapes rendered text.
   });
   return i18next;

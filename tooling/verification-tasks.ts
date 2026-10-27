@@ -964,7 +964,7 @@ const definedLater: readonly TaskDefinition[] = [
         id: "status-screen-e2e",
         criteria: ["D08.2-AC1", "D08.2-AC2"],
         description: "Playwright on the built app: PL/EN ready and unavailable (server stopped, 503), recovery, theme, axe, no form, no host path or key",
-        command: ["node", "tests/verification/e2e.ts"],
+        command: ["node", "tests/verification/e2e.ts", "status-screen"],
         requires: ["tests/verification/e2e.ts", "tests/e2e/status-screen.spec.ts", "tests/e2e/fixtures.ts", "playwright.config.ts"],
         timeoutMs: 10 * 60 * 1000,
       },
@@ -1419,6 +1419,46 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D11.1", "D11.2", "D11.3", "D11.4"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D12.1",
+    ready: true,
+    title: "Sign-in and second-factor screens on the built app: typed client, guards by nextAction, safe errors",
+    criteria: ["D12.1-AC1", "D12.1-AC2", "D12.1-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D12.1-AC1", "D12.1-AC2"],
+        description: "pnpm -r build: the SPA with the sign-in, second-factor and setup screens, typed keys of four namespaces",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/auth/pages/login-page.tsx", "apps/web/src/lib/api-client/request.ts"],
+      },
+      {
+        id: "client-unit",
+        criteria: ["D12.1-AC1", "D12.1-AC2"],
+        description: "The typed client (success, API error with Retry-After, no connection, an answer off the contract, abort), the failure texts selected by code only, nextAction to route",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web"],
+        requires: ["tests/unit/web/api-client.test.ts", "tests/unit/web/error-message.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D12.1-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all four namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/auth.json", "apps/web/src/locales/en/auth.json"],
+      },
+      {
+        id: "sign-in-e2e",
+        criteria: ["D12.1-AC1", "D12.1-AC2"],
+        description:
+          "Playwright on the built app and server: PL/EN sign-in, 401/429/lost connection keep the form, the password sent untrimmed and nowhere afterwards, a late answer ignored, the second factor by TOTP and recovery code, trusted device cookie not readable by the page, sign-out; guards by nextAction for every state, forged cookies, status outage, contract mismatch, errors by code only; axe",
+        command: ["node", "tests/verification/e2e.ts", "sign-in", "gate"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/sign-in.spec.ts", "tests/e2e/gate.spec.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D12.1-regression"),
+    ],
   },
   {
     // The parent passes only through its work orders, each with its real Compose run.

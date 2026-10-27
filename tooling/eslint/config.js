@@ -36,9 +36,15 @@ export default defineConfig(
   {
     files: UI_SOURCES,
     plugins: { i18next },
-    // jsx-only: text and attribute values in JSX (aria-label, title, alt…); className and the
-    // like stay allowed by the plugin's defaults.
-    rules: { "i18next/no-literal-string": ["error", { mode: "jsx-only" }] },
+    // jsx-only: text and attribute values in JSX (aria-label, title, alt, placeholder…) must come
+    // from the locale files. Attributes that name a technical value, not text for the reader, are
+    // excluded: the form field name, the autofill and keyboard hints, the route.
+    rules: {
+      "i18next/no-literal-string": [
+        "error",
+        { mode: "jsx-only", "jsx-attributes": { exclude: ["className", "style", "type", "key", "id", "width", "height", "name", "autoComplete", "autoCapitalize", "inputMode", "pattern", "to", "role", "lang", "aria-labelledby", "aria-describedby", "htmlFor"] } },
+      ],
+    },
   },
   {
     files: CORE_SOURCES,

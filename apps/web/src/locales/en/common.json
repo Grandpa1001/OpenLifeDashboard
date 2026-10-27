@@ -4,16 +4,27 @@
     "checking": "Checking the application status…",
     "ready": {
       "heading": "The application is running",
-      "description": "The server is ready and the database is open. The owner account and sign-in arrive in later versions."
+      "description": "The server is ready and the database is open. You can continue to sign-in."
     },
     "unavailable": {
       "heading": "The application is unavailable",
       "description": "The server does not answer, or it is starting up or under maintenance. Try again in a moment."
     },
-    "recheck": "Check again"
+    "recheck": "Check again",
+    "signIn": "Go to sign-in"
   },
   "notFound": {
     "title": "Page not found",
     "backHome": "Back to the start page"
+  },
+  "main": {
+    "title": "Main screen",
+    "signOut": "Sign out"
+  },
+  "gate": {
+    "unavailable": {
+      "heading": "The account state cannot be checked",
+      "retry": "Try again"
+    }
   }
 }

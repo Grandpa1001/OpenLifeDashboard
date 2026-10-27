@@ -1,0 +1,15 @@
+{
+  "title": "Setup",
+  "ownerMissing": {
+    "heading": "The owner account has not been created yet",
+    "description": "The account cannot be created in the browser. Create it with the create-owner command on the server, as described in the README, then reload this page."
+  },
+  "pending": {
+    "heading": "The next setup step",
+    "unavailable": "This step is not available in this version of the application yet.",
+    "mfa_enrollment": "Set up the authenticator app (TOTP).",
+    "recovery_ack": "Confirm that the recovery codes are saved.",
+    "setup_data": "Choose the starting data and the settings."
+  },
+  "signOut": "Sign out"
+}

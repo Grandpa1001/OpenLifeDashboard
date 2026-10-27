@@ -62,6 +62,9 @@ jobs:
       - name: Verify D11 (D11.1–D11.4, second factor, lockouts, first setup)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D11
+      - name: Verify D12.1 (sign-in and second-factor screens in a real browser)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D12.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -4,16 +4,27 @@
     "checking": "Sprawdzanie stanu aplikacji…",
     "ready": {
       "heading": "Aplikacja działa",
-      "description": "Serwer jest gotowy, a baza danych otwarta. Konto właściciela i logowanie pojawią się w kolejnych wersjach."
+      "description": "Serwer jest gotowy, a baza danych otwarta. Możesz przejść do logowania."
     },
     "unavailable": {
       "heading": "Aplikacja jest niedostępna",
       "description": "Serwer nie odpowiada albo trwa uruchamianie lub prace serwisowe. Spróbuj ponownie za chwilę."
     },
-    "recheck": "Sprawdź ponownie"
+    "recheck": "Sprawdź ponownie",
+    "signIn": "Przejdź do logowania"
   },
   "notFound": {
     "title": "Nie znaleziono strony",
     "backHome": "Wróć na stronę główną"
+  },
+  "main": {
+    "title": "Ekran główny",
+    "signOut": "Wyloguj"
+  },
+  "gate": {
+    "unavailable": {
+      "heading": "Nie można sprawdzić stanu konta",
+      "retry": "Spróbuj ponownie"
+    }
   }
 }
