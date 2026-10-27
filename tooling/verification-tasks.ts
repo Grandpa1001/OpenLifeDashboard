@@ -1747,6 +1747,32 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D15.2",
+    ready: true,
+    title: "Records and idempotency entries on real SQLite: write with the revision, pages with the count, 24 h entries",
+    criteria: ["D15.2-AC1", "D15.2-AC2", "D15.2-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests use the built core and sqlite packages.
+        id: "workspace-build",
+        criteria: ["D15.2-AC1", "D15.2-AC2"],
+        description: "pnpm -r build produces sqlite with the migration of idempotency entries and the adapters of records",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/sqlite/src/migrations/0011-idempotency.ts", "packages/sqlite/src/adapters/registries/record-store.ts", "packages/sqlite/src/adapters/registries/idempotency-store.ts"],
+      },
+      {
+        id: "record-store",
+        criteria: ["D15.2-AC1", "D15.2-AC2"],
+        description:
+          "The 25 records of F01 written with their identifiers and times and read back equal, data_revision 25, pages 10/10/5 in the order of books-v1.expected.json and the same after a restart; empty values last in both directions with the identifier breaking ties; another owner's registry shows nothing; a read unit is one snapshot; a failing insert, a stale or deleted registry and a failing entry leave no record, entry or revision; the entry is bound to owner, operation and key, expires and is cleaned; the table's own CHECKs; sort columns, directions, pages, table names and value keys outside the catalog never reach SQL; hostile text is a value only; the migration plan",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries/record-store.test.ts", "tests/integration/sqlite/migrations.test.ts"],
+        requires: ["tests/integration/registries/record-store.test.ts", "tests/fixtures/books/books-v1.expected.json", "tests/fixtures/books/books-v1.export.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D15.2-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

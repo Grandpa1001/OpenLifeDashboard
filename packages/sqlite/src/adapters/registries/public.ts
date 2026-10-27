@@ -3,3 +3,5 @@
 export { bindRegistryStore } from "./registry-store.js";
 export { UnsafeIdentifierError, quoteIdentifier, registryDdl } from "./registry-ddl.js";
 export type { RegistryDdl } from "./registry-ddl.js";
+export { bindRecordStore } from "./record-store.js";
+export { bindIdempotencyStore } from "./idempotency-store.js";
