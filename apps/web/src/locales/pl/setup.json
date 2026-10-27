@@ -4,11 +4,36 @@
     "heading": "Konto właściciela nie zostało jeszcze utworzone",
     "description": "Konta nie da się założyć w przeglądarce. Utwórz je poleceniem create-owner na serwerze, zgodnie z opisem w README, a następnie odśwież tę stronę."
   },
+  "enrollment": {
+    "heading": "Skonfiguruj aplikację uwierzytelniającą",
+    "loading": "Przygotowuję klucz…",
+    "retry": "Spróbuj ponownie",
+    "intro": "Zeskanuj kod QR w aplikacji uwierzytelniającej (na przykład Google Authenticator, Aegis lub 1Password), a następnie wpisz sześciocyfrowy kod, który pokaże aplikacja.",
+    "qrLabel": "Kod QR dla aplikacji uwierzytelniającej",
+    "manualHeading": "Nie możesz zeskanować kodu?",
+    "manualHint": "Dodaj konto w aplikacji, wpisując ręcznie ten klucz. Wybierz klucz oparty na czasie.",
+    "codeLabel": "Kod z aplikacji uwierzytelniającej",
+    "codeHint": "Sześć cyfr. Aplikacja zmienia kod co 30 sekund.",
+    "submit": "Potwierdź i przejdź dalej",
+    "submitting": "Sprawdzam…"
+  },
+  "recovery": {
+    "heading": "Zapisz kody zapasowe",
+    "intro": "Każdy kod działa jeden raz, gdy stracisz dostęp do aplikacji uwierzytelniającej. Są pokazane tylko teraz i nie są przechowywane w czytelnej postaci, więc zapisz je w bezpiecznym miejscu.",
+    "listLabel": "Kody zapasowe",
+    "saved": "Zapisałem te kody w bezpiecznym miejscu",
+    "continue": "Dalej",
+    "continuing": "Zapisuję…",
+    "lostHeading": "Kody zapasowe nie są już widoczne",
+    "lostDescription": "Kody są pokazywane tylko raz. Aby dostać nowy zestaw, wpisz aktualny kod z aplikacji uwierzytelniającej. Poprzedni zestaw przestanie działać. Aplikacja musi pokazać inny kod niż ten użyty chwilę temu, więc poczekaj, aż się zmieni.",
+    "reissueLabel": "Kod z aplikacji uwierzytelniającej",
+    "reissueHint": "Sześć cyfr, inny niż ostatnio wpisany kod.",
+    "reissueSubmit": "Pokaż nowe kody",
+    "reissuing": "Sprawdzam…"
+  },
   "pending": {
     "heading": "Kolejny krok konfiguracji",
     "unavailable": "Ten krok nie jest jeszcze dostępny w tej wersji aplikacji.",
-    "mfa_enrollment": "Skonfiguruj aplikację uwierzytelniającą (TOTP).",
-    "recovery_ack": "Potwierdź zapisanie kodów zapasowych.",
     "setup_data": "Wybierz dane początkowe i ustawienia."
   },
   "signOut": "Wyloguj"

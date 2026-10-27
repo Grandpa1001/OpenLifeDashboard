@@ -16,7 +16,9 @@ export default defineConfig({
   reporter: evidence ? [["list"], ["json", { outputFile: `${evidence}/playwright-report.json` }]] : [["list"]],
   use: {
     ...devices["Desktop Chrome"],
-    // Traces hold the page and its responses: kept only for a failure, in local artifacts.
-    trace: "retain-on-failure",
+    // A trace holds the page and its responses, the recovery codes and the authenticator key of
+    // the enrollment among them: kept only for a local failure. The evidence a verification run
+    // leaves (and CI uploads) carries the report, never a trace (D12.2-AC2).
+    trace: evidence ? "off" : "retain-on-failure",
   },
 });

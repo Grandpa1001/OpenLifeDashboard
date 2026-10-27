@@ -190,6 +190,8 @@ export type BrowserOwner = Readonly<{
   recoveryCodes: readonly string[];
   /** The code of the current time step plus `offset`, as an authenticator app shows it. */
   code: (offset?: number) => Promise<string>;
+  /** What the server process has written to its output so far. */
+  serverOutput: () => string;
   stop: () => Promise<void>;
 }>;
 
@@ -231,6 +233,7 @@ export async function browserOwner(stage: OwnerStage, password = "  a spaced pas
     secret: owner,
     recoveryCodes,
     code: (offset = 0) => (owner === null ? Promise.reject(new Error("this stage has no authenticator secret")) : codeOf(owner, offset)),
+    serverOutput: server.output,
     stop: () => stopServer(server),
   };
 }

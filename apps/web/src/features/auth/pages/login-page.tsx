@@ -7,9 +7,9 @@ import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
 import { routeForNextAction } from "../../../lib/session/route-for-next-action.js";
 import { signIn } from "../api/identity.js";
-import { Field } from "../components/field.js";
-import { LanguageSwitch } from "../components/language-switch.js";
-import { useLockCountdown } from "../use-lock-countdown.js";
+import { Field } from "../../../lib/forms/field.js";
+import { LanguageSwitch } from "../../../lib/forms/language-switch.js";
+import { useLockCountdown } from "../../../lib/forms/use-lock-countdown.js";
 
 /**
  * E-mail and password, nothing else: no sign-up, no "forgot password" (the reset is a command,

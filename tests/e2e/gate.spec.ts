@@ -68,20 +68,18 @@ test.describe("a screen is open only to its own state", () => {
     await page.goto(`${owner.baseUrl}/login`);
     await signIn(page, owner.email, owner.password);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
-    await expect(page.getByRole("heading", { level: 2 })).toHaveText(text(setup, "pending.heading"));
-    await expect(page.getByText(text(setup, "pending.mfa_enrollment"))).toBeVisible();
-    await expect(page.getByText(text(setup, "pending.unavailable"))).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText(text(setup, "enrollment.heading"));
     await page.goto(`${owner.baseUrl}/main`);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
     await expectNoViolations(page);
   });
 
-  test("recovery codes not yet acknowledged: the setup names that step, the data stay closed", async ({ page, ownerServer }) => {
+  test("recovery codes not yet acknowledged and not visible: the setup offers a new set, the data stay closed", async ({ page, ownerServer }) => {
     const owner = await ownerServer("awaiting_ack");
     await page.goto(`${owner.baseUrl}/login`);
     await signIn(page, owner.email, owner.password);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
-    await expect(page.getByText(text(setup, "pending.recovery_ack"))).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText(text(setup, "recovery.lostHeading"));
     await page.goto(`${owner.baseUrl}/main`);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
   });

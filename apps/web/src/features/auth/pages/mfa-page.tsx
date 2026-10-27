@@ -8,9 +8,9 @@ import { queryKeys } from "../../../lib/query-keys/index.js";
 import { signOut } from "../../../lib/session/identity-api.js";
 import { routeForNextAction } from "../../../lib/session/route-for-next-action.js";
 import { verifyFactor, type FactorProof } from "../api/identity.js";
-import { Field } from "../components/field.js";
-import { LanguageSwitch } from "../components/language-switch.js";
-import { useLockCountdown } from "../use-lock-countdown.js";
+import { Field } from "../../../lib/forms/field.js";
+import { LanguageSwitch } from "../../../lib/forms/language-switch.js";
+import { useLockCountdown } from "../../../lib/forms/use-lock-countdown.js";
 
 const TOTP_DIGITS = 6;
 

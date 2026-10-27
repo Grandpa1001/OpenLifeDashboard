@@ -4,11 +4,36 @@
     "heading": "The owner account has not been created yet",
     "description": "The account cannot be created in the browser. Create it with the create-owner command on the server, as described in the README, then reload this page."
   },
+  "enrollment": {
+    "heading": "Set up the authenticator app",
+    "loading": "Preparing the key…",
+    "retry": "Try again",
+    "intro": "Scan the QR code with an authenticator app (for example Google Authenticator, Aegis or 1Password), then enter the six-digit code the app shows.",
+    "qrLabel": "QR code for the authenticator app",
+    "manualHeading": "Cannot scan the code?",
+    "manualHint": "Add the account in the app by entering this key by hand. Choose a time-based key.",
+    "codeLabel": "Code from the authenticator app",
+    "codeHint": "Six digits. The app changes the code every 30 seconds.",
+    "submit": "Confirm and continue",
+    "submitting": "Checking…"
+  },
+  "recovery": {
+    "heading": "Save your recovery codes",
+    "intro": "Each code works once if you lose access to the authenticator app. They are shown only now and are not kept in a readable form, so save them in a safe place.",
+    "listLabel": "Recovery codes",
+    "saved": "I have saved these codes in a safe place",
+    "continue": "Continue",
+    "continuing": "Saving…",
+    "lostHeading": "The recovery codes are no longer visible",
+    "lostDescription": "The codes are shown only once. To get a new set, enter the current code from the authenticator app. The previous set stops working. The app has to show a different code than the one used a moment ago, so wait until it changes.",
+    "reissueLabel": "Code from the authenticator app",
+    "reissueHint": "Six digits, a different one than the code you entered last.",
+    "reissueSubmit": "Show new codes",
+    "reissuing": "Checking…"
+  },
   "pending": {
     "heading": "The next setup step",
     "unavailable": "This step is not available in this version of the application yet.",
-    "mfa_enrollment": "Set up the authenticator app (TOTP).",
-    "recovery_ack": "Confirm that the recovery codes are saved.",
     "setup_data": "Choose the starting data and the settings."
   },
   "signOut": "Sign out"

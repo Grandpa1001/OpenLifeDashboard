@@ -178,6 +178,27 @@ main {
   text-decoration: none;
 }
 
+.qr-code {
+  width: min(100%, 14rem);
+  height: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.manual-key {
+  overflow-wrap: anywhere;
+  font-size: var(--text-md, 1rem);
+  letter-spacing: 0.05em;
+}
+
+.recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
 .language-switch {
   display: flex;
   gap: var(--space-2);

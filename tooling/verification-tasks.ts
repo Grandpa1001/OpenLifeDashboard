@@ -1461,6 +1461,46 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D12.2",
+    ready: true,
+    title: "Enrollment of the second factor in the browser: QR code, confirmation, recovery codes shown once, safe resume",
+    criteria: ["D12.2-AC1", "D12.2-AC2", "D12.2-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D12.2-AC1", "D12.2-AC2"],
+        description: "pnpm -r build: the SPA with the enrollment and recovery steps and the QR renderer",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/setup/components/enrollment-step.tsx", "apps/web/src/features/setup/components/recovery-step.tsx"],
+      },
+      {
+        id: "enrollment-unit",
+        criteria: ["D12.2-AC1", "D12.2-AC2"],
+        description: "The QR path paints exactly the modules of the code; failure texts cover the batch error; the CI evidence carries no Playwright trace",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web"],
+        requires: ["tests/unit/web/qr-path.test.ts", "tests/unit/web/error-message.test.ts", "tests/unit/web/playwright-trace-policy.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D12.2-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all four namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/setup.json", "apps/web/src/locales/en/setup.json"],
+      },
+      {
+        id: "enrollment-e2e",
+        criteria: ["D12.2-AC1", "D12.2-AC2"],
+        description:
+          "Playwright on the built app and server: QR code and key (the same key after a reload), a wrong code keeps the step, a lost connection and a lock keep it; ten recovery codes shown once, no passing without the acknowledgment, gone from page, storage and server log after it; after a reload a new TOTP gives a new set (a spent step refused), the old set dead and the secret unchanged; a batch replaced in another tab gives the right error and keeps the step; PL; axe",
+        command: ["node", "tests/verification/e2e.ts", "enrollment", "gate"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/enrollment.spec.ts", "tests/e2e/gate.spec.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D12.2-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

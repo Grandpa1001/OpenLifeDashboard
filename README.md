@@ -2,7 +2,7 @@
 
 A self-hosted, no-code personal life dashboard: build your own registers, dictionaries and screens with widgets, and view them live on your phone, laptop and a large screen.
 
-> **Status: early development (KM1).** The foundation (KM0) passed gate G0: the image starts from a Compose installation with a real database, snapshots and logs, and the web app shows whether the server is ready. The database now has the tables of the auth adapter, the owner singleton and the audit trail, and the `create-owner` command creates the owner account (credentials on stdin only), and the server has explicit sign-in, sign-out and status routes with a persistent lockout; the second factor can be enrolled (TOTP with recovery codes) and proven at sign-in (TOTP, recovery code, trusted device); the first setup (choice of the starting data, preferences) and `reset-mfa` exist, but there are screens for sign-in and the second factor, but no data yet. Nothing here is ready to install or use.
+> **Status: early development (KM1).** The foundation (KM0) passed gate G0: the image starts from a Compose installation with a real database, snapshots and logs, and the web app shows whether the server is ready. The database now has the tables of the auth adapter, the owner singleton and the audit trail, and the `create-owner` command creates the owner account (credentials on stdin only), and the server has explicit sign-in, sign-out and status routes with a persistent lockout; the second factor can be enrolled (TOTP with recovery codes) and proven at sign-in (TOTP, recovery code, trusted device); the first setup (choice of the starting data, preferences) and `reset-mfa` exist, and the browser has screens for sign-in, the second factor and its enrollment (QR code, recovery codes shown once), but no data yet. Nothing here is ready to install or use.
 
 ## Development
 
@@ -109,7 +109,7 @@ Versions exercised by the verification reports; `tests/verification/readme-versi
 | Native image runs | linux/amd64 on `ubuntu-24.04`, linux/arm64 on `ubuntu-24.04-arm` (GitHub Actions) |
 | Docker Engine | 28.0.4 on both runners |
 | HTTP server | hono 4.13.13, @hono/node-server 2.1.5 |
-| Web app | react 19.3.1, vite 8.3.5, @tanstack/react-router 1.170.46, @tanstack/react-query 5.104.5, i18next 26.5.10, react-i18next 17.1.8 |
+| Web app | react 19.3.1, vite 8.3.5, @tanstack/react-router 1.170.46, @tanstack/react-query 5.104.5, i18next 26.5.10, react-i18next 17.1.8, uqr 0.1.3 (QR code matrix) |
 | Schemas | zod 4.6.7 (server and contracts; the web app checks health without it) |
 | Auth adapter | better-auth 1.7.13 (table schema and crypto primitives; writes go through the application's transactions), @node-rs/argon2 2.2.2 (argon2id, m=19 MiB, t=2, p=1), @better-auth/utils 0.5.1 (HOTP for the TOTP check) |
 | Language and tests | typescript 6.0.3, vitest 5.0.5, @playwright/test 1.64.1 with its Chromium, @axe-core/playwright 4.14.0 |

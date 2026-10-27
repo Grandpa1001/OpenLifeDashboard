@@ -10,6 +10,7 @@
   "RATE_LIMITED_other": "Zbyt wiele żądań. Spróbuj ponownie za {{count}} minuty.",
   "MFA_INVALID_CODE": "Kod jest nieprawidłowy albo został już użyty. Sprawdź kod i spróbuj ponownie.",
   "ENROLLMENT_CHANGED": "Stan konfiguracji się zmienił. Odśwież stronę.",
+  "RECOVERY_BATCH_CHANGED": "Kody zapasowe zostały zastąpione. Użyj aktualnego zestawu albo poproś o nowy.",
   "AUTH_REQUIRED": "Sesja wygasła. Zaloguj się ponownie.",
   "VALIDATION_FAILED": "Dane formularza są nieprawidłowe.",
   "AUTH_UNAVAILABLE": "Logowanie jest chwilowo niedostępne. Spróbuj ponownie za chwilę.",
