@@ -122,6 +122,9 @@ jobs:
       - name: Verify D15.3 (adding and listing records over HTTP)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D15.3
+      - name: Verify D17.1 (manifest of a widget type and the snapshot of a screen)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D17.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -287,6 +290,9 @@ jobs:
       - name: Verify D15.3 (adding and listing records over HTTP)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D15.3
+      - name: Verify D17.1 (manifest of a widget type and the snapshot of a screen)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D17.1
       - name: Verify D15 (the parent, D15.1–D15.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D15

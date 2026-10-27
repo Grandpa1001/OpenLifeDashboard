@@ -54,6 +54,11 @@
       "types": "./dist/http/registries.d.ts",
       "default": "./dist/http/registries.js"
     },
+    "./http/screens": {
+      "@openlife/source": "./src/http/screens.ts",
+      "types": "./dist/http/screens.d.ts",
+      "default": "./dist/http/screens.js"
+    },
     "./http/setup": {
       "@openlife/source": "./src/http/setup.ts",
       "types": "./dist/http/setup.d.ts",

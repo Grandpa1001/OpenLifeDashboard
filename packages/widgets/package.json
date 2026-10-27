@@ -23,6 +23,10 @@
   "scripts": {
     "build": "tsc -b"
   },
+  "dependencies": {
+    "@openlife/contracts": "workspace:*",
+    "zod": "catalog:"
+  },
   "devDependencies": {
     "typescript": "catalog:"
   }

@@ -1,0 +1,1 @@
+export const REGISTER_TABLE_CONFIG_VERSION = 1;

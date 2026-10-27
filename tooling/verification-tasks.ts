@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -1928,6 +1928,39 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D16.1", "D16.2", "D16.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D17.1",
+    ready: true,
+    title: "Manifest of a widget type and the snapshot of a screen: contracts, the register table definition, the catalog of this build",
+    criteria: ["D17.1-AC1", "D17.1-AC2", "D17.1-regression"],
+    checks: [
+      {
+        // Runs first: the unit tests import the built contracts and widget definitions.
+        id: "workspace-build",
+        criteria: ["D17.1-AC1", "D17.1-AC2"],
+        description: "pnpm -r build produces contracts with the screen schemas and the widget definitions with the register table",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/http/screens.ts", "packages/widgets/src/definition.ts", "packages/widgets/src/register-table/manifest.ts"],
+      },
+      {
+        id: "screens-contract",
+        criteria: ["D17.1-AC1"],
+        description:
+          "The screen of F01 passes the snapshot schema; a state, an owner, an id, a revision, a large layout or any other field the server alone decides is refused on the screen, the widget, the layout, the binding and its target; identifiers are UUID version 7, targets one of five kinds, ordinals and rectangles whole numbers in range; the accents equal the tokens of the web app; 32 KiB of configuration (counted in UTF-8) passes and one byte more does not, 50 widgets and 64 bindings pass and one more does not",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/dashboard/screens-contract.test.ts"],
+        requires: ["tests/unit/dashboard/screens-contract.test.ts", "tests/fixtures/books/books-v1.export.json"],
+      },
+      {
+        id: "widget-definitions",
+        criteria: ["D17.1-AC2"],
+        description:
+          "The catalog of this build knows the register table and nothing else; its slots, capability and sizes; the configuration of F01 passes with the defaults of the plan, the page size is 1 to 100, a copy of the source or the columns is refused, an unknown version goes back to the owner (NEEDS_REFRESH) and the input is not changed; the shape of the bindings (unknown slot, cardinality, accepted kinds, ordinals) and the required slots; the built definitions import only each other, the contracts and zod",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/dashboard/widget-definitions.test.ts"],
+        requires: ["tests/unit/dashboard/widget-definitions.test.ts"],
+      },
+      ...regressionChecks("D17.1-regression"),
+    ],
   },
   {
     // The parent passes only through its work orders, each with its real Compose run.
