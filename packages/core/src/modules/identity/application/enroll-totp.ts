@@ -7,23 +7,37 @@
 // unit, and then does one unit of work that repeats the decisive checks as compare-and-set. A
 // DomainFault inside the unit rolls it back whole; the plain recovery codes exist only in the
 // returned outcome and are never stored.
-import type { ReadUnit, Result, UnitOfWork } from "../../../foundation/public.js";
+import type { Commit, Failure, ReadUnit, Result, UnitOfWork } from "../../../foundation/public.js";
 import { nextActionFor, type NextAction } from "../domain/access-policy.js";
 import type { EnrollmentPorts, MfaCrypto } from "../ports.js";
 import { callerOf, commit, context, fail, failed, replacementSession, type Caller } from "./caller.js";
+import { bucketKeysOf, lockedResult, recordRefusal, refuseWrongCode, type AttemptDependencies, type FactorOperation, type RequestContext } from "./factor-attempts.js";
+import { clearAccountBucket, lockedFor } from "./lockout-buckets.js";
 
 /** How long an enrollment challenge is valid (Architektura §9.7). */
 export const ENROLLMENT_CHALLENGE_LIFETIME_MS = 10 * 60 * 1000;
 
-export type EnrollmentDependencies = Readonly<{
-  unit: UnitOfWork<EnrollmentPorts> & ReadUnit<EnrollmentPorts>;
-  crypto: MfaCrypto;
-  nowMs: () => number;
-  /** Challenge and batch identifiers. */
-  newId: () => string;
-  newSessionId: () => string;
-  newSessionToken: () => string;
-}>;
+export type EnrollmentDependencies = AttemptDependencies &
+  Readonly<{
+    unit: UnitOfWork<EnrollmentPorts> & ReadUnit<EnrollmentPorts>;
+    crypto: MfaCrypto;
+    nowMs: () => number;
+    /** Challenge and batch identifiers. */
+    newId: () => string;
+    newSessionId: () => string;
+    newSessionToken: () => string;
+  }>;
+
+/** What a unit that issues codes commits: the issue, or a counted refusal (also a commit). */
+type Outcome = Readonly<{ kind: "issued"; issued: IssuedRecoveryCodes }> | Readonly<{ kind: "refused"; failure: Failure }>;
+
+const settle = (result: Result<Commit<Outcome>>): Result<IssuedRecoveryCodes> => {
+  if (!result.ok) {
+    return result;
+  }
+  const outcome = result.value.value;
+  return outcome.kind === "issued" ? { ok: true, value: outcome.issued } : { ok: false, error: outcome.failure };
+};
 
 export type EnrollmentChallenge = Readonly<{ challengeId: string; otpauthUri: string; manualKey: string; expiresAtMs: number }>;
 
@@ -95,13 +109,18 @@ export async function confirmEnrollment(
   deps: EnrollmentDependencies,
   token: string,
   request: Readonly<{ challengeId: string; code: string }>,
-  requestId: string,
+  attempt: RequestContext,
 ): Promise<Result<IssuedRecoveryCodes>> {
   const nowMs = deps.nowMs();
+  const requestId = attempt.requestId;
   const first = deps.unit.read((ports): Result<Readonly<{ caller: Caller; secret: string }>> => {
     const caller = callerOf(ports, token, nowMs, requestId);
     if (caller === null) {
       return failed("AUTH_REQUIRED");
+    }
+    const locked = lockedFor(ports, bucketKeysOf(deps, caller.session.ownerId, attempt), nowMs);
+    if (locked !== null) {
+      return lockedResult(locked);
     }
     const pending = caller.mfa.pending;
     // A foreign, expired or replaced challenge is one answer: the enrollment is not what the caller thinks.
@@ -123,14 +142,19 @@ export async function confirmEnrollment(
   const { caller, secret } = first.value;
   const step = await deps.crypto.verify(secret, request.code, nowMs);
   if (step === null || step <= (caller.mfa.lastUsedStep ?? -1)) {
-    return failed("MFA_INVALID_CODE");
+    return refuseWrongCode(deps, nowMs, { ownerId: caller.session.ownerId, operation: "enrollment_confirm", context: attempt });
   }
 
   const batch = deps.crypto.newRecoveryCodes();
   const batchId = deps.newId();
   const sessionId = deps.newSessionId();
   const newToken = deps.newSessionToken();
+  const keys = bucketKeysOf(deps, caller.session.ownerId, attempt);
   const result = deps.unit.run((ports) => {
+    const locked = lockedFor(ports, keys, nowMs);
+    if (locked !== null) {
+      return commit<Outcome>({ kind: "refused", failure: { code: "AUTH_LOCKED", retryAfterSeconds: locked } });
+    }
     const activated = ports.mfa.activatePending({
       challengeId: request.challengeId,
       sessionId: caller.session.sessionId,
@@ -146,11 +170,12 @@ export async function confirmEnrollment(
       return fail("AUTH_REQUIRED");
     }
     ports.recovery.issueBatch({ batchId, sessionId, hashes: batch.hashes });
+    clearAccountBucket(ports, keys);
     ports.audit.append({ ownerId: caller.session.ownerId, action: "mfa.enrolled", entityId: caller.session.ownerId, at: new Date(nowMs).toISOString(), requestId });
     const snapshot = ports.access.current({ ownerId: next.ownerId, sessionId, requestId, accessEpoch: next.accessEpoch });
-    return commit<IssuedRecoveryCodes>({ token: newToken, expiresAtMs: next.expiresAtMs, batchId, recoveryCodes: batch.codes, nextAction: nextActionFor(snapshot, nowMs) });
+    return commit<Outcome>({ kind: "issued", issued: { token: newToken, expiresAtMs: next.expiresAtMs, batchId, recoveryCodes: batch.codes, nextAction: nextActionFor(snapshot, nowMs) } });
   });
-  return result.ok ? { ok: true, value: result.value.value } : result;
+  return settle(result);
 }
 
 /**
@@ -163,13 +188,18 @@ export async function reissueRecoveryCodes(
   deps: EnrollmentDependencies,
   token: string,
   request: Readonly<{ code: string }>,
-  requestId: string,
+  attempt: RequestContext,
 ): Promise<Result<IssuedRecoveryCodes>> {
   const nowMs = deps.nowMs();
+  const requestId = attempt.requestId;
   const first = deps.unit.read((ports): Result<Readonly<{ caller: Caller; secret: string }>> => {
     const caller = callerOf(ports, token, nowMs, requestId);
     if (caller === null) {
       return failed("AUTH_REQUIRED");
+    }
+    const locked = lockedFor(ports, bucketKeysOf(deps, caller.session.ownerId, attempt), nowMs);
+    if (locked !== null) {
+      return lockedResult(locked);
     }
     if (caller.mfa.enrollmentState !== "awaiting_recovery_ack" || caller.mfa.activeSecret === null) {
       return failed("ENROLLMENT_CHANGED");
@@ -183,28 +213,35 @@ export async function reissueRecoveryCodes(
   const { caller, secret } = first.value;
   const step = await deps.crypto.verify(secret, request.code, nowMs);
   if (step === null || step <= (caller.mfa.lastUsedStep ?? -1)) {
-    return failed("MFA_INVALID_CODE");
+    return refuseWrongCode(deps, nowMs, { ownerId: caller.session.ownerId, operation: "recovery_reissue", context: attempt });
   }
 
   const batch = deps.crypto.newRecoveryCodes();
   const batchId = deps.newId();
   const sessionId = deps.newSessionId();
   const newToken = deps.newSessionToken();
+  const keys = bucketKeysOf(deps, caller.session.ownerId, attempt);
+  const operation: FactorOperation = "recovery_reissue";
   const result = deps.unit.run((ports) => {
-    // The ledger decides: of two requests with the same step exactly one gets here.
+    const locked = lockedFor(ports, keys, nowMs);
+    if (locked !== null) {
+      return commit<Outcome>({ kind: "refused", failure: { code: "AUTH_LOCKED", retryAfterSeconds: locked } });
+    }
+    // The ledger decides: of two requests with the same step exactly one gets here, the other is a counted refusal.
     if (!ports.mfa.consumeStep({ expectedGeneration: caller.mfa.secretGeneration, step })) {
-      return fail("MFA_INVALID_CODE");
+      return commit<Outcome>({ kind: "refused", failure: recordRefusal(ports, keys, nowMs, { ownerId: caller.session.ownerId, operation, requestId }) });
     }
     const next = replacementSession(caller.session, { assurance: "totp", totpVerifiedAtMs: nowMs }, nowMs, { sessionId, token: newToken });
     if (!ports.sessions.rotate(token, next)) {
       return fail("AUTH_REQUIRED");
     }
     ports.recovery.issueBatch({ batchId, sessionId, hashes: batch.hashes });
+    clearAccountBucket(ports, keys);
     ports.audit.append({ ownerId: caller.session.ownerId, action: "mfa.recovery_reissued", entityId: caller.session.ownerId, at: new Date(nowMs).toISOString(), requestId });
     const snapshot = ports.access.current({ ownerId: next.ownerId, sessionId, requestId, accessEpoch: next.accessEpoch });
-    return commit<IssuedRecoveryCodes>({ token: newToken, expiresAtMs: next.expiresAtMs, batchId, recoveryCodes: batch.codes, nextAction: nextActionFor(snapshot, nowMs) });
+    return commit<Outcome>({ kind: "issued", issued: { token: newToken, expiresAtMs: next.expiresAtMs, batchId, recoveryCodes: batch.codes, nextAction: nextActionFor(snapshot, nowMs) } });
   });
-  return result.ok ? { ok: true, value: result.value.value } : result;
+  return settle(result);
 }
 
 /** Acknowledges the *current* batch from the session that was shown it; repeating it is harmless. */

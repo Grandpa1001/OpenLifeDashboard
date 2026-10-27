@@ -2,6 +2,7 @@
 // a matching Origin, a small strict body, no caching, a verified session cookie, and an error in a
 // unit of work (a failing audit included) answered as unavailable, never as a result.
 import type { ApiErrorCode } from "@openlife/contracts/http/errors";
+import type { Failure } from "@openlife/core/foundation";
 import type { Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { z } from "zod";
@@ -15,7 +16,8 @@ import { readSessionToken } from "./session-cookie-http.js";
 /** A second-factor request is a few short fields; more is refused before it is read. */
 const BODY_MAX_BYTES = 1024;
 
-const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 403 | 409>>> = {
+const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 403 | 409 | 429>>> = {
+  AUTH_LOCKED: 429,
   AUTH_REQUIRED: 401,
   MFA_INVALID_CODE: 401,
   MFA_REQUIRED: 403,
@@ -30,8 +32,8 @@ export type MfaOperationKit = Readonly<{
   /** Origin check and body limit, in this order, before the handler. */
   guard: readonly [ReturnType<typeof requireSameOrigin>, ReturnType<typeof bodyLimit>];
   operation: <S extends z.ZodType>(schema: S, run: (c: Context<AppEnv>, token: string, body: z.infer<S>) => Promise<Response>) => (c: Context<AppEnv>) => Promise<Response>;
-  /** The answer for a use case's failure code. */
-  refused: (c: Context<AppEnv>, code: string) => Response;
+  /** The answer for a use case's failure; a lock carries Retry-After and the seconds in its details. */
+  refused: (c: Context<AppEnv>, failure: Failure) => Response;
 }>;
 
 export function createMfaOperationKit(options: Readonly<{ allowedOrigin: string; cookies: SignedCookie; logger: TechnicalLogger }>): MfaOperationKit {
@@ -57,8 +59,12 @@ export function createMfaOperationKit(options: Readonly<{ allowedOrigin: string;
         return apiErrorResponse(c, 503, "AUTH_UNAVAILABLE");
       }
     },
-    refused: (c, code) => {
-      const known = code as ApiErrorCode;
+    refused: (c, failure) => {
+      const known = failure.code as ApiErrorCode;
+      if (failure.code === "AUTH_LOCKED" && failure.retryAfterSeconds !== undefined) {
+        c.header("Retry-After", String(failure.retryAfterSeconds));
+        return apiErrorResponse(c, 429, "AUTH_LOCKED", { retryAfterSeconds: failure.retryAfterSeconds });
+      }
       return apiErrorResponse(c, STATUS[known] ?? 409, known);
     },
   };

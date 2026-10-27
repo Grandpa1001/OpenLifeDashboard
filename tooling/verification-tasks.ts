@@ -1341,6 +1341,45 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D11.3",
+    ready: true,
+    title: "Persistent lockout of the second factor: account and address buckets, committed refusals, restart, burst",
+    criteria: ["D11.3-AC1", "D11.3-AC2", "D11.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built use cases, adapters and server.
+        id: "workspace-build",
+        criteria: ["D11.3-AC1", "D11.3-AC2"],
+        description: "pnpm -r build: the shared lockout buckets, the counted refusals of every factor operation and the 429 mapping",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/identity/application/factor-attempts.ts", "apps/server/src/http/mfa-operation.ts"],
+      },
+      {
+        id: "mfa-lockout",
+        criteria: ["D11.3-AC1", "D11.3-AC2"],
+        description:
+          "Real database, controlled clock: 4 refusals then a lock of 900 s, blocked requests write nothing, exact lockedUntil boundary, 15-minute window, restart, every factor operation in one bucket, committed refusals and audit outage, password and factor buckets apart, success clears only the account bucket, burst of 20 counts five",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/mfa-lockout.test.ts"],
+        requires: ["tests/integration/auth/mfa-lockout.test.ts", "packages/core/src/modules/identity/application/lockout-buckets.ts"],
+      },
+      {
+        id: "mfa-lockout-http",
+        criteria: ["D11.3-AC1", "D11.3-AC2"],
+        description: "Real server: 401 401 401 401 429 with Retry-After under a spoofed X-Forwarded-For, the lock holds for every route, session and a restart, enrollment confirmation locks alike, burst, audit outage 503, no session means no count",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/mfa-lockout-http.test.ts"],
+        requires: ["tests/integration/auth/mfa-lockout-http.test.ts", "apps/server/src/adapters/auth/attempt-keys.ts"],
+      },
+      {
+        id: "password-lockout",
+        criteria: ["D11.3-AC2"],
+        description: "The password's lockout of D09.3 still holds on the shared buckets",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/sign-in-lockout.test.ts", "tests/integration/auth/sign-in-http.test.ts"],
+        requires: ["tests/integration/auth/sign-in-lockout.test.ts", "tests/integration/auth/sign-in-http.test.ts"],
+      },
+      ...regressionChecks("D11.3-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

@@ -5,6 +5,7 @@
 // names a code and fields, never a value. Exiting releases the lease with the process; nothing
 // before the lease opens or changes database files.
 import { getConnInfo } from "@hono/node-server/conninfo";
+import type { Context } from "hono";
 import { randomBytes, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -30,6 +31,7 @@ import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js"
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
 import { loadBootstrapConfig } from "./bootstrap/bootstrap-config.js";
 import { createApp } from "./bootstrap/create-app.js";
+import type { AppEnv } from "./http/app-env.js";
 import { createRateLimiter } from "./http/middleware/fixed-window-limit.js";
 import { LOGIN_LIMIT_WINDOW_MS, LOGIN_REQUESTS_PER_MINUTE } from "./http/security-limits.js";
 import { logLimitsFrom } from "./bootstrap/log-limits.js";
@@ -176,6 +178,8 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   access: bindIdentityAccessReader(tx, Date.now),
   audit: bindAppendAudit(tx),
 }));
+const attemptKeys = createAttemptKeys(secret);
+const clientIp = (c: Context<AppEnv>): string => getConnInfo(c).remote.address ?? "unknown";
 const cookies = createSessionCookies({ instanceId: paths.instanceId, secret });
 const trustedDeviceCookies = createTrustedDeviceCookies({ instanceId: paths.instanceId, secret });
 const mfaCrypto = createMfaCrypto(environment.appEncryptionKey.reveal());
@@ -195,11 +199,11 @@ const app = createApp({
     decoyHash: await hasher.hash(randomBytes(32).toString("hex")),
     cookies,
     trustedDevice: { cookies: trustedDeviceCookies, hash: mfaCrypto.hashTrustedDeviceToken },
-    keys: createAttemptKeys(secret),
+    keys: attemptKeys,
     allowedOrigin: environment.baseUrl,
     secureCookies,
     loginLimiter: createRateLimiter({ limit: LOGIN_REQUESTS_PER_MINUTE, windowMs: LOGIN_LIMIT_WINDOW_MS, nowMs: Date.now }),
-    clientIp: (c) => getConnInfo(c).remote.address ?? "unknown",
+    clientIp,
     nowMs: Date.now,
     newId: randomUUID,
     newSessionToken,
@@ -211,6 +215,8 @@ const app = createApp({
     cookies,
     allowedOrigin: environment.baseUrl,
     secureCookies,
+    keys: attemptKeys,
+    clientIp,
     nowMs: Date.now,
     newId: randomUUID,
     newSessionToken,
@@ -223,6 +229,8 @@ const app = createApp({
     trustedDeviceCookies,
     allowedOrigin: environment.baseUrl,
     secureCookies,
+    keys: attemptKeys,
+    clientIp,
     nowMs: Date.now,
     newId: randomUUID,
     newSessionToken,

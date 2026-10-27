@@ -11,6 +11,7 @@ export type FailureCode =
   | "AUTH_REQUIRED"
   | "MFA_REQUIRED"
   | "MFA_INVALID_CODE"
+  | "AUTH_LOCKED"
   | "RECOVERY_ACK_REQUIRED"
   | "OWNER_ALREADY_EXISTS"
   | "OWNER_NOT_FOUND"
@@ -21,7 +22,7 @@ export type FailureCode =
   | "STEP_UP_REQUIRED"
   | "MAINTENANCE";
 
-export type Failure = Readonly<{ code: FailureCode; fields?: readonly string[] }>;
+export type Failure = Readonly<{ code: FailureCode; fields?: readonly string[]; /** For a lock: whole seconds until it opens. */ retryAfterSeconds?: number }>;
 
 export type Result<T> = Readonly<{ ok: true; value: T }> | Readonly<{ ok: false; error: Failure }>;
 

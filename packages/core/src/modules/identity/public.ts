@@ -12,6 +12,7 @@ export {
   reissueRecoveryCodes,
 } from "./application/enroll-totp.js";
 export type { EnrollmentChallenge, EnrollmentDependencies, EnrollmentStatus, IssuedRecoveryCodes } from "./application/enroll-totp.js";
+export type { FactorOperation, RequestContext } from "./application/factor-attempts.js";
 export { stepUp, verifyRecoveryCode, verifyTotp } from "./application/verify-mfa.js";
 export type { MfaProof, VerificationDependencies } from "./application/verify-mfa.js";
 export { readIdentityStatus, signInWithPassword, signOut } from "./application/sign-in.js";

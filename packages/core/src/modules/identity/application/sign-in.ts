@@ -9,9 +9,9 @@
 // "unavailable".
 import type { Commit, ReadUnit, UnitOfWork } from "../../../foundation/public.js";
 import { decideAccess, nextActionFor, type NextAction } from "../domain/access-policy.js";
-import { afterFailure, retryAfterSeconds } from "../domain/lockout.js";
 import { SESSION_LIFETIME_MS } from "../domain/session-policy.js";
 import type { OwnerCredential, SignInPorts } from "../ports.js";
+import { clearAccountBucket, lockedFor, registerFailure, type BucketKeys } from "./lockout-buckets.js";
 
 export interface PasswordVerifier {
   /** False for a wrong password. */
@@ -53,14 +53,8 @@ export type AuthAttemptOutcome =
 
 const commit = <T>(value: T): Commit<T> => ({ value, invalidations: [] });
 
-/** The longest remaining lock of the given buckets, or null if none is locked. */
-function lockedFor(ports: SignInPorts, keys: readonly string[], nowMs: number): number | null {
-  const remaining = keys.map((key) => retryAfterSeconds(ports.attempts.find(key), nowMs)).filter((seconds): seconds is number => seconds !== null);
-  return remaining.length === 0 ? null : Math.max(...remaining);
-}
-
 export async function signInWithPassword(deps: SignInDependencies, request: SignInRequest): Promise<AuthAttemptOutcome> {
-  const keys = [request.accountKey, request.ipKey];
+  const keys: BucketKeys = { account: request.accountKey, ip: request.ipKey };
   // Step 1 only reads (locks, credential): it takes no write lock and cannot write.
   const first = deps.unit.read((ports) => {
     const retryAfter = lockedFor(ports, keys, deps.nowMs());
@@ -85,7 +79,7 @@ function decide(
   ports: SignInPorts,
   deps: SignInDependencies,
   request: SignInRequest,
-  keys: readonly string[],
+  keys: BucketKeys,
   checked: OwnerCredential | null,
   verified: boolean,
 ): AuthAttemptOutcome {
@@ -111,7 +105,7 @@ function decide(
     const token = deps.newSessionToken();
     const sessionId = deps.newSessionId();
     const expiresAtMs = nowMs + SESSION_LIFETIME_MS;
-    ports.attempts.clear(request.accountKey);
+    clearAccountBucket(ports, keys);
     ports.sessions.insert({
       sessionId,
       token,
@@ -142,12 +136,8 @@ function decide(
     return { kind: "granted", token, expiresAtMs, nextAction: nextActionFor(snapshot, nowMs) };
   }
 
-  ports.attempts.pruneExpired(nowMs);
-  const buckets = keys.map((key) => ({ key, bucket: afterFailure(ports.attempts.find(key), nowMs) }));
-  for (const { key, bucket } of buckets) {
-    ports.attempts.save(key, bucket);
-  }
-  const lockedNow = buckets.some(({ bucket }) => bucket.lockedUntilMs !== null);
+  const lockSeconds = registerFailure(ports, keys, nowMs);
+  const lockedNow = lockSeconds !== null;
   ports.audit.append({
     ownerId: null,
     action: "login.failed",
@@ -158,7 +148,7 @@ function decide(
     ...(request.ip === null ? {} : { ip: request.ip }),
     ...(request.userAgent === null ? {} : { userAgent: request.userAgent }),
   });
-  return lockedNow ? { kind: "locked", retryAfterSeconds: lockedFor(ports, keys, nowMs) ?? 1 } : { kind: "denied" };
+  return lockSeconds !== null ? { kind: "locked", retryAfterSeconds: lockSeconds } : { kind: "denied" };
 }
 
 export type IdentityStatus = Readonly<{ authenticated: boolean; nextAction: NextAction }>;

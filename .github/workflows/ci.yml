@@ -65,6 +65,9 @@ jobs:
       - name: Verify D11.2 (second factor at login, trusted devices, step-up)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D11.2
+      - name: Verify D11.3 (lockout of the second factor)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D11.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -212,6 +212,8 @@ export interface IdentityAccessReader {
 
 /** The ports of enrolling the second factor (Architektura §9.7, §18.7). */
 export type EnrollmentPorts = Readonly<{
+  /** The persistent buckets of failed factor attempts. */
+  attempts: AuthAttemptStore;
   sessions: Pick<SessionStore, "findActive" | "rotate">;
   access: IdentityAccessReader;
   credentialReader: Pick<CredentialReader, "ownerEmail">;

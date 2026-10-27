@@ -26,6 +26,7 @@ import {
   type EnrollmentPorts,
 } from "@openlife/core/identity";
 import type { Context, Hono } from "hono";
+import type { AttemptKeys } from "../../adapters/auth/attempt-keys.js";
 import type { SessionCookies } from "../../adapters/auth/session-cookie.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
 import type { AppEnv } from "../app-env.js";
@@ -38,6 +39,10 @@ export type MfaEnrollmentRouteDependencies = Readonly<{
   cookies: SessionCookies;
   allowedOrigin: string;
   secureCookies: boolean;
+  /** Keys of the buckets that count the refusals of a factor (D11.3). */
+  keys: AttemptKeys;
+  /** The peer of the connection; X-Forwarded-For is not read until the trusted proxy exists. */
+  clientIp: (c: Context<AppEnv>) => string;
   /** Wall clock in milliseconds. */
   nowMs: () => number;
   newId: () => string;
@@ -53,7 +58,10 @@ export function registerMfaEnrollmentRoutes(app: Hono<AppEnv>, deps: MfaEnrollme
     newId: deps.newId,
     newSessionId: deps.newId,
     newSessionToken: deps.newSessionToken,
+    mfaAccountKey: deps.keys.mfaAccount,
   };
+  /** Who is asking, for the audit and for the bucket of the client address. */
+  const attemptOf = (c: Context<AppEnv>) => ({ requestId: c.get("requestId"), ipKey: deps.keys.mfaIp(deps.clientIp(c)) });
   const { guard, operation, refused } = createMfaOperationKit({ allowedOrigin: deps.allowedOrigin, cookies: deps.cookies, logger: deps.logger });
 
   const issued = async (
@@ -72,7 +80,7 @@ export function registerMfaEnrollmentRoutes(app: Hono<AppEnv>, deps: MfaEnrollme
     operation(beginEnrollmentRequestSchema, async (c, token) => {
       const result = await beginEnrollment(enrollment, token, c.get("requestId"));
       if (!result.ok) {
-        return refused(c, result.error.code);
+        return refused(c, result.error);
       }
       const dto: EnrollmentChallengeDto = {
         challengeId: result.value.challengeId,
@@ -88,8 +96,8 @@ export function registerMfaEnrollmentRoutes(app: Hono<AppEnv>, deps: MfaEnrollme
     MFA_ENROLLMENT_CONFIRM_PATH,
     ...guard,
     operation(confirmEnrollmentRequestSchema, async (c, token, body) => {
-      const result = await confirmEnrollment(enrollment, token, body, c.get("requestId"));
-      return result.ok ? issued(c, result.value) : refused(c, result.error.code);
+      const result = await confirmEnrollment(enrollment, token, body, attemptOf(c));
+      return result.ok ? issued(c, result.value) : refused(c, result.error);
     }),
   );
 
@@ -97,8 +105,8 @@ export function registerMfaEnrollmentRoutes(app: Hono<AppEnv>, deps: MfaEnrollme
     MFA_RECOVERY_REISSUE_PATH,
     ...guard,
     operation(reissueRecoveryRequestSchema, async (c, token, body) => {
-      const result = await reissueRecoveryCodes(enrollment, token, body, c.get("requestId"));
-      return result.ok ? issued(c, result.value) : refused(c, result.error.code);
+      const result = await reissueRecoveryCodes(enrollment, token, body, attemptOf(c));
+      return result.ok ? issued(c, result.value) : refused(c, result.error);
     }),
   );
 
@@ -107,7 +115,7 @@ export function registerMfaEnrollmentRoutes(app: Hono<AppEnv>, deps: MfaEnrollme
     ...guard,
     operation(acknowledgeRecoveryRequestSchema, async (c, token, body) => {
       const result = acknowledgeRecovery(enrollment, token, body, c.get("requestId"));
-      return result.ok ? c.json(result.value) : refused(c, result.error.code);
+      return result.ok ? c.json(result.value) : refused(c, result.error);
     }),
   );
 }
