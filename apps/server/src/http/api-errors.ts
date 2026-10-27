@@ -24,6 +24,8 @@ const FALLBACK_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   RECOVERY_BATCH_CHANGED: "The recovery codes were replaced; use the current batch",
   REGISTRY_SYMBOL_TAKEN: "A registry with this symbol exists or existed",
   REGISTRY_LIMIT_EXCEEDED: "The limit of registries is reached",
+  IDEMPOTENCY_CONFLICT: "This idempotency key was used for a different request",
+  SCHEMA_CHANGED: "The registry changed since the form was loaded; reload it",
 };
 
 export function apiErrorResponse(

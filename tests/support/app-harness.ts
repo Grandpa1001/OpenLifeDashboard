@@ -22,8 +22,9 @@ import { bindRecoveryCodeStore } from "../../packages/sqlite/dist/adapters/ident
 import { bindSetupStateStore } from "../../packages/sqlite/dist/adapters/identity/setup-state.js";
 import { bindSignInStores } from "../../packages/sqlite/dist/adapters/identity/sign-in-ports.js";
 import { bindTrustedDeviceStore } from "../../packages/sqlite/dist/adapters/identity/trusted-device-store.js";
-import { bindRegistryStore } from "../../packages/sqlite/dist/adapters/registries/public.js";
-import { DEFAULT_REGISTRY_LIMITS } from "../../packages/core/dist/modules/registries/public.js";
+import { bindIdempotencyStore, bindRecordStore, bindRegistryStore } from "../../packages/sqlite/dist/adapters/registries/public.js";
+import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "../../packages/core/dist/modules/registries/public.js";
+import { sha256Hex } from "../../apps/server/dist/adapters/crypto/sha256-hex.js";
 import { createUuidV7 } from "../../apps/server/dist/adapters/ids/uuid-v7.js";
 import { bindOwnerPreferencesStore } from "../../packages/sqlite/dist/adapters/settings/owner-preferences.js";
 import { openDatabase, type SqliteConnection } from "../../packages/sqlite/dist/connection/open-database.js";
@@ -58,6 +59,8 @@ export async function createAppHarness() {
     setup: bindSetupStateStore(tx),
     preferences: bindOwnerPreferencesStore(tx),
     registries: bindRegistryStore(tx),
+    records: bindRecordStore(tx),
+    idempotency: bindIdempotencyStore(tx),
     access: bindIdentityAccessReader(tx, Date.now),
     audit: bindAppendAudit(tx),
   }));
@@ -101,15 +104,16 @@ export async function createAppHarness() {
     mfaVerification: { ...common, unit, crypto: mfaCrypto, trustedDeviceCookies },
     setup: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     registries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
+    records: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
   });
 
-  async function request(method: string, route: string, body?: unknown, init: { cookie?: string | null; origin?: string | null } = {}): Promise<HarnessReply> {
-    const headers: Record<string, string> = {};
+  async function request(method: string, route: string, body?: unknown, init: { cookie?: string | null; origin?: string | null; headers?: Record<string, string> } = {}): Promise<HarnessReply> {
+    const headers: Record<string, string> = { ...init.headers };
     const origin = init.origin === undefined ? HARNESS_ORIGIN : init.origin;
     if (origin !== null) headers["Origin"] = origin;
     if (init.cookie) headers["Cookie"] = init.cookie;
     if (body !== undefined) headers["Content-Type"] = "application/json";
-    const response = await app.request(route, { method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+    const response = await app.request(route, { method, headers, ...(body === undefined ? {} : { body: typeof body === "string" ? body : JSON.stringify(body) }) });
     const text = await response.text();
     const setCookies = response.headers.getSetCookie();
     return { status: response.status, text, json: () => JSON.parse(text) as unknown, setCookies, cookie: setCookies[0]?.split(";")[0] ?? null };

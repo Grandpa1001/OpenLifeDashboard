@@ -17,7 +17,7 @@ import { readSessionToken } from "./session-cookie-http.js";
 /** A second-factor request is a few short fields; more is refused before it is read. */
 const BODY_MAX_BYTES = 1024;
 
-const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 403 | 409 | 422 | 429>>> = {
+const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 403 | 404 | 409 | 422 | 429>>> = {
   AUTH_LOCKED: 429,
   AUTH_REQUIRED: 401,
   MFA_INVALID_CODE: 401,
@@ -30,6 +30,9 @@ const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 403 | 409 | 422 | 429>
   SETUP_DATA_ALREADY_CHOSEN: 409,
   REGISTRY_SYMBOL_TAKEN: 409,
   REGISTRY_LIMIT_EXCEEDED: 409,
+  IDEMPOTENCY_CONFLICT: 409,
+  SCHEMA_CHANGED: 409,
+  NOT_FOUND: 404,
   VALIDATION_FAILED: 422,
 };
 

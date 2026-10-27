@@ -44,6 +44,11 @@
       "types": "./dist/http/mfa.d.ts",
       "default": "./dist/http/mfa.js"
     },
+    "./http/records": {
+      "@openlife/source": "./src/http/records.ts",
+      "types": "./dist/http/records.d.ts",
+      "default": "./dist/http/records.js"
+    },
     "./http/registries": {
       "@openlife/source": "./src/http/registries.ts",
       "types": "./dist/http/registries.d.ts",

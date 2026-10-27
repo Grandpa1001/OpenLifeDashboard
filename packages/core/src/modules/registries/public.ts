@@ -14,3 +14,5 @@ export type { SymbolIssue, SymbolSpace } from "./domain/symbols.js";
 export { createRegistry, listRegistries } from "./application/create-registry.js";
 export type { RegistryDependencies, RegistryPorts } from "./application/create-registry.js";
 export type { IdempotencyEntry, IdempotencyStore, NewRegistryRecord, RecordPage, RecordPageQuery, RecordStore, RegistryStore, StoredColumn, StoredRecord, StoredRegistry } from "./ports.js";
+export { createRecord, DEFAULT_RECORD_MAX_BYTES, IDEMPOTENCY_RETENTION_MS, LIST_DEFAULTS, listRecords } from "./application/records.js";
+export type { CreatedRecord, NewRecordInput, RecordDependencies, RecordListing, RecordListQuery, RecordPorts } from "./application/records.js";

@@ -74,8 +74,8 @@ export type Reply = Readonly<{
   setCookies: string[];
 }>;
 
-export async function send(server: ServerProcess, method: string, route: string, body: unknown, init: { cookie?: string | null | undefined; origin?: string | null } = {}): Promise<Reply> {
-  const headers: Record<string, string> = {};
+export async function send(server: ServerProcess, method: string, route: string, body: unknown, init: { cookie?: string | null | undefined; origin?: string | null; headers?: Record<string, string> } = {}): Promise<Reply> {
+  const headers: Record<string, string> = { ...init.headers };
   const origin = init.origin === undefined ? (originOf.get(server) ?? ORIGIN) : init.origin;
   if (origin !== null) headers["Origin"] = origin;
   if (init.cookie) headers["Cookie"] = init.cookie;
@@ -86,7 +86,7 @@ export async function send(server: ServerProcess, method: string, route: string,
   return { status: response.status, headers: response.headers, text, json: () => JSON.parse(text) as unknown, cookie: setCookies[0]?.split(";")[0] ?? null, cookies: setCookies.map((line) => line.split(";")[0] ?? ""), setCookies };
 }
 
-export const post = (server: ServerProcess, route: string, body: unknown, init: { cookie?: string | null | undefined; origin?: string | null } = {}): Promise<Reply> => send(server, "POST", route, body, init);
+export const post = (server: ServerProcess, route: string, body: unknown, init: { cookie?: string | null | undefined; origin?: string | null; headers?: Record<string, string> } = {}): Promise<Reply> => send(server, "POST", route, body, init);
 
 /** Signs in; `cookie` carries what the browser already holds, e.g. a trusted-device cookie. */
 export const signIn = (server: ServerProcess, cookie?: string | null, password: string = OWNER_PASSWORD) => post(server, "/api/auth/sign-in/email", { email: OWNER_EMAIL, password }, { cookie });

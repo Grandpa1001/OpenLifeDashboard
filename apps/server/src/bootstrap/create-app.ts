@@ -9,6 +9,7 @@ import { publicBootstrap } from "../http/routes/bootstrap.routes.js";
 import { health } from "../http/routes/health.routes.js";
 import { registerIdentityRoutes, type IdentityRouteDependencies } from "../http/routes/identity.routes.js";
 import { registerMfaEnrollmentRoutes, type MfaEnrollmentRouteDependencies } from "../http/routes/mfa-enrollment.routes.js";
+import { registerRecordRoutes, type RecordRouteDependencies } from "../http/routes/records.routes.js";
 import { registerRegistryRoutes, type RegistryRouteDependencies } from "../http/routes/registries.routes.js";
 import { registerSetupRoutes, type SetupRouteDependencies } from "../http/routes/setup.routes.js";
 import { registerMfaVerificationRoutes, type MfaVerificationRouteDependencies } from "../http/routes/mfa-verification.routes.js";
@@ -30,6 +31,7 @@ export type AppDependencies = Readonly<{
   mfaVerification: MfaVerificationRouteDependencies;
   setup: SetupRouteDependencies;
   registries: RegistryRouteDependencies;
+  records: RecordRouteDependencies;
 }>;
 
 /**
@@ -46,6 +48,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   registerMfaVerificationRoutes(app, dependencies.mfaVerification);
   registerSetupRoutes(app, dependencies.setup);
   registerRegistryRoutes(app, dependencies.registries);
+  registerRecordRoutes(app, dependencies.records);
   app.all("/api", apiNotFound);
   app.all("/api/*", apiNotFound);
   app.use("*", webAssets(dependencies.webRoot));

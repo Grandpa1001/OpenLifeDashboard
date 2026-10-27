@@ -13,10 +13,11 @@ import { fileURLToPath } from "node:url";
 import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
 import { bindAppendAudit } from "@openlife/sqlite/adapters/audit";
 import { bindIdentityAccessReader, bindMfaStore, bindOwnerWriters, bindRecoveryCodeStore, bindSetupStateStore, bindSignInStores, bindTrustedDeviceStore } from "@openlife/sqlite/adapters/identity";
-import { bindRegistryStore } from "@openlife/sqlite/adapters/registries";
+import { bindIdempotencyStore, bindRecordStore, bindRegistryStore } from "@openlife/sqlite/adapters/registries";
 import { bindOwnerPreferencesStore } from "@openlife/sqlite/adapters/settings";
-import { DEFAULT_REGISTRY_LIMITS } from "@openlife/core/registries";
+import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "@openlife/core/registries";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
+import { sha256Hex } from "./adapters/crypto/sha256-hex.js";
 import { createUuidV7 } from "./adapters/ids/uuid-v7.js";
 import { createMfaCrypto } from "./adapters/auth/mfa-crypto.js";
 import { createAttemptKeys } from "./adapters/auth/attempt-keys.js";
@@ -182,6 +183,8 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   setup: bindSetupStateStore(tx),
   preferences: bindOwnerPreferencesStore(tx),
   registries: bindRegistryStore(tx),
+  records: bindRecordStore(tx),
+  idempotency: bindIdempotencyStore(tx),
   access: bindIdentityAccessReader(tx, Date.now),
   audit: bindAppendAudit(tx),
 }));
@@ -245,6 +248,7 @@ const app = createApp({
   },
   setup: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
   registries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
+  records: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
 });
 try {
   const { server, address } = await startServer(app, host, port);

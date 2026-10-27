@@ -1773,6 +1773,41 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D15.3",
+    ready: true,
+    title: "Adding and listing records over HTTP: use cases, routes, contracts, idempotency, F01 through the real API",
+    criteria: ["D15.3-AC1", "D15.3-AC2", "D15.3-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests start the built server and compose the built application.
+        id: "workspace-build",
+        criteria: ["D15.3-AC1", "D15.3-AC2"],
+        description: "pnpm -r build produces the server with the records route and the contracts of the records",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/routes/records.routes.ts", "packages/contracts/src/http/records.ts", "packages/core/src/modules/registries/application/records.ts"],
+      },
+      {
+        id: "record-http",
+        criteria: ["D15.3-AC1", "D15.3-AC2"],
+        description:
+          "Raw HTTP on the built server and on the application composed in the test process: the 25 records of F01 added under their own keys list as 10/10/5 with the count 25 in the order of the expected file and the same after a restart; one key and one body twice is one record and the same answer (also with the keys in another order and in five parallel requests); a missing or malformed key, a key with another body, a stale schema revision (0, 2; a retry made before the change still answers), a missing, null or blank required title, a system or foreign field, a value in a non-canonical form, a text and a record over their limits, an unknown or deleted registry, every state before the gate, a foreign Origin, an ended session and a failing write or entry are refused with their own code and leave no record, entry or revision; an entry lives 24 hours; the sort, page, size and direction of a list are the request's and never reach SQL; records are not audited and no value reaches the audit or the log",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries/record-http.test.ts", "tests/integration/auth/route-inventory.test.ts"],
+        requires: ["tests/integration/registries/record-http.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/support/app-harness.ts", "tests/fixtures/books/books-v1.expected.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D15.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the rules, the stores and the routes of the records.
+  {
+    id: "D15",
+    ready: true,
+    title: "Records of a registry: rules, SQLite stores and adding and listing over HTTP",
+    steps: ["D15.1", "D15.2", "D15.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

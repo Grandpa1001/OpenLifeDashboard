@@ -17,7 +17,6 @@ const UI_ROUTES = ["/", "/main", "/registers/ksiazki"];
 // they have their own tests.
 const FUTURE_PRIVATE_ENDPOINTS = [
   ["POST", "/api/auth/sign-up/email"],
-  ["GET", "/api/v1/registries/ksiazki/records"],
   ["GET", "/api/v1/export"],
   ["GET", "/api/v1/stream"],
 ] as const;
@@ -103,7 +102,7 @@ describe("D02.1-AC2 unknown API and missing assets never return the SPA", () => 
   it.each([
     ["GET", "/api"],
     ["GET", "/api/unknown"],
-    ["GET", "/api/v1/registries/ksiazki/records"],
+    ["GET", "/api/v1/registries/ksiazki/records/some-id"],
     ["POST", HEALTH_PATH],
     ["DELETE", HEALTH_PATH],
   ])("%s %s → 404 JSON NOT_FOUND with the response requestId", async (method, route) => {
