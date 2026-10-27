@@ -13,8 +13,11 @@ import { fileURLToPath } from "node:url";
 import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
 import { bindAppendAudit } from "@openlife/sqlite/adapters/audit";
 import { bindIdentityAccessReader, bindMfaStore, bindOwnerWriters, bindRecoveryCodeStore, bindSetupStateStore, bindSignInStores, bindTrustedDeviceStore } from "@openlife/sqlite/adapters/identity";
+import { bindRegistryStore } from "@openlife/sqlite/adapters/registries";
 import { bindOwnerPreferencesStore } from "@openlife/sqlite/adapters/settings";
+import { DEFAULT_REGISTRY_LIMITS } from "@openlife/core/registries";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
+import { createUuidV7 } from "./adapters/ids/uuid-v7.js";
 import { createMfaCrypto } from "./adapters/auth/mfa-crypto.js";
 import { createAttemptKeys } from "./adapters/auth/attempt-keys.js";
 import { checkAuthSchema } from "./adapters/auth/auth-schema.js";
@@ -178,6 +181,7 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   trusted: bindTrustedDeviceStore(tx),
   setup: bindSetupStateStore(tx),
   preferences: bindOwnerPreferencesStore(tx),
+  registries: bindRegistryStore(tx),
   access: bindIdentityAccessReader(tx, Date.now),
   audit: bindAppendAudit(tx),
 }));
@@ -240,6 +244,7 @@ const app = createApp({
     logger,
   },
   setup: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
+  registries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
 });
 try {
   const { server, address } = await startServer(app, host, port);

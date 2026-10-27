@@ -11,6 +11,7 @@ import * as bootstrap from "@openlife/contracts/http/bootstrap";
 import * as healthStatus from "@openlife/contracts/http/health-status";
 import * as identity from "@openlife/contracts/http/identity";
 import * as mfa from "@openlife/contracts/http/mfa";
+import * as registries from "@openlife/contracts/http/registries";
 import * as setup from "@openlife/contracts/http/setup";
 
 export type RouteAccess = "public" | "identity" | "gate" | "data" | "setup";
@@ -18,7 +19,7 @@ export type RouteEntry = Readonly<{ method: "GET" | "POST" | "PUT"; path: string
 
 /** Every exported path constant of the contracts, by name. */
 export const PATH_CONSTANTS: Readonly<Record<string, string>> = Object.fromEntries(
-  [bootstrap, healthStatus, identity, mfa, setup].flatMap((module) =>
+  [bootstrap, healthStatus, identity, mfa, registries, setup].flatMap((module) =>
     Object.entries(module).filter((entry): entry is [string, string] => entry[0].endsWith("_PATH") && typeof entry[1] === "string"),
   ),
 );
@@ -39,4 +40,6 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "POST", path: setup.SETUP_CHOOSE_EMPTY_PATH, access: "setup", note: "the empty start" },
   { method: "GET", path: setup.SETUP_PREFERENCES_PATH, access: "data", note: "the owner's preferences" },
   { method: "PUT", path: setup.SETUP_PREFERENCES_PATH, access: "data", note: "saves the preferences" },
+  { method: "GET", path: registries.REGISTRIES_PATH, access: "data", note: "the owner's registries that are not deleted" },
+  { method: "POST", path: registries.REGISTRIES_PATH, access: "data", note: "creates a registry and its table from a definition" },
 ];

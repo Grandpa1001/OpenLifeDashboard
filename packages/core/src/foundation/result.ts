@@ -20,9 +20,14 @@ export type FailureCode =
   | "RECOVERY_BATCH_CHANGED"
   | "ENROLLMENT_CHANGED"
   | "STEP_UP_REQUIRED"
+  | "REGISTRY_SYMBOL_TAKEN"
+  | "REGISTRY_LIMIT_EXCEEDED"
   | "MAINTENANCE";
 
-export type Failure = Readonly<{ code: FailureCode; fields?: readonly string[]; /** For a lock: whole seconds until it opens. */ retryAfterSeconds?: number }>;
+/** One reason a request was not valid: where (a field path) and why (a stable code), never the value. */
+export type FailureIssue = Readonly<{ path: string; code: string }>;
+
+export type Failure = Readonly<{ code: FailureCode; fields?: readonly string[]; /** For a rejected request: every reason found. */ issues?: readonly FailureIssue[]; /** For a lock: whole seconds until it opens. */ retryAfterSeconds?: number }>;
 
 export type Result<T> = Readonly<{ ok: true; value: T }> | Readonly<{ ok: false; error: Failure }>;
 

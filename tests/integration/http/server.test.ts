@@ -17,7 +17,7 @@ const UI_ROUTES = ["/", "/main", "/registers/ksiazki"];
 // they have their own tests.
 const FUTURE_PRIVATE_ENDPOINTS = [
   ["POST", "/api/auth/sign-up/email"],
-  ["GET", "/api/v1/registries"],
+  ["GET", "/api/v1/registries/ksiazki/records"],
   ["GET", "/api/v1/export"],
   ["GET", "/api/v1/stream"],
 ] as const;

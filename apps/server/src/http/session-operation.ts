@@ -17,7 +17,7 @@ import { readSessionToken } from "./session-cookie-http.js";
 /** A second-factor request is a few short fields; more is refused before it is read. */
 const BODY_MAX_BYTES = 1024;
 
-const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 403 | 409 | 429>>> = {
+const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 403 | 409 | 422 | 429>>> = {
   AUTH_LOCKED: 429,
   AUTH_REQUIRED: 401,
   MFA_INVALID_CODE: 401,
@@ -28,6 +28,9 @@ const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 403 | 409 | 429>>> = {
   ENROLLMENT_CHANGED: 409,
   RECOVERY_BATCH_CHANGED: 409,
   SETUP_DATA_ALREADY_CHOSEN: 409,
+  REGISTRY_SYMBOL_TAKEN: 409,
+  REGISTRY_LIMIT_EXCEEDED: 409,
+  VALIDATION_FAILED: 422,
 };
 
 export type SessionOperationKit = Readonly<{
@@ -40,11 +43,13 @@ export type SessionOperationKit = Readonly<{
   refused: (c: Context<AppEnv>, failure: Failure) => Response;
 }>;
 
-export function createSessionOperationKit(options: Readonly<{ allowedOrigin: string; cookies: SignedCookie; logger: TechnicalLogger }>): SessionOperationKit {
+export function createSessionOperationKit(
+  options: Readonly<{ allowedOrigin: string; cookies: SignedCookie; logger: TechnicalLogger; /** Largest body of a mutation; the second-factor and setup routes keep the small default. */ bodyMaxBytes?: number }>,
+): SessionOperationKit {
   return {
     guard: [
       requireSameOrigin(options.allowedOrigin),
-      bodyLimit({ maxSize: BODY_MAX_BYTES, onError: (c: Context<AppEnv>) => apiErrorResponse(c, 422, "VALIDATION_FAILED") }),
+      bodyLimit({ maxSize: options.bodyMaxBytes ?? BODY_MAX_BYTES, onError: (c: Context<AppEnv>) => apiErrorResponse(c, 422, "VALIDATION_FAILED") }),
     ],
     operation: (schema, run) => async (c) => {
       c.header("Cache-Control", "no-store");
@@ -82,7 +87,8 @@ export function createSessionOperationKit(options: Readonly<{ allowedOrigin: str
         c.header("Retry-After", String(failure.retryAfterSeconds));
         return apiErrorResponse(c, 429, "AUTH_LOCKED", { retryAfterSeconds: failure.retryAfterSeconds });
       }
-      return apiErrorResponse(c, STATUS[known] ?? 409, known);
+      // A rejected definition lists where and why (stable codes, never the values).
+      return apiErrorResponse(c, STATUS[known] ?? 409, known, failure.issues === undefined ? null : { issues: failure.issues });
     },
   };
 }

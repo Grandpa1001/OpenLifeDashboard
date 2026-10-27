@@ -22,6 +22,8 @@ const FALLBACK_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   MFA_INVALID_CODE: "The code is not valid",
   ENROLLMENT_CHANGED: "The enrollment is no longer in the state this request expects",
   RECOVERY_BATCH_CHANGED: "The recovery codes were replaced; use the current batch",
+  REGISTRY_SYMBOL_TAKEN: "A registry with this symbol exists or existed",
+  REGISTRY_LIMIT_EXCEEDED: "The limit of registries is reached",
 };
 
 export function apiErrorResponse(

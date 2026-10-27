@@ -9,4 +9,6 @@ export type { RegistryLimits } from "./domain/limits.js";
 export { RESERVED_COLUMN_SYMBOLS } from "./domain/sql-keywords.js";
 export { REGISTRY_TABLE_PREFIX, SYMBOL_MAX_LENGTH, SYMBOL_PATTERN, checkSymbol, suggestSymbol, tableNameOf } from "./domain/symbols.js";
 export type { SymbolIssue, SymbolSpace } from "./domain/symbols.js";
+export { createRegistry, listRegistries } from "./application/create-registry.js";
+export type { RegistryDependencies, RegistryPorts } from "./application/create-registry.js";
 export type { NewRegistryRecord, RegistryStore, StoredColumn, StoredRegistry } from "./ports.js";

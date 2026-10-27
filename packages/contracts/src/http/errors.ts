@@ -19,6 +19,8 @@ export const API_ERROR_CODES = [
   "MFA_INVALID_CODE",
   "ENROLLMENT_CHANGED",
   "RECOVERY_BATCH_CHANGED",
+  "REGISTRY_SYMBOL_TAKEN",
+  "REGISTRY_LIMIT_EXCEEDED",
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

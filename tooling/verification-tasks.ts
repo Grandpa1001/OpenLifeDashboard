@@ -1687,6 +1687,41 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D14.3",
+    ready: true,
+    title: "Creating and listing registries over HTTP: use case, route, contracts, F01 through the real API",
+    criteria: ["D14.3-AC1", "D14.3-AC2", "D14.3-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests start the built server and compose the built application.
+        id: "workspace-build",
+        criteria: ["D14.3-AC1", "D14.3-AC2"],
+        description: "pnpm -r build produces the server with the registries route and the UUIDv7 generator",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/routes/registries.routes.ts", "apps/server/src/adapters/ids/uuid-v7.ts", "packages/contracts/src/http/registries.ts"],
+      },
+      {
+        id: "registry-http",
+        criteria: ["D14.3-AC1", "D14.3-AC2"],
+        description:
+          "Raw HTTP on the built server and on the application composed in the test process: Książki of F01 created (201) with server identifiers (UUIDv7), owner and timestamps, listed, the same after a restart; every state before the gate, a foreign/missing/null Origin, every field a client may not send, a bad definition with all its issues, SQL-attacking symbols, a taken symbol (also a deleted registry's), 61 columns, an oversized body, five parallel creations, the limit of 200, an ended session and a failing audit are refused with their own code and leave no row and no table; the audit holds the symbol and the number of columns only",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries/registry-http.test.ts", "tests/unit/registries/uuid-v7.test.ts", "tests/integration/auth/route-inventory.test.ts"],
+        requires: ["tests/integration/registries/registry-http.test.ts", "tests/unit/registries/uuid-v7.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/support/app-harness.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D14.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the rules, the catalog and the route.
+  {
+    id: "D14",
+    ready: true,
+    title: "Registry rules, catalog and table, and creating a registry over HTTP",
+    steps: ["D14.1", "D14.2", "D14.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

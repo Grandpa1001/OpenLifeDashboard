@@ -22,6 +22,9 @@ import { bindRecoveryCodeStore } from "../../packages/sqlite/dist/adapters/ident
 import { bindSetupStateStore } from "../../packages/sqlite/dist/adapters/identity/setup-state.js";
 import { bindSignInStores } from "../../packages/sqlite/dist/adapters/identity/sign-in-ports.js";
 import { bindTrustedDeviceStore } from "../../packages/sqlite/dist/adapters/identity/trusted-device-store.js";
+import { bindRegistryStore } from "../../packages/sqlite/dist/adapters/registries/public.js";
+import { DEFAULT_REGISTRY_LIMITS } from "../../packages/core/dist/modules/registries/public.js";
+import { createUuidV7 } from "../../apps/server/dist/adapters/ids/uuid-v7.js";
 import { bindOwnerPreferencesStore } from "../../packages/sqlite/dist/adapters/settings/owner-preferences.js";
 import { openDatabase, type SqliteConnection } from "../../packages/sqlite/dist/connection/open-database.js";
 import { initializeDatabase, PRODUCT_MIGRATION_PLAN } from "../../packages/sqlite/dist/migrations/public.js";
@@ -54,6 +57,7 @@ export async function createAppHarness() {
     trusted: bindTrustedDeviceStore(tx),
     setup: bindSetupStateStore(tx),
     preferences: bindOwnerPreferencesStore(tx),
+    registries: bindRegistryStore(tx),
     access: bindIdentityAccessReader(tx, Date.now),
     audit: bindAppendAudit(tx),
   }));
@@ -96,6 +100,7 @@ export async function createAppHarness() {
     mfaEnrollment: { ...common, unit, crypto: mfaCrypto },
     mfaVerification: { ...common, unit, crypto: mfaCrypto, trustedDeviceCookies },
     setup: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
+    registries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
   });
 
   async function request(method: string, route: string, body?: unknown, init: { cookie?: string | null; origin?: string | null } = {}): Promise<HarnessReply> {
