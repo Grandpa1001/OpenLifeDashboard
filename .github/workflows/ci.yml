@@ -68,6 +68,9 @@ jobs:
       - name: Verify D13.1 (route inventory and request authority on raw HTTP)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D13.1
+      - name: Verify D13.2 (request authority at the commit, atomic audit failure)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D13.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -1576,6 +1576,32 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D13.2",
+    ready: true,
+    title: "Request authority at the commit: revocation between middleware and unit of work, atomic failure of the audit",
+    criteria: ["D13.2-AC1", "D13.2-AC2", "D13.2-regression"],
+    checks: [
+      {
+        // Runs first: the harness composes the built server application.
+        id: "workspace-build",
+        criteria: ["D13.2-AC1", "D13.2-AC2"],
+        description: "pnpm -r build produces the application the harness composes",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/bootstrap/create-app.ts", "tests/support/app-harness.ts"],
+      },
+      {
+        id: "request-authority",
+        criteria: ["D13.2-AC1", "D13.2-AC2"],
+        description:
+          "The real application in the test process, stopped between the middleware and the unit of work: a session ended or an access epoch moved in the gap refuses the write (preferences, data choice, acknowledgment, promotion, enrollment) and changes nothing, another session's end does not; a failing audit rolls back enrollment, reissue, acknowledgment, data choice, preferences and promotion with 503 and no cookie, and the same request works after; audit and technical log hold no password, code, secret, token or request body",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/request-authority.test.ts"],
+        requires: ["tests/integration/auth/request-authority.test.ts", "tests/support/app-harness.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D13.2-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,
