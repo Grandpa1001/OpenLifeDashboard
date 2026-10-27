@@ -2,6 +2,7 @@
 // stored, in the canonical form of the API, and what the sort of a list may name. Everything here
 // is decided from the schema of the registry as the catalog holds it, without a database, a clock
 // or a source of randomness. Converting what a person typed into a canonical value is D22's.
+import { utf8Length } from "../../../foundation/public.js";
 import { isValidCellValue, type CellValue, type ColumnType, type ColumnTypeOptions } from "./column-rules.js";
 
 export type RecordColumn = Readonly<{ symbol: string; type: ColumnType; typeOptions: ColumnTypeOptions; defaultValue: CellValue; required: boolean }>;
@@ -21,15 +22,6 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> => type
 
 const BLANK = /^\s*$/u;
 
-/** Bytes of a text in UTF-8, counted by code point (core uses no platform API). */
-function utf8Length(text: string): number {
-  let bytes = 0;
-  for (const char of text) {
-    const code = char.codePointAt(0) ?? 0;
-    bytes += code < 0x80 ? 1 : code < 0x800 ? 2 : code < 0x10000 ? 3 : 4;
-  }
-  return bytes;
-}
 const textual = (type: ColumnType): boolean => type === "text" || type === "choice";
 
 /**

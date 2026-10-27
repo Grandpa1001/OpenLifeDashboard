@@ -1963,6 +1963,31 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D17.2",
+    ready: true,
+    title: "Rules of the design of a screen: targets in the catalog of the owner, one registry, paths, layouts, states of widgets",
+    criteria: ["D17.2-AC1", "D17.2-AC2", "D17.2-regression"],
+    checks: [
+      {
+        // Runs first: the unit tests import the built core, contracts and the catalog adapter of the server.
+        id: "workspace-build",
+        criteria: ["D17.2-AC1", "D17.2-AC2"],
+        description: "pnpm -r build produces core with the dashboard module and the server with the catalog of widget types",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/dashboard/domain/design-rules.ts", "packages/core/src/modules/dashboard/ports.ts", "apps/server/src/adapters/widget-catalog.ts"],
+      },
+      {
+        id: "design-rules",
+        criteria: ["D17.2-AC1", "D17.2-AC2"],
+        description:
+          "On the real catalog of widget types and a catalog of registries the test controls: the register table of F01 is ok with the defaults of its configuration (and the screen goes through the transport schema and the rules alike), no bindings or no columns are a draft, a column or registry deleted since is needs_rebinding and the screen is still accepted, a version of the configuration this build does not write is needs_refresh and wins, the state of a stored widget is worked out again; refused with the path and the code: a column of another registry, a target of another owner or of none, a path that disagrees with the identity, two registries in one widget, an unknown slot, a second binding in a slot of one, a kind the slot does not take, a repeated or skipped ordinal, an unknown type, a wrong configuration, sizes over the limits, a layout off the grid or too small, a widget id invalid, twice or taken from another screen, a bad name, theme or accent, 51 widgets; all defects at once without a value in them; a hostile snapshot without an exception; registries looked up once",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/dashboard/design-rules.test.ts"],
+        requires: ["tests/unit/dashboard/design-rules.test.ts", "tests/fixtures/books/books-v1.export.json"],
+      },
+      ...regressionChecks("D17.2-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

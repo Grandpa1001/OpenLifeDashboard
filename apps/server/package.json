@@ -23,6 +23,7 @@
     "@openlife/contracts": "workspace:*",
     "@openlife/core": "workspace:*",
     "@openlife/sqlite": "workspace:*",
+    "@openlife/widgets": "workspace:*",
     "better-auth": "catalog:",
     "fs-native-extensions": "catalog:",
     "hono": "catalog:"

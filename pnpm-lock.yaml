@@ -337,6 +337,9 @@ importers:
       '@openlife/sqlite':
         specifier: workspace:*
         version: link:../../packages/sqlite
+      '@openlife/widgets':
+        specifier: workspace:*
+        version: link:../../packages/widgets
       better-auth:
         specifier: 'catalog:'
         version: 1.7.13(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(yaml@2.9.1)))

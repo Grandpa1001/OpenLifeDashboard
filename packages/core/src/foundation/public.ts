@@ -4,3 +4,4 @@ export type { ActorContext } from "./actor-context.js";
 export { DomainFault } from "./result.js";
 export type { Failure, FailureCode, FailureIssue, Result } from "./result.js";
 export type { Commit, Invalidation, ReadUnit, UnitOfWork } from "./unit-of-work.js";
+export { utf8Length } from "./utf8.js";
