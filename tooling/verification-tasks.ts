@@ -1841,6 +1841,46 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D16.2",
+    ready: true,
+    title: "The form of a new registry in the browser: suggested symbol, live checks, the refusals of the server at their fields",
+    criteria: ["D16.2-AC1", "D16.2-AC2", "D16.2-regression"],
+    checks: [
+      {
+        // Runs first: the unit test imports the built core and the browser tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D16.2-AC1", "D16.2-AC2"],
+        description: "pnpm -r build: the SPA with the form of a new registry and the issues of a refusal in the client",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/registers/components/new-registry-form.tsx", "apps/web/src/features/registers/lib/registry-draft.ts"],
+      },
+      {
+        id: "symbol-parity",
+        criteria: ["D16.2-AC1"],
+        description: "The symbol the form offers equals the symbol core offers on one table of names and taken sets, always passes the pattern and the length; the client keeps the paths and codes of a refusal and nothing else of its details",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web"],
+        requires: ["tests/unit/web/suggest-symbol.test.ts", "tests/unit/web/api-client.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D16.2-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all five namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/registers.json", "apps/web/src/locales/en/registers.json"],
+      },
+      {
+        id: "new-registry-e2e",
+        criteria: ["D16.2-AC1", "D16.2-AC2"],
+        description:
+          "Playwright on a fresh installation: Książki of F01 with its nine columns made from the form without SQL (symbols follow the names, the types, decimals, defaults and the required flag reach the server as typed, the table exists), the symbol stops following the name once typed and a taken one gets a number; a wrong symbol is told while typed and nothing is sent, a missing name, symbol and column are told after an attempt; a taken symbol, a reserved column symbol and a default the number does not take come back from the server at their fields with everything typed kept; a repeated column symbol is told at once; a double click makes one registry; the keyboard and the focus; a failing connection keeps the form; axe",
+        command: ["node", "tests/verification/e2e.ts", "new-registry", "registers"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/new-registry.spec.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D16.2-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

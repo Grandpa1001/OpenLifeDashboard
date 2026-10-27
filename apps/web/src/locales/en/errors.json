@@ -10,6 +10,8 @@
   "SETUP_DATA_ALREADY_CHOSEN": "The starting data has already been chosen.",
   "AUTH_REQUIRED": "The session has expired. Sign in again.",
   "VALIDATION_FAILED": "The form data is not valid.",
+  "REGISTRY_SYMBOL_TAKEN": "A registry with this symbol exists or existed. Choose another symbol.",
+  "REGISTRY_LIMIT_EXCEEDED": "The limit of registries is reached. Delete an unused registry to add a new one.",
   "AUTH_UNAVAILABLE": "Sign-in is temporarily unavailable. Try again in a moment.",
   "ORIGIN_FORBIDDEN": "The request was rejected. Open the application at its proper address.",
   "INTERNAL_ERROR": "A server error occurred. Try again in a moment.",

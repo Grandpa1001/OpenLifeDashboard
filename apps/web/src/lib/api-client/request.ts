@@ -4,11 +4,11 @@
 // (its stable code, status, request ID and the seconds of a Retry-After), no connection, or an
 // answer that does not match the contract. The server's `message` is a developer fallback and is
 // never returned: screens translate the code.
-import { API_ERROR_CODES, apiErrorSchema, type ApiErrorCode } from "@openlife/contracts/http/errors";
+import { API_ERROR_CODES, apiErrorSchema, apiIssueListSchema, type ApiErrorCode, type ApiIssue } from "@openlife/contracts/http/errors";
 import type { z } from "zod";
 
 export type ApiFailure =
-  | Readonly<{ kind: "api"; status: number; code: ApiErrorCode | "UNKNOWN"; requestId: string | null; retryAfterSeconds: number | null }>
+  | Readonly<{ kind: "api"; status: number; code: ApiErrorCode | "UNKNOWN"; requestId: string | null; retryAfterSeconds: number | null; /** For a rejected request: where and why, as the server listed it. Absent when it listed nothing. */ issues?: readonly ApiIssue[] }>
   | Readonly<{ kind: "network" }>
   | Readonly<{ kind: "invalid-response"; status: number }>
   | Readonly<{ kind: "aborted" }>;
@@ -37,7 +37,15 @@ async function failureOf(response: Response): Promise<ApiFailure> {
   const body: unknown = await response.json().catch(() => undefined);
   const parsed = apiErrorSchema.safeParse(body);
   const code = parsed.success && KNOWN_CODES.has(parsed.data.code) ? parsed.data.code : "UNKNOWN";
-  return { kind: "api", status: response.status, code, requestId: parsed.success ? parsed.data.requestId : null, retryAfterSeconds: retryAfterOf(response) };
+  const issues = parsed.success ? apiIssueListSchema.safeParse(parsed.data.details) : null;
+  return {
+    kind: "api",
+    status: response.status,
+    code,
+    requestId: parsed.success ? parsed.data.requestId : null,
+    retryAfterSeconds: retryAfterOf(response),
+    ...(issues?.success ? { issues: issues.data.issues } : {}),
+  };
 }
 
 export async function apiRequest<S extends z.ZodType | null>(request: ApiRequest<S>): Promise<ApiResult<S extends z.ZodType ? z.infer<S> : null>> {

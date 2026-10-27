@@ -39,6 +39,16 @@ describe("D12.1 the typed client", () => {
     expect(JSON.stringify(result)).not.toContain("words of the server");
   });
 
+  it("the issues of a rejected request come with their paths and codes, and nothing else of the details", async () => {
+    stubFetch(answer(422, { code: "VALIDATION_FAILED", message: "m", details: { issues: [{ path: "columns.0.symbol", code: "SYMBOL_RESERVED" }] }, requestId: "req-2" }));
+    expect(await call()).toEqual({ ok: false, failure: { kind: "api", status: 422, code: "VALIDATION_FAILED", requestId: "req-2", retryAfterSeconds: null, issues: [{ path: "columns.0.symbol", code: "SYMBOL_RESERVED" }] } });
+    // Details of another shape are not issues: the failure carries none.
+    stubFetch(answer(422, { code: "VALIDATION_FAILED", message: "m", details: { issues: [{ path: 1 }], sql: "SELECT secret" }, requestId: "req-3" }));
+    const result = await call();
+    expect(result).toEqual({ ok: false, failure: { kind: "api", status: 422, code: "VALIDATION_FAILED", requestId: "req-3", retryAfterSeconds: null } });
+    expect(JSON.stringify(result)).not.toContain("secret");
+  });
+
   it.each([
     ["an unknown code", answer(418, { code: "TEAPOT", message: "m", details: null, requestId: "r" })],
     ["a body that is not the error contract", answer(500, { oops: true })],

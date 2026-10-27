@@ -14,6 +14,8 @@
   "SETUP_DATA_ALREADY_CHOSEN": "Dane początkowe zostały już wybrane.",
   "AUTH_REQUIRED": "Sesja wygasła. Zaloguj się ponownie.",
   "VALIDATION_FAILED": "Dane formularza są nieprawidłowe.",
+  "REGISTRY_SYMBOL_TAKEN": "Rejestr o tym symbolu istnieje lub istniał. Wybierz inny symbol.",
+  "REGISTRY_LIMIT_EXCEEDED": "Osiągnięto limit rejestrów. Usuń nieużywany rejestr, aby dodać nowy.",
   "AUTH_UNAVAILABLE": "Logowanie jest chwilowo niedostępne. Spróbuj ponownie za chwilę.",
   "ORIGIN_FORBIDDEN": "Żądanie zostało odrzucone. Otwórz aplikację pod jej właściwym adresem.",
   "INTERNAL_ERROR": "Wystąpił błąd serwera. Spróbuj ponownie za chwilę.",

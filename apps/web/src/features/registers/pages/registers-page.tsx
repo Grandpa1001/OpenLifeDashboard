@@ -1,13 +1,14 @@
 import type { RegistryDto } from "@openlife/contracts/http/registries";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ApiFailure } from "../../../lib/api-client/request.js";
 import { describeFailure } from "../../../lib/failures/error-message.js";
 import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
 import { fetchRegistries } from "../api/registries.js";
+import { NewRegistryForm } from "../components/new-registry-form.js";
 
 /** A failure of the gate or of the session: the server no longer lets this owner here, and the guard of the route knows where to. */
 class RegistersFailure extends Error {
@@ -52,14 +53,35 @@ export function RegistersPage() {
     },
   });
 
+  const [adding, setAdding] = useState(false);
+  const [created, setCreated] = useState<string | null>(null);
+  const addButton = useRef<HTMLButtonElement>(null);
+
   const failure = registries.error instanceof RegistersFailure ? registries.error.failure : null;
   const gone = failure !== null && leavesTheGate(failure);
+  /** The server says this session no longer passes the gate: ask it where the owner belongs now. */
+  const askGuard = useCallback((): void => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.identity.status }).then(() => router.invalidate());
+  }, [queryClient, router]);
   useEffect(() => {
-    // The server says this session no longer passes the gate: ask it where the owner belongs now.
-    if (gone) {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.identity.status }).then(() => router.invalidate());
+    if (gone) askGuard();
+  }, [gone, askGuard]);
+
+  const taken = useMemo(() => new Set((registries.data ?? []).map((registry) => registry.symbol)), [registries.data]);
+
+  /** True once the form has closed and focus is owed to the button that opened it. */
+  const returnFocus = useRef(false);
+  useEffect(() => {
+    if (!adding && returnFocus.current) {
+      returnFocus.current = false;
+      addButton.current?.focus();
     }
-  }, [gone, queryClient, router]);
+  }, [adding]);
+
+  function closeForm(): void {
+    returnFocus.current = true;
+    setAdding(false);
+  }
 
   return (
     <main className="page">
@@ -67,6 +89,31 @@ export function RegistersPage() {
         <Link to="/main">{common.t("main.title")}</Link>
       </nav>
       <h1>{t("title")}</h1>
+      {created === null ? null : <p role="status">{t("form.created", { name: created })}</p>}
+      {adding ? (
+        <NewRegistryForm
+          takenSymbols={taken}
+          onGateLost={askGuard}
+          onCancel={closeForm}
+          onCreated={(registry) => {
+            setCreated(registry.displayName);
+            void queryClient.invalidateQueries({ queryKey: queryKeys.registries.list });
+            closeForm();
+          }}
+        />
+      ) : (
+        <button
+          ref={addButton}
+          type="button"
+          disabled={registries.data === undefined}
+          onClick={() => {
+            setCreated(null);
+            setAdding(true);
+          }}
+        >
+          {t("list.new")}
+        </button>
+      )}
       <section aria-labelledby="mine-heading">
         <h2 id="mine-heading">{t("list.mine")}</h2>
         {registries.isPending ? <p role="status">{t("list.loading")}</p> : null}

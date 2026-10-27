@@ -44,3 +44,7 @@ export const apiErrorSchema = z
   .strict();
 
 export type ApiError = z.infer<typeof apiErrorSchema>;
+
+/** `details` of a rejected request: every reason found, each as a path of the field and a stable code, never a value. */
+export const apiIssueListSchema = z.object({ issues: z.array(z.object({ path: z.string(), code: z.string() }).strict()) }).strict();
+export type ApiIssue = z.infer<typeof apiIssueListSchema>["issues"][number];
