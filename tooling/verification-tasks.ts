@@ -1501,6 +1501,46 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D12.3",
+    ready: true,
+    title: "Minimal setup in the browser: starting data, preferences, the empty private screen, sign-out across tabs",
+    criteria: ["D12.3-AC1", "D12.3-AC2", "D12.3-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D12.3-AC1", "D12.3-AC2"],
+        description: "pnpm -r build: the SPA with the data and preferences steps and the sign-out watcher",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/setup/components/data-step.tsx", "apps/web/src/features/setup/components/preferences-step.tsx"],
+      },
+      {
+        id: "setup-unit",
+        criteria: ["D12.3-AC2"],
+        description: "The sign-out announcement reaches a listener and nothing else does",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web"],
+        requires: ["tests/unit/web/session-channel.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D12.3-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all four namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/setup.json", "apps/web/src/locales/en/setup.json"],
+      },
+      {
+        id: "setup-e2e",
+        criteria: ["D12.3-AC1", "D12.3-AC2"],
+        description:
+          "Playwright on a fresh installation (F09 minimal-setup-resumes-after-restart): enrollment, recovery codes, empty data, preferences, empty /main in the saved language, no import or guide offered; three real restarts resume the right stage without a second enrollment and keep the choice and the preferences; unsaved preferences keep /main closed; a refused zone keeps the form; a lost choice is asked again; sign-out ends the other tab at once (and by the next request without a broadcast), the old cookie opens nothing; PL; axe",
+        command: ["node", "tests/verification/e2e.ts", "setup", "enrollment", "gate", "sign-in"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/setup.spec.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D12.3-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

@@ -19,7 +19,8 @@
   },
   "main": {
     "title": "Main screen",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "empty": "There is nothing here yet. Screens and data arrive in later versions."
   },
   "gate": {
     "unavailable": {

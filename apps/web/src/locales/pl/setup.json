@@ -31,10 +31,23 @@
     "reissueSubmit": "Pokaż nowe kody",
     "reissuing": "Sprawdzam…"
   },
-  "pending": {
-    "heading": "Kolejny krok konfiguracji",
-    "unavailable": "Ten krok nie jest jeszcze dostępny w tej wersji aplikacji.",
-    "setup_data": "Wybierz dane początkowe i ustawienia."
+  "data": {
+    "heading": "Dane początkowe",
+    "description": "Zacznij od pustego pulpitu. Własne ekrany i dane dodasz później.",
+    "chooseEmpty": "Zacznij od pustych danych",
+    "choosing": "Zapisuję…"
+  },
+  "preferences": {
+    "heading": "Twoje preferencje",
+    "timezoneLabel": "Strefa czasowa",
+    "timezoneHint": "Na przykład Europe/Warsaw. W tej strefie liczone są daty i okresy.",
+    "localeLabel": "Język",
+    "locale": {
+      "pl": "Polski",
+      "en": "English"
+    },
+    "save": "Zapisz i przejdź dalej",
+    "saving": "Zapisuję…"
   },
   "signOut": "Wyloguj"
 }

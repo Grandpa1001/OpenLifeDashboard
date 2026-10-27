@@ -7,6 +7,7 @@
   "MFA_INVALID_CODE": "The code is not valid or has already been used. Check the code and try again.",
   "ENROLLMENT_CHANGED": "The setup state has changed. Reload the page.",
   "RECOVERY_BATCH_CHANGED": "The recovery codes were replaced. Use the current set or request a new one.",
+  "SETUP_DATA_ALREADY_CHOSEN": "The starting data has already been chosen.",
   "AUTH_REQUIRED": "The session has expired. Sign in again.",
   "VALIDATION_FAILED": "The form data is not valid.",
   "AUTH_UNAVAILABLE": "Sign-in is temporarily unavailable. Try again in a moment.",

@@ -7,18 +7,20 @@ import { useTranslation } from "react-i18next";
 import { describeFailure, type ErrorMessage } from "../../../lib/failures/error-message.js";
 import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
-import { signOut } from "../../../lib/session/identity-api.js";
+import { endSession } from "../../../lib/session/end-session.js";
+import { DataStep } from "../components/data-step.js";
 import { EnrollmentStep } from "../components/enrollment-step.js";
+import { PreferencesStep } from "../components/preferences-step.js";
 import { RecoveryStep } from "../components/recovery-step.js";
 
-/** The steps of the setup that the server can ask for after the sign-in. */
-export type PendingStep = Extract<NextAction, "mfa_enrollment" | "recovery_ack" | "setup_data">;
+/** The steps of the setup that the server can ask for after the sign-in; `preferences` follows the starting data. */
+export type PendingStep = Extract<NextAction, "mfa_enrollment" | "recovery_ack" | "setup_data"> | "preferences";
 
 /**
  * The setup screen. With no owner it says how to create one (the account is never created in the
  * browser). After the sign-in the server's `nextAction` picks the step: the authenticator app,
- * then the recovery codes, then the starting data (a screen of its own arrives in D12.3, until
- * then it is named and said not to be available — nothing imitates it).
+ * then the recovery codes, then the starting data (only the empty start exists; nothing imitates
+ * an import or a guided start) and the preferences.
  *
  * The recovery codes live in this component's state only: they are shown once, never stored in
  * the browser, and gone after a reload, which then offers a new set.
@@ -54,13 +56,12 @@ export function SetupPage({ step }: Readonly<{ step: "owner_missing" | PendingSt
 
   async function leave(): Promise<void> {
     setProblem(null);
-    const result = await signOut();
+    const result = await endSession(queryClient);
     if (!result.ok && result.failure.kind !== "aborted") {
       setProblem(describeFailure(result.failure));
       return;
     }
     setIssued(null);
-    queryClient.clear();
     await navigate({ to: "/login" });
   }
 
@@ -75,13 +76,8 @@ export function SetupPage({ step }: Readonly<{ step: "owner_missing" | PendingSt
       ) : null}
       {step === "mfa_enrollment" ? <EnrollmentStep onIssued={received} onChanged={stale} /> : null}
       {step === "recovery_ack" ? <RecoveryStep issued={issued} onIssued={received} onChanged={stale} onAcknowledged={acknowledged} /> : null}
-      {step === "setup_data" ? (
-        <section className="card" aria-labelledby="setup-heading">
-          <h2 id="setup-heading">{t("pending.heading")}</h2>
-          <p>{t("pending.setup_data")}</p>
-          <p>{t("pending.unavailable")}</p>
-        </section>
-      ) : null}
+      {step === "setup_data" ? <DataStep onChosen={() => void refresh()} onChanged={() => void refresh()} /> : null}
+      {step === "preferences" ? <PreferencesStep onSaved={() => void refresh()} onChanged={() => void refresh()} /> : null}
       {step === "owner_missing" ? null : (
         <>
           {problem === null ? null : <FailureAlert message={problem} />}

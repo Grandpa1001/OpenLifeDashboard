@@ -19,7 +19,8 @@
   },
   "main": {
     "title": "Ekran główny",
-    "signOut": "Wyloguj"
+    "signOut": "Wyloguj",
+    "empty": "Na razie nic tu nie ma. Ekrany i dane pojawią się w kolejnych wersjach."
   },
   "gate": {
     "unavailable": {

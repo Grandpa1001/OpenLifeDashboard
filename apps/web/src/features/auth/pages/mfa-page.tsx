@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { describeFailure, type ErrorMessage } from "../../../lib/failures/error-message.js";
 import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
-import { signOut } from "../../../lib/session/identity-api.js";
+import { endSession } from "../../../lib/session/end-session.js";
 import { routeForNextAction } from "../../../lib/session/route-for-next-action.js";
 import { verifyFactor, type FactorProof } from "../api/identity.js";
 import { Field } from "../../../lib/forms/field.js";
@@ -86,8 +86,7 @@ export function MfaPage() {
 
   async function leave(): Promise<void> {
     inFlight.current?.abort();
-    await signOut();
-    queryClient.clear();
+    await endSession(queryClient);
     await navigate({ to: "/login" });
   }
 

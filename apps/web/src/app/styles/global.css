@@ -199,6 +199,19 @@ main {
   list-style: none;
 }
 
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border: 0;
+  padding: 0;
+}
+
+.choice legend {
+  margin-bottom: var(--space-1);
+  font-weight: 600;
+}
+
 .language-switch {
   display: flex;
   gap: var(--space-2);

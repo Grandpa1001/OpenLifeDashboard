@@ -31,10 +31,23 @@
     "reissueSubmit": "Show new codes",
     "reissuing": "Checking…"
   },
-  "pending": {
-    "heading": "The next setup step",
-    "unavailable": "This step is not available in this version of the application yet.",
-    "setup_data": "Choose the starting data and the settings."
+  "data": {
+    "heading": "Starting data",
+    "description": "Start with an empty dashboard. You will add your own screens and data later.",
+    "chooseEmpty": "Start with empty data",
+    "choosing": "Saving…"
+  },
+  "preferences": {
+    "heading": "Your preferences",
+    "timezoneLabel": "Time zone",
+    "timezoneHint": "For example Europe/Warsaw. Dates and periods are counted in this zone.",
+    "localeLabel": "Language",
+    "locale": {
+      "pl": "Polski",
+      "en": "English"
+    },
+    "save": "Save and continue",
+    "saving": "Saving…"
   },
   "signOut": "Sign out"
 }

@@ -178,7 +178,7 @@ export async function readyOwner(setup: Installation, password: string = OWNER_P
 }
 
 /** Where the setup of a browser-test owner stands. */
-export type OwnerStage = "password_only" | "awaiting_ack" | "data_unchosen" | "ready";
+export type OwnerStage = "password_only" | "awaiting_ack" | "data_unchosen" | "preferences_unsaved" | "ready";
 
 export type BrowserOwner = Readonly<{
   baseUrl: string;
@@ -193,6 +193,8 @@ export type BrowserOwner = Readonly<{
   /** What the server process has written to its output so far. */
   serverOutput: () => string;
   stop: () => Promise<void>;
+  /** Stops the server cleanly and starts it again on the same address and data; `between` runs while it is down. */
+  restart: (between?: () => void) => Promise<void>;
 }>;
 
 /**
@@ -207,7 +209,7 @@ export async function browserOwner(stage: OwnerStage, password = "  a spaced pas
   const instance = await startedInstallation({ baseUrl: origin });
   const created = await runBuiltScript(CREATE_OWNER, ["--installation", instance.dir], { PATH: process.env["PATH"] ?? "", ...instance.env }, JSON.stringify({ email: OWNER_EMAIL, password }));
   must(created.code === 0, `create-owner failed:\n${created.output}`);
-  const server = await serve(instance, { port, origin });
+  let server = await serve(instance, { port, origin });
   const setup: Installation = { instance, server };
   let secret: Buffer | null = null;
   let recoveryCodes: readonly string[] = [];
@@ -218,9 +220,13 @@ export async function browserOwner(stage: OwnerStage, password = "  a spaced pas
     if (stage !== "awaiting_ack") {
       const acknowledged = await ack(server, first.confirmed.cookie, first.codes?.batchId ?? "");
       must(acknowledged.status === 200, "the recovery codes were not acknowledged");
-      if (stage === "ready") {
+      if (stage === "preferences_unsaved" || stage === "ready") {
         const chosen = await post(server, "/api/v1/setup/choose-empty", {}, { cookie: first.confirmed.cookie });
         must(chosen.status === 200, "the starting data were not chosen");
+      }
+      if (stage === "ready") {
+        const saved = await putPreferences(server, first.confirmed.cookie, { timezone: "Europe/Warsaw", locale: "en" });
+        must(saved.status === 200, "the preferences were not saved");
       }
     }
   }
@@ -233,7 +239,12 @@ export async function browserOwner(stage: OwnerStage, password = "  a spaced pas
     secret: owner,
     recoveryCodes,
     code: (offset = 0) => (owner === null ? Promise.reject(new Error("this stage has no authenticator secret")) : codeOf(owner, offset)),
-    serverOutput: server.output,
+    serverOutput: () => server.output(),
     stop: () => stopServer(server),
+    restart: async (between) => {
+      await stopServer(server);
+      between?.();
+      server = await serve(instance, { port, origin });
+    },
   };
 }

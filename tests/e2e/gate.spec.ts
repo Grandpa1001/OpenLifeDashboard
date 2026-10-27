@@ -91,7 +91,7 @@ test.describe("a screen is open only to its own state", () => {
     await expect(page).toHaveURL(`${owner.baseUrl}/mfa`);
     await page.getByLabel(text(auth, "mfa.codeLabel")).fill(await owner.code(1));
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
-    await expect(page.getByText(text(setup, "pending.setup_data"))).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText(text(setup, "data.heading"));
     await page.getByRole("button", { name: text(setup, "signOut") }).click();
     await expect(page).toHaveURL(`${owner.baseUrl}/login`);
   });

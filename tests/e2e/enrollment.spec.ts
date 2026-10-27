@@ -139,7 +139,7 @@ test.describe("the recovery codes", () => {
     const { codes, secret, keyShown } = await enrolOnPage(page, owner);
     await page.getByLabel(text(setup, "recovery.saved")).check();
     await page.getByRole("button", { name: text(setup, "recovery.continue") }).click();
-    await expect(page.getByText(text(setup, "pending.setup_data"))).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText(text(setup, "data.heading"));
     const state = await readable(page);
     for (const code of codes) {
       expect(state).not.toContain(code);
@@ -179,7 +179,7 @@ test.describe("the recovery codes", () => {
     expect(second.filter((code) => first.codes.includes(code))).toEqual([]);
     await page.getByLabel(text(setup, "recovery.saved")).check();
     await page.getByRole("button", { name: text(setup, "recovery.continue") }).click();
-    await expect(page.getByText(text(setup, "pending.setup_data"))).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText(text(setup, "data.heading"));
 
     // The old set is refused, the new one works, and the secret is still the one the owner enrolled.
     await page.getByRole("button", { name: text(setup, "signOut") }).click();
@@ -216,7 +216,7 @@ test.describe("the recovery codes", () => {
     await expect(other.getByRole("button", { name: text(setup, "recovery.continue") })).toBeDisabled();
     await other.getByLabel(text(setup, "recovery.saved")).check();
     await other.getByRole("button", { name: text(setup, "recovery.continue") }).click();
-    await expect(other.getByText(text(setup, "pending.setup_data"))).toBeVisible();
+    await expect(other.getByRole("heading", { level: 2 })).toHaveText(text(setup, "data.heading"));
   });
 
   test("an owner who lost the view in an earlier session sees the lost-codes step first", async ({ page, ownerServer }) => {

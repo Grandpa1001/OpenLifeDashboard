@@ -68,6 +68,9 @@ jobs:
       - name: Verify D12.2 (enrollment of the second factor in a real browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D12.2
+      - name: Verify D12.3 (minimal setup and sign-out across tabs in a real browser)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D12.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
