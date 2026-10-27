@@ -80,6 +80,9 @@ jobs:
       - name: Verify D14.1 (rules of the registry catalog)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D14.1
+      - name: Verify D14.2 (catalog and tables of registries on real SQLite)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D14.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

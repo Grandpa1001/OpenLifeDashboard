@@ -5,6 +5,9 @@ import { RESERVED_COLUMN_SYMBOLS } from "./sql-keywords.js";
 
 export const SYMBOL_PATTERN = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
 export const SYMBOL_MAX_LENGTH = 40;
+/** The physical table of a registry is this prefix and its symbol, so it never meets a system table. */
+export const REGISTRY_TABLE_PREFIX = "reg_";
+export const tableNameOf = (symbol: string): string => `${REGISTRY_TABLE_PREFIX}${symbol}`;
 
 /** Registries are told apart from each other, columns within their registry. */
 export type SymbolSpace = "registry" | "column";

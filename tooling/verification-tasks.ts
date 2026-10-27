@@ -1661,6 +1661,32 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D14.2",
+    ready: true,
+    title: "Catalog of registries and their tables on real SQLite: one transaction, safe identifiers",
+    criteria: ["D14.2-AC1", "D14.2-AC2", "D14.2-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests use the built core and sqlite packages.
+        id: "workspace-build",
+        criteria: ["D14.2-AC1", "D14.2-AC2"],
+        description: "pnpm -r build produces core and sqlite with the registries port, the migration and the adapter",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/sqlite/src/migrations/0010-registries.ts", "packages/sqlite/src/adapters/registries/registry-store.ts"],
+      },
+      {
+        id: "registry-store",
+        criteria: ["D14.2-AC1", "D14.2-AC2"],
+        description:
+          "Książki of F01 become catalog rows and a STRICT table reg_ksiazki with the right columns, types and the indexes of the date columns, which takes the first record of F01 and refuses what its types refuse, and survives a restart; a database of the version before upgrades with its data; a failing CREATE TABLE, CREATE INDEX or audit leaves no row, table or index; a taken symbol (also of a deleted registry), the limit, hostile symbols and reserved column names never reach the DDL; the catalog's own CHECKs; three creations of one symbol give one registry",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries", "tests/integration/sqlite/migrations.test.ts"],
+        requires: ["tests/integration/registries/registry-store.test.ts", "tests/integration/sqlite/migrations.test.ts", "tests/fixtures/books/books-v1.export.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D14.2-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

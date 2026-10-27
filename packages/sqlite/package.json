@@ -19,6 +19,11 @@
       "types": "./dist/adapters/identity/public.d.ts",
       "default": "./dist/adapters/identity/public.js"
     },
+    "./adapters/registries": {
+      "@openlife/source": "./src/adapters/registries/public.ts",
+      "types": "./dist/adapters/registries/public.d.ts",
+      "default": "./dist/adapters/registries/public.js"
+    },
     "./adapters/settings": {
       "@openlife/source": "./src/adapters/settings/public.ts",
       "types": "./dist/adapters/settings/public.d.ts",
