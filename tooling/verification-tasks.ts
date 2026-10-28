@@ -2073,7 +2073,7 @@ const definedLater: readonly TaskDefinition[] = [
       {
         id: "check-locales",
         criteria: ["D18.1-AC1"],
-        description: "pl and en have the same keys, plural forms and variables in all six namespaces",
+        description: "pl and en have the same keys, plural forms and variables in every namespace",
         command: ["pnpm", "check:locales"],
         requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/widgets.json", "apps/web/src/locales/en/widgets.json"],
       },
@@ -2087,6 +2087,47 @@ const definedLater: readonly TaskDefinition[] = [
         timeoutMs: 15 * 60 * 1000,
       },
       ...regressionChecks("D18.1-regression"),
+    ],
+  },
+  {
+    id: "D18.2",
+    ready: true,
+    title: "The Designer: a widget added, bound, arranged per layout with the mouse and saved",
+    criteria: ["D18.2-AC1", "D18.2-AC2", "D18.2-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D18.2-AC1", "D18.2-AC2"],
+        description: "pnpm -r build: the SPA with the Designer and the pinned grid library",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/dashboard/pages/designer-page.tsx", "apps/web/src/features/dashboard/components/design-canvas.tsx", "apps/web/src/features/dashboard/lib/layout-edit.ts"],
+      },
+      {
+        id: "designer-units",
+        criteria: ["D18.2-AC1"],
+        description:
+          "The first free place in the three layouts (empty, beside, below, a gap, a column left by a tall widget, the phone), a size narrowed to the columns, a change of one layout that leaves the other two the very same rectangles, the items of the grid library written back into one layout and no change when it reports what is there, the state of the Designer (unsaved, save with edits meanwhile, canonical comparison), the bindings of the register table in both directions with the paths the server checks, a UUID version 7 for a new widget",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web"],
+        requires: ["tests/unit/web/layout-edit.test.ts", "tests/unit/web/designer-state.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D18.2-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in every namespace, the designer one included",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/designer.json", "apps/web/src/locales/en/designer.json"],
+      },
+      {
+        id: "designer-e2e",
+        criteria: ["D18.2-AC1", "D18.2-AC2"],
+        description:
+          "Playwright on a fresh installation: the first screen created in the Designer, a register table added, bound to a registry and two columns and saved, shown by the screen; a second widget in the first free place of each layout; a real mouse drag and a resize that change the desktop layout only and survive a reload; a refused save (422) that shows the error and keeps every change; a lost connection that keeps them and a repeated save that works; leaving with unsaved changes that asks (stay keeps, leave drops, nothing was saved) and the browser's own confirmation on a closing page; the widget types that cannot be read with 'try again'; axe",
+        command: ["node", "tests/verification/e2e.ts", "designer"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/designer.spec.ts", "tests/e2e/owner-session.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D18.2-regression"),
     ],
   },
   {

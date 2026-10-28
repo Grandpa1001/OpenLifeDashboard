@@ -1,12 +1,13 @@
 import type { WidgetViewDto } from "@openlife/contracts/http/screens";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RegisterTableView, type RegisterTableColumn, type RegisterTableLabels } from "@openlife/widgets/views";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, useRouter } from "@tanstack/react-router";
+import { useMemo, useState, type ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
 import type { ApiFailure } from "../../../lib/api-client/request.js";
 import { useTranslation } from "react-i18next";
 import { formatCell } from "../../../lib/format/cell-format.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
+import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
 import { useOwnerDisplay } from "../../../lib/session/use-owner-display.js";
 import { fetchWidgetData } from "../api/screens.js";
 import { viewStatus } from "../lib/view-status.js";
@@ -52,15 +53,9 @@ export function RegisterTableWidget({ widget, renderAddRecord }: Readonly<{ widg
   });
 
   // The server no longer lets this session read: the guard of the route knows where the owner belongs now.
-  const router = useRouter();
   const failure = data.error instanceof DataFailure ? data.error.failure : null;
   const gone = failure !== null && failure.kind === "api" && (failure.status === 401 || failure.status === 403);
-  const askGuard = useCallback((): void => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.identity.status }).then(() => router.invalidate());
-  }, [queryClient, router]);
-  useEffect(() => {
-    if (gone) askGuard();
-  }, [gone, askGuard]);
+  useGuardRecheck(gone);
 
   const labels: RegisterTableLabels = useMemo(
     () => ({

@@ -34,10 +34,5 @@
       "heading": "Nie można sprawdzić stanu konta",
       "retry": "Spróbuj ponownie"
     }
-  },
-  "designer": {
-    "title": "Designer",
-    "soon": "Designer pojawi się w następnym kroku. Na razie widgety układa się przez API.",
-    "back": "Wróć na ekran główny"
   }
 }

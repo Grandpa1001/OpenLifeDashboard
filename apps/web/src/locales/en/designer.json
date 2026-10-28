@@ -1,0 +1,58 @@
+{
+  "title": "Designer",
+  "loading": "Loading the screen…",
+  "loadFailed": "The screen could not be loaded.",
+  "retry": "Try again",
+  "create": {
+    "heading": "Create your first screen",
+    "text": "A screen holds widgets in layouts for the phone, the tablet and the desktop.",
+    "name": "Screen name",
+    "defaultName": "Main screen",
+    "submit": "Create screen"
+  },
+  "toolbar": {
+    "layouts": "Layout",
+    "phone": "Phone",
+    "tablet": "Tablet",
+    "desktop": "Desktop",
+    "save": "Save",
+    "finish": "Finish",
+    "saving": "Saving…",
+    "clean": "No changes to save",
+    "dirty": "Unsaved changes",
+    "saved": "Saved"
+  },
+  "palette": {
+    "heading": "Add a widget",
+    "add": "Add: {{type}}",
+    "loading": "Loading widget types…",
+    "failed": "The widget types could not be loaded."
+  },
+  "canvas": {
+    "label": "Screen layout: {{layout}}",
+    "empty": "The screen is empty. Add the first widget from the list.",
+    "select": "Select widget: {{name}}",
+    "unbound": "Not configured",
+    "bound": "Registry {{registry}}, columns: {{columns}}"
+  },
+  "panel": {
+    "heading": "Bindings",
+    "none": "Select a widget to set its bindings.",
+    "registry": "Registry",
+    "noRegistry": "Choose a registry",
+    "noRegistries": "There are no registries yet. Create a registry to bind a widget to it.",
+    "registriesFailed": "The registries could not be loaded.",
+    "columns": "Columns",
+    "sort": "Sort by",
+    "sortDefault": "Creation time (default)",
+    "direction": "Sort direction",
+    "desc": "Descending",
+    "asc": "Ascending"
+  },
+  "leave": {
+    "heading": "Unsaved changes",
+    "text": "You have unsaved changes to the screen. Leaving discards them.",
+    "stay": "Stay",
+    "discard": "Discard and leave"
+  }
+}

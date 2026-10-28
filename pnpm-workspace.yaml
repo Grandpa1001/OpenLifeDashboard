@@ -29,6 +29,8 @@ catalog:
   i18next: 26.5.10
   react: 19.3.1
   react-dom: 19.3.1
+  # Designer grid (D18.2): drag and resize on the 1/8/12-column layouts; v2 is the TypeScript rewrite with hooks and no data-grid.
+  react-grid-layout: 2.3.0
   react-i18next: 17.1.8
   # typescript-eslint 8.72 supports TypeScript <6.1; upgrade both together.
   typescript: 6.0.3

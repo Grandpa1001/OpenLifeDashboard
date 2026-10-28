@@ -1,0 +1,58 @@
+{
+  "title": "Designer",
+  "loading": "Wczytywanie ekranu…",
+  "loadFailed": "Nie udało się wczytać ekranu.",
+  "retry": "Spróbuj ponownie",
+  "create": {
+    "heading": "Utwórz pierwszy ekran",
+    "text": "Ekran zbiera widgety w układach na telefon, tablet i desktop.",
+    "name": "Nazwa ekranu",
+    "defaultName": "Ekran główny",
+    "submit": "Utwórz ekran"
+  },
+  "toolbar": {
+    "layouts": "Układ",
+    "phone": "Telefon",
+    "tablet": "Tablet",
+    "desktop": "Desktop",
+    "save": "Zapisz",
+    "finish": "Zakończ",
+    "saving": "Zapisywanie…",
+    "clean": "Brak zmian do zapisania",
+    "dirty": "Niezapisane zmiany",
+    "saved": "Zapisano"
+  },
+  "palette": {
+    "heading": "Dodaj widget",
+    "add": "Dodaj: {{type}}",
+    "loading": "Wczytywanie typów widgetów…",
+    "failed": "Nie udało się wczytać typów widgetów."
+  },
+  "canvas": {
+    "label": "Układ ekranu: {{layout}}",
+    "empty": "Ekran jest pusty. Dodaj pierwszy widget z listy.",
+    "select": "Zaznacz widget: {{name}}",
+    "unbound": "Nie skonfigurowano",
+    "bound": "Rejestr {{registry}}, kolumny: {{columns}}"
+  },
+  "panel": {
+    "heading": "Powiązania",
+    "none": "Zaznacz widget, aby ustawić jego powiązania.",
+    "registry": "Rejestr",
+    "noRegistry": "Wybierz rejestr",
+    "noRegistries": "Nie ma jeszcze rejestrów. Utwórz rejestr, aby powiązać z nim widget.",
+    "registriesFailed": "Nie udało się wczytać rejestrów.",
+    "columns": "Kolumny",
+    "sort": "Sortuj według",
+    "sortDefault": "Data utworzenia (domyślnie)",
+    "direction": "Kierunek sortowania",
+    "desc": "Malejąco",
+    "asc": "Rosnąco"
+  },
+  "leave": {
+    "heading": "Niezapisane zmiany",
+    "text": "Masz niezapisane zmiany ekranu. Wyjście je odrzuci.",
+    "stay": "Zostań",
+    "discard": "Odrzuć i wyjdź"
+  }
+}

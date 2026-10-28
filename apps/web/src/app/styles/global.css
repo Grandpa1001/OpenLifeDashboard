@@ -67,6 +67,11 @@ main {
   padding: var(--space-12) var(--space-4);
 }
 
+/* The screens made of a grid use the width of the window; the column of the forms is for reading. */
+main.page-wide {
+  max-width: none;
+}
+
 .status-card {
   display: flex;
   flex-direction: column;
@@ -376,4 +381,126 @@ main {
   flex-direction: column;
   gap: var(--space-3);
   align-items: flex-start;
+}
+
+/* The Designer (D18.2): palette, canvas and panel side by side, stacked on a narrow window. */
+.designer-page {
+  align-items: stretch;
+}
+
+.designer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.designer-toolbar h1,
+.designer-toolbar p {
+  margin: 0;
+}
+
+.designer-layouts {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.designer-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (min-width: 1100px) {
+  .designer-body {
+    grid-template-columns: 12rem minmax(0, 1fr) 18rem;
+  }
+}
+
+.designer-palette,
+.designer-panel,
+.designer-create,
+.designer-leave {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.designer-leave {
+  max-width: 32rem;
+}
+
+.designer-columns {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.designer-columns legend {
+  padding: 0;
+  font-weight: 600;
+}
+
+.designer-stage {
+  overflow-x: auto;
+}
+
+/* No padding and no border: the grid library measures the width it is given, and the frame is exactly that wide. */
+.designer-frame {
+  position: relative;
+  min-height: 12rem;
+  outline: 1px dashed var(--color-border);
+}
+
+.designer-empty {
+  position: absolute;
+  inset: var(--space-4);
+}
+
+.designer-widget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.designer-widget.selected {
+  border-color: var(--color-accent);
+  outline: 2px solid var(--color-accent);
+}
+
+.designer-handle {
+  align-self: stretch;
+  cursor: grab;
+  font-weight: 600;
+  text-align: left;
+  touch-action: none;
+}
+
+.designer-summary {
+  font-size: var(--text-sm);
+}
+
+/* The corner of the library's resize handle is always visible: a hover is not available on a phone. */
+.designer-widget > .react-resizable-handle {
+  opacity: 1;
+  touch-action: none;
+}
+
+.designer-widget > .react-resizable-handle::after {
+  border-color: var(--color-text-muted);
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: var(--color-accent);
+  opacity: 0.25;
 }

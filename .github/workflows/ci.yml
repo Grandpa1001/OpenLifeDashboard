@@ -184,6 +184,9 @@ jobs:
       - name: Verify D18.1 (the private screen in a real browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D18.1
+      - name: Verify D18.2 (the Designer in a real browser)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D18.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -320,6 +323,9 @@ jobs:
       - name: Verify D18.1 (the private screen in a real browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D18.1
+      - name: Verify D18.2 (the Designer in a real browser)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D18.2
       - name: Verify D15 (the parent, D15.1–D15.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D15

@@ -34,10 +34,5 @@
       "heading": "The account state cannot be checked",
       "retry": "Try again"
     }
-  },
-  "designer": {
-    "title": "Designer",
-    "soon": "The Designer arrives in the next step. For now widgets are arranged through the API.",
-    "back": "Back to the main screen"
   }
 }
