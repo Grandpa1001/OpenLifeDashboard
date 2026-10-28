@@ -2131,6 +2131,48 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D18.3",
+    ready: true,
+    title: "The vertical path of D18: registry, Designer, three layouts, restart, record from the widget",
+    criteria: ["D18.3-AC1", "D18.3-AC2", "D18.3-regression"],
+    checks: [
+      {
+        // Runs first: the browser test uses the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D18.3-AC1"],
+        description: "pnpm -r build: the SPA and the server the restart is made on",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/dashboard/pages/designer-page.tsx", "apps/web/src/features/dashboard/pages/main-page.tsx"],
+      },
+      {
+        id: "vertical-e2e",
+        criteria: ["D18.3-AC1"],
+        description:
+          "Playwright on a fresh installation, no SQL and no test API: a registry from its form, a register table bound to it in the Designer, a different arrangement in the phone, tablet and desktop layouts made with the mouse, a save, a restart of the server on the same data, and /main in the three widths with the widget in the place each layout gave it; a record added from the widget is on the first page and after a reload; axe",
+        command: ["node", "tests/verification/e2e.ts", "vertical"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/vertical.spec.ts", "tests/e2e/owner-session.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      {
+        id: "grid-poc-recorded",
+        criteria: ["D18.3-AC2"],
+        description: "The result of the grid PoC (adaptation of columns, collisions, behaviour when the width changes) and its open limits are written in Architektura, and the specification still verifies",
+        command: ["python3", "Analiza/scripts/verify_specs.py", "--self-test"],
+        requires: ["Analiza/scripts/verify_specs.py", "Analiza/Architektura.md"],
+      },
+      ...regressionChecks("D18.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the screen, the Designer and the vertical path.
+  {
+    id: "D18",
+    ready: true,
+    title: "Minimal Designer and screen: a widget placed, saved and kept over a restart in three layouts",
+    steps: ["D18.1", "D18.2", "D18.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

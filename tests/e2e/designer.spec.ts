@@ -159,6 +159,33 @@ test.describe("D18.2-AC1 the Designer arranges and saves", () => {
   });
 });
 
+test.describe("D18.3-AC2 the grid on a collision", () => {
+  test("a widget dropped on another is never saved overlapping it, and the other layouts stay as they were", async ({ page, ownerServer }) => {
+    const owner = await ownerServer("ready");
+    await ready(page, owner);
+    const B = "019a0000-0000-7000-8000-0000000001bb";
+    await createScreenWith(page, owner, [
+      { id: A, title: "Pierwsza", layout: { phone: { x: 0, y: 0, w: 1, h: 6 }, tablet: { x: 0, y: 0, w: 4, h: 6 }, desktop: { x: 0, y: 0, w: 4, h: 6 } } },
+      { id: B, title: "Druga", layout: { phone: { x: 0, y: 6, w: 1, h: 6 }, tablet: { x: 4, y: 0, w: 4, h: 6 }, desktop: { x: 4, y: 0, w: 4, h: 6 } } },
+    ]);
+    await page.goto(`${owner.baseUrl}/designer`);
+    await dragBy(page, await centre(page.getByRole("button", { name: "Select widget: Druga" })), -Math.round(4 * COLUMN_PX), 0);
+    await toolbarButton(page, "toolbar.save").click();
+    await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
+    const saved = (await savedScreen(page, owner)).widgets;
+    const first = saved.find((widget) => widget.id === A)?.layout.desktop;
+    const second = saved.find((widget) => widget.id === B)?.layout.desktop;
+    if (first === undefined || second === undefined) throw new Error("a widget is missing");
+    const overlap = first.x < second.x + second.w && second.x < first.x + first.w && first.y < second.y + second.h && second.y < first.y + first.h;
+    expect(overlap, `${JSON.stringify(first)} and ${JSON.stringify(second)}`).toBe(false);
+    for (const layout of ["phone", "tablet"] as const) {
+      expect(saved.find((widget) => widget.id === B)?.layout[layout]).toEqual(layout === "phone" ? { x: 0, y: 6, w: 1, h: 6 } : { x: 4, y: 0, w: 4, h: 6 });
+    }
+    // The widget that was dropped takes the place and the one it landed on is pushed below it.
+    expect({ first, second }).toEqual({ first: { x: 0, y: 6, w: 4, h: 6 }, second: { x: 0, y: 0, w: 4, h: 6 } });
+  });
+});
+
 test.describe("D18.2-AC2 a save that fails, and leaving with unsaved changes", () => {
   test("a refused save shows the error and keeps every change, and the same save works once the server accepts it", async ({ page, ownerServer }) => {
     const owner = await ownerServer("ready");
