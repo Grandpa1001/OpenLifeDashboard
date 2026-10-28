@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -2174,6 +2174,32 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D18.1", "D18.2", "D18.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D20.1",
+    ready: true,
+    title: "The vertical path of the owner on a file SQLite: installer-state owner to 25 records, pages and two restarts",
+    criteria: ["D20.1-AC1", "D20.1-AC2", "D20.1-regression"],
+    checks: [
+      {
+        // Runs first: the browser test uses the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D20.1-AC1"],
+        description: "pnpm -r build: the SPA and the server the path runs on",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/dashboard/pages/main-page.tsx", "apps/server/src/main.ts"],
+      },
+      {
+        id: "g1-path-e2e",
+        criteria: ["D20.1-AC1", "D20.1-AC2"],
+        description:
+          "Playwright on a fresh installation, no SQL and no test API: the owner as the installer leaves it signs in, enrols the authenticator from the key on the page, acknowledges the recovery codes, starts empty, makes Książki from its form, adds 25 records under idempotency keys, binds a register table in the Designer and reads pages of 10, 10 and 5; the same key adds once, the same key with another body and a record without its title store nothing, nothing private answers before the enrollment is finished; two restarts of the server leave the records and the screen identical; axe",
+        command: ["node", "tests/verification/e2e.ts", "g1-path"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/g1-path.spec.ts", "tests/e2e/owner-session.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D20.1-regression"),
+    ],
   },
   {
     id: "D19.1",

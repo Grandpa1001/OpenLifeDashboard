@@ -215,6 +215,9 @@ jobs:
       - name: Verify D18.3 (registry, Designer, three layouts and a restart)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D18.3
+      - name: Verify D20.1 (the vertical path of the owner in a real browser)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D20.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
