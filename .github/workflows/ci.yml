@@ -85,7 +85,14 @@ jobs:
       - name: Enable the pnpm version pinned in packageManager
         run: corepack enable
       - name: Install
-        run: pnpm install --frozen-lockfile
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
       - name: Verify D01
         run: pnpm verify:task -- D01
       # Each task's report is evidence of its own: a failing step must not hide the later ones.
@@ -160,7 +167,14 @@ jobs:
       - name: Enable the pnpm version pinned in packageManager
         run: corepack enable
       - name: Install
-        run: pnpm install --frozen-lockfile
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
       - name: Cache the Playwright browser
         id: browser
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -217,7 +231,14 @@ jobs:
       - name: Enable the pnpm version pinned in packageManager
         run: corepack enable
       - name: Install
-        run: pnpm install --frozen-lockfile
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
       - name: Verify D01
         run: pnpm verify:task -- D01
       # Each task's report is evidence of its own: a failing step must not hide the later ones.
@@ -375,7 +396,14 @@ jobs:
       - name: Enable the pnpm version pinned in packageManager
         run: corepack enable
       - name: Install
-        run: pnpm install --frozen-lockfile
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
       - name: Verify D02.2
         run: pnpm verify:task -- D02.2
       - name: Verify D02.3
@@ -407,7 +435,14 @@ jobs:
       - name: Enable the pnpm version pinned in packageManager
         run: corepack enable
       - name: Install
-        run: pnpm install --frozen-lockfile
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
       - name: Download the KM0 reports
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:

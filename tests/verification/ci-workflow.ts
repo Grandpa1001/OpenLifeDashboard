@@ -21,7 +21,7 @@ check.expect(
   isJsonObject(scripts) && scripts["verify:task"] === "node scripts/verify-task.ts",
   "package.json verify:task runs scripts/verify-task.ts",
 );
-check.expect(steps.includes("run: pnpm install --frozen-lockfile"), "CI installs with --frozen-lockfile");
+check.expect(steps.includes("timeout 300 pnpm install --frozen-lockfile && exit 0"), "CI installs with --frozen-lockfile, an attempt that stalls is cut and repeated");
 check.expect(steps.includes("run: pnpm verify:task -- D01"), "CI runs pnpm verify:task -- D01");
 check.expect(steps.includes("node-version-file: .node-version"), "CI uses the Node version from .node-version");
 check.expect(steps.includes("run: pnpm verify:task -- D02.2"), "CI runs pnpm verify:task -- D02.2");
