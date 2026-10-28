@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -2174,6 +2174,46 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D18.1", "D18.2", "D18.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D19.1",
+    ready: true,
+    title: "install.sh in local mode: preflight and the installation folder, without Docker",
+    criteria: ["D19.1-AC1", "D19.1-AC2", "D19.1-regression"],
+    checks: [
+      {
+        // Runs first: one test starts the built server on the folder the installer wrote.
+        id: "workspace-build",
+        criteria: ["D19.1-AC1"],
+        description: "pnpm -r build: the server that the installed folder must start",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/main.ts"],
+      },
+      {
+        id: "installer-syntax",
+        criteria: ["D19.1-AC1"],
+        description: "bash parses install/install.sh (the macOS bash 3.2 and the bash of Linux accept the same syntax)",
+        command: ["bash", "-n", "install/install.sh"],
+        requires: ["install/install.sh"],
+      },
+      {
+        id: "installer-folder",
+        criteria: ["D19.1-AC1"],
+        description:
+          "A clean folder with spaces and Polish letters gets the files and keys of the test preparer for Compose, .env 600 and no secret elsewhere; the built server starts on it; a second run changes no file; a different port is refused; an interrupted folder continues with the same identity and keys; a folder of folders starts fresh; a folder that lost its .env is never given new keys; two installations differ",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer", "-t", "D19.1-AC1"],
+        requires: ["tests/integration/installer/install-local.test.ts", "tests/support/installer-rig.ts", "tests/support/compose-instance.ts"],
+      },
+      {
+        id: "installer-preflight",
+        criteria: ["D19.1-AC2"],
+        description:
+          "With a fake docker: no CLI, a stopped daemon, Windows containers, an old Engine, an old or missing Compose, root, ports out of range, not a number and in use, an image with a quote or a space, the server mode, an unknown or valueless argument, a bad e-mail, a missing image, a foreign or non-folder target and another installation's folder end with a nonzero code and a message, and write nothing; Ctrl+C ends with 130 and creates no folder",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer", "-t", "D19.1-AC2"],
+        requires: ["tests/integration/installer/install-local.test.ts", "tests/support/installer-rig.ts"],
+      },
+      ...regressionChecks("D19.1-regression"),
+    ],
   },
   {
     // The parent passes only through its work orders, each with its real Compose run.

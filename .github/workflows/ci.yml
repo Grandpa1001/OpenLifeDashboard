@@ -134,6 +134,9 @@ jobs:
       - name: Verify D17.4 (the screen over HTTP)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D17.4
+      - name: Verify D19.1 (install.sh preflight and the installation folder)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D19.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
