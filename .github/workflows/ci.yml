@@ -63,7 +63,7 @@ jobs:
               reason="no base commit to compare with"
             else
               changed=$(git diff --name-only "$base" "$GITHUB_SHA")
-              pattern='^(docker/|\.github/|scripts/|tooling/verification-tasks\.ts|apps/server/src/bootstrap/|apps/server/src/adapters/(filesystem|logging)/|packages/sqlite/src/(migrations|connection|snapshots)/|pnpm-lock\.yaml|pnpm-workspace\.yaml|package\.json|\.node-version)'
+              pattern='^(docker/|install/|tests/system/|\.github/|scripts/|tooling/verification-tasks\.ts|apps/server/src/bootstrap/|apps/server/src/adapters/(filesystem|logging)/|packages/sqlite/src/(migrations|connection|snapshots)/|pnpm-lock\.yaml|pnpm-workspace\.yaml|package\.json|\.node-version)'
               if printf '%s\n' "$changed" | grep -Eq "$pattern"; then
                 full=true
                 reason="a file of the slow checks changed"
@@ -362,6 +362,18 @@ jobs:
       - name: Verify D18 (the parent, D18.1–D18.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D18
+      - name: Verify D19.1 (install.sh preflight and the installation folder)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D19.1
+      - name: Verify D19.2 (install.sh stages, owner account and resuming)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D19.2
+      - name: Verify D19.3 (install.sh with the real Docker, Docker on the runner)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D19.3
+      - name: Verify D19 (the parent, D19.1–D19.3 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D19
       - name: Verify D15 (the parent, D15.1–D15.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D15

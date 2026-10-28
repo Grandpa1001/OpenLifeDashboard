@@ -2255,6 +2255,40 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D19.3",
+    ready: true,
+    title: "install.sh with the real Docker: a clean install, interruptions, a repeated run and two installations",
+    criteria: ["D19.3-AC1", "D19.3-AC2", "D19.3-regression"],
+    checks: [
+      {
+        id: "installer-docker-native",
+        criteria: ["D19.3-AC1", "D19.3-AC2"],
+        description:
+          "Real docker on the native architecture: a folder with spaces and Polish letters and a locally built image become a healthy installation published on 127.0.0.1 only, .env 600, the owner signs in and a wrong password is refused; the password is in no file, output, container configuration or log; a second run changes nothing and keeps the container; a password the application refuses stops at 'started' with the application stopped and the rerun continues; Ctrl+C right after the owner account ends with 130 and the rerun needs no password and creates no second owner; three installations differ in project, keys, port, container and cookie names, and a session of one does not open another",
+        command: ["node", "tests/system/install-local.ts"],
+        requires: ["tests/system/install-local.ts", "install/install.sh", "docker/Dockerfile", "docker/compose.yml"],
+        timeoutMs: 40 * 60 * 1000,
+      },
+      {
+        id: "readme-quickstart",
+        criteria: ["D19.3-AC1"],
+        description: "The README quick start names the installer, the image build, every option of the script and its limits",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/foundation/readme-install.test.ts"],
+        requires: ["tests/unit/foundation/readme-install.test.ts", "README.md", "install/install.sh"],
+      },
+      ...regressionChecks("D19.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the folder, the stages and the real Docker run.
+  {
+    id: "D19",
+    ready: true,
+    title: "install.sh in local mode: a clean installation that reaches sign-in and can be resumed",
+    steps: ["D19.1", "D19.2", "D19.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

@@ -2,7 +2,22 @@
 
 A self-hosted, no-code personal life dashboard: build your own registers, dictionaries and screens with widgets, and view them live on your phone, laptop and a large screen.
 
-> **Status: early development (KM1).** The foundation (KM0) passed gate G0: the image starts from a Compose installation with a real database, snapshots and logs, and the web app shows whether the server is ready. The database now has the tables of the auth adapter, the owner singleton and the audit trail, and the `create-owner` command creates the owner account (credentials on stdin only), and the server has explicit sign-in, sign-out and status routes with a persistent lockout; the second factor can be enrolled (TOTP with recovery codes) and proven at sign-in (TOTP, recovery code, trusted device); the first setup (choice of the starting data, preferences) and `reset-mfa` exist, and the browser walks through the whole first setup (sign-in, the second factor and its enrollment with recovery codes shown once, the empty start, time zone and language) to an empty private screen; there is no data or screen to build yet. Nothing here is ready to install or use.
+> **Status: early development (KM1).** The foundation (KM0) passed gate G0: the image starts from a Compose installation with a real database, snapshots and logs, and the web app shows whether the server is ready. The database now has the tables of the auth adapter, the owner singleton and the audit trail, and the `create-owner` command creates the owner account (credentials on stdin only), and the server has explicit sign-in, sign-out and status routes with a persistent lockout; the second factor can be enrolled (TOTP with recovery codes) and proven at sign-in (TOTP, recovery code, trusted device); the first setup (choice of the starting data, preferences) and `reset-mfa` exist, and the browser walks through the whole first setup (sign-in, the second factor and its enrollment with recovery codes shown once, the empty start, time zone and language) to an empty private screen; there is no data or screen to build yet. The local installer (`install/install.sh`) exists for macOS and Linux and is described below, but there is no release yet: it runs an image you built yourself. Nothing here is ready for everyday use.
+
+## Install (local mode, macOS and Linux)
+
+You need Docker (Engine 25 or newer, with Compose 2.24 or newer, running Linux containers) and a user that is not root. Until the first release publishes an image, build it from this repository:
+
+```sh
+docker build -f docker/Dockerfile -t openlifedashboard:local .
+bash install/install.sh --image openlifedashboard:local
+```
+
+The installer asks for the installation folder (default `~/OpenLifeDashboard/default`), the port (default 8080), the e-mail of the owner and the password, which you type twice and which is not shown. Without a terminal, give them as `--dir`, `--port`, `--owner-email` and `--owner-password-stdin` (the password is the first line of stdin). The password is never an argument, an environment variable or a file.
+
+It checks the system first and writes nothing until every check has passed, then creates the folder (`.env` with new keys readable only by you, `data/`, `control/`, the Compose files), makes sure the image is present, starts the application, creates the owner account in a one-off container while the application is stopped, and starts it again. At the end it prints the address (`http://localhost:<port>`, reachable only from this computer), the paths of the data, logs and backups, and how to stop and start it. The first sign-in sets up the second factor (TOTP) and shows your recovery codes.
+
+Run the installer again after an interruption or a failure: it continues at the first stage that is not done (`control/install-state.json`), never overwrites a file, keeps the keys and does not create a second owner. On a finished installation it only shows the status. Copy `.env` to a safe place: without its keys the data cannot be opened. Stopping the application keeps all data; deleting the data is a separate decision of yours (delete the folder). The server mode, Windows and the release package come later.
 
 ## Development
 
@@ -93,7 +108,7 @@ printf '%s' '{"email":"owner@example.com","password":"a long passphrase"}' | nod
 printf '%s' '{"password":"a new long passphrase"}' | node apps/server/dist/cli/reset-password.js --installation <installation-folder>
 ```
 
-The container sequence (stop the app, one-off container, start again) belongs to the installer (D19).
+The container sequence (stop the app, one-off container, start again) is what `install/install.sh` does.
 
 ### Verified runtime
 
