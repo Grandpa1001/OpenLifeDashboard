@@ -2216,6 +2216,45 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D19.2",
+    ready: true,
+    title: "install.sh in local mode: image, start, owner account and restart, resumable",
+    criteria: ["D19.2-AC1", "D19.2-AC2", "D19.2-regression"],
+    checks: [
+      {
+        id: "installer-syntax",
+        criteria: ["D19.2-AC1"],
+        description: "bash parses install/install.sh",
+        command: ["bash", "-n", "install/install.sh"],
+        requires: ["install/install.sh"],
+      },
+      {
+        id: "installer-stage-order",
+        criteria: ["D19.2-AC1"],
+        description:
+          "With a fake docker that records every call: image check, start, stop, the one-off create-owner container, start again, in the installation folder; the owner JSON arrives on stdin with its characters intact (Polish letters, quotes, a backslash, a dollar sign, a tab); the password is in no argument, environment, file, output or state; a complete installation only shows its status; missing credentials, an empty stdin or a control character end before any write",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/install-stages.test.ts", "-t", "D19.2-AC1"],
+        requires: ["tests/integration/installer/install-stages.test.ts", "tests/support/installer-rig.ts"],
+      },
+      {
+        id: "installer-resume",
+        criteria: ["D19.2-AC2"],
+        description:
+          "A pull that fails, an application that does not become healthy, an owner refused or failing for another reason, a restart that fails after the owner, an owner that already exists and Ctrl+C while the application starts: the state stays at the last finished stage, the keys do not change, the rerun finishes and creates no second owner; after the owner stage no password is needed",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/install-stages.test.ts", "-t", "D19.2-AC2"],
+        requires: ["tests/integration/installer/install-stages.test.ts", "tests/support/installer-rig.ts"],
+      },
+      {
+        id: "installer-folder-regression",
+        criteria: ["D19.2-regression"],
+        description: "The preflight and folder tests of D19.1 still pass with the full installer",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/install-local.test.ts"],
+        requires: ["tests/integration/installer/install-local.test.ts"],
+      },
+      ...regressionChecks("D19.2-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

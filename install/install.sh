@@ -2,10 +2,14 @@
 # OpenLifeDashboard installer, local mode on macOS and Linux (Architektura §12.4, §15.1; DEV §9.14).
 #
 #   install.sh [--mode local] [--dir <folder>] [--port <host port>] [--image <image>]
-#              [--owner-email <e-mail>] [--yes]
+#              [--owner-email <e-mail>] [--owner-password-stdin] [--yes]
 #
-# D19.1: preflight and the installation folder (stages preparing -> files). The stages that run
-# containers (image, start, owner, ready) arrive with D19.2, so this script stops after "files".
+# Stages, each recorded in control/install-state.json when it is done:
+#   preparing -> files -> images -> started -> owner -> complete
+# files: the installation folder (D19.1). images: the image is present. started: the application
+# runs and is healthy. owner: the application is stopped, the owner account is created in a
+# one-off container under the writer lease (the password only on its stdin), complete: the
+# application runs again. A rerun continues with the first stage that is not done.
 #
 # The script never overwrites: every file is written only when it does not exist, through a
 # temporary file and an atomic rename, so an interrupted run leaves a folder that the next run
@@ -22,6 +26,8 @@ readonly MIN_FREE_KIB=1048576       # 1 GiB for the image, the database and its 
 readonly MIN_PORT=1024
 readonly MAX_PORT=65535
 readonly DEFAULT_PORT=8080
+readonly START_TIMEOUT_SECONDS=180
+readonly CREATE_OWNER_COMMAND=(node apps/server/dist/cli/create-owner.js)
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -30,19 +36,25 @@ dir=""
 port=""
 image=""
 owner_email=""
+owner_password=""
+password_from_stdin="no"
 assume_yes="no"
 tmp_files=()
 
 usage() {
   cat >&2 <<'USAGE'
-usage: install.sh [--mode local] [--dir <folder>] [--port <port>] --image <image> [--owner-email <e-mail>] [--yes]
+usage: install.sh [--mode local] [--dir <folder>] [--port <port>] --image <image>
+                  [--owner-email <e-mail>] [--owner-password-stdin] [--yes]
 
   --mode         local (default). The server mode arrives with a later release.
   --dir          installation folder (default ~/OpenLifeDashboard/default); a fresh or an
                  interrupted installation folder of this installer, never a foreign one
   --port         host port on 127.0.0.1, 1024-65535 (default 8080)
   --image        the application image to run (until the release package pins it)
-  --owner-email  e-mail of the owner account (used by the stages that start the application)
+  --owner-email  e-mail of the owner account (asked for when a terminal is attached)
+  --owner-password-stdin
+                 read the owner's password from the first line of stdin; without it the password
+                 is typed twice at the terminal. It is never an argument, a variable or a file
   --yes          do not ask to confirm the folder when a terminal is attached
 USAGE
 }
@@ -75,6 +87,7 @@ while [ "$#" -gt 0 ]; do
     --port) option_value "$@"; port="$2"; shift 2 ;;
     --image) option_value "$@"; image="$2"; shift 2 ;;
     --owner-email) option_value "$@"; owner_email="$2"; shift 2 ;;
+    --owner-password-stdin) password_from_stdin="yes"; shift ;;
     --yes) assume_yes="yes"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) usage_error "unknown argument: $1" ;;
@@ -364,11 +377,135 @@ require_identity_files() {
   done
 }
 
+# --------------------------------------------------------------------------- the owner
+
+# The owner's credentials are collected before anything is written, and only while the owner
+# account is still to be created.
+read_owner_credentials() {
+  if [ -z "$owner_email" ]; then
+    [ "$interactive" = "yes" ] || usage_error "--owner-email is required when no terminal is attached"
+    owner_email="$(ask "E-mail of the owner account" "")"
+    validate_owner_email
+    [ -n "$owner_email" ] || usage_error "the owner e-mail is required"
+  fi
+  if [ "$password_from_stdin" = "yes" ]; then
+    IFS= read -r owner_password || [ -n "$owner_password" ] || usage_error "--owner-password-stdin: nothing to read on stdin"
+    owner_password="${owner_password%$'\r'}"
+  elif [ "$interactive" = "yes" ]; then
+    local again=""
+    printf 'Password of the owner account (12 to 128 characters, not shown): ' >&2
+    IFS= read -r -s owner_password; printf '\n' >&2
+    printf 'Repeat the password: ' >&2
+    IFS= read -r -s again; printf '\n' >&2
+    [ "$owner_password" = "$again" ] || fail "the two passwords differ; nothing was written"
+  else
+    usage_error "the owner's password is needed: use --owner-password-stdin, or run the installer in a terminal"
+  fi
+  [ -n "$owner_password" ] || fail "the password is empty"
+  # A tab is a valid character of a password; every other control character is not.
+  case "${owner_password//$'\t'/}" in
+    *[[:cntrl:]]*) fail "the password contains control characters other than a tab" ;;
+  esac
+}
+
+# The one JSON object that create-owner reads from stdin. printf is a shell builtin, so the
+# values never become the arguments of a process; sed only receives the escaping script.
+owner_json() {
+  local password_json
+  password_json="$(json_string "$owner_password")"
+  printf '{"email":%s,"password":%s}\n' "$(json_string "$owner_email")" "${password_json//$'\t'/\\t}"
+}
+
+# ------------------------------------------------------------------------------- the stages
+
+stage_rank() {
+  case "$1" in
+    preparing) printf 0 ;;
+    files) printf 1 ;;
+    images) printf 2 ;;
+    started) printf 3 ;;
+    owner) printf 4 ;;
+    complete) printf 5 ;;
+    *) printf -- -1 ;;
+  esac
+}
+
+compose() { # docker compose in the installation folder: .env there selects the project and files
+  (cd "$dir" && docker compose "$@")
+}
+
+stage_images() {
+  say "Image: checking $image"
+  if docker image inspect "$image" >/dev/null 2>&1; then
+    say "Image: present on this computer"
+    return 0
+  fi
+  say "Image: pulling $image"
+  docker pull "$image" ||
+    fail "the image $image is not on this computer and could not be pulled (no internet, or no such image); the installation continues from here when you run the installer again"
+}
+
+start_and_wait() {
+  compose up --detach --wait --wait-timeout "$START_TIMEOUT_SECONDS" ||
+    fail "the application did not become healthy within $START_TIMEOUT_SECONDS seconds. Look at its log: cd \"$dir\" && docker compose logs app. Run the installer again to continue"
+}
+
+stage_start() {
+  say "Start: the application is starting (up to $START_TIMEOUT_SECONDS seconds)"
+  start_and_wait
+}
+
+stage_owner() {
+  local output code
+  say "Owner: stopping the application to create the owner account without a second writer"
+  compose stop app || fail "cannot stop the application; the owner account was not created"
+  say "Owner: creating the owner account in a one-off container"
+  # -T: no terminal, so stdin is the pipe. --no-deps and no published ports: nothing is exposed.
+  if output="$(owner_json | compose run --rm --no-deps -T --entrypoint "${CREATE_OWNER_COMMAND[0]}" app "${CREATE_OWNER_COMMAND[@]:1}" 2>&1)"; then
+    say "Owner: the account was created"
+    return 0
+  fi
+  code="$(printf '%s' "$output" | sed -n 's/.*"code":"\([A-Z_]*\)".*/\1/p' | head -n 1)"
+  case "$code" in
+    OWNER_ALREADY_EXISTS)
+      say "Owner: an account already exists; it is kept as it is"
+      return 0
+      ;;
+    INPUT_INVALID)
+      fail "the owner account was not created: the e-mail or the password was refused ($(printf '%s' "$output" | sed -n 's/.*"fields":\[\([^]]*\)\].*/\1/p' | head -n 1)). The application is stopped; run the installer again to enter them"
+      ;;
+    *)
+      fail "the owner account was not created (${code:-no code}). The application is stopped; run the installer again to retry. Details: $output"
+      ;;
+  esac
+}
+
+stage_finish() {
+  say "Start: starting the application again"
+  start_and_wait
+}
+
+print_summary() {
+  say ""
+  say "OpenLifeDashboard is installed."
+  say "  Open:       http://localhost:$port (only from this computer)"
+  say "  Sign in:    with the e-mail of the owner account; the first sign-in sets up the second factor (TOTP) and shows your recovery codes"
+  say "  Data:       $dir/data"
+  say "  Logs:       $dir/data/logs"
+  say "  Backups:    $dir/data/backup"
+  say "  Secrets:    $dir/.env - copy it to a safe place; without it the data cannot be opened"
+  say "  Stop:       cd \"$dir\" && docker compose stop"
+  say "  Start:      cd \"$dir\" && docker compose up --detach"
+  say "A computer that sleeps or is off does not run the application, and a phone cannot reach localhost of this computer."
+  say "Uninstalling means stopping it; the data stays until you delete the folder yourself."
+}
+
 # -------------------------------------------------------------------------------------- run
 
 [ "$mode" = "local" ] || usage_error "the mode '$mode' is not available yet; only 'local' is supported"
 resuming="no"
 state_file=""
+current_stage=""
 
 preflight_system
 validate_image
@@ -382,6 +519,12 @@ state_file="$dir/control/install-state.json"
 preflight_docker
 preflight_folder
 
+if [ "$resuming" = "yes" ]; then
+  current_stage="$(stage_of_state)"
+  [ "$(stage_rank "$current_stage")" -ge 0 ] || fail "$state_file has an unknown stage; the installation is damaged"
+fi
+rank="$(stage_rank "${current_stage:-preparing}")"
+
 # The port of an interrupted installation is the one already in its .env; a new one is asked for.
 if [ "$resuming" = "yes" ] && [ -f "$dir/.env" ]; then
   recorded_port="$(sed -n 's/^PORT=\([0-9]*\)$/\1/p' "$dir/.env" | head -n 1)"
@@ -391,12 +534,16 @@ if [ "$resuming" = "yes" ] && [ -f "$dir/.env" ]; then
   port="${port:-$recorded_port}"
 fi
 port="${port:-$(ask "Port on this computer (127.0.0.1)" "$DEFAULT_PORT")}"
-preflight_port
+# Once the application has started, the port is held by this very installation.
+if [ "$rank" -lt 3 ]; then
+  preflight_port
+fi
+[ "$rank" -ge 4 ] || read_owner_credentials
 
 say "Installation folder: $dir"
 say "Address:             http://localhost:$port (reachable only from this computer)"
 if [ "$resuming" = "yes" ]; then
-  say "Found an interrupted installation (stage: $(stage_of_state)); it will be continued, nothing is overwritten."
+  say "Found an installation at the stage '$current_stage'; it is continued, nothing is overwritten."
 elif [ "$interactive" = "yes" ] && [ "$assume_yes" = "no" ]; then
   confirmation="$(ask "Create it here? (yes/no)" "yes")"
   case "$confirmation" in
@@ -406,23 +553,22 @@ elif [ "$interactive" = "yes" ] && [ "$assume_yes" = "no" ]; then
 fi
 
 umask 077
-current_stage=""
-if [ "$resuming" = "yes" ]; then
-  current_stage="$(stage_of_state)"
-  case "$current_stage" in
-    preparing|files|images|started|owner|complete) ;;
-    *) fail "$state_file has an unknown stage; the installation is damaged" ;;
-  esac
-  [ "$current_stage" = "preparing" ] || require_identity_files
-fi
+[ "$rank" -le 0 ] || require_identity_files
 
 prepare_folders
 prepare_instance_file
 prepare_env_file
 prepare_compose_files
-if [ "$current_stage" = "" ] || [ "$current_stage" = "preparing" ]; then
+if [ "$rank" -le 0 ]; then
   write_state files
 fi
 
-say "The files of the installation are ready in $dir."
-say "The next stages (image, start, owner account) are not part of this installer version yet."
+if [ "$rank" -le 1 ]; then stage_images; write_state images; fi
+if [ "$rank" -le 2 ]; then stage_start; write_state started; fi
+if [ "$rank" -le 3 ]; then stage_owner; write_state owner; fi
+if [ "$rank" -le 4 ]; then stage_finish; write_state complete; fi
+if [ "$rank" -ge 5 ]; then
+  say "The installation is complete; nothing was changed. Status of its containers:"
+  compose ps || note "cannot read the status of the containers"
+fi
+print_summary

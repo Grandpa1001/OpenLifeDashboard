@@ -1,6 +1,7 @@
-// A rig for install/install.sh without Docker (DEV D19.1): a tools folder that is the whole PATH of
-// the installer, with an optional fake `docker` whose answers a test chooses, and a runner.
-import { chmodSync, symlinkSync, writeFileSync } from "node:fs";
+// A rig for install/install.sh without Docker (DEV D19.1, D19.2): a tools folder that is the whole
+// PATH of the installer, an optional fake `docker` whose answers a test chooses and which records
+// every call, and a runner.
+import { chmodSync, existsSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,12 +22,26 @@ export type FakeDocker = Readonly<{
   composeMissing?: boolean;
   /** `docker version` blocks (to interrupt the installer while it waits). */
   hang?: boolean;
+  /** The image is not on the computer (`image inspect` fails) and `pull` fails when set. */
+  imageMissing?: boolean;
+  pullFails?: boolean;
+  /** `compose up` fails on these calls (1 = the first). */
+  upFailsOnCalls?: readonly number[];
+  /** `compose up` blocks on this call, to interrupt the installer in the middle of a stage. */
+  upHangsOnCall?: number;
+  /** What the one-off create-owner container does: exit status and what it prints. */
+  owner?: Readonly<{ exit: number; output: string }>;
 }>;
 
 export type InstallerRig = Readonly<{
   binDir: string;
   /** Written by the fake docker when it starts, so a test knows the installer is waiting. */
   startedMarker: string;
+  /** One line per docker call: the working folder and the arguments. */
+  callLog: string;
+  /** What the one-off owner container received on stdin and in its environment. */
+  ownerStdin: string;
+  ownerEnv: string;
 }>;
 
 function which(tool: string): string {
@@ -35,9 +50,14 @@ function which(tool: string): string {
   return found;
 }
 
+const sh = (text: string): string => `'${text.replaceAll("'", "'\\''")}'`;
+
 export function installerRig(options: Readonly<{ docker?: FakeDocker | false; userId?: number }> = {}): InstallerRig {
   const binDir = scratchDir("openlife-installer-bin-");
   const startedMarker = path.join(binDir, "docker-started");
+  const callLog = path.join(binDir, "docker-calls.log");
+  const ownerStdin = path.join(binDir, "owner-stdin");
+  const ownerEnv = path.join(binDir, "owner-env");
   // `id -u` / `id -g` answer with the chosen user (0 = root) instead of the real tool.
   for (const tool of TOOLS.filter((name) => name !== "id" || options.userId === undefined)) symlinkSync(which(tool), path.join(binDir, tool));
   if (options.userId !== undefined) {
@@ -45,9 +65,12 @@ export function installerRig(options: Readonly<{ docker?: FakeDocker | false; us
   }
   if (options.docker !== false) {
     const fake = options.docker ?? {};
+    const owner = fake.owner ?? { exit: 0, output: '{"event":"owner.created"}' };
+    const failing = (fake.upFailsOnCalls ?? []).map((call) => `"$ups" = ${call}`).join(" ] || [ ");
     const script = [
       "#!/usr/bin/env bash",
-      `touch ${JSON.stringify(startedMarker)}`,
+      `touch ${sh(startedMarker)}`,
+      `echo "$PWD :: $*" >> ${sh(callLog)}`,
       fake.hang ? "sleep 30" : "",
       'if [ "$1" = "version" ]; then',
       fake.daemonDown ? '  echo "Cannot connect to the Docker daemon at unix:///var/run/docker.sock" >&2; exit 1' : `  echo "${fake.engineVersion ?? "27.3.1"}|${fake.engineOs ?? "linux"}"; exit 0`,
@@ -55,6 +78,25 @@ export function installerRig(options: Readonly<{ docker?: FakeDocker | false; us
       'if [ "$1" = "compose" ] && [ "$2" = "version" ]; then',
       fake.composeMissing ? '  echo "docker: unknown command: docker compose" >&2; exit 1' : `  echo "${fake.composeVersion ?? "v2.29.1"}"; exit 0`,
       "fi",
+      'if [ "$1" = "image" ] && [ "$2" = "inspect" ]; then',
+      fake.imageMissing ? "  exit 1" : "  exit 0",
+      "fi",
+      'if [ "$1" = "pull" ]; then',
+      fake.pullFails ? '  echo "pull access denied or no network" >&2; exit 1' : "  exit 0",
+      "fi",
+      'if [ "$1" = "compose" ] && [ "$2" = "up" ]; then',
+      `  ups=$(( $(cat ${sh(path.join(binDir, "ups"))} 2>/dev/null || echo 0) + 1 )); echo $ups > ${sh(path.join(binDir, "ups"))}`,
+      fake.upHangsOnCall !== undefined ? `  if [ "$ups" = ${fake.upHangsOnCall} ]; then sleep 30; fi` : "",
+      failing ? `  if [ ${failing} ]; then echo "container is unhealthy" >&2; exit 1; fi` : "",
+      "  exit 0",
+      "fi",
+      'if [ "$1" = "compose" ] && [ "$2" = "run" ]; then',
+      `  cat > ${sh(ownerStdin)}`,
+      `  env > ${sh(ownerEnv)}`,
+      `  echo ${sh(owner.output)}`,
+      `  exit ${owner.exit}`,
+      "fi",
+      'if [ "$1" = "compose" ]; then exit 0; fi',
       "exit 1",
       "",
     ].join("\n");
@@ -62,25 +104,39 @@ export function installerRig(options: Readonly<{ docker?: FakeDocker | false; us
     writeFileSync(file, script);
     chmodSync(file, 0o755);
   }
-  return { binDir, startedMarker };
+  return { binDir, startedMarker, callLog, ownerStdin, ownerEnv };
+}
+
+/** The recorded docker calls, without the version probes of the preflight. */
+export function dockerCalls(rig: InstallerRig): string[] {
+  if (!existsSync(rig.callLog)) return [];
+  return readFileSync(rig.callLog, "utf8")
+    .split("\n")
+    .filter((line) => line !== "" && !/ :: (version|compose version)\b/.test(line));
 }
 
 export type InstallerRun = Readonly<{ status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string }>;
 
-export function runInstaller(rig: InstallerRig, args: readonly string[], home = rig.binDir): InstallerRun {
+export type RunOptions = Readonly<{
+  /** Stdin of the installer, e.g. the owner's password line for --owner-password-stdin. */
+  input?: string;
+}>;
+
+export function runInstaller(rig: InstallerRig, args: readonly string[], options: RunOptions = {}): InstallerRun {
   const result = spawnSync("bash", [INSTALLER, ...args], {
     encoding: "utf8",
     // HOME is only a place for the default folder; stdin is not a terminal, so nothing is asked.
-    env: { PATH: rig.binDir, HOME: home },
-    input: "",
+    env: { PATH: rig.binDir, HOME: rig.binDir },
+    input: options.input ?? "",
     timeout: 60_000,
   });
   return { status: result.status, signal: result.signal, stdout: result.stdout, stderr: result.stderr };
 }
 
 /** Starts the installer in its own process group, so a test can interrupt it like Ctrl+C does. */
-export function startInstaller(rig: InstallerRig, args: readonly string[]) {
-  const child = spawn("bash", [INSTALLER, ...args], { env: { PATH: rig.binDir, HOME: rig.binDir }, stdio: ["ignore", "pipe", "pipe"], detached: true });
+export function startInstaller(rig: InstallerRig, args: readonly string[], input = "") {
+  const child = spawn("bash", [INSTALLER, ...args], { env: { PATH: rig.binDir, HOME: rig.binDir }, stdio: ["pipe", "pipe", "pipe"], detached: true });
+  child.stdin.end(input);
   let stderr = "";
   child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString("utf8")));
   const exit = new Promise<{ code: number | null; stderr: string }>((resolve) => child.once("exit", (code) => resolve({ code, stderr })));

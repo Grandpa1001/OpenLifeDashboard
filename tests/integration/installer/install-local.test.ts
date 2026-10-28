@@ -1,6 +1,7 @@
-// D19.1 — install.sh in local mode up to "files", without Docker: a fake `docker` answers the
-// preflight, the real script writes a real folder, and a real server starts on the result.
-// The stages that run containers (D19.2) and the real Docker run (D19.3) are not covered here.
+// D19.1 — install.sh in local mode, the preflight and the installation folder, without Docker: a
+// fake `docker` answers the preflight and accepts every stage, the real script writes a real folder,
+// and a real server starts on the result. The container stages are install-stages.test.ts (D19.2);
+// the real Docker run is D19.3.
 import { createHash } from "node:crypto";
 import { createServer } from "node:net";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -8,13 +9,17 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { prepareComposeInstance } from "../../support/compose-instance.ts";
-import { installerRig, runInstaller, startInstaller, type FakeDocker } from "../../support/installer-rig.ts";
+import { installerRig, runInstaller, startInstaller, type FakeDocker, type InstallerRig } from "../../support/installer-rig.ts";
 import { repoRoot, startBuiltServer } from "../../support/server-process.ts";
 
 const root = mkdtempSync(path.join(os.tmpdir(), "openlife-install-sh-"));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 const IMAGE = "openlife-app:test";
+const OWNER_ARGS = ["--owner-email", "wlasciciel@example.com", "--owner-password-stdin"] as const;
+const PASSWORD_LINE = "Zażółć gęślą jaźń 2026\n";
+/** A run that goes through every stage, so it is given the owner's e-mail and password (stdin). */
+const install = (rig: InstallerRig, args: readonly string[]) => runInstaller(rig, [...args, ...OWNER_ARGS], { input: PASSWORD_LINE });
 let counter = 0;
 const nextDir = (name = "installation"): string => path.join(root, `${name}-${(counter += 1)}`);
 
@@ -46,14 +51,13 @@ describe("D19.1-AC1 a clean folder becomes an installation that the server accep
   const rig = installerRig();
   // Spaces and Polish letters in the path (Architektura §12.4 pt 9).
   const dir = path.join(root, "Mój Dashboard — ąęść", "instalacja 1");
-  const first = runInstaller(rig, ["--dir", dir, "--port", "18321", "--image", IMAGE]);
+  const first = install(rig, ["--dir", dir, "--port", "18321", "--image", IMAGE]);
 
-  it("finishes the stage 'files' and says what is left", () => {
+  it("goes through the stages and records the last one", () => {
     expect(first.status, first.stderr).toBe(0);
     expect(first.stdout).toContain(`Installation folder: ${dir}`);
     expect(first.stdout).toContain("http://localhost:18321");
-    expect(JSON.parse(readFileSync(path.join(dir, "control", "install-state.json"), "utf8"))).toMatchObject({ formatVersion: 1, stage: "files" });
-    expect(first.stdout).toContain("not part of this installer version yet");
+    expect(JSON.parse(readFileSync(path.join(dir, "control", "install-state.json"), "utf8"))).toMatchObject({ formatVersion: 1, stage: "complete" });
   });
 
   it("writes the same files and keys as the test preparer for Compose (D07.1)", () => {
@@ -116,48 +120,48 @@ describe("D19.1-AC1 a clean folder becomes an installation that the server accep
 
   it("changes nothing on a second run", () => {
     const before = snapshot(dir);
-    const second = runInstaller(rig, ["--dir", dir, "--image", IMAGE]);
+    const second = install(rig, ["--dir", dir, "--image", IMAGE]);
     expect(second.status, second.stderr).toBe(0);
     expect(second.stdout).toContain("nothing is overwritten");
     expect(snapshot(dir)).toEqual(before);
   });
 
   it("keeps the recorded port and refuses a different one", () => {
-    const refused = runInstaller(rig, ["--dir", dir, "--image", IMAGE, "--port", "18999"]);
+    const refused = install(rig, ["--dir", dir, "--image", IMAGE, "--port", "18999"]);
     expect(refused.status).toBe(1);
     expect(refused.stderr).toContain("already uses port 18321");
   });
 
   it("continues an interrupted folder with the same identity and keys, writing what is missing", () => {
     const partial = nextDir("partial");
-    const done = runInstaller(rig, ["--dir", partial, "--port", "18322", "--image", IMAGE]);
+    const done = install(rig, ["--dir", partial, "--port", "18322", "--image", IMAGE]);
     expect(done.status, done.stderr).toBe(0);
     const metadata = readFileSync(path.join(partial, "control", "instance.json"), "utf8");
     // The run stopped right after the identity file: state 'preparing', no .env, no compose files.
     writeFileSync(path.join(partial, "control", "install-state.json"), '{\n  "formatVersion": 1,\n  "stage": "preparing",\n  "updatedAt": "2026-01-01T00:00:00Z"\n}\n');
     for (const file of [".env", "compose.yml", "compose.local.yml", path.join("control", "compose.release.yml")]) rmSync(path.join(partial, file));
 
-    const resumed = runInstaller(rig, ["--dir", partial, "--port", "18322", "--image", IMAGE]);
+    const resumed = install(rig, ["--dir", partial, "--port", "18322", "--image", IMAGE]);
     expect(resumed.status, resumed.stderr).toBe(0);
     expect(readFileSync(path.join(partial, "control", "instance.json"), "utf8")).toBe(metadata);
     expect(envOf(path.join(partial, ".env"))["COMPOSE_PROJECT_NAME"]).toBe((JSON.parse(metadata) as { composeProjectName: string }).composeProjectName);
-    expect(JSON.parse(readFileSync(path.join(partial, "control", "install-state.json"), "utf8"))).toMatchObject({ stage: "files" });
+    expect(JSON.parse(readFileSync(path.join(partial, "control", "install-state.json"), "utf8"))).toMatchObject({ stage: "complete" });
   });
 
   it("starts over in a folder that only holds folders (a first run stopped before its state)", () => {
     const empty = nextDir("folders-only");
     mkdirSync(path.join(empty, "data", "backup"), { recursive: true });
     mkdirSync(path.join(empty, "control"), { recursive: true });
-    const run = runInstaller(rig, ["--dir", empty, "--port", "18323", "--image", IMAGE]);
+    const run = install(rig, ["--dir", empty, "--port", "18323", "--image", IMAGE]);
     expect(run.status, run.stderr).toBe(0);
-    expect(JSON.parse(readFileSync(path.join(empty, "control", "install-state.json"), "utf8"))).toMatchObject({ stage: "files" });
+    expect(JSON.parse(readFileSync(path.join(empty, "control", "install-state.json"), "utf8"))).toMatchObject({ stage: "complete" });
   });
 
   it("never makes up the keys again when a folder past 'files' has lost its .env", () => {
     const damaged = nextDir("damaged");
-    expect(runInstaller(rig, ["--dir", damaged, "--port", "18324", "--image", IMAGE]).status).toBe(0);
+    expect(install(rig, ["--dir", damaged, "--port", "18324", "--image", IMAGE]).status).toBe(0);
     rmSync(path.join(damaged, ".env"));
-    const run = runInstaller(rig, ["--dir", damaged, "--port", "18324", "--image", IMAGE]);
+    const run = install(rig, ["--dir", damaged, "--port", "18324", "--image", IMAGE]);
     expect(run.status).toBe(1);
     expect(run.stderr).toContain("is missing; it is not recreated");
     expect(() => statSync(path.join(damaged, ".env"))).toThrow();
@@ -165,7 +169,7 @@ describe("D19.1-AC1 a clean folder becomes an installation that the server accep
 
   it("gives two installations different identities and keys", () => {
     const other = nextDir("second");
-    expect(runInstaller(rig, ["--dir", other, "--port", "18325", "--image", IMAGE]).status).toBe(0);
+    expect(install(rig, ["--dir", other, "--port", "18325", "--image", IMAGE]).status).toBe(0);
     const identity = (folder: string) => ({
       env: envOf(path.join(folder, ".env")),
       metadata: JSON.parse(readFileSync(path.join(folder, "control", "instance.json"), "utf8")) as { instanceId: string },
