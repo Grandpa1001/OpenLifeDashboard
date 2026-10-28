@@ -103,7 +103,8 @@ test.describe("D20.1 the owner's vertical path on a file SQLite", () => {
     await page.getByRole("checkbox", { name: "Tytuł" }).check();
     await page.getByRole("checkbox", { name: "Autor" }).check();
     await page.getByRole("button", { name: text(designer, "toolbar.save"), exact: true }).click();
-    await expect(page.getByRole("status").filter({ hasText: text(designer, "toolbar.saved") })).toBeVisible();
+    // The whole text: "Unsaved changes" holds "saved" too, and a Finish pressed while the save is in flight asks to discard.
+    await expect(page.getByRole("status")).toHaveText(text(designer, "toolbar.saved"));
     await page.getByRole("button", { name: text(designer, "toolbar.finish"), exact: true }).click();
     await expect(page).toHaveURL(`${owner.baseUrl}/main`);
 

@@ -70,9 +70,19 @@ test.describe("D18.3-AC1 registry, Designer, three layouts, restart, record", ()
     const frame = (name: string) => page.getByRole("group", { name: `Screen layout: ${text(designer, `toolbar.${name}`)}` });
     const handle = page.getByRole("button", { name: HANDLE });
 
+    // A drop is part of the design only once the widget has settled in its place; the next step waits for that.
+    const settledAt = (name: string, columns: number, rows: number, column: number) =>
+      expect(async () => {
+        const [place, area] = [await page.locator(".designer-widget").boundingBox(), await frame(name).boundingBox()];
+        if (place === null || area === null) throw new Error("the layout is not drawn");
+        expect(Math.abs(place.x - area.x - columns * column)).toBeLessThan(2);
+        expect(Math.abs(place.y - area.y - rows * 48)).toBeLessThan(2);
+      }).toPass({ timeout: 10_000 });
+
     await layoutButton("phone").click();
     await expect(frame("phone")).toBeVisible();
     await dragBy(page, await centre(handle), 0, 2 * 48);
+    await settledAt("phone", 0, 2, 0);
 
     await layoutButton("tablet").click();
     await expect(frame("tablet")).toBeVisible();
@@ -81,8 +91,10 @@ test.describe("D18.3-AC1 registry, Designer, three layouts, restart, record", ()
     const widget = page.locator(".designer-widget");
     const target = 768 - 2 * tabletColumn;
     await expect(async () => {
+      // While a drag is still being settled the grid draws a placeholder with a handle of its own; the next drag waits for it to go.
+      await expect(page.locator(".react-grid-placeholder")).toHaveCount(0, { timeout: 3_000 });
       const width = (await widget.boundingBox())?.width ?? target;
-      if (Math.abs(width - target) > 1) await dragBy(page, await centre(page.locator(".react-resizable-handle-se")), target - width, 0);
+      if (Math.abs(width - target) > 1) await dragBy(page, await centre(widget.locator(".react-resizable-handle-se")), target - width, 0);
       await expect(widget).toHaveCSS("width", `${target}px`, { timeout: 3_000 });
     }).toPass({ timeout: 20_000 });
 
@@ -90,9 +102,14 @@ test.describe("D18.3-AC1 registry, Designer, three layouts, restart, record", ()
     await expect(frame("desktop")).toBeVisible();
     const desktopColumn = (1200 - 11 * 16) / 12 + 16;
     await dragBy(page, await centre(handle), Math.round(2 * desktopColumn), 48);
+    // The design is saved as it stands: the drop must be in it.
+    await settledAt("desktop", 2, 1, desktopColumn);
 
-    await page.getByRole("button", { name: text(designer, "toolbar.save"), exact: true }).click();
-    await expect(page.getByRole("status").filter({ hasText: text(designer, "toolbar.saved") })).toBeVisible();
+    const save = page.getByRole("button", { name: text(designer, "toolbar.save"), exact: true });
+    await save.click();
+    // The whole text: "Unsaved changes" holds "saved" too, and a Finish pressed while the save is in flight asks to discard.
+    await expect(page.getByRole("status")).toHaveText(text(designer, "toolbar.saved"));
+    await expect(save).toBeDisabled();
     await page.getByRole("button", { name: text(designer, "toolbar.finish"), exact: true }).click();
     await expect(page).toHaveURL(`${owner.baseUrl}/main`);
     await page.waitForLoadState("networkidle");
