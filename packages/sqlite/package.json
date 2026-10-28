@@ -14,6 +14,11 @@
       "types": "./dist/adapters/audit/append-audit.d.ts",
       "default": "./dist/adapters/audit/append-audit.js"
     },
+    "./adapters/dashboard": {
+      "@openlife/source": "./src/adapters/dashboard/public.ts",
+      "types": "./dist/adapters/dashboard/public.d.ts",
+      "default": "./dist/adapters/dashboard/public.js"
+    },
     "./adapters/identity": {
       "@openlife/source": "./src/adapters/identity/public.ts",
       "types": "./dist/adapters/identity/public.d.ts",

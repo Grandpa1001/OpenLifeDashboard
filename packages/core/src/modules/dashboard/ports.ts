@@ -1,7 +1,7 @@
 // Ports of the dashboard module (Architektura §13.2, §18.3). The catalog of widget types is built
 // from the definitions of the build; the reader looks into the registries of the owner. Neither
 // returns more than the rules need.
-import type { SlotBinding } from "./domain/design.js";
+import type { CheckedDesign, SlotBinding, WidgetInput, WidgetState } from "./domain/design.js";
 
 export type ConfigOutcome =
   | Readonly<{ ok: true; config: Readonly<Record<string, unknown>> & { readonly v: number } }>
@@ -34,4 +34,37 @@ export interface DashboardCatalogReader {
   registry(ownerId: string, registryId: string): CatalogRegistry | null;
   /** The screen that holds a widget with this identifier, of any owner, or null. */
   screenOfWidget(widgetId: string): string | null;
+}
+
+/** A widget as it is stored: what was designed, and the state it had when it was written (a read works the state out again). */
+export type StoredWidget = WidgetInput & Readonly<{ state: WidgetState }>;
+
+export type StoredScreen = Readonly<{
+  id: string;
+  ownerId: string;
+  name: string;
+  theme: string;
+  accent: string;
+  createdAt: string;
+  updatedAt: string;
+  /** In the order of the snapshot. */
+  widgets: readonly StoredWidget[];
+}>;
+
+export type NewScreen = Readonly<{ id: string; ownerId: string; name: string; theme: string; accent: string; /** UTC, ISO 8601. */ nowIso: string }>;
+
+/**
+ * The screens of the owner. A screen is replaced as one aggregate in the unit of work of the use
+ * case: the widgets that are not in the new design are gone with their bindings, the others are
+ * written under the same identifiers, and a widget identifier that lives on another screen is never
+ * taken over, whatever the rules before it have decided.
+ */
+export interface DashboardStore {
+  /** Screens of the owner. */
+  count(ownerId: string): number;
+  create(screen: NewScreen): void;
+  find(ownerId: string, screenId: string): StoredScreen | null;
+  /** The widget with this identifier if its screen is the owner's, with the screen it is on. */
+  findWidget(ownerId: string, widgetId: string): Readonly<{ screenId: string; widget: StoredWidget }> | null;
+  replace(ownerId: string, screenId: string, design: CheckedDesign, nowIso: string): void;
 }

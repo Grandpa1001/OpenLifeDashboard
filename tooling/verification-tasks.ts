@@ -1988,6 +1988,32 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D17.3",
+    ready: true,
+    title: "The screen, its widgets and bindings on real SQLite: one aggregate, replaced atomically, identifiers never taken over",
+    criteria: ["D17.3-AC1", "D17.3-AC2", "D17.3-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests use the built core, sqlite and server packages.
+        id: "workspace-build",
+        criteria: ["D17.3-AC1", "D17.3-AC2"],
+        description: "pnpm -r build produces sqlite with the migration of the dashboard and the adapters of the store and the catalog reader",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/sqlite/src/migrations/0012-dashboard.ts", "packages/sqlite/src/adapters/dashboard/dashboard-store.ts", "packages/sqlite/src/adapters/dashboard/catalog-reader.ts"],
+      },
+      {
+        id: "dashboard-store",
+        criteria: ["D17.3-AC1", "D17.3-AC2"],
+        description:
+          "The screen of F01 written and read back equal (configuration, layouts, five bindings in order), also after a restart; a replacement removes the widgets not in the design with their bindings and keeps the others in their rows, two widgets swap places in one write, the order of the bindings is kept; the catalog reader gives a registry with its deleted columns and only to its owner, and the screen of a widget; the state of a stored widget follows the catalog without a write; a failure in the middle of a replacement leaves the screen exactly as it was; a widget identifier of another screen is refused by the rules and by the store alone, a screen of another owner is neither found nor replaced; the CHECKs, keys and cascades of the tables; the index by registry; a database of the version before upgrades with its data; SQL and markup in a title stay values",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/dashboard", "tests/integration/sqlite/migrations.test.ts"],
+        requires: ["tests/integration/dashboard/dashboard-store.test.ts", "tests/integration/sqlite/migrations.test.ts", "tests/fixtures/books/books-v1.export.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D17.3-regression"),
+    ],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

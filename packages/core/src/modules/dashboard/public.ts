@@ -18,4 +18,4 @@ export type {
   WidgetInput,
   WidgetState,
 } from "./domain/design.js";
-export type { BindingShapeProblem, CatalogRegistry, ConfigOutcome, DashboardCatalogReader, WidgetCatalogPort } from "./ports.js";
+export type { BindingShapeProblem, CatalogRegistry, ConfigOutcome, DashboardCatalogReader, DashboardStore, NewScreen, StoredScreen, StoredWidget, WidgetCatalogPort } from "./ports.js";
