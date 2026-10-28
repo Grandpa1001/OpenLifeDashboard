@@ -11,7 +11,7 @@ const root = mkdtempSync(path.join(os.tmpdir(), "openlife-install-stages-"));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 const IMAGE = "openlife-app:test";
-const EMAIL = "właściciel@example.com";
+const EMAIL = "wlasciciel@example.com";
 const PASSWORD = "Zażółć gęślą jaźń 2026";
 let counter = 0;
 const nextDir = (): string => path.join(root, `Instalacja ${(counter += 1)}`);
@@ -96,6 +96,16 @@ describe("D19.2-AC1 the stages run in order and the password reaches only the st
       ["no password source", ["--owner-email", EMAIL], "", /--owner-password-stdin/],
       ["an empty stdin", ["--owner-email", EMAIL, "--owner-password-stdin"], "", /nothing to read on stdin/],
       ["a control character", ["--owner-email", EMAIL, "--owner-password-stdin"], "abc\u0001defghijkl\n", /control characters/],
+      // What the application would refuse after the container has started is refused here, before a folder exists.
+      ["a password of 11 characters", ["--owner-email", EMAIL, "--owner-password-stdin"], "abcdefghijk\n", /has 11 characters and needs at least 12/],
+      ["a password of 129 characters", ["--owner-email", EMAIL, "--owner-password-stdin"], `${"a".repeat(129)}\n`, /has 129 characters and may have at most 128/],
+      ["11 emoji (44 bytes are not 12 characters)", ["--owner-email", EMAIL, "--owner-password-stdin"], `${"🔐".repeat(11)}\n`, /has 11 characters and needs at least 12/],
+      ["an empty password", ["--owner-email", EMAIL, "--owner-password-stdin"], "\n", /password is refused: it is empty/],
+      ["an e-mail with Polish letters", ["--owner-email", "właściciel@example.com", "--owner-password-stdin"], "a long enough password\n", /no accented letters/],
+      ["an e-mail without a domain dot", ["--owner-email", "owner@localhost", "--owner-password-stdin"], "a long enough password\n", /does not look like an address/],
+      ["an e-mail with two dots", ["--owner-email", "ow..ner@example.com", "--owner-password-stdin"], "a long enough password\n", /two dots in a row/],
+      ["an e-mail with a space", ["--owner-email", "own er@example.com", "--owner-password-stdin"], "a long enough password\n", /contains a space/],
+      ["an e-mail over 254 characters", ["--owner-email", `${"a".repeat(250)}@example.com`, "--owner-password-stdin"], "a long enough password\n", /longer than 254/],
     ] as const) {
       const target = nextDir();
       const refused = runInstaller(installerRig(), ["--dir", target, "--port", "18401", "--image", IMAGE, ...args], { input });
@@ -103,6 +113,25 @@ describe("D19.2-AC1 the stages run in order and the password reaches only the st
       expect(refused.stderr, name).toMatch(message);
       expect(() => statSync(target), name).toThrow();
     }
+  });
+});
+
+describe("D19.2-AC1 the credentials the application accepts are accepted", () => {
+  it.each([
+    ["12 characters", "abcdefghijkl"],
+    ["12 emoji (48 bytes, 12 characters)", "🔐".repeat(12)],
+    ["128 characters", "a".repeat(128)],
+    ["spaces at both ends", "  twelve chars  "],
+  ])("a password of %s", (_name, password) => {
+    const dir = nextDir();
+    const done = withOwner(installerRig(), dir, password);
+    expect(done.status, done.stderr).toBe(0);
+  });
+
+  it.each(["owner@example.com", "first.last+tag@sub.example.org", "o_w-n@example.io", "Owner@Example.COM"])("the e-mail %s", (email) => {
+    const dir = nextDir();
+    const done = runInstaller(installerRig(), ["--dir", dir, "--port", "18402", "--image", IMAGE, "--owner-email", email, "--owner-password-stdin"], { input: "a long enough password\n" });
+    expect(done.status, done.stderr).toBe(0);
   });
 });
 

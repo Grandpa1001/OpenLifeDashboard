@@ -13,7 +13,7 @@ docker build -f docker/Dockerfile -t openlifedashboard:local .
 bash install/install.sh --image openlifedashboard:local
 ```
 
-The installer asks for the installation folder (default `~/OpenLifeDashboard/default`), the port (default 8080), the e-mail of the owner and the password, which you type twice and which is not shown. Without a terminal, give them as `--dir`, `--port`, `--owner-email` and `--owner-password-stdin` (the password is the first line of stdin). The password is never an argument, an environment variable or a file.
+The installer asks for the installation folder (default `~/OpenLifeDashboard/default`), the port (default 8080), the e-mail of the owner and the password, which you type twice and which is not shown. Without a terminal, give them as `--dir`, `--port`, `--owner-email` and `--owner-password-stdin` (the password is the first line of stdin). The password is never an argument, an environment variable or a file. The e-mail may use only the letters a-z, digits and `. _ + -` (no accented letters) and the password needs 12 to 128 characters; the installer checks both before it writes anything and, in a terminal, asks again.
 
 It checks the system first and writes nothing until every check has passed, then creates the folder (`.env` with new keys readable only by you, `data/`, `control/`, the Compose files), makes sure the image is present, starts the application, creates the owner account in a one-off container while the application is stopped, and starts it again. At the end it prints the address (`http://localhost:<port>`, reachable only from this computer), the paths of the data, logs and backups, and how to stop and start it. The first sign-in sets up the second factor (TOTP) and shows your recovery codes.
 

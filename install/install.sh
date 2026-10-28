@@ -27,6 +27,11 @@ readonly MIN_PORT=1024
 readonly MAX_PORT=65535
 readonly DEFAULT_PORT=8080
 readonly START_TIMEOUT_SECONDS=180
+# The rules of the owner's credentials, as the application states them (packages/contracts/src/http/identity.ts).
+readonly PASSWORD_MIN_CODE_POINTS=12
+readonly PASSWORD_MAX_CODE_POINTS=128
+readonly OWNER_EMAIL_MAX_LENGTH=254
+readonly CREDENTIAL_ATTEMPTS=5      # asks in a terminal before giving up
 readonly CREATE_OWNER_COMMAND=(node apps/server/dist/cli/create-owner.js)
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -255,13 +260,52 @@ validate_image() {
   esac
 }
 
+# Why the e-mail would be refused by the application, or nothing. The address is ASCII only, as
+# the application's own rule is: a letter with a diacritic is refused there after the container has
+# started, so it is refused here, before anything is written.
+owner_email_problem() {
+  local email="$1"
+  local pattern="^[A-Za-z0-9_+.'-]*[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9-]*\\.)+[A-Za-z]{2,}\$"
+  has_control_characters "$email" && { printf 'it contains control characters'; return; }
+  has_non_ascii "$email" && { printf 'it may use only the letters a-z, digits and . _ + - (no accented letters)'; return; }
+  case "$email" in
+    *' '*) printf 'it contains a space'; return ;;
+  esac
+  [ "${#email}" -le "$OWNER_EMAIL_MAX_LENGTH" ] || { printf 'it is longer than %s characters' "$OWNER_EMAIL_MAX_LENGTH"; return; }
+  case "$email" in
+    .*|*..*) printf 'it has a dot at the start or two dots in a row'; return ;;
+  esac
+  [[ "$email" =~ $pattern ]] || printf 'it does not look like an address (name@example.com)'
+}
+
 validate_owner_email() {
   [ -z "$owner_email" ] && return 0
-  has_control_characters "$owner_email" && fail "the owner e-mail contains control characters"
-  case "$owner_email" in
-    *' '*|*@*@*|@*|*@) fail "the owner e-mail does not look like an address: $owner_email" ;;
-    *@*.*) ;;
-    *) fail "the owner e-mail does not look like an address: $owner_email" ;;
+  local problem
+  problem="$(owner_email_problem "$owner_email")"
+  [ -z "$problem" ] || fail "the owner e-mail is refused: $problem: $owner_email"
+}
+
+# True when a byte above 127 is present, whatever the locale of this shell.
+has_non_ascii() {
+  [ "$(printf '%s' "$1" | LC_ALL=C od -An -v -tu1 | LC_ALL=C awk '{ for (i = 1; i <= NF; i++) if ($i > 127) n++ } END { print n + 0 }')" -gt 0 ]
+}
+
+# Characters of a password as the application counts them: Unicode code points, whatever the locale
+# of this shell. Bytes that continue a UTF-8 character (128-191) are not counted.
+code_points() {
+  printf '%s' "$1" | LC_ALL=C od -An -v -tu1 | LC_ALL=C awk '{ for (i = 1; i <= NF; i++) if ($i < 128 || $i > 191) n++ } END { print n + 0 }'
+}
+
+# Why the password would be refused by the application, or nothing.
+owner_password_problem() {
+  local password="$1" length
+  [ -n "$password" ] || { printf 'it is empty'; return; }
+  length="$(code_points "$password")"
+  [ "$length" -ge "$PASSWORD_MIN_CODE_POINTS" ] || { printf 'it has %s characters and needs at least %s' "$length" "$PASSWORD_MIN_CODE_POINTS"; return; }
+  [ "$length" -le "$PASSWORD_MAX_CODE_POINTS" ] || { printf 'it has %s characters and may have at most %s' "$length" "$PASSWORD_MAX_CODE_POINTS"; return; }
+  # A tab is a valid character of a password; every other control character is not.
+  case "${password//$'\t'/}" in
+    *[[:cntrl:]]*) printf 'it contains control characters other than a tab' ;;
   esac
 }
 
@@ -382,30 +426,43 @@ require_identity_files() {
 # The owner's credentials are collected before anything is written, and only while the owner
 # account is still to be created.
 read_owner_credentials() {
+  local problem="" attempt=0
   if [ -z "$owner_email" ]; then
     [ "$interactive" = "yes" ] || usage_error "--owner-email is required when no terminal is attached"
-    owner_email="$(ask "E-mail of the owner account" "")"
-    validate_owner_email
-    [ -n "$owner_email" ] || usage_error "the owner e-mail is required"
+    while :; do
+      owner_email="$(ask "E-mail of the owner account" "")"
+      problem="$(owner_email_problem "$owner_email")"
+      [ -n "$owner_email" ] && [ -z "$problem" ] && break
+      attempt=$((attempt + 1))
+      [ "$attempt" -lt "$CREDENTIAL_ATTEMPTS" ] || fail "no valid e-mail was given; nothing was written"
+      say "That e-mail is refused: ${problem:-it is empty}. Try again."
+    done
   fi
   if [ "$password_from_stdin" = "yes" ]; then
     IFS= read -r owner_password || [ -n "$owner_password" ] || usage_error "--owner-password-stdin: nothing to read on stdin"
     owner_password="${owner_password%$'\r'}"
+    problem="$(owner_password_problem "$owner_password")"
+    [ -z "$problem" ] || fail "the owner's password is refused: $problem; nothing was written"
   elif [ "$interactive" = "yes" ]; then
     local again=""
-    printf 'Password of the owner account (12 to 128 characters, not shown): ' >&2
-    IFS= read -r -s owner_password; printf '\n' >&2
-    printf 'Repeat the password: ' >&2
-    IFS= read -r -s again; printf '\n' >&2
-    [ "$owner_password" = "$again" ] || fail "the two passwords differ; nothing was written"
+    attempt=0
+    while :; do
+      printf 'Password of the owner account (%s to %s characters, not shown): ' "$PASSWORD_MIN_CODE_POINTS" "$PASSWORD_MAX_CODE_POINTS" >&2
+      IFS= read -r -s owner_password; printf '\n' >&2
+      problem="$(owner_password_problem "$owner_password")"
+      if [ -z "$problem" ]; then
+        printf 'Repeat the password: ' >&2
+        IFS= read -r -s again; printf '\n' >&2
+        [ "$owner_password" = "$again" ] && break
+        problem="the two entries differ"
+      fi
+      attempt=$((attempt + 1))
+      [ "$attempt" -lt "$CREDENTIAL_ATTEMPTS" ] || fail "no valid password was given; nothing was written"
+      say "That password is refused: $problem. Try again."
+    done
   else
     usage_error "the owner's password is needed: use --owner-password-stdin, or run the installer in a terminal"
   fi
-  [ -n "$owner_password" ] || fail "the password is empty"
-  # A tab is a valid character of a password; every other control character is not.
-  case "${owner_password//$'\t'/}" in
-    *[[:cntrl:]]*) fail "the password contains control characters other than a tab" ;;
-  esac
 }
 
 # The one JSON object that create-owner reads from stdin. printf is a shell builtin, so the

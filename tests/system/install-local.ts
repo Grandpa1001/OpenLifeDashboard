@@ -4,7 +4,7 @@
 // nothing, and two installations side by side stay apart. The owner's password is on the
 // installer's stdin only; every place it could leak into is searched for it.
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { EVIDENCE_DIR_ENV } from "../../tooling/verification-tasks.ts";
@@ -146,20 +146,17 @@ try {
       check.expect(readFileSync(path.join(dirA, ".env"), "utf8") === before && containerOf(dirA) === id, "the second run keeps the keys and the very same container");
       evidence["clean"] = { seconds, cookieNames: cookieNames(right.cookies) };
 
-      // ---- B: stopped at the owner stage (the password is refused), then continued.
+      // ---- B: a password the application would refuse is refused before anything is written, then the same folder is installed.
       const dirB = path.join(root, "druga instalacja");
       const portB = await freeLoopbackPort();
       dirs.push(dirB);
       const refused = install(dirB, portB, "short");
-      check.expect(refused.status === 1 && stageOf(dirB) === "started", "a password the application refuses stops the installer at the stage 'started'", `${stageOf(dirB)}\n${refused.output}`);
-      check.expect(!refused.output.includes("short\n") && /"password"/.test(refused.output), "the message names the refused field and not its value", refused.output);
-      check.expect(compose(dirB, ["ps", "--status", "running", "--quiet"]).output.trim() === "", "the application is stopped while there is no owner (no second writer)");
-      const keysB = readFileSync(path.join(dirB, ".env"), "utf8");
+      check.expect(refused.status === 1 && /has 5 characters and needs at least 12/.test(refused.output), "a password under 12 characters is refused with the reason", refused.output);
+      check.expect(!refused.output.includes("short\n") && !existsSync(dirB), "nothing was written: no folder, and the password is not echoed", refused.output);
       const continued = install(dirB, portB, PASSWORD);
-      check.expect(continued.status === 0 && stageOf(dirB) === "complete", "the rerun with a valid password finishes the installation", continued.output);
-      check.expect(readFileSync(path.join(dirB, ".env"), "utf8") === keysB, "the rerun keeps the keys of the first run");
+      check.expect(continued.status === 0 && stageOf(dirB) === "complete", "the same folder installs with a valid password", continued.output);
       const signedB = await signIn(portB, PASSWORD);
-      check.expect(signedB.status === 200 && (await authenticated(portB, signedB.cookies)), "the owner of the continued installation signs in");
+      check.expect(signedB.status === 200 && (await authenticated(portB, signedB.cookies)), "the owner of that installation signs in");
 
       // ---- C: interrupted right after the owner account was created, then continued without a password.
       const dirC = path.join(root, "trzecia");
