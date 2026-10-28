@@ -67,6 +67,12 @@ function isBroken(target: FieldRef, registry: CatalogRegistry | null): boolean {
   return target.kind === "column" && registry.columns.find((column) => column.id === target.columnId)?.deleted === true;
 }
 
+/** A screen name is text of 1 to `nameMaxChars` characters after trimming, without control characters. */
+export function isValidScreenName(name: string, policy: Pick<DesignPolicy, "nameMaxChars">): boolean {
+  const trimmed = name.trim();
+  return trimmed !== "" && Array.from(trimmed).length <= policy.nameMaxChars && !CONTROL_CHARACTERS.test(name);
+}
+
 function inspectWidget(widget: WidgetInput, base: string, context: DesignContext, lookup: (registryId: string) => CatalogRegistry | null): Inspection {
   const issues: DesignIssue[] = [];
   const add = (path: string, code: DesignIssueCode): void => void issues.push({ path: `${base}.${path}`, code });
@@ -153,7 +159,7 @@ function lookupOf(context: DesignContext): (registryId: string) => CatalogRegist
 export function validateDesign(input: DesignInput, context: DesignContext): DesignResult {
   const issues: DesignIssue[] = [];
   const { policy } = context;
-  if (input.name.trim() === "" || Array.from(input.name).length > policy.nameMaxChars || CONTROL_CHARACTERS.test(input.name)) issues.push({ path: "name", code: "NAME_INVALID" });
+  if (!isValidScreenName(input.name, policy)) issues.push({ path: "name", code: "NAME_INVALID" });
   if (!policy.themes.includes(input.theme)) issues.push({ path: "theme", code: "THEME_UNKNOWN" });
   if (!policy.accents.includes(input.accent)) issues.push({ path: "accent", code: "ACCENT_UNKNOWN" });
   if (input.widgets.length > policy.maxWidgets) issues.push({ path: "widgets", code: "LIMIT_WIDGETS" });

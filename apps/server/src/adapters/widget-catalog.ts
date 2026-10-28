@@ -1,7 +1,7 @@
 // The catalog of widget types for the rules of a screen (Architektura §13.2, §18.3): the definitions
 // of the build (@openlife/widgets/definitions: Zod schemas, no React) behind the port of core/dashboard.
 import type { WidgetCatalogPort } from "@openlife/core/dashboard";
-import { checkBindingShape, findWidgetDefinition, missingRequiredSlots, normalizeWidgetConfig } from "@openlife/widgets/definitions";
+import { checkBindingShape, findWidgetDefinition, missingRequiredSlots, normalizeWidgetConfig, WIDGET_DEFINITIONS } from "@openlife/widgets/definitions";
 
 const definitionOf = (type: string) => {
   const definition = findWidgetDefinition(type);
@@ -16,5 +16,14 @@ export function createWidgetCatalog(): WidgetCatalogPort {
     bindingProblems: (type, bindings) => checkBindingShape(definitionOf(type), bindings),
     missingRequiredSlots: (type, bindings) => missingRequiredSlots(definitionOf(type), bindings),
     minSize: (type) => definitionOf(type).minSize,
+    describe: () =>
+      WIDGET_DEFINITIONS.map((definition) => ({
+        type: definition.type,
+        configVersion: definition.configVersion,
+        capabilities: [...definition.capabilities],
+        defaultSize: { ...definition.defaultSize },
+        minSize: { ...definition.minSize },
+        slots: definition.slots.map((slot) => ({ name: slot.name, cardinality: slot.cardinality, required: slot.required, accepts: [...slot.accepts] })),
+      })),
   };
 }

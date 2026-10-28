@@ -12,6 +12,7 @@ import * as healthStatus from "@openlife/contracts/http/health-status";
 import * as identity from "@openlife/contracts/http/identity";
 import * as mfa from "@openlife/contracts/http/mfa";
 import * as records from "@openlife/contracts/http/records";
+import * as screens from "@openlife/contracts/http/screens";
 import * as registries from "@openlife/contracts/http/registries";
 import * as setup from "@openlife/contracts/http/setup";
 
@@ -20,7 +21,7 @@ export type RouteEntry = Readonly<{ method: "GET" | "POST" | "PUT"; path: string
 
 /** Every exported path constant of the contracts, by name. */
 export const PATH_CONSTANTS: Readonly<Record<string, string>> = Object.fromEntries(
-  [bootstrap, healthStatus, identity, mfa, records, registries, setup].flatMap((module) =>
+  [bootstrap, healthStatus, identity, mfa, records, registries, screens, setup].flatMap((module) =>
     Object.entries(module).filter((entry): entry is [string, string] => entry[0].endsWith("_PATH") && typeof entry[1] === "string"),
   ),
 );
@@ -45,4 +46,10 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "POST", path: registries.REGISTRIES_PATH, access: "data", note: "creates a registry and its table from a definition" },
   { method: "GET", path: records.REGISTRY_RECORDS_PATH, access: "data", note: "a page of the records of one registry and their count" },
   { method: "POST", path: records.REGISTRY_RECORDS_PATH, access: "data", note: "adds a record; Idempotency-Key makes a repeat one add" },
+  { method: "GET", path: screens.SCREENS_PATH, access: "data", note: "the owner's screens, in the order they were made" },
+  { method: "POST", path: screens.SCREENS_PATH, access: "data", note: "makes the first, empty screen of the owner" },
+  { method: "GET", path: screens.SCREEN_PATH, access: "data", note: "the canonical snapshot of a screen with the state of each widget" },
+  { method: "PUT", path: screens.SCREEN_DESIGN_PATH, access: "data", note: "replaces the whole design of a screen atomically" },
+  { method: "GET", path: screens.WIDGET_TYPES_PATH, access: "data", note: "the manifests of the widget types of this build" },
+  { method: "GET", path: screens.WIDGET_DATA_PATH, access: "data", note: "a page of the data of a widget from its saved bindings" },
 ];

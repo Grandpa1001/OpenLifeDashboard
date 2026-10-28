@@ -22,6 +22,7 @@ export type FailureCode =
   | "STEP_UP_REQUIRED"
   | "REGISTRY_SYMBOL_TAKEN"
   | "REGISTRY_LIMIT_EXCEEDED"
+  | "SCREEN_LIMIT_EXCEEDED"
   | "MAINTENANCE";
 
 /** One reason a request was not valid: where (a field path) and why (a stable code), never the value. */

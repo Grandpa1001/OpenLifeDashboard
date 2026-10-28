@@ -110,3 +110,84 @@ export const designSnapshotSchema = z
   })
   .strict();
 export type DesignSnapshotDto = z.infer<typeof designSnapshotSchema>;
+
+// --- What the server answers (D17.4) ---------------------------------------------------------
+
+export const SCREEN_PATH = `${SCREENS_PATH}/:id` as const;
+export const SCREEN_DESIGN_PATH = `${SCREENS_PATH}/:id/design` as const;
+export const WIDGET_DATA_PATH = "/api/v1/widgets/:id/data" as const;
+export const screenPath = (id: string): string => `${SCREENS_PATH}/${id}`;
+export const screenDesignPath = (id: string): string => `${SCREENS_PATH}/${id}/design`;
+export const widgetDataPath = (id: string): string => `/api/v1/widgets/${id}/data`;
+
+/** A new screen is named; the owner, the identifier, the theme and the accent are the server's. */
+export const createScreenRequestSchema = z.object({ name: z.string().max(400) }).strict();
+
+/** A widget as the server holds it: what was designed and the state the server works out. */
+export const widgetViewSchema = z.object({ ...widgetDesignSchema.shape, state: z.enum(WIDGET_STATES) }).strict();
+export type WidgetViewDto = z.infer<typeof widgetViewSchema>;
+
+export const screenSchema = z
+  .object({
+    id: idSchema,
+    name: z.string(),
+    theme: z.enum(SCREEN_THEMES),
+    accent: z.enum(SCREEN_ACCENTS),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+    widgets: z.array(widgetViewSchema),
+  })
+  .strict();
+export type ScreenDto = z.infer<typeof screenSchema>;
+
+export const screenListSchema = z.object({ screens: z.array(z.object({ id: idSchema, name: z.string(), createdAt: z.iso.datetime() }).strict()) }).strict();
+export type ScreenListDto = z.infer<typeof screenListSchema>;
+
+const sizeSchema = z.object({ w: z.number().int().min(1), h: z.number().int().min(1) }).strict();
+export const widgetTypesSchema = z
+  .object({
+    types: z.array(
+      z
+        .object({
+          type: z.string(),
+          configVersion: z.number().int().min(1),
+          capabilities: z.array(z.string()),
+          defaultSize: sizeSchema,
+          minSize: sizeSchema,
+          slots: z.array(z.object({ name: z.string(), cardinality: z.enum(["one", "many"]), required: z.boolean(), accepts: z.array(z.string()) }).strict()),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+export type WidgetTypesDto = z.infer<typeof widgetTypesSchema>;
+
+const cellSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+
+/** The data of one widget: the page its saved bindings select, and nothing the client could have named. */
+export const widgetDataSchema = z
+  .object({
+    widgetId: idSchema,
+    state: z.enum(WIDGET_STATES),
+    registry: z.object({ symbol: z.string(), schemaRevision: z.number().int().min(1), dataRevision: z.number().int().min(0) }).strict().nullable(),
+    columns: z.array(
+      z
+        .object({
+          key: z.string(),
+          kind: z.enum(["column", "systemColumn"]),
+          displayName: z.string(),
+          type: z.enum(["text", "number", "money", "date", "datetime", "time", "boolean", "choice"]),
+          typeOptions: z.object({ decimalPlaces: z.number().int().optional(), dictionaryId: z.string().optional() }).strict(),
+        })
+        .strict(),
+    ),
+    rows: z.array(z.object({ id: idSchema, values: z.record(z.string(), cellSchema) }).strict()),
+    total: z.number().int().min(0),
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1),
+  })
+  .strict();
+export type WidgetDataDto = z.infer<typeof widgetDataSchema>;
+
+/** `page` is the only thing a reader of widget data chooses. */
+export const widgetDataQuerySchema = z.object({ page: z.string().regex(/^\d{1,9}$/).transform(Number).optional() });

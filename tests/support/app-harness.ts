@@ -22,8 +22,11 @@ import { bindRecoveryCodeStore } from "../../packages/sqlite/dist/adapters/ident
 import { bindSetupStateStore } from "../../packages/sqlite/dist/adapters/identity/setup-state.js";
 import { bindSignInStores } from "../../packages/sqlite/dist/adapters/identity/sign-in-ports.js";
 import { bindTrustedDeviceStore } from "../../packages/sqlite/dist/adapters/identity/trusted-device-store.js";
+import { bindCatalogReader, bindDashboardStore } from "../../packages/sqlite/dist/adapters/dashboard/public.js";
 import { bindIdempotencyStore, bindRecordStore, bindRegistryStore } from "../../packages/sqlite/dist/adapters/registries/public.js";
 import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "../../packages/core/dist/modules/registries/public.js";
+import { createWidgetCatalog } from "../../apps/server/dist/adapters/widget-catalog.js";
+import { DESIGN_POLICY } from "../../apps/server/dist/bootstrap/design-policy.js";
 import { sha256Hex } from "../../apps/server/dist/adapters/crypto/sha256-hex.js";
 import { createUuidV7 } from "../../apps/server/dist/adapters/ids/uuid-v7.js";
 import { bindOwnerPreferencesStore } from "../../packages/sqlite/dist/adapters/settings/owner-preferences.js";
@@ -60,6 +63,8 @@ export async function createAppHarness() {
     preferences: bindOwnerPreferencesStore(tx),
     registries: bindRegistryStore(tx),
     records: bindRecordStore(tx),
+    dashboard: bindDashboardStore(tx),
+    catalog: bindCatalogReader(tx),
     idempotency: bindIdempotencyStore(tx),
     access: bindIdentityAccessReader(tx, Date.now),
     audit: bindAppendAudit(tx),
@@ -105,6 +110,7 @@ export async function createAppHarness() {
     setup: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     registries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
     records: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
+    screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
   });
 
   async function request(method: string, route: string, body?: unknown, init: { cookie?: string | null; origin?: string | null; headers?: Record<string, string> } = {}): Promise<HarnessReply> {

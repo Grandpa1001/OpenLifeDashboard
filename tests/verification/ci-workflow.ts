@@ -57,11 +57,11 @@ const parsed = parseDocument(workflow).toJS() as { on?: Record<string, unknown>;
 const jobs = parsed.jobs ?? {};
 const tasksOf = (job: string): string[] => (jobs[job]?.steps ?? []).flatMap((step) => /^pnpm verify:task -- (\S+)$/.exec(step.run ?? "")?.slice(1) ?? []);
 const SLOW = ["D02.1", "D02.2", "D02.3", "D03", "D04", "D05", "D06", "D07", "D08", "G0"];
-const GATES = ["D13.3", "D13", "D14", "D15", "D16", "G0"];
+const GATES = ["D13.3", "D13", "D14", "D15", "D16", "D17", "G0"];
 const fastTasks = [...tasksOf("fast-core"), ...tasksOf("fast-browser")];
 check.expect(fastTasks.length > 0 && SLOW.every((id) => !fastTasks.includes(id)), "the fast tier runs no Docker, image or G0 task", fastTasks.join(", "));
 check.expect(GATES.every((id) => !fastTasks.includes(id)), "the fast tier runs no gate or handover: they join the reports of the full tier", fastTasks.join(", "));
-check.expect(["D01", "D09", "D10", "D11", "D12", "D13.1", "D13.2", "D14.1", "D14.2", "D14.3", "D15.1", "D15.2", "D15.3", "D16.1", "D16.2", "D16.3", "D17.1", "D17.2", "D17.3"].every((id) => fastTasks.includes(id)), "the fast tier runs the tasks of the code that changes from step to step", fastTasks.join(", "));
+check.expect(["D01", "D09", "D10", "D11", "D12", "D13.1", "D13.2", "D14.1", "D14.2", "D14.3", "D15.1", "D15.2", "D15.3", "D16.1", "D16.2", "D16.3", "D17.1", "D17.2", "D17.3", "D17.4"].every((id) => fastTasks.includes(id)), "the fast tier runs the tasks of the code that changes from step to step", fastTasks.join(", "));
 const allTasks = Object.keys(jobs).flatMap(tasksOf);
 check.expect(allTasks.filter((id) => !fastTasks.includes(id)).length > 0 && GATES.every((id) => allTasks.includes(id)), "the full tier runs the rest and the gates");
 check.expect(

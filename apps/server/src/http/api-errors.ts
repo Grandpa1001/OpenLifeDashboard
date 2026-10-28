@@ -26,6 +26,7 @@ const FALLBACK_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   REGISTRY_LIMIT_EXCEEDED: "The limit of registries is reached",
   IDEMPOTENCY_CONFLICT: "This idempotency key was used for a different request",
   SCHEMA_CHANGED: "The registry changed since the form was loaded; reload it",
+  SCREEN_LIMIT_EXCEEDED: "The limit of screens is reached",
 };
 
 export function apiErrorResponse(

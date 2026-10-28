@@ -12,6 +12,7 @@ type BindingRow = { widget_id: string; slot: string; ordinal: number; path: stri
 
 export function bindDashboardStore(tx: TransactionHandle): DashboardStore {
   const count = tx.prepare("SELECT count(*) AS n FROM screen WHERE user_id = ?");
+  const listScreens = tx.prepare("SELECT id, name, created_at FROM screen WHERE user_id = ? ORDER BY created_at, id");
   const insertScreen = tx.prepare("INSERT INTO screen (id, user_id, name, theme, accent, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
   const screenOf = tx.prepare("SELECT * FROM screen WHERE id = ? AND user_id = ?");
   const widgetsOf = tx.prepare("SELECT id, screen_id, type, config, layout, state FROM widget WHERE screen_id = ? ORDER BY position, id");
@@ -40,6 +41,8 @@ export function bindDashboardStore(tx: TransactionHandle): DashboardStore {
 
   return {
     count: (ownerId) => (count.get(ownerId) as { n: number }).n,
+
+    list: (ownerId) => (listScreens.all(ownerId) as { id: string; name: string; created_at: string }[]).map((row) => ({ id: row.id, name: row.name, createdAt: row.created_at })),
 
     create(screen): void {
       insertScreen.run(screen.id, screen.ownerId, screen.name, screen.theme, screen.accent, screen.nowIso, screen.nowIso);

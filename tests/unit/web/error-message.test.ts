@@ -47,7 +47,7 @@ describe("D12.1 failure texts", () => {
   it("every code the API can answer a screen of this version with either has a text or falls to the general one", () => {
     const withoutText = API_ERROR_CODES.filter((code) => api(code).key === "UNKNOWN");
     // These are answers of routes the sign-in screens do not call (setup, registries, the policy denials).
-    expect(withoutText.sort()).toEqual(["NOT_FOUND", "RECOVERY_ACK_REQUIRED", "MFA_REQUIRED", "SETUP_DATA_REQUIRED", "STEP_UP_REQUIRED"].sort());
+    expect(withoutText.sort()).toEqual(["NOT_FOUND", "RECOVERY_ACK_REQUIRED", "MFA_REQUIRED", "SETUP_DATA_REQUIRED", "STEP_UP_REQUIRED", "SCREEN_LIMIT_EXCEEDED"].sort());
   });
 });
 

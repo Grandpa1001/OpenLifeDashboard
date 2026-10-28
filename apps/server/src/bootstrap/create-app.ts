@@ -10,6 +10,7 @@ import { health } from "../http/routes/health.routes.js";
 import { registerIdentityRoutes, type IdentityRouteDependencies } from "../http/routes/identity.routes.js";
 import { registerMfaEnrollmentRoutes, type MfaEnrollmentRouteDependencies } from "../http/routes/mfa-enrollment.routes.js";
 import { registerRecordRoutes, type RecordRouteDependencies } from "../http/routes/records.routes.js";
+import { registerScreenRoutes, type ScreenRouteDependencies } from "../http/routes/screens.routes.js";
 import { registerRegistryRoutes, type RegistryRouteDependencies } from "../http/routes/registries.routes.js";
 import { registerSetupRoutes, type SetupRouteDependencies } from "../http/routes/setup.routes.js";
 import { registerMfaVerificationRoutes, type MfaVerificationRouteDependencies } from "../http/routes/mfa-verification.routes.js";
@@ -32,6 +33,7 @@ export type AppDependencies = Readonly<{
   setup: SetupRouteDependencies;
   registries: RegistryRouteDependencies;
   records: RecordRouteDependencies;
+  screens: ScreenRouteDependencies;
 }>;
 
 /**
@@ -49,6 +51,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   registerSetupRoutes(app, dependencies.setup);
   registerRegistryRoutes(app, dependencies.registries);
   registerRecordRoutes(app, dependencies.records);
+  registerScreenRoutes(app, dependencies.screens);
   app.all("/api", apiNotFound);
   app.all("/api/*", apiNotFound);
   app.use("*", webAssets(dependencies.webRoot));

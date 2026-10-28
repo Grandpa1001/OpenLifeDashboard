@@ -2014,6 +2014,41 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D17.4",
+    ready: true,
+    title: "The screen over HTTP: creating it, saving its design, the types of widgets and the data of a widget from its saved bindings",
+    criteria: ["D17.4-AC1", "D17.4-AC2", "D17.4-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests start the built server and compose the built application.
+        id: "workspace-build",
+        criteria: ["D17.4-AC1", "D17.4-AC2"],
+        description: "pnpm -r build produces the server with the screen routes, the dashboard use cases and the contracts of the screen",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/routes/screens.routes.ts", "packages/core/src/modules/dashboard/application/screens.ts", "packages/contracts/src/http/screens.ts"],
+      },
+      {
+        id: "dashboard-http",
+        criteria: ["D17.4-AC1", "D17.4-AC2"],
+        description:
+          "Raw HTTP on the built server and on the application composed in the test process: the first screen, the register table of F01 saved and read back canonical (defaults of the configuration, states worked out), its data as the 25 records in pages of 10, 10 and 5 with only the bound columns, the same after a restart, the manifest of the type, a table sorted by a column of its registry; every state before the gate on the six routes, a foreign Origin, one screen per owner, a bad name, an unknown screen; a design refused with every issue at its path and the screen as it was (unknown type, registry of nobody, column of another registry, two registries, path that disagrees, configuration, layout, repeated and taken widget id); a state, an owner or an id sent by the client and a body over the limit refused by the contract; a widget that is not ok (draft, deleted column or registry, configuration of the future) reads nothing and no query is made (the table is taken away and the answer is still 200); the client names only the widget and the page; a removed widget is gone; an ended session, a failing write and a failing audit leave the screen as it was; the audit holds the number of widgets only",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/dashboard/dashboard-http.test.ts", "tests/integration/auth/route-inventory.test.ts"],
+        requires: ["tests/integration/dashboard/dashboard-http.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/support/signed-in-harness.ts", "tests/fixtures/books/books-v1.expected.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D17.4-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the contract and the definition, the rules, the store and the routes.
+  {
+    id: "D17",
+    ready: true,
+    title: "Widget manifest, bindings and the saving of a screen with the register table",
+    steps: ["D17.1", "D17.2", "D17.3", "D17.4"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // The parent passes only through its work orders, each with its real Compose run.
     id: "D07",
     ready: true,

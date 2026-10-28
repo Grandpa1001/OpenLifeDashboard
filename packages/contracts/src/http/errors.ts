@@ -23,6 +23,7 @@ export const API_ERROR_CODES = [
   "REGISTRY_LIMIT_EXCEEDED",
   "IDEMPOTENCY_CONFLICT",
   "SCHEMA_CHANGED",
+  "SCREEN_LIMIT_EXCEEDED",
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

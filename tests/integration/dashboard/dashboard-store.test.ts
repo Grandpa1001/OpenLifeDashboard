@@ -191,11 +191,13 @@ describe("D17.3-AC1 the screen of F01 in the tables and back", () => {
       theirs: ports.dashboard.findWidget(OTHER, F01_TABLE.id),
       unknown: ports.dashboard.findWidget(OWNER, "019a0000-0000-7000-8000-0000000009ff"),
       counts: [ports.dashboard.count(OWNER), ports.dashboard.count(OTHER)],
+      listed: [ports.dashboard.list(OWNER), ports.dashboard.list(OTHER)],
       foreignScreen: ports.dashboard.find(OTHER, SCREEN),
     }));
     expect(view.mine).toMatchObject({ screenId: SCREEN, widget: { id: F01_TABLE.id, type: "register-table", state: "ok" } });
     expect([view.theirs, view.unknown, view.foreignScreen]).toEqual([null, null, null]);
     expect(view.counts).toEqual([1, 0]);
+    expect(view.listed).toEqual([[{ id: SCREEN, name: "Test MVP", createdAt: NOW }], []]);
   });
 
   it("text of the user is a value only: SQL and markup in a title are stored and read back as they were", async () => {

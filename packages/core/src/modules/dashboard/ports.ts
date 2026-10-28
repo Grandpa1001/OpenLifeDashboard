@@ -19,7 +19,19 @@ export interface WidgetCatalogPort {
   missingRequiredSlots(type: string, bindings: readonly Pick<SlotBinding, "slot" | "ordinal" | "target">[]): readonly string[];
   /** The least size the type may be given, before it is limited to the columns of a layout. */
   minSize(type: string): Readonly<{ w: number; h: number }>;
+  /** What a client may know of the types before a widget exists: the manifests, without any schema or code. */
+  describe(): readonly WidgetTypeManifest[];
 }
+
+export type SlotManifest = Readonly<{ name: string; cardinality: "one" | "many"; required: boolean; accepts: readonly string[] }>;
+export type WidgetTypeManifest = Readonly<{
+  type: string;
+  configVersion: number;
+  capabilities: readonly string[];
+  defaultSize: Readonly<{ w: number; h: number }>;
+  minSize: Readonly<{ w: number; h: number }>;
+  slots: readonly SlotManifest[];
+}>;
 
 /** A registry of the owner as the catalog holds it, deleted columns and a deleted registry included: a binding to them is broken, not unknown. */
 export type CatalogRegistry = Readonly<{
@@ -62,6 +74,8 @@ export type NewScreen = Readonly<{ id: string; ownerId: string; name: string; th
 export interface DashboardStore {
   /** Screens of the owner. */
   count(ownerId: string): number;
+  /** The owner's screens in the order they were made. */
+  list(ownerId: string): readonly Readonly<{ id: string; name: string; createdAt: string }>[];
   create(screen: NewScreen): void;
   find(ownerId: string, screenId: string): StoredScreen | null;
   /** The widget with this identifier if its screen is the owner's, with the screen it is on. */
