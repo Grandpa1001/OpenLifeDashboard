@@ -659,3 +659,58 @@ jobs:
           include-hidden-files: true
           retention-days: 14
           if-no-files-found: error
+
+  g1:
+    # Gate G1 (DEV §8.4): joins the reports of the vertical path, which come from the fast tier and
+    # from the installer job of the full tier, and decides from the logs. The parent D20 runs the
+    # path and the attempts to go around the gate again on this runner, then the gate. Like G0 it
+    # never runs on a partial set: when the full tier is skipped, so is the gate.
+    name: verify:task G1 (vertical path reports)
+    needs: [fast-core, fast-browser, full-install]
+    if: ${{ !cancelled() && needs.full-install.result != 'skipped' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
+      - name: Cache the Playwright browser
+        id: browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install the Playwright browser
+        if: ${{ steps.browser.outputs.cache-hit != 'true' }}
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install the system libraries of the cached browser
+        if: ${{ steps.browser.outputs.cache-hit == 'true' }}
+        run: pnpm exec playwright install-deps chromium
+      - name: Download the reports of the fast tier and of the installer
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: verification-{fast-core,fast-browser,install}
+          path: .artifacts/ci-reports
+      - name: Verify D20 (D20.1–D20.3 together, gate G1)
+        run: pnpm verify:task -- D20
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-g1
+          path: .artifacts/
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error

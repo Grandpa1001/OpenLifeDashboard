@@ -2227,6 +2227,40 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D20.3",
+    ready: true,
+    title: "Gate G1: the reports of the vertical path joined, item by item",
+    criteria: ["D20.3-AC1", "D20.3-AC2", "D20.3-regression"],
+    checks: [
+      {
+        id: "g1-gate-controls",
+        criteria: ["D20.3-AC2"],
+        description:
+          "The G1 gate on synthetic reports: a complete set passes; a failed or renamed test line and a failed check fail; a missing report and a report of other code are blocked; the result always lists every item",
+        command: ["node", "tests/verification/g1-gate-controls.ts"],
+        requires: ["tests/verification/g1-gate-controls.ts", "tests/verification/g1-gate.ts", "tests/verification/g1-matrix.ts"],
+      },
+      {
+        id: "g1-gate",
+        criteria: ["D20.3-AC1"],
+        description:
+          "Joins the reports of D12, D15.3, D16.3, D18.1, D18.3, D19.3, D20.1 and D20.2 for exactly this code and decides every item of G1 from the passed test that proves it: installation, login with the second factor, own registry, widget, pages 10/10/5, the same key once, no store without the second factor or the title, restarts, no way around the gate; names what is not run. A missing report is blocked",
+        command: ["node", "tests/verification/g1-gate.ts"],
+        requires: ["tests/verification/g1-gate.ts", "tests/verification/g1-matrix.ts", "tests/verification/report-join.ts", "tests/support/route-inventory.ts"],
+      },
+      ...regressionChecks("D20.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the path in a browser, the attempts to go around the gate and the gate.
+  {
+    id: "D20",
+    ready: true,
+    title: "The vertical path of the owner and gate G1",
+    steps: ["D20.1", "D20.2", "D20.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",
