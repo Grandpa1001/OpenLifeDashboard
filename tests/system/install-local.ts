@@ -15,7 +15,7 @@ import { repoRoot } from "../support/repository-copy.ts";
 
 const IMAGE = "openlife-app:verify-d19-install";
 const INSTALLER = path.join(repoRoot, "install", "install.sh");
-const OWNER_EMAIL = "właściciel@example.com";
+const OWNER_EMAIL = "wlasciciel@example.com";
 const PASSWORD = "Zażółć gęślą jaźń 2026";
 const INSTALL_TIMEOUT_MS = 8 * 60 * 1000;
 const TEN_MINUTES_S = 10 * 60;
