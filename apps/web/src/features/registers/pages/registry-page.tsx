@@ -8,7 +8,7 @@ import type { ApiFailure } from "../../../lib/api-client/request.js";
 import { describeFailure } from "../../../lib/failures/error-message.js";
 import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
-import { fetchOwnerSetup } from "../../../lib/session/owner-setup.js";
+import { useOwnerDisplay } from "../../../lib/session/use-owner-display.js";
 import { fetchRegistries } from "../api/registries.js";
 import { fetchRecordPage } from "../api/records.js";
 import { AddRecordDialog } from "../components/add-record-dialog.js";
@@ -35,7 +35,7 @@ const formColumns = (registry: RegistryDto): readonly (FormColumn & { position: 
 
 /** `/registers/:symbol`: the records of one registry, a page at a time from the server, and the window that adds one. */
 export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
-  const { t, i18n } = useTranslation("registers");
+  const { t } = useTranslation("registers");
   const common = useTranslation("common");
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -58,17 +58,7 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
   });
   const registry = registries.data?.find((candidate) => candidate.symbol === symbol) ?? null;
 
-  const owner = useQuery({
-    queryKey: queryKeys.setup.owner,
-    queryFn: async ({ signal }) => {
-      const result = await fetchOwnerSetup(signal);
-      if (!result.ok) throw new CallFailure(result.failure.kind === "aborted" ? { kind: "network" } : result.failure);
-      return result.value;
-    },
-  });
-  // Until the preferences are known (or when they cannot be read) values are shown in UTC and the browser's language.
-  const timeZone = owner.data?.preferences?.timezone ?? "UTC";
-  const locale = owner.data?.preferences?.locale ?? i18n.resolvedLanguage ?? "en";
+  const { locale, timeZone } = useOwnerDisplay();
 
   const records = useQuery<RecordPageDto>({
     queryKey: [...queryKeys.registries.records(symbol), page],

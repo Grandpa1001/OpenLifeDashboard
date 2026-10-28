@@ -20,14 +20,24 @@
   "main": {
     "title": "Ekran główny",
     "signOut": "Wyloguj",
-    "empty": "Na razie nic tu nie ma. Ekrany i dane pojawią się w kolejnych wersjach.",
+    "empty": "Dodaj widgety w Designerze, aby zobaczyć tu swoje dane.",
     "navigation": "Nawigacja",
-    "registers": "Rejestry"
+    "registers": "Rejestry",
+    "designer": "Designer",
+    "loading": "Wczytywanie ekranu…",
+    "retry": "Spróbuj ponownie",
+    "emptyHeading": "Ekran jest pusty",
+    "openDesigner": "Otwórz Designer"
   },
   "gate": {
     "unavailable": {
       "heading": "Nie można sprawdzić stanu konta",
       "retry": "Spróbuj ponownie"
     }
+  },
+  "designer": {
+    "title": "Designer",
+    "soon": "Designer pojawi się w następnym kroku. Na razie widgety układa się przez API.",
+    "back": "Wróć na ekran główny"
   }
 }

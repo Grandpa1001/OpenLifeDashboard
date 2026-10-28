@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -2047,6 +2047,47 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D17.1", "D17.2", "D17.3", "D17.4"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D18.1",
+    ready: true,
+    title: "The private screen: widgets on the grid of the layout the window calls for, the register table view, the window that adds a record",
+    criteria: ["D18.1-AC1", "D18.1-AC2", "D18.1-regression"],
+    checks: [
+      {
+        // Runs first: the unit tests read the built views and the browser tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D18.1-AC1", "D18.1-AC2"],
+        description: "pnpm -r build: the widget views package, the SPA with the screen, the grid and the composition of the add-record window",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/widgets/src/register-table/View.tsx", "apps/web/src/features/dashboard/pages/main-page.tsx", "apps/web/src/lib/layout/grid.ts"],
+      },
+      {
+        id: "layout-and-views",
+        criteria: ["D18.1-AC1", "D18.1-AC2"],
+        description:
+          "The layout a width calls for (below 768 phone, 768 to 1279 tablet, 1280 and more desktop, odd widths without a crash), the grid of 1, 8 and 12 columns with rows of 32 px and a gap of 16 px, the cell a rectangle gives, the reading order per layout; the built register table view contains no fetch, query client, storage, router or import of the application and imports only React",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web"],
+        requires: ["tests/unit/web/layout.test.ts", "tests/unit/web/widget-views.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D18.1-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all six namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/widgets.json", "apps/web/src/locales/en/widgets.json"],
+      },
+      {
+        id: "dashboard-e2e",
+        criteria: ["D18.1-AC1", "D18.1-AC2"],
+        description:
+          "Playwright on a fresh installation: the screen of F01 with 25 records as pages of 10, 10 and 5 with the bound columns only, the window with the whole structure of the registry, the added record on the first page after the answer and after a reload; no button when adding is off, an empty table says so; the phone, the tablet and the desktop each place two widgets by their own layout (one column under each other, two side by side of 4 columns, two of 6 columns of 368 px height); markup in a title and a value is text; no screen and an empty screen invite to the Designer; a draft, a broken binding and a configuration to confirm say so with the link; a widget that fails to draw does not take the other widget with it and 'try again' draws it anew; a failing read has 'try again', an ended session leads to the sign-in; a screen the server cannot give has 'try again'; axe",
+        command: ["node", "tests/verification/e2e.ts", "dashboard"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/dashboard.spec.ts", "tests/e2e/owner-session.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D18.1-regression"),
+    ],
   },
   {
     // The parent passes only through its work orders, each with its real Compose run.

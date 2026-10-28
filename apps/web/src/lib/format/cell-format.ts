@@ -1,11 +1,13 @@
-// A stored value as the owner reads it in the table (Scope §6.2): numbers with the decimals of the
+// A stored value as the owner reads it in a table (Scope §6.2), in the register page and in the widget: numbers with the decimals of the
 // column, amounts with two, dates and times in the owner's language and zone. An empty value is
 // an empty text; the table decides how to show emptiness and booleans, which need translations.
-import type { CellValue, FormColumn } from "./record-input.js";
+export type CellValue = string | number | boolean | null;
+/** What the format of a value needs to know of its column. */
+export type FormatColumn = Readonly<{ type: string; typeOptions: Readonly<{ decimalPlaces?: number | undefined }> }>;
 
 export type Display = Readonly<{ locale: string; timeZone: string }>;
 
-export function formatCell(column: FormColumn, value: CellValue, display: Display): string {
+export function formatCell(column: FormatColumn, value: CellValue, display: Display): string {
   if (value === null) return "";
   switch (column.type) {
     case "number": {

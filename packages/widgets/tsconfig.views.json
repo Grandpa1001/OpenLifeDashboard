@@ -3,14 +3,19 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "tsBuildInfoFile": "dist/tsconfig.views.tsbuildinfo"
+    "tsBuildInfoFile": "dist/tsconfig.views.tsbuildinfo",
+    "jsx": "react-jsx"
   },
   "include": [
-    "src/views.ts"
+    "src/views.ts",
+    "src/**/View.tsx"
   ],
   "references": [
     {
       "path": "./tsconfig.definitions.json"
+    },
+    {
+      "path": "../contracts"
     }
   ]
 }

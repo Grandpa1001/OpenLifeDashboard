@@ -125,7 +125,7 @@ describe("D17.1-AC2 a definition carries no React and no Node (AR14)", () => {
   it("the built definitions import only each other, the contracts and zod", () => {
     const dist = path.join(root, "packages/widgets/dist");
     const files = (directory: string): string[] => readdirSync(directory, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? files(path.join(directory, entry.name)) : entry.name.endsWith(".js") ? [path.join(directory, entry.name)] : []));
-    const built = files(dist).filter((file) => !/views\.js$/.test(file));
+    const built = files(dist).filter((file) => !/(views|View)\.js$/.test(file));
     expect(built.length).toBeGreaterThan(4);
     for (const file of built) {
       const specifiers = [...readFileSync(file, "utf8").matchAll(/(?:from|import)\s*["']([^"']+)["']/g)].map((match) => match[1] ?? "");

@@ -3,6 +3,8 @@ import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, createRoute, createRouter, Outlet, redirect } from "@tanstack/react-router";
 import { LoginPage } from "../../features/auth/pages/login-page.js";
 import { MfaPage } from "../../features/auth/pages/mfa-page.js";
+import { DesignerPage } from "../../features/dashboard/pages/designer-page.js";
+import { AddRecordForRegistry } from "../../features/registers/components/add-record-for-registry.js";
 import { MainPage } from "../../features/dashboard/pages/main-page.js";
 import { RegistryPage } from "../../features/registers/pages/registry-page.js";
 import { RegistersPage } from "../../features/registers/pages/registers-page.js";
@@ -74,7 +76,17 @@ const mainRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/main",
   beforeLoad: ({ context }) => admitPrivate(context),
-  component: MainPage,
+  // The window that adds a record belongs to the registers; the screen gets it from here and imports nothing of them.
+  component: function MainRoute() {
+    return <MainPage renderAddRecord={(props) => <AddRecordForRegistry {...props} />} />;
+  },
+});
+
+const designerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/designer",
+  beforeLoad: ({ context }) => admitPrivate(context),
+  component: DesignerPage,
 });
 
 const registersRoute = createRoute({
@@ -119,7 +131,7 @@ const registryRoute = createRoute({
 
 export function createAppRouter(queryClient: QueryClient) {
   return createRouter({
-    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute, registersRoute, registryRoute]),
+    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute, registersRoute, registryRoute, designerRoute]),
     context: { queryClient },
     defaultPreload: false,
   });

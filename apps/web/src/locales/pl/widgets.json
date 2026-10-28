@@ -1,0 +1,35 @@
+{
+  "types": {
+    "register-table": "Tabela rejestru",
+    "unknown": "Widget"
+  },
+  "crashed": "Ten widget nie mógł zostać wyświetlony.",
+  "unsupported": "Ten typ widgetu nie jest obsługiwany w tej wersji.",
+  "registerTable": {
+    "configure": "Skonfiguruj widget",
+    "brokenBinding": "Zerwane powiązanie — widget wymaga aktualizacji podpięcia.",
+    "needsRefresh": "Konfiguracja widgetu wymaga potwierdzenia w Designerze.",
+    "openDesigner": "Otwórz Designer",
+    "loading": "Wczytywanie danych…",
+    "loadFailed": "Nie udało się wczytać danych widgetu.",
+    "retry": "Spróbuj ponownie",
+    "empty": "Brak rekordów.",
+    "add": "Dodaj",
+    "pager": "Strony rekordów",
+    "previous": "Poprzednia",
+    "next": "Następna",
+    "page": "Strona {{page}} z {{pages}}",
+    "total_one": "Razem: {{count}} rekord",
+    "total_few": "Razem: {{count}} rekordy",
+    "total_many": "Razem: {{count}} rekordów",
+    "total_other": "Razem: {{count}} rekordu",
+    "yes": "Tak",
+    "no": "Nie",
+    "emptyValue": "—",
+    "system": {
+      "created_at": "Utworzono",
+      "updated_at": "Zmieniono",
+      "id": "Identyfikator"
+    }
+  }
+}

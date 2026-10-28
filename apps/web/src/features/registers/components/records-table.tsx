@@ -1,6 +1,6 @@
 import type { RecordDto } from "@openlife/contracts/http/records";
 import { useTranslation } from "react-i18next";
-import { formatCell } from "../lib/record-format.js";
+import { formatCell } from "../../../lib/format/cell-format.js";
 import type { FormColumn } from "../lib/record-input.js";
 
 /** The records of one page as a table: the values read by their type, emptiness and booleans in words. */

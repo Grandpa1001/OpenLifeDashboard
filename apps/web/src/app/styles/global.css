@@ -344,3 +344,36 @@ main {
 .required {
   font-weight: 400;
 }
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.screen-name {
+  font-weight: 600;
+}
+
+.screen-grid {
+  width: 100%;
+}
+
+.widget {
+  min-width: 0;
+  overflow: auto;
+  padding: var(--space-4);
+}
+
+.widget h2 {
+  margin: 0;
+}
+
+.widget-state,
+.register-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+}

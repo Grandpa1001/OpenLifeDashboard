@@ -2,7 +2,7 @@
 // back in the owner's language and zone. The conversion of an amount and of a wall-clock time is
 // made once, in the form (D15 takes the canonical form only).
 import { describe, expect, it } from "vitest";
-import { formatCell } from "../../../apps/web/src/features/registers/lib/record-format.js";
+import { formatCell } from "../../../apps/web/src/lib/format/cell-format.js";
 import { initialText, parseInput, type FormColumn } from "../../../apps/web/src/features/registers/lib/record-input.js";
 import { utcIsoToZonedLocal, zonedLocalToUtcIso } from "../../../apps/web/src/features/registers/lib/zoned-time.js";
 

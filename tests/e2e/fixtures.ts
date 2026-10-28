@@ -19,7 +19,7 @@ export type RunningServer = ServerProcess &
   }>;
 
 /** Texts of one namespace of the SPA in one language, read from the same files the build uses. */
-export function locale(language: "pl" | "en", namespace: "common" | "auth" | "errors" | "registers" | "setup" = "common"): Record<string, unknown> {
+export function locale(language: "pl" | "en", namespace: "common" | "auth" | "errors" | "registers" | "setup" | "widgets" = "common"): Record<string, unknown> {
   return JSON.parse(readFileSync(path.join(repoRoot, "apps/web/src/locales", language, `${namespace}.json`), "utf8")) as Record<string, unknown>;
 }
 

@@ -25,9 +25,11 @@
   },
   "dependencies": {
     "@openlife/contracts": "workspace:*",
+    "react": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@types/react": "catalog:",
     "typescript": "catalog:"
   }
 }

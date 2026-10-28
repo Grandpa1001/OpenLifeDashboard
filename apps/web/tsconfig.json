@@ -18,6 +18,9 @@
     },
     {
       "path": "../../packages/ui"
+    },
+    {
+      "path": "../../packages/widgets/tsconfig.views.json"
     }
   ]
 }

@@ -51,3 +51,51 @@ export const BOOKS_DEFINITION = {
     { symbol: "status", displayName: "Status", type: "choice", defaultValue: "planowane" },
   ],
 };
+
+/** A widget layout as the contract writes it. */
+export type Rect = Readonly<{ x: number; y: number; w: number; h: number }>;
+export type WidgetPlan = Readonly<{
+  id: string;
+  title?: string;
+  columns?: string[];
+  pageSize?: number;
+  allowAdd?: boolean;
+  layout: Readonly<{ phone: Rect; tablet: Rect; desktop: Rect }>;
+  /** No bindings at all: a draft. */
+  draft?: boolean;
+}>;
+
+/**
+ * The first screen of the owner with register tables of Książki, made through the API with the
+ * session of the page (as the Designer of D18.2 will): the registry must exist already.
+ */
+export async function createScreenWith(page: Page, owner: BrowserOwner, plans: readonly WidgetPlan[], name = "Test MVP"): Promise<string> {
+  const base = owner.baseUrl;
+  const headers = { Origin: base };
+  const registries = (await (await page.request.get(`${base}${REGISTRIES_PATH}`)).json()) as { registries: Array<{ id: string; symbol: string; columns: Array<{ id: string; symbol: string }> }> };
+  const registry = registries.registries.find((candidate) => candidate.symbol === "ksiazki");
+  if (registry === undefined) throw new Error("create Książki first");
+  const created = await page.request.post(`${base}/api/v1/screens`, { data: { name }, headers });
+  expect(created.status()).toBe(201);
+  const screenId = ((await created.json()) as { id: string }).id;
+  const widgets = plans.map((plan) => {
+    const symbols = plan.columns ?? ["tytul", "autor"];
+    const bindings = plan.draft
+      ? []
+      : [
+          { slot: "registry", ordinal: 0, path: "Field.Register.ksiazki", target: { kind: "registry", registryId: registry.id } },
+          ...symbols.map((symbol, ordinal) => ({ slot: "columns", ordinal, path: `Field.Register.ksiazki.${symbol}`, target: { kind: "column", registryId: registry.id, columnId: registry.columns.find((column) => column.symbol === symbol)!.id } })),
+          { slot: "sortColumn", ordinal: 0, path: "Field.Register.ksiazki.created_at", target: { kind: "systemColumn", registryId: registry.id, symbol: "created_at" } },
+        ];
+    return {
+      id: plan.id,
+      type: "register-table",
+      config: { v: 1, title: plan.title ?? "", pageSize: plan.pageSize ?? 10, sortDirection: "desc", allowAdd: plan.allowAdd ?? true },
+      layout: plan.layout,
+      bindings,
+    };
+  });
+  const saved = await page.request.put(`${base}/api/v1/screens/${screenId}/design`, { data: { name, theme: "dark", accent: "blue", widgets }, headers });
+  expect(saved.status()).toBe(200);
+  return screenId;
+}

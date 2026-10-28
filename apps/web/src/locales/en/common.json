@@ -20,14 +20,24 @@
   "main": {
     "title": "Main screen",
     "signOut": "Sign out",
-    "empty": "There is nothing here yet. Screens and data arrive in later versions.",
+    "empty": "Add widgets in the Designer to see your data here.",
     "navigation": "Navigation",
-    "registers": "Registries"
+    "registers": "Registries",
+    "designer": "Designer",
+    "loading": "Loading the screen…",
+    "retry": "Try again",
+    "emptyHeading": "The screen is empty",
+    "openDesigner": "Open the Designer"
   },
   "gate": {
     "unavailable": {
       "heading": "The account state cannot be checked",
       "retry": "Try again"
     }
+  },
+  "designer": {
+    "title": "Designer",
+    "soon": "The Designer arrives in the next step. For now widgets are arranged through the API.",
+    "back": "Back to the main screen"
   }
 }

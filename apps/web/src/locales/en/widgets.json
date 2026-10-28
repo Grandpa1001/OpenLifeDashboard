@@ -1,0 +1,33 @@
+{
+  "types": {
+    "register-table": "Register table",
+    "unknown": "Widget"
+  },
+  "crashed": "This widget could not be displayed.",
+  "unsupported": "This widget type is not supported in this version.",
+  "registerTable": {
+    "configure": "Configure the widget",
+    "brokenBinding": "Broken binding — the widget needs its binding updated.",
+    "needsRefresh": "The configuration of the widget needs to be confirmed in the Designer.",
+    "openDesigner": "Open the Designer",
+    "loading": "Loading the data…",
+    "loadFailed": "The data of the widget could not be loaded.",
+    "retry": "Try again",
+    "empty": "No records.",
+    "add": "Add",
+    "pager": "Pages of records",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {{page}} of {{pages}}",
+    "total_one": "{{count}} record in total",
+    "total_other": "{{count}} records in total",
+    "yes": "Yes",
+    "no": "No",
+    "emptyValue": "—",
+    "system": {
+      "created_at": "Created",
+      "updated_at": "Changed",
+      "id": "Identifier"
+    }
+  }
+}
