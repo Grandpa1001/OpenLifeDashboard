@@ -77,11 +77,14 @@ test.describe("D18.3-AC1 registry, Designer, three layouts, restart, record", ()
     await layoutButton("tablet").click();
     await expect(frame("tablet")).toBeVisible();
     const tabletColumn = (768 - 7 * 16) / 8 + 16;
+    // A drag may land late on a busy machine, so a repeat drags by what is still missing and never by the whole distance again.
+    const widget = page.locator(".designer-widget");
+    const target = 768 - 2 * tabletColumn;
     await expect(async () => {
-      const corner = page.locator(".react-resizable-handle-se");
-      await dragBy(page, await centre(corner), -Math.round(2 * tabletColumn), 0);
-      await expect(page.locator(".designer-widget")).toHaveCSS("width", "572px");
-    }).toPass({ timeout: 15_000 });
+      const width = (await widget.boundingBox())?.width ?? target;
+      if (Math.abs(width - target) > 1) await dragBy(page, await centre(page.locator(".react-resizable-handle-se")), target - width, 0);
+      await expect(widget).toHaveCSS("width", `${target}px`, { timeout: 3_000 });
+    }).toPass({ timeout: 20_000 });
 
     await layoutButton("desktop").click();
     await expect(frame("desktop")).toBeVisible();

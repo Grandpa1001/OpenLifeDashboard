@@ -2202,6 +2202,31 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D20.2",
+    ready: true,
+    title: "Attempts to go around the gate on every data route, and the inventory of the routes that are planned",
+    criteria: ["D20.2-AC1", "D20.2-AC2", "D20.2-regression"],
+    checks: [
+      {
+        // Runs first: the test starts the built server and its CLI.
+        id: "workspace-build",
+        criteria: ["D20.2-AC1", "D20.2-AC2"],
+        description: "pnpm -r build: the server and the create-owner command the routes are tried on",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/main.ts", "apps/server/src/cli/create-owner.ts"],
+      },
+      {
+        id: "data-routes-access",
+        criteria: ["D20.2-AC1", "D20.2-AC2"],
+        description:
+          "The built server over a file SQLite, raw HTTP: every route the inventory marks as data access, tried with no session, a cookie that names none, a password only, enrolled with the codes not acknowledged, acknowledged with the data not chosen, a new password session of the finished owner, an ended session and the session of another installation, with and without data: 401 or 403 with a stable code, no cookie set, nothing stored, never 404; the same routes answer 200 or 201 to the owner past the gate, and a route without that positive control fails; foreign owner, session, assurance and role in headers, cookies, query and body decide nothing; export and the live stream are planned, not registered, and reported as not_run with the task that owns them",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/access/data-routes.test.ts"],
+        requires: ["tests/integration/access/data-routes.test.ts", "tests/support/route-inventory.ts", "tests/support/auth-http.ts"],
+      },
+      ...regressionChecks("D20.2-regression"),
+    ],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",

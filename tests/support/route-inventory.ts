@@ -53,3 +53,14 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "GET", path: screens.WIDGET_TYPES_PATH, access: "data", note: "the manifests of the widget types of this build" },
   { method: "GET", path: screens.WIDGET_DATA_PATH, access: "data", note: "a page of the data of a widget from its saved bindings" },
 ];
+
+/**
+ * Routes the architecture plans and the server does not register yet (Architektura §9.7, §18.7).
+ * They are `not_run`, never `passed`: the test of their access becomes mandatory in the task that
+ * adds them, and the route is then moved into ROUTE_INVENTORY with the access it asks for.
+ */
+export type PlannedRoute = Readonly<{ method: "GET"; path: string; task: string; note: string }>;
+export const PLANNED_ROUTES: readonly PlannedRoute[] = [
+  { method: "GET", path: "/api/v1/export", task: "D45", note: "the export of the owner's data; asks for a fresh second factor" },
+  { method: "GET", path: "/api/v1/stream", task: "D37", note: "the live stream (SSE) of the cookie session; asks for the gate and the starting data" },
+];
