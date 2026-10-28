@@ -2154,11 +2154,14 @@ const definedLater: readonly TaskDefinition[] = [
         timeoutMs: 15 * 60 * 1000,
       },
       {
-        id: "grid-poc-recorded",
+        // Analiza/ is not in this repository, so the written result of the proof (Architektura, "Wynik PoC siatki") is reviewed by hand; what CI can run is the behaviour it describes.
+        id: "grid-poc-behaviour",
         criteria: ["D18.3-AC2"],
-        description: "The result of the grid PoC (adaptation of columns, collisions, behaviour when the width changes) and its open limits are written in Architektura, and the specification still verifies",
-        command: ["python3", "Analiza/scripts/verify_specs.py", "--self-test"],
-        requires: ["Analiza/scripts/verify_specs.py", "Analiza/Architektura.md"],
+        description:
+          "The behaviour the grid proof records, run in a real browser: a widget dropped on another takes its place and the other is pushed below it with no overlap saved, a drag and a resize change one layout only, and each layout keeps its own place",
+        command: ["node", "tests/verification/e2e.ts", "designer"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/designer.spec.ts", "tests/e2e/owner-session.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 15 * 60 * 1000,
       },
       ...regressionChecks("D18.3-regression"),
     ],
