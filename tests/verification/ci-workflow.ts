@@ -68,6 +68,17 @@ check.expect(
   jobs["full"]?.needs === "changes" && jobs["full"]?.if === "${{ needs.changes.outputs.full == 'true' }}",
   "the full tier waits for the decision of the changes job and runs only when it says so",
 );
+// The full tier is several jobs side by side, one per topic; each is decided by the same changes job
+// and uploads a report artifact of its own, so a long task list never meets one job's time limit.
+const fullJobs = Object.keys(jobs).filter((job) => job === "full" || job.startsWith("full-"));
+check.expect(
+  fullJobs.length > 1 && fullJobs.every((job) => jobs[job]?.needs === "changes" && jobs[job]?.if === "${{ needs.changes.outputs.full == 'true' }}"),
+  `every job of the full tier waits for the changes job and runs only when it says so (${fullJobs.join(", ")})`,
+);
+const topicTasks = fullJobs.flatMap(tasksOf);
+check.expect(new Set(topicTasks).size === topicTasks.length, "no task is run by two jobs of the full tier");
+const uploadNames = fullJobs.map((job) => workflow.split(`\n  ${job}:\n`)[1]?.split(/\n {2}[a-z0-9-]+:\n/)[0]?.match(/name: (verification-[a-z-]+)\n/)?.[1]);
+check.expect(uploadNames.every(Boolean) && new Set(uploadNames).size === fullJobs.length, "each job of the full tier uploads its own report artifact", uploadNames.join(", "));
 const needs = (job: string): string[] => [jobs[job]?.needs ?? []].flat();
 check.expect(needs("image").includes("full") && needs("g0").includes("full") && needs("g0").includes("image"), "the images and G0 hang on the full tier");
 check.expect((jobs["g0"]?.if ?? "").includes("needs.full.result != 'skipped'"), "G0 does not run when the full tier was skipped (never on a partial set)");

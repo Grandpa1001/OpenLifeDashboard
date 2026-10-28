@@ -10,6 +10,11 @@ name: CI
 #   - when the commit touches what the slow checks are about (docker/, the bootstrap, the
 #     migrations and the connection, the workflow, the verification map, the lockfile).
 # The gates read the reports of the full tier only; a gate is never decided on a partial set.
+#
+# The full tier is split by topic into jobs that run side by side, each with its own report
+# artifact: platform (D01-D08, Docker, images, the G0 inputs), access (D09-D13), registries
+# (D14-D17), screens (D18) and installer (D19). A new task joins the job of its topic, so no
+# single job grows past its time limit.
 
 on:
   pull_request:
@@ -221,7 +226,8 @@ jobs:
           if-no-files-found: error
 
   full:
-    name: verify:task (full tier)
+    # Platform: build, images, Compose and the CI checks. G0 joins exactly these reports.
+    name: verify:task (full tier, platform D01-D08)
     needs: changes
     if: ${{ needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
@@ -278,6 +284,51 @@ jobs:
       - name: Verify D08 (D08.1–D08.3, CI checks, theme and texts, the G0 image in a browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D08
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-reports
+          path: .artifacts/
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error
+
+  full-access:
+    # Access: authentication, second factor, first setup and request authority.
+    name: verify:task (full tier, access D09-D13)
+    needs: changes
+    if: ${{ needs.changes.outputs.full == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
+      - name: Cache the Playwright browser
+        id: browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install the Playwright browser
+        if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install the system libraries of the cached browser
+        if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
+        run: pnpm exec playwright install-deps chromium
       - name: Verify D09 (D09.1–D09.4, auth adapter, owner, sign-in, reset and cookies)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D09
@@ -290,18 +341,6 @@ jobs:
       - name: Verify D12 (D12.1–D12.3, sign-in, enrollment and first setup in a real browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D12
-      - name: Verify D16.1 (the list of registries in a real browser)
-        if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D16.1
-      - name: Verify D16.2 (the form of a new registry in a real browser)
-        if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D16.2
-      - name: Verify D16.3 (the records of a registry in a real browser)
-        if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D16.3
-      - name: Verify D16 (the parent, D16.1–D16.3 together)
-        if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D16
       - name: Verify D13.1 (route inventory and request authority on raw HTTP)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D13.1
@@ -314,6 +353,51 @@ jobs:
       - name: Verify D13 (the parent, D13.1–D13.3 together, closes the auth and setup work)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D13
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-access
+          path: .artifacts/
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error
+
+  full-registries:
+    # Registries: catalog, records and the screen model, with the registry pages in a browser.
+    name: verify:task (full tier, registries D14-D17)
+    needs: changes
+    if: ${{ needs.changes.outputs.full == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
+      - name: Cache the Playwright browser
+        id: browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install the Playwright browser
+        if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install the system libraries of the cached browser
+        if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
+        run: pnpm exec playwright install-deps chromium
       - name: Verify D14.1 (rules of the registry catalog)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D14.1
@@ -335,6 +419,21 @@ jobs:
       - name: Verify D15.3 (adding and listing records over HTTP)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D15.3
+      - name: Verify D15 (the parent, D15.1–D15.3 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D15
+      - name: Verify D16.1 (the list of registries in a real browser)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D16.1
+      - name: Verify D16.2 (the form of a new registry in a real browser)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D16.2
+      - name: Verify D16.3 (the records of a registry in a real browser)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D16.3
+      - name: Verify D16 (the parent, D16.1–D16.3 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D16
       - name: Verify D17.1 (manifest of a widget type and the snapshot of a screen)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D17.1
@@ -350,6 +449,51 @@ jobs:
       - name: Verify D17 (the parent, D17.1–D17.4 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D17
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-registries
+          path: .artifacts/
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error
+
+  full-screens:
+    # Screens: the private screen and the Designer in a browser.
+    name: verify:task (full tier, screens D18)
+    needs: changes
+    if: ${{ needs.changes.outputs.full == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
+      - name: Cache the Playwright browser
+        id: browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install the Playwright browser
+        if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install the system libraries of the cached browser
+        if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
+        run: pnpm exec playwright install-deps chromium
       - name: Verify D18.1 (the private screen in a real browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D18.1
@@ -362,6 +506,39 @@ jobs:
       - name: Verify D18 (the parent, D18.1–D18.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D18
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-screens
+          path: .artifacts/
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error
+
+  full-install:
+    # Installer: install.sh against stubbed and the real Docker.
+    name: verify:task (full tier, installer D19)
+    needs: changes
+    if: ${{ needs.changes.outputs.full == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
       - name: Verify D19.1 (install.sh preflight and the installation folder)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D19.1
@@ -374,14 +551,11 @@ jobs:
       - name: Verify D19 (the parent, D19.1–D19.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D19
-      - name: Verify D15 (the parent, D15.1–D15.3 together)
-        if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D15
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: verification-reports
+          name: verification-install
           path: .artifacts/
           include-hidden-files: true
           retention-days: 14
