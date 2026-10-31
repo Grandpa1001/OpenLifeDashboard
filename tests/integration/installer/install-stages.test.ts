@@ -1,7 +1,7 @@
 // D19.2 — the container stages of install.sh against a fake `docker` that records every call, its
 // working folder and what the one-off owner container receives on stdin and in its environment.
 // The same sequence with the real Docker is D19.3.
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -189,7 +189,7 @@ describe("D19.2-AC2 an interrupted or failed run continues at the stage that is 
     const hanging = installerRig({ docker: { upHangsOnCall: 1 } });
     const started = startInstaller(hanging, ["--dir", dir, "--port", "18400", "--image", IMAGE, "--owner-email", EMAIL, "--owner-password-stdin"], `${PASSWORD}\n`);
     const deadline = Date.now() + 10_000;
-    while (!steps(hanging).some((call) => call.startsWith("compose up"))) {
+    while (!existsSync(hanging.blockedMarker)) {
       if (Date.now() > deadline) throw new Error("the installer never reached compose up");
       await new Promise((resolve) => setTimeout(resolve, 20));
     }

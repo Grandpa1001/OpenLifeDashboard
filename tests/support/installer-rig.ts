@@ -9,8 +9,18 @@ import { scratchDir } from "./scratch.ts";
 
 export const INSTALLER = fileURLToPath(new URL("../../install/install.sh", import.meta.url));
 
-/** Commands the installer may use (plus `sleep` and `touch` for the fake docker); nothing else is on its PATH. */
-const TOOLS = ["env", "bash", "uname", "id", "od", "tr", "cut", "sed", "awk", "df", "find", "head", "mkdir", "mv", "rm", "cat", "date", "dirname", "sleep", "touch"];
+/** Commands the installer may use (plus `sleep` for the fake docker); nothing else is on its PATH. */
+const TOOLS = ["env", "bash", "uname", "id", "od", "tr", "cut", "sed", "awk", "df", "find", "head", "mkdir", "mv", "rm", "cat", "date", "dirname", "sleep"];
+
+/**
+ * How the fake docker blocks so that Ctrl+C always reaches it. The marker is written by a shell
+ * builtin and the wait replaces the script (`exec`): a SIGINT sent once the marker exists finds
+ * either the script running builtins (it dies) or `sleep` itself (it dies). With an external
+ * command before the wait, a SIGINT arriving while bash still waited for that command, which had
+ * already exited normally, was dropped by bash ("wait and cooperative exit"), and the installer
+ * then waited the whole sleep.
+ */
+const block = (marker: string): string => `: > ${sh(marker)}; exec sleep 30`;
 
 export type FakeDocker = Readonly<{
   /** `docker version` fails as when the daemon is not running. */
@@ -35,8 +45,8 @@ export type FakeDocker = Readonly<{
 
 export type InstallerRig = Readonly<{
   binDir: string;
-  /** Written by the fake docker when it starts, so a test knows the installer is waiting. */
-  startedMarker: string;
+  /** Written by the fake docker right before it blocks (`hang`, `upHangsOnCall`), so a test knows the installer is waiting. */
+  blockedMarker: string;
   /** One line per docker call: the working folder and the arguments. */
   callLog: string;
   /** What the one-off owner container received on stdin and in its environment. */
@@ -54,7 +64,7 @@ const sh = (text: string): string => `'${text.replaceAll("'", "'\\''")}'`;
 
 export function installerRig(options: Readonly<{ docker?: FakeDocker | false; userId?: number }> = {}): InstallerRig {
   const binDir = scratchDir("openlife-installer-bin-");
-  const startedMarker = path.join(binDir, "docker-started");
+  const blockedMarker = path.join(binDir, "docker-blocked");
   const callLog = path.join(binDir, "docker-calls.log");
   const ownerStdin = path.join(binDir, "owner-stdin");
   const ownerEnv = path.join(binDir, "owner-env");
@@ -69,9 +79,8 @@ export function installerRig(options: Readonly<{ docker?: FakeDocker | false; us
     const failing = (fake.upFailsOnCalls ?? []).map((call) => `"$ups" = ${call}`).join(" ] || [ ");
     const script = [
       "#!/usr/bin/env bash",
-      `touch ${sh(startedMarker)}`,
       `echo "$PWD :: $*" >> ${sh(callLog)}`,
-      fake.hang ? "sleep 30" : "",
+      fake.hang ? block(blockedMarker) : "",
       'if [ "$1" = "version" ]; then',
       fake.daemonDown ? '  echo "Cannot connect to the Docker daemon at unix:///var/run/docker.sock" >&2; exit 1' : `  echo "${fake.engineVersion ?? "27.3.1"}|${fake.engineOs ?? "linux"}"; exit 0`,
       "fi",
@@ -86,7 +95,7 @@ export function installerRig(options: Readonly<{ docker?: FakeDocker | false; us
       "fi",
       'if [ "$1" = "compose" ] && [ "$2" = "up" ]; then',
       `  ups=$(( $(cat ${sh(path.join(binDir, "ups"))} 2>/dev/null || echo 0) + 1 )); echo $ups > ${sh(path.join(binDir, "ups"))}`,
-      fake.upHangsOnCall !== undefined ? `  if [ "$ups" = ${fake.upHangsOnCall} ]; then sleep 30; fi` : "",
+      fake.upHangsOnCall !== undefined ? `  if [ "$ups" = ${fake.upHangsOnCall} ]; then ${block(blockedMarker)}; fi` : "",
       failing ? `  if [ ${failing} ]; then echo "container is unhealthy" >&2; exit 1; fi` : "",
       "  exit 0",
       "fi",
@@ -104,7 +113,7 @@ export function installerRig(options: Readonly<{ docker?: FakeDocker | false; us
     writeFileSync(file, script);
     chmodSync(file, 0o755);
   }
-  return { binDir, startedMarker, callLog, ownerStdin, ownerEnv };
+  return { binDir, blockedMarker, callLog, ownerStdin, ownerEnv };
 }
 
 /** The recorded docker calls, without the version probes of the preflight. */

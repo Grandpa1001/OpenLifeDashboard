@@ -3,6 +3,7 @@
 // docker/, a release override that pins an existing local image, and the installation keys of
 // Architektura §14.4 in .env (PORT, the host user, COMPOSE_PROJECT_NAME and COMPOSE_FILE with the
 // release file LAST). The installer (D19) takes this over. A non-empty folder is still refused.
+import { randomInt } from "node:crypto";
 import { appendFileSync, copyFileSync, constants, readFileSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
@@ -58,12 +59,30 @@ export function prepareComposeInstance(dir: string, options: ComposeInstanceOpti
   return { ...instance, port: options.port, projectName, composeFiles: COMPOSE_FILES };
 }
 
-/** A port that is free on the loopback address right now (a harness picks one per installation). */
-export function freeLoopbackPort(): Promise<number> {
+/**
+ * Ports a harness picks for an installation: below the ephemeral ranges of Linux (32768–60999)
+ * and macOS (49152–65535) and above the fixed ports of the installer tests (18xxx). The port is
+ * used seconds after it was checked (the installation and its owner are prepared first), so a
+ * port from the ephemeral range could meanwhile be handed to a `--port 0` server of another test
+ * worker (EADDRINUSE); the kernel never hands out these.
+ */
+const HARNESS_PORT_MIN = 20_000;
+const HARNESS_PORT_MAX = 29_999;
+const HARNESS_PORT_ATTEMPTS = 50;
+
+function loopbackPortIsFree(port: number): Promise<boolean> {
   return new Promise((resolve, reject) => {
-    const server = net.createServer().once("error", reject).listen(0, "127.0.0.1", () => {
-      const { port } = server.address() as net.AddressInfo;
-      server.close(() => resolve(port));
-    });
+    const server = net.createServer();
+    server.once("error", (error: NodeJS.ErrnoException) => (error.code === "EADDRINUSE" || error.code === "EACCES" ? resolve(false) : reject(error)));
+    server.listen(port, "127.0.0.1", () => server.close(() => resolve(true)));
   });
+}
+
+/** A port that is free on the loopback address right now (a harness picks one per installation). */
+export async function freeLoopbackPort(): Promise<number> {
+  for (let attempt = 0; attempt < HARNESS_PORT_ATTEMPTS; attempt += 1) {
+    const port = randomInt(HARNESS_PORT_MIN, HARNESS_PORT_MAX + 1);
+    if (await loopbackPortIsFree(port)) return port;
+  }
+  throw new Error(`no free loopback port in ${HARNESS_PORT_MIN}–${HARNESS_PORT_MAX} after ${HARNESS_PORT_ATTEMPTS} attempts`);
 }

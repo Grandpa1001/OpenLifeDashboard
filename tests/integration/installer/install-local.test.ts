@@ -272,7 +272,7 @@ describe("D19.1-AC2 a failed check ends with a clear message and writes nothing"
     const dir = nextDir("interrupted");
     const rig = installerRig({ docker: { hang: true } });
     const run = startInstaller(rig, ["--dir", dir, "--port", "18334", "--image", IMAGE]);
-    await waitFor(() => existsSyncSafe(rig.startedMarker));
+    await waitFor(() => existsSyncSafe(rig.blockedMarker));
     run.interrupt();
     const { code, stderr } = await run.exit;
     expect(code).toBe(130);
