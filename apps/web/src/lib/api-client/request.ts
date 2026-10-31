@@ -16,7 +16,7 @@ export type ApiFailure =
 export type ApiResult<T> = Readonly<{ ok: true; value: T }> | Readonly<{ ok: false; failure: ApiFailure }>;
 
 export type ApiRequest<S extends z.ZodType | null> = Readonly<{
-  method: "GET" | "POST" | "PUT";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   path: string;
   /** Sent as JSON exactly as given: nothing is trimmed or normalized on the way. */
   body?: unknown;

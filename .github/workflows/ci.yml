@@ -236,6 +236,9 @@ jobs:
       - name: Verify D22.3 (every column type through the window of a record, F03 over HTTP)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D22.3
+      - name: Verify D23.3 (changing and deleting a record in the browser, the conflict of two tabs)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D23.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

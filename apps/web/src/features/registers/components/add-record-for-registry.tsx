@@ -4,19 +4,19 @@ import { useCallback } from "react";
 import { fetchRegistries } from "../api/registries.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
 import { useOwnerDisplay } from "../../../lib/session/use-owner-display.js";
-import { AddRecordDialog } from "./add-record-dialog.js";
+import { RecordDialog } from "./record-dialog.js";
 import type { FormColumn } from "../lib/record-input.js";
 
 /**
  * The window that adds a record to the registry with this symbol, for a caller that has only the
  * symbol (a widget on the screen). It reads the definition itself, so the fields are the registry's
  * whole structure, as the plan has it, whatever columns the widget shows. The caller gets the
- * moment the server has answered, and nothing else.
+ * moment the server has answered, and nothing else: a widget only adds (Scope §6.2).
  */
 export function AddRecordForRegistry({ symbol, onAdded, onClose }: Readonly<{ symbol: string; onAdded: () => void; onClose: () => void }>) {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const { timeZone } = useOwnerDisplay();
+  const { locale, timeZone } = useOwnerDisplay();
   const definition = useQuery({
     queryKey: queryKeys.registries.list,
     queryFn: async ({ signal }) => {
@@ -41,10 +41,11 @@ export function AddRecordForRegistry({ symbol, onAdded, onClose }: Readonly<{ sy
     position: column.position,
   }));
   return (
-    <AddRecordDialog
+    <RecordDialog
       registry={{ symbol: registry.symbol, displayName: registry.displayName, schemaRevision: registry.schemaRevision, columns }}
+      locale={locale}
       timeZone={timeZone}
-      onAdded={onAdded}
+      onSaved={onAdded}
       onClose={onClose}
       onSchemaChanged={() => void queryClient.invalidateQueries({ queryKey: queryKeys.registries.list })}
       onGateLost={askGuard}

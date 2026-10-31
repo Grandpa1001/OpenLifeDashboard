@@ -1892,7 +1892,7 @@ const definedLater: readonly TaskDefinition[] = [
         criteria: ["D16.3-AC1", "D16.3-AC2"],
         description: "pnpm -r build: the SPA with the registry page, the table of records and the window that adds one",
         command: ["pnpm", "-r", "build"],
-        requires: ["apps/web/src/features/registers/pages/registry-page.tsx", "apps/web/src/features/registers/components/add-record-dialog.tsx", "apps/web/src/features/registers/components/records-table.tsx"],
+        requires: ["apps/web/src/features/registers/pages/registry-page.tsx", "apps/web/src/features/registers/components/record-dialog.tsx", "apps/web/src/features/registers/components/records-table.tsx"],
       },
       {
         id: "record-input",
@@ -2337,7 +2337,7 @@ const definedLater: readonly TaskDefinition[] = [
         criteria: ["D22.3-AC1", "D22.3-AC2"],
         description: "pnpm -r build: the SPA with the page of a registry and the window of a record",
         command: ["pnpm", "-r", "build"],
-        requires: ["apps/web/src/features/registers/pages/registry-page.tsx", "apps/web/src/features/registers/components/add-record-dialog.tsx", "apps/web/src/features/registers/components/records-table.tsx"],
+        requires: ["apps/web/src/features/registers/pages/registry-page.tsx", "apps/web/src/features/registers/components/record-dialog.tsx", "apps/web/src/features/registers/components/records-table.tsx"],
       },
       {
         id: "f03-http",
@@ -2449,6 +2449,47 @@ const definedLater: readonly TaskDefinition[] = [
         timeoutMs: 15 * 60 * 1000,
       },
       ...regressionChecks("D23.2-regression"),
+    ],
+  },
+  {
+    id: "D23.3",
+    ready: true,
+    title: "Changing and deleting a record in the browser (makieta 08, 21): the actions of a row, the shared window, a conflict compared and resolved, a delete asked first",
+    criteria: ["D23.3-AC1", "D23.3-AC2", "D23.3-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D23.3-AC1", "D23.3-AC2"],
+        description: "pnpm -r build: the SPA with the actions of a row, the window of a record in both modes and the question before a delete",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/registers/pages/registry-page.tsx", "apps/web/src/features/registers/components/record-dialog.tsx", "apps/web/src/features/registers/components/delete-record-dialog.tsx", "apps/web/src/features/registers/lib/record-edit.ts"],
+      },
+      {
+        id: "record-edit-web",
+        criteria: ["D23.3-AC1", "D23.3-AC2"],
+        description:
+          "Pure functions of the form: every stored value shown in its field reads back as the same value, so an untouched form sends nothing; a change sends only the fields that differ from its base; a conflict lists only the fields that differ from the server, with an unfinished entry as typed; loading the newer record keeps the fields the owner changed and takes the others, so the other session's change is not sent back; the name of a record in a label",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/record-edit.test.ts", "tests/unit/web/record-input.test.ts", "tests/unit/web/error-message.test.ts"],
+        requires: ["tests/unit/web/record-edit.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D23.3-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/registers.json", "apps/web/src/locales/en/registers.json"],
+      },
+      {
+        id: "record-edit-e2e",
+        criteria: ["D23.3-AC1", "D23.3-AC2"],
+        description:
+          "Playwright on a fresh installation with Książki: a record changed in the window opens on its stored values, shows its new value and is stored with revision 2, the focus back on its button; two tabs change one record: the second tells the time of the change in the owner's zone, compares only the differing fields, keeps what was typed, keeps saving disabled and sends nothing more until the newer version is loaded, then saves the owner's fields and keeps the other tab's; a delete asks first naming the record, Escape keeps it with the focus back, confirmed the row and the count go and the focus is on Add; a record deleted in the other tab is taken as deleted without an error; a change whose answer was lost after the server saved it is saved once and shows no conflict; the widget on /main has no actions; the add of D16.3 and D22.3 as before; axe",
+        command: ["node", "tests/verification/e2e.ts", "record-edit", "records", "record-types"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/record-edit.spec.ts", "tests/e2e/records.spec.ts", "tests/e2e/record-types.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D23.3-regression"),
     ],
   },
   {

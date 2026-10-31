@@ -1,4 +1,4 @@
-import type { RecordPageDto } from "@openlife/contracts/http/records";
+import type { RecordDto, RecordPageDto } from "@openlife/contracts/http/records";
 import type { RegistryDto } from "@openlife/contracts/http/registries";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
@@ -11,8 +11,10 @@ import { queryKeys } from "../../../lib/query-keys/index.js";
 import { useOwnerDisplay } from "../../../lib/session/use-owner-display.js";
 import { fetchRegistries } from "../api/registries.js";
 import { fetchRecordPage } from "../api/records.js";
-import { AddRecordDialog } from "../components/add-record-dialog.js";
+import { DeleteRecordDialog } from "../components/delete-record-dialog.js";
+import { RecordDialog } from "../components/record-dialog.js";
 import { RecordsTable } from "../components/records-table.js";
+import { recordName } from "../lib/record-edit.js";
 import { pageCount, RECORDS_PAGE_SIZE } from "../lib/paging.js";
 import type { FormColumn } from "../lib/record-input.js";
 
@@ -33,16 +35,25 @@ const failureOf = (error: unknown): Exclude<ApiFailure, { kind: "aborted" }> | n
 const formColumns = (registry: RegistryDto): readonly (FormColumn & { position: number })[] =>
   registry.columns.map((column) => ({ symbol: column.symbol, displayName: column.displayName, type: column.type, typeOptions: column.typeOptions, defaultValue: column.defaultValue, required: column.required, position: column.position }));
 
-/** `/registers/:symbol`: the records of one registry, a page at a time from the server, and the window that adds one. */
+/** What the window of the page is open for: adding, changing or deleting one record. */
+type Open = Readonly<{ kind: "add" }> | Readonly<{ kind: "edit"; record: RecordDto }> | Readonly<{ kind: "delete"; record: RecordDto }>;
+
+/**
+ * `/registers/:symbol`: the records of one registry, a page at a time from the server, the window
+ * that adds or changes one and the question before one is deleted (makieta 08, 21). When a window
+ * closes, the focus goes back to the button that opened it, or to "Add" when that row is gone.
+ */
 export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
   const { t } = useTranslation("registers");
   const common = useTranslation("common");
   const queryClient = useQueryClient();
   const router = useRouter();
   const [page, setPage] = useState(1);
-  const [adding, setAdding] = useState(false);
-  const [added, setAdded] = useState(false);
+  const [open, setOpen] = useState<Open | null>(null);
+  /** What the last window did, for the status line. */
+  const [done, setDone] = useState<Open["kind"] | null>(null);
   const addButton = useRef<HTMLButtonElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
   const returnFocus = useRef(false);
 
   const registries = useQuery({
@@ -90,15 +101,22 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
   }, [lastPage, page]);
 
   useEffect(() => {
-    if (!adding && returnFocus.current) {
+    if (open === null && returnFocus.current) {
       returnFocus.current = false;
-      addButton.current?.focus();
+      const back = opener.current?.isConnected === true ? opener.current : addButton.current;
+      back?.focus();
     }
-  }, [adding]);
+  }, [open]);
+  function openWindow(next: Open, from: HTMLElement): void {
+    opener.current = from;
+    setDone(null);
+    setOpen(next);
+  }
   function closeDialog(): void {
     returnFocus.current = true;
-    setAdding(false);
+    setOpen(null);
   }
+  const refreshRecords = (): void => void queryClient.invalidateQueries({ queryKey: queryKeys.registries.records(symbol) });
 
   const refreshDefinition = (): void => void queryClient.invalidateQueries({ queryKey: queryKeys.registries.list });
   const columns = registry === null ? [] : formColumns(registry);
@@ -119,7 +137,7 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
         )}
       </div>
       {registry === null ? null : <ColumnChips columns={columns} />}
-      {added ? <p role="status">{t("record.added")}</p> : null}
+      {done === null ? null : <p role="status">{t(`record.done.${done}`)}</p>}
 
       {registries.isPending ? <p role="status">{t("registry.loading")}</p> : null}
       {registriesFailure === null ? null : (
@@ -136,15 +154,8 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
         <section className="records-section" aria-labelledby="records-heading">
           <div className="records-toolbar">
             <h2 id="records-heading">{t("table.heading")}</h2>
-            <button
-            ref={addButton}
-            type="button"
-            onClick={() => {
-              setAdded(false);
-              setAdding(true);
-            }}
-          >
-            {t("record.add")}
+            <button ref={addButton} type="button" onClick={(event) => openWindow({ kind: "add" }, event.currentTarget)}>
+              {t("record.add")}
             </button>
           </div>
           {records.isPending ? <p role="status">{t("table.loading")}</p> : null}
@@ -159,7 +170,26 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
           {records.data !== undefined && records.data.total === 0 ? <p>{t("table.empty_registry")}</p> : null}
           {records.data !== undefined && records.data.total > 0 ? (
             <>
-              <RecordsTable caption={registry.displayName} columns={columns} records={records.data.records} locale={locale} timeZone={timeZone} />
+              <RecordsTable
+                caption={registry.displayName}
+                columns={columns}
+                records={records.data.records}
+                locale={locale}
+                timeZone={timeZone}
+                actions={(record) => {
+                  const name = recordName(columns, record.values) ?? t("record.unnamed");
+                  return (
+                    <span className="row-actions">
+                      <button type="button" className="icon-button" aria-label={t("record.edit", { name })} onClick={(event) => openWindow({ kind: "edit", record }, event.currentTarget)}>
+                        <PencilIcon />
+                      </button>
+                      <button type="button" className="icon-button" aria-label={t("record.remove", { name })} onClick={(event) => openWindow({ kind: "delete", record }, event.currentTarget)}>
+                        <BinIcon />
+                      </button>
+                    </span>
+                  );
+                }}
+              />
               <nav className="pager" aria-label={t("table.pager")}>
                 <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>
                   {t("table.previous")}
@@ -172,19 +202,45 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
               </nav>
             </>
           ) : null}
-          {adding ? (
-            <AddRecordDialog
+          {open !== null && open.kind !== "delete" ? (
+            <RecordDialog
+              // A window per record: opening another one starts from that record, not from what was typed.
+              key={open.kind === "edit" ? open.record.id : "add"}
               registry={{ symbol: registry.symbol, displayName: registry.displayName, schemaRevision: registry.schemaRevision, columns }}
+              {...(open.kind === "edit" ? { record: open.record } : {})}
+              locale={locale}
               timeZone={timeZone}
-              onClose={closeDialog}
+              onClose={() => {
+                closeDialog();
+                // A window closed after a conflict or a delete elsewhere leaves a list to read again.
+                if (open.kind === "edit") refreshRecords();
+              }}
               onSchemaChanged={refreshDefinition}
               onGateLost={askGuard}
-              onAdded={() => {
+              onSaved={() => {
                 closeDialog();
-                setAdded(true);
-                // The list comes from the database again, from its first page where the newest record is.
-                setPage(1);
-                void queryClient.invalidateQueries({ queryKey: queryKeys.registries.records(symbol) });
+                setDone(open.kind);
+                // An add shows the list from its first page, where the newest record is; a change stays on its page.
+                if (open.kind === "add") setPage(1);
+                refreshRecords();
+                refreshDefinition();
+              }}
+            />
+          ) : null}
+          {open?.kind === "delete" ? (
+            <DeleteRecordDialog
+              symbol={registry.symbol}
+              record={open.record}
+              name={recordName(columns, open.record.values) ?? t("record.unnamed")}
+              onClose={closeDialog}
+              onGateLost={askGuard}
+              onChanged={refreshRecords}
+              onDeleted={() => {
+                // Its row is about to go: the focus goes to "Add" rather than to a button that disappears.
+                opener.current = null;
+                closeDialog();
+                setDone(open.kind);
+                refreshRecords();
                 refreshDefinition();
               }}
             />
@@ -213,5 +269,23 @@ function ColumnChips({ columns }: Readonly<{ columns: readonly FormColumn[] }>) 
         ))}
       </ul>
     </section>
+  );
+}
+
+/** The icons of the actions of a row (makieta 08); the button carries the name, the icon is hidden from assistive technology. */
+function PencilIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function BinIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+    </svg>
   );
 }

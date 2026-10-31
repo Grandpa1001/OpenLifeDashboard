@@ -63,11 +63,12 @@ test.describe("D16.3-AC1 the first record and the pages", () => {
 
     // The window closes only after the server has answered, and the table shows what the database holds.
     await expect(dialog(page)).toHaveCount(0);
-    await expect(page.getByRole("status")).toHaveText(text(registers, "record.added"));
+    await expect(page.getByRole("status")).toHaveText(text(registers, "record.done.add"));
     await expect(addButton(page)).toBeFocused();
     await expect(rows(page)).toHaveCount(2);
     const cells = rows(page).nth(1).getByRole("cell");
-    await expect(cells).toHaveText(["Diuna", "Frank Herbert", "412", "39.99", "Feb 3, 2026", /^Jul 15, 2026,? 12:00/, "18:30", "Yes", "planowane"]);
+    // The last cell holds the actions of the row (D23.3), named by their buttons.
+    await expect(cells).toHaveText(["Diuna", "Frank Herbert", "412", "39.99", "Feb 3, 2026", /^Jul 15, 2026,? 12:00/, "18:30", "Yes", "planowane", ""]);
     await expect(page.getByText("Page 1 of 1")).toBeVisible();
     await expect(page.getByText("1 record in total")).toBeVisible();
     await expectNoViolations(page);
@@ -145,7 +146,7 @@ test.describe("D16 the parent: from nothing to a record, in the browser alone", 
     await save(page).click();
     await expect(dialog(page)).toHaveCount(0);
     await page.reload();
-    await expect(rows(page).nth(1).getByRole("cell")).toHaveText(["Pierwsza książka", "Ja"]);
+    await expect(rows(page).nth(1).getByRole("cell")).toHaveText(["Pierwsza książka", "Ja", ""]);
     expect(stored(owner)).toHaveLength(1);
   });
 });

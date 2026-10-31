@@ -102,7 +102,8 @@ describe("D02.1-AC2 unknown API and missing assets never return the SPA", () => 
   it.each([
     ["GET", "/api"],
     ["GET", "/api/unknown"],
-    ["GET", "/api/v1/registries/ksiazki/records/some-id"],
+    // Deeper than any route of a record (D23.1 serves `…/records/:recordId`): no route, whatever the session.
+    ["GET", "/api/v1/registries/ksiazki/records/some-id/history"],
     ["POST", HEALTH_PATH],
     ["DELETE", HEALTH_PATH],
   ])("%s %s → 404 JSON NOT_FOUND with the response requestId", async (method, route) => {

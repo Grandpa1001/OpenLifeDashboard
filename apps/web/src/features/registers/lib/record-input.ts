@@ -30,8 +30,10 @@ export function centsToText(cents: number): string {
 }
 
 /** The default of a column as the form shows it before anything is typed. */
-export function initialText(column: FormColumn, timeZone: string): string {
-  const value = column.defaultValue;
+export const initialText = (column: FormColumn, timeZone: string): string => valueText(column, column.defaultValue, timeZone);
+
+/** A stored value as its field shows it, so that sending the field unchanged sends the same value. */
+export function valueText(column: FormColumn, value: CellValue, timeZone: string): string {
   if (value === null) return "";
   switch (column.type) {
     case "boolean":

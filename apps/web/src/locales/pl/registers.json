@@ -95,7 +95,8 @@
     "total_one": "Razem: {{count}} rekord",
     "total_few": "Razem: {{count}} rekordy",
     "total_many": "Razem: {{count}} rekordów",
-    "total_other": "Razem: {{count}} rekordu"
+    "total_other": "Razem: {{count}} rekordu",
+    "actions": "Akcje"
   },
   "record": {
     "add": "Dodaj",
@@ -107,10 +108,35 @@
     "yes": "Tak",
     "no": "Nie",
     "moneyHint": "Kwota, np. 10,37.",
-    "added": "Dodano rekord.",
     "addTo": "Dodaj rekord — {{name}}",
     "close": "Zamknij okno",
-    "closesAfterSave": "Okno zamknie się po zapisaniu na serwerze."
+    "closesAfterSave": "Okno zamknie się po zapisaniu na serwerze.",
+    "editOf": "Edytuj rekord — {{name}}",
+    "edit": "Edytuj rekord {{name}}",
+    "remove": "Usuń rekord {{name}}",
+    "unnamed": "bez nazwy",
+    "deletedMeanwhile": "Ten rekord został usunięty w międzyczasie. Zamknij okno; lista zostanie odświeżona.",
+    "conflict": {
+      "changed": "Rekord zmieniono w międzyczasie — {{when}}.",
+      "kept": "Twoje zmiany nie zostały nadpisane i nic nie zostanie nadpisane automatycznie.",
+      "load": "Wczytaj nowszą wersję",
+      "compare": "Porównaj",
+      "field": "Pole",
+      "server": "Na serwerze",
+      "mine": "U Ciebie",
+      "saveAfterLoad": "Zapis możliwy po wczytaniu nowszej wersji."
+    },
+    "delete": {
+      "question": "Usunąć rekord „{{name}}”?",
+      "permanent": "Rekordu nie da się przywrócić z tego okna.",
+      "confirm": "Usuń",
+      "deleting": "Usuwanie…"
+    },
+    "done": {
+      "add": "Dodano rekord.",
+      "edit": "Zapisano zmiany.",
+      "delete": "Usunięto rekord."
+    }
   },
   "recordIssues": {
     "VALUE_REQUIRED": "To pole jest wymagane.",
@@ -119,6 +145,7 @@
     "FIELD_SYSTEM": "To pole jest systemowe.",
     "RECORD_TOO_LARGE": "Rekord jest za duży.",
     "VALUES_NOT_OBJECT": "Nieprawidłowe wartości.",
-    "UNKNOWN": "Ta wartość nie jest prawidłowa."
+    "UNKNOWN": "Ta wartość nie jest prawidłowa.",
+    "VALUES_EMPTY": "Nic nie zostało zmienione."
   }
 }

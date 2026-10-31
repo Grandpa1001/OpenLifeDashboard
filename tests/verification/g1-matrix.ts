@@ -67,7 +67,7 @@ export const G1_ITEMS: readonly G1Item[] = [
     evidence: [
       line("D15.3", "record-http", "each state is refused with its code on both routes before a registry or a key is looked at, and nothing is written"),
       line("D20.2", "data-routes-access", "none, password only, codes not acknowledged, data not chosen: 401 or 403 with a stable code on every route, nothing stored"),
-      line("D20.2", "data-routes-access", "the owner past the gate gets 200 or 201 on every one of the same routes"),
+      line("D20.2", "data-routes-access", "the owner past the gate gets 200, 201 or 204 on every one of the same routes"),
     ],
   },
   {
@@ -92,7 +92,7 @@ export const G1_ITEMS: readonly G1Item[] = [
     title: "no data route can be reached around the gate: foreign identifiers, assurance and sessions decide nothing",
     evidence: [
       line("D20.2", "data-routes-access", "foreign owner and session identifiers, assurance and roles in headers, cookies and query decide nothing"),
-      line("D20.2", "data-routes-access", "the owner past the gate gets 200 or 201 on every one of the same routes; then the other states are refused with real data and real identifiers"),
+      line("D20.2", "data-routes-access", "the owner past the gate gets 200, 201 or 204 on every one of the same routes; then the other states are refused with real data and real identifiers"),
     ],
   },
 ];

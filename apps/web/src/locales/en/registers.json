@@ -87,7 +87,8 @@
     "next": "Next",
     "page": "Page {{page}} of {{pages}}",
     "total_one": "{{count}} record in total",
-    "total_other": "{{count}} records in total"
+    "total_other": "{{count}} records in total",
+    "actions": "Actions"
   },
   "record": {
     "add": "Add",
@@ -99,10 +100,35 @@
     "yes": "Yes",
     "no": "No",
     "moneyHint": "An amount, e.g. 10.37.",
-    "added": "The record was added.",
     "addTo": "Add a record — {{name}}",
     "close": "Close the window",
-    "closesAfterSave": "The window closes once the server has saved."
+    "closesAfterSave": "The window closes once the server has saved.",
+    "editOf": "Edit a record — {{name}}",
+    "edit": "Edit the record {{name}}",
+    "remove": "Delete the record {{name}}",
+    "unnamed": "without a name",
+    "deletedMeanwhile": "This record was deleted in the meantime. Close the window; the list will be refreshed.",
+    "conflict": {
+      "changed": "The record was changed in the meantime — {{when}}.",
+      "kept": "Your changes were not overwritten, and nothing will be overwritten automatically.",
+      "load": "Load the newer version",
+      "compare": "Compare",
+      "field": "Field",
+      "server": "On the server",
+      "mine": "Yours",
+      "saveAfterLoad": "You can save after loading the newer version."
+    },
+    "delete": {
+      "question": "Delete the record “{{name}}”?",
+      "permanent": "The record cannot be restored from this window.",
+      "confirm": "Delete",
+      "deleting": "Deleting…"
+    },
+    "done": {
+      "add": "The record was added.",
+      "edit": "The changes were saved.",
+      "delete": "The record was deleted."
+    }
   },
   "recordIssues": {
     "VALUE_REQUIRED": "This field is required.",
@@ -111,6 +137,7 @@
     "FIELD_SYSTEM": "This field is a system field.",
     "RECORD_TOO_LARGE": "The record is too large.",
     "VALUES_NOT_OBJECT": "The values are not valid.",
-    "UNKNOWN": "This value is not valid."
+    "UNKNOWN": "This value is not valid.",
+    "VALUES_EMPTY": "Nothing was changed."
   }
 }

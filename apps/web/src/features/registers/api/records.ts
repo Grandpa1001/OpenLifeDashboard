@@ -1,5 +1,17 @@
 // Calls of the records contract (Architektura §5.4, §18.7) as typed results.
-import { createRecordRequestSchema, IDEMPOTENCY_KEY_HEADER, recordPageSchema, recordSchema, registryRecordsPath, type CreateRecordRequest } from "@openlife/contracts/http/records";
+import {
+  createRecordRequestSchema,
+  deleteRecordRequestSchema,
+  IDEMPOTENCY_KEY_HEADER,
+  recordPageSchema,
+  recordSchema,
+  registryRecordPath,
+  registryRecordsPath,
+  updateRecordRequestSchema,
+  type CreateRecordRequest,
+  type DeleteRecordRequest,
+  type UpdateRecordRequest,
+} from "@openlife/contracts/http/records";
 import { apiRequest } from "../../../lib/api-client/request.js";
 
 export const fetchRecordPage = (symbol: string, page: number, pageSize: number, signal?: AbortSignal) =>
@@ -9,4 +21,20 @@ export const fetchRecordPage = (symbol: string, page: number, pageSize: number, 
 export const addRecord = (symbol: string, key: string, request: CreateRecordRequest, signal?: AbortSignal) => {
   const body = createRecordRequestSchema.parse(request);
   return apiRequest({ method: "POST", path: registryRecordsPath(encodeURIComponent(symbol)), body, headers: { [IDEMPOTENCY_KEY_HEADER]: key }, schema: recordSchema, signal });
+};
+
+/** One record as it is stored now: what a conflict is compared with. */
+export const fetchRecord = (symbol: string, recordId: string, signal?: AbortSignal) =>
+  apiRequest({ method: "GET", path: registryRecordPath(encodeURIComponent(symbol), encodeURIComponent(recordId)), schema: recordSchema, signal });
+
+/** A change carries the revision of the record it was built on instead of a key: on another revision it is a conflict and writes nothing. */
+export const updateRecord = (symbol: string, recordId: string, request: UpdateRecordRequest, signal?: AbortSignal) => {
+  const body = updateRecordRequestSchema.parse(request);
+  return apiRequest({ method: "PATCH", path: registryRecordPath(encodeURIComponent(symbol), encodeURIComponent(recordId)), body, schema: recordSchema, signal });
+};
+
+/** A delete on the revision the owner saw; the answer has no body. */
+export const deleteRecord = (symbol: string, recordId: string, request: DeleteRecordRequest, signal?: AbortSignal) => {
+  const body = deleteRecordRequestSchema.parse(request);
+  return apiRequest({ method: "DELETE", path: registryRecordPath(encodeURIComponent(symbol), encodeURIComponent(recordId)), body, schema: null, signal });
 };
