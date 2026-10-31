@@ -178,7 +178,7 @@ test.describe("D16.3-AC2 what is refused, lost and changed", () => {
     expect(stored(owner)).toMatchObject([{ tytul: "Jest tytuł", autor: "Ktoś", strony: 10 }]);
   });
 
-  test("a value that is no value of its type is told at the field without a request; one the server refuses is told there too", async ({ page, ownerServer }) => {
+  test("a value that is no value of its type or has more places than its column is told at the field without a request", async ({ page, ownerServer }) => {
     const owner = await ownerServer("ready");
     await openBooks(page, owner);
     let posts = 0;
@@ -197,11 +197,11 @@ test.describe("D16.3-AC2 what is refused, lost and changed", () => {
     await expect(dialog(page).getByText(text(registers, "recordIssues.VALUE_INVALID"))).toBeVisible();
     expect(posts).toBe(0);
     await field(page, "Cena").fill("10,37");
-    // 1.5 pages in a column of no decimal places parses, and is the server's to refuse.
+    // 1.5 pages in a column of no decimal places has more places than the column: refused at the field, not sent (D22.1).
     await field(page, "Liczba stron").fill("1,5");
     await save(page).click();
     await expect(dialog(page).getByText(text(registers, "recordIssues.VALUE_INVALID"))).toBeVisible();
-    expect(posts).toBe(1);
+    expect(posts).toBe(0);
     expect(stored(owner)).toEqual([]);
     await field(page, "Liczba stron").fill("2");
     await save(page).click();

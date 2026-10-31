@@ -7,6 +7,19 @@ export type FormatColumn = Readonly<{ type: string; typeOptions: Readonly<{ deci
 
 export type Display = Readonly<{ locale: string; timeZone: string }>;
 
+/**
+ * An amount in units × 100 in the owner's language, exact for every safe integer: the units are
+ * grouped as a bigint and the grosze are appended after the language's decimal separator, so no
+ * division of a floating-point number rounds the last digits.
+ */
+function formatCents(cents: number, locale: string): string {
+  const rest = Math.abs(cents) % 100;
+  const units = (Math.abs(cents) - rest) / 100;
+  const separator = new Intl.NumberFormat(locale).formatToParts(1.5).find((part) => part.type === "decimal")?.value ?? ".";
+  const grouped = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(BigInt(units));
+  return `${cents < 0 ? "-" : ""}${grouped}${separator}${String(rest).padStart(2, "0")}`;
+}
+
 export function formatCell(column: FormatColumn, value: CellValue, display: Display): string {
   if (value === null) return "";
   switch (column.type) {
@@ -15,7 +28,7 @@ export function formatCell(column: FormatColumn, value: CellValue, display: Disp
       return typeof value === "number" ? new Intl.NumberFormat(display.locale, { minimumFractionDigits: places, maximumFractionDigits: places }).format(value) : String(value);
     }
     case "money":
-      return typeof value === "number" ? new Intl.NumberFormat(display.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value / 100) : String(value);
+      return typeof value === "number" && Number.isSafeInteger(value) ? formatCents(value, display.locale) : String(value);
     case "date": {
       const instant = typeof value === "string" ? Date.parse(`${value}T00:00:00Z`) : Number.NaN;
       return Number.isNaN(instant) ? String(value) : new Intl.DateTimeFormat(display.locale, { dateStyle: "medium", timeZone: "UTC" }).format(instant);

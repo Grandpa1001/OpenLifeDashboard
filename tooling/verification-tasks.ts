@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -2259,6 +2259,31 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D20.1", "D20.2", "D20.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D22.1",
+    ready: true,
+    title: "Every column type in the web app: what is typed becomes the canonical value core accepts, and amounts are exact on the whole safe range",
+    criteria: ["D22.1-AC1", "D22.1-AC2", "D22.1-regression"],
+    checks: [
+      {
+        // Runs first: the conformance test reads the rule of core from its build.
+        id: "workspace-build",
+        criteria: ["D22.1-AC1", "D22.1-AC2"],
+        description: "pnpm -r build: core/registries with the rule of a value, the web app with its conversion and format",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/registries/domain/column-rules.ts", "apps/web/src/features/registers/lib/record-input.ts", "apps/web/src/lib/format/cell-format.ts"],
+      },
+      {
+        id: "column-values-web",
+        criteria: ["D22.1-AC1", "D22.1-AC2"],
+        description:
+          "A table of typed inputs for the eight types: every value the form accepts passes isValidCellValue of core (number with 0, 2 and 6 places); 1037 ↔ 10,37 and ±9 007 199 254 740 991 grosze survive the round trip and the format without a lost grosz; more places than the column, an exponent, three places of an amount, one grosz beyond the safe range, a date off the calendar, 24:00 and a date-time that is no wall time are refused before anything is sent",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/record-input.test.ts"],
+        requires: ["tests/unit/web/record-input.test.ts"],
+      },
+      ...regressionChecks("D22.1-regression"),
+    ],
   },
   {
     id: "D19.1",

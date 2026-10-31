@@ -2,8 +2,9 @@
 // back in the owner's language and zone. The conversion of an amount and of a wall-clock time is
 // made once, in the form (D15 takes the canonical form only).
 import { describe, expect, it } from "vitest";
+import { isValidCellValue } from "../../../packages/core/dist/modules/registries/public.js";
 import { formatCell } from "../../../apps/web/src/lib/format/cell-format.js";
-import { initialText, parseInput, type FormColumn } from "../../../apps/web/src/features/registers/lib/record-input.js";
+import { centsToText, initialText, parseInput, type FormColumn } from "../../../apps/web/src/features/registers/lib/record-input.js";
 import { utcIsoToZonedLocal, zonedLocalToUtcIso } from "../../../apps/web/src/features/registers/lib/zoned-time.js";
 
 const column = (type: FormColumn["type"], extra: Partial<FormColumn> = {}): FormColumn => ({ symbol: "c", displayName: "C", type, typeOptions: {}, defaultValue: null, required: false, ...extra });
@@ -47,7 +48,7 @@ describe("D16.3 what is typed becomes the canonical value", () => {
   });
 
   it("a number: comma or point, no exponent, no text", () => {
-    expect(parse("number", "12,5")).toEqual({ ok: true, value: 12.5 });
+    expect(parse("number", "12,5", { typeOptions: { decimalPlaces: 1 } })).toEqual({ ok: true, value: 12.5 });
     expect(parse("number", "-3")).toEqual({ ok: true, value: -3 });
     expect(parse("number", "1 000")).toEqual({ ok: true, value: 1000 });
     for (const bad of ["abc", "1e3", "0x10", "1.2.3", "Infinity", "NaN", "1,"]) expect(parse("number", bad), bad).toEqual({ ok: false });
@@ -100,5 +101,73 @@ describe("D16.3 a stored value as it is read", () => {
     expect(formatCell(column("time"), "18:30", display)).toBe("18:30");
     expect(formatCell(column("text"), "<b>x</b>", display)).toBe("<b>x</b>");
     expect(formatCell(column("text"), null, display)).toBe("");
+  });
+});
+
+// D22.1 — the web app has its own conversion (it may not import core); this table ties it to the
+// rule of core, which decides what the server stores.
+const SAFE = Number.MAX_SAFE_INTEGER;
+const TEXT_MAX = 10_000;
+const TYPED: Readonly<Record<FormColumn["type"], readonly string[]>> = {
+  text: ["", "Dune", "  spacje  ", "<b>x</b>"],
+  choice: ["", "planowane", "pl"],
+  number: ["", "0", "-3", "12,5", "12.50", "1 000", "0,123456", "0,1234567", "1e3", "Infinity", "abc", "1,"],
+  money: ["", "0", "10,37", "-0,05", "1 234,50", "90071992547409,91", "-90071992547409,91", "90071992547409,92", "10,375", "1e3", ",5"],
+  date: ["", "2026-02-03", "2024-02-29", "2026-02-29", "2026-02-31", "2026-13-01", "2026-2-3", "03.02.2026"],
+  time: ["", "00:00", "18:30", "23:59", "24:00", "7:05", "18:60", "18:30:00"],
+  datetime: ["", "2026-07-15T12:00", "2026-03-29T02:30", "2026-10-25T02:30", "2026-02-30T10:00", "2026-07-15 12:00", "garbage"],
+  boolean: ["", "true", "false", "tak", "1"],
+};
+
+describe("D22.1-AC1 every value the form accepts is a value core accepts, and an amount is exact on its whole range", () => {
+  for (const [type, inputs] of Object.entries(TYPED) as [FormColumn["type"], readonly string[]][]) {
+    for (const places of type === "number" ? [0, 2, 6] : [0]) {
+      it(`${type}${type === "number" ? ` with ${places} places` : ""}: accepted input passes core's rule`, () => {
+        const options = type === "number" ? { decimalPlaces: places } : {};
+        for (const typed of inputs) {
+          const parsed = parseInput(column(type, { typeOptions: options }), typed, WARSAW);
+          if (parsed.ok) expect(isValidCellValue(type, options, parsed.value, TEXT_MAX), `${type} ${JSON.stringify(typed)} → ${JSON.stringify(parsed.value)}`).toBe(true);
+        }
+      });
+    }
+  }
+
+  it("1037 is 10,37 both ways, and the safe-integer bounds survive the round trip without a lost grosz", () => {
+    expect(parseInput(column("money"), "10,37", WARSAW)).toEqual({ ok: true, value: 1037 });
+    expect(formatCell(column("money"), 1037, { locale: "pl", timeZone: WARSAW })).toBe("10,37");
+    for (const cents of [SAFE, -SAFE, SAFE - 1, 9_007_199_254_740_900, 1, -1, 0]) {
+      expect(parseInput(column("money"), centsToText(cents), WARSAW), String(cents)).toEqual({ ok: true, value: cents });
+    }
+    expect(centsToText(SAFE)).toBe("90071992547409.91");
+    expect(formatCell(column("money"), SAFE, { locale: "en", timeZone: WARSAW })).toBe("90,071,992,547,409.91");
+    expect(formatCell(column("money"), -SAFE, { locale: "pl", timeZone: WARSAW })).toMatch(/^-90\s071\s992\s547\s409,91$/);
+    expect(formatCell(column("money"), -5, { locale: "pl", timeZone: WARSAW })).toBe("-0,05");
+  });
+
+  it("a number keeps the decimal places of its column, from 0 to 6, on the edge", () => {
+    expect(parseInput(column("number", { typeOptions: { decimalPlaces: 0 } }), "12", WARSAW)).toEqual({ ok: true, value: 12 });
+    expect(parseInput(column("number", { typeOptions: { decimalPlaces: 2 } }), "12,50", WARSAW)).toEqual({ ok: true, value: 12.5 });
+    expect(parseInput(column("number", { typeOptions: { decimalPlaces: 6 } }), "0,123456", WARSAW)).toEqual({ ok: true, value: 0.123456 });
+  });
+});
+
+describe("D22.1-AC2 what is no value of its type is refused before anything is sent", () => {
+  const refused = (type: FormColumn["type"], typed: string, options: FormColumn["typeOptions"] = {}) => expect(parseInput(column(type, { typeOptions: options }), typed, WARSAW), `${type} ${typed}`).toEqual({ ok: false });
+
+  it("a number with more places than its column, an exponent or a text", () => {
+    refused("number", "12,5", { decimalPlaces: 0 });
+    refused("number", "0,1234567", { decimalPlaces: 6 });
+    refused("number", "1,005", { decimalPlaces: 2 });
+    for (const bad of ["1e3", "Infinity", "abc"]) refused("number", bad, { decimalPlaces: 6 });
+  });
+
+  it("an amount with three places or one grosz beyond the safe range", () => {
+    for (const bad of ["10,375", "90071992547409,92", "-90071992547409,92", "1e3"]) refused("money", bad);
+  });
+
+  it("a date off the calendar, an hour that does not exist, a date-time that is no wall time", () => {
+    for (const bad of ["2026-02-29", "2026-02-31", "2026-13-01", "2026-2-3", "03.02.2026"]) refused("date", bad);
+    for (const bad of ["24:00", "7:05", "18:60", "18:30:00"]) refused("time", bad);
+    for (const bad of ["2026-02-30T10:00", "2026-07-15 12:00", "garbage"]) refused("datetime", bad);
   });
 });
