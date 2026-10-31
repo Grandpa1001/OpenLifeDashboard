@@ -2,7 +2,7 @@
 // S1–S6), on the built server and a real file database. The table is made from the route inventory
 // of D13.1: every route that asks for the data access is tried in every state of the owner, and a
 // route with no positive control fails the test. A refusal is 401 or 403 with a stable code: a 404
-// or an empty answer is not a pass, and the same route answers 200 or 201 to the owner past the gate.
+// or an empty answer is not a pass, and the same route answers 200, 201 or 204 to the owner past the gate.
 // AC1: no session, a password only, enrolled with the codes not acknowledged, acknowledged with the
 //      starting data not chosen, a new password session of the finished owner, an ended session and
 //      the session of another installation are refused on every data route, with and without data,
@@ -14,6 +14,7 @@ import path from "node:path";
 import { apiErrorSchema } from "@openlife/contracts/http/errors";
 import { registryListSchema, REGISTRIES_PATH } from "@openlife/contracts/http/registries";
 import { SIGN_OUT_PATH } from "@openlife/contracts/http/identity";
+import { recordSchema } from "@openlife/contracts/http/records";
 import { SCREENS_PATH, screenSchema } from "@openlife/contracts/http/screens";
 import { afterEach, describe, expect, it } from "vitest";
 import { ack, chooseEmpty, codeOf, enrolled, installation, post, query, readyOwner, send, signIn, stopServers, verify, type Installation, type Reply } from "../../support/auth-http.ts";
@@ -27,16 +28,16 @@ const OTHER_TASKS = new Set(["GET /api/v1/setup/preferences", "PUT /api/v1/setup
 const keyOf = (route: Pick<RouteEntry, "method" | "path">): string => `${route.method} ${route.path}`;
 const DATA_ROUTES = ROUTE_INVENTORY.filter((route) => route.access === "data" && !OTHER_TASKS.has(keyOf(route)));
 
-const PLACEHOLDER = { symbol: "waga", screen: "019a0000-0000-7000-8000-0000000000a1", widget: "019a0000-0000-7000-8000-0000000000a2" };
+const PLACEHOLDER = { symbol: "waga", screen: "019a0000-0000-7000-8000-0000000000a1", widget: "019a0000-0000-7000-8000-0000000000a2", record: "019a0000-0000-7000-8000-0000000000a3" };
 const LAYOUT = { phone: { x: 0, y: 0, w: 1, h: 8 }, tablet: { x: 0, y: 0, w: 8, h: 8 }, desktop: { x: 0, y: 0, w: 8, h: 8 } };
 const WAGA = { symbol: "waga", displayName: "Waga", columns: [{ symbol: "kg", displayName: "Kg", type: "number", typeOptions: { decimalPlaces: 1 } }] };
 const code = (reply: Reply): string => apiErrorSchema.parse(reply.json()).code;
 
-type Ids = Readonly<{ symbol: string; screen: string; widget: string }>;
+type Ids = Readonly<{ symbol: string; screen: string; widget: string; record: string }>;
 
 const fill = (route: RouteEntry, ids: Ids): string => {
   const widgetPath = route.path.includes("/widgets/:id");
-  return route.path.replace(":symbol", ids.symbol).replace(":id", widgetPath ? ids.widget : ids.screen);
+  return route.path.replace(":symbol", ids.symbol).replace(":recordId", ids.record).replace(":id", widgetPath ? ids.widget : ids.screen);
 };
 
 /** A well-formed request for the route, so that only the access can be the reason of a refusal. */
@@ -46,6 +47,10 @@ function requestOf(route: RouteEntry, design: unknown): { body: unknown; headers
       return { body: { ...WAGA, symbol: "pomiary", displayName: "Pomiary" }, headers: {} };
     case "POST /api/v1/registries/:symbol/records":
       return { body: { schemaRevision: 1, values: { kg: 71.5 } }, headers: { "Idempotency-Key": "d20-2-access-key" } };
+    case "PATCH /api/v1/registries/:symbol/records/:recordId":
+      return { body: { schemaRevision: 1, expectedRevision: 1, values: { kg: 72 } }, headers: {} };
+    case "DELETE /api/v1/registries/:symbol/records/:recordId":
+      return { body: { expectedRevision: 2 }, headers: {} };
     case `POST ${SCREENS_PATH}`:
       return { body: { name: "Ekran" }, headers: {} };
     case "PUT /api/v1/screens/:id/design":
@@ -102,12 +107,15 @@ async function expectRefused(setup: Installation, label: string, cookie: string 
 describe("D20.2 the table is the inventory", () => {
   it("covers every route of the data access with a request of its own, and the inventory has them", () => {
     expect(DATA_ROUTES.map(keyOf).sort()).toEqual([
+      "DELETE /api/v1/registries/:symbol/records/:recordId",
       "GET /api/v1/registries",
       "GET /api/v1/registries/:symbol/records",
+      "GET /api/v1/registries/:symbol/records/:recordId",
       "GET /api/v1/screens",
       "GET /api/v1/screens/:id",
       "GET /api/v1/widget-types",
       "GET /api/v1/widgets/:id/data",
+      "PATCH /api/v1/registries/:symbol/records/:recordId",
       "POST /api/v1/registries",
       "POST /api/v1/registries/:symbol/records",
       "POST /api/v1/screens",
@@ -134,7 +142,7 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     await expectRefused(setup, "data not chosen", session, { status: 403, code: "SETUP_DATA_REQUIRED" });
   });
 
-  it("the owner past the gate gets 200 or 201 on every one of the same routes; then the other states are refused with real data and real identifiers", async () => {
+  it("the owner past the gate gets 200, 201 or 204 on every one of the same routes; then the other states are refused with real data and real identifiers", async () => {
     const setup = await installation();
     const { server } = setup;
     const first = await enrolled(setup);
@@ -160,17 +168,22 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     const registry = registryListSchema.parse((await run(route("GET", "/registries"), waga)).json()).registries.find((candidate) => candidate.symbol === "waga");
     if (registry === undefined) throw new Error("the registry was not made");
     await run(route("POST", "/registries"), waga);
-    expect((await run(route("POST", "/records"), waga)).status).toBe(201);
-    await run(route("GET", "/records"), waga);
-    const screenReply = await run(route("POST", "/screens"), waga);
-    const ids: Ids = { ...waga, screen: screenSchema.parse(screenReply.json()).id };
+    const added = await run(route("POST", "/records"), waga);
+    expect(added.status).toBe(201);
+    const withRecord: Ids = { ...waga, record: recordSchema.parse(added.json()).id };
+    await run(route("GET", "/records"), withRecord);
+    await run(route("GET", "/records/:recordId"), withRecord);
+    expect((await run(route("PATCH", "/records/:recordId"), withRecord)).status).toBe(200);
+    expect((await run(route("DELETE", "/records/:recordId"), withRecord)).status).toBe(204);
+    const screenReply = await run(route("POST", "/screens"), withRecord);
+    const ids: Ids = { ...withRecord, screen: screenSchema.parse(screenReply.json()).id };
     await run(route("GET", "/screens"), ids);
     await run(route("GET", "/screens/:id"), ids);
     expect((await run(route("PUT", "/design"), ids, designOf(registry, ids.widget))).status).toBe(200);
     await run(route("GET", "/widget-types"), ids);
     await run(route("GET", "/data"), ids);
     expect([...answered.keys()].sort(), "every data route has its positive control").toEqual(DATA_ROUTES.map(keyOf).sort());
-    for (const [key, status] of answered) expect([200, 201], `the owner past the gate on ${key}`).toContain(status);
+    for (const [key, status] of answered) expect([200, 201, 204], `the owner past the gate on ${key}`).toContain(status);
 
     // The same routes with data and real identifiers, in the states that remain.
     await expectRefused(setup, "no session, real data", null, { status: 401, code: "AUTH_REQUIRED" }, ids);

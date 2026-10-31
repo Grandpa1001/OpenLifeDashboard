@@ -17,7 +17,7 @@ import * as registries from "@openlife/contracts/http/registries";
 import * as setup from "@openlife/contracts/http/setup";
 
 export type RouteAccess = "public" | "identity" | "gate" | "data" | "setup";
-export type RouteEntry = Readonly<{ method: "GET" | "POST" | "PUT"; path: string; access: RouteAccess; note: string }>;
+export type RouteEntry = Readonly<{ method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; path: string; access: RouteAccess; note: string }>;
 
 /** Every exported path constant of the contracts, by name. */
 export const PATH_CONSTANTS: Readonly<Record<string, string>> = Object.fromEntries(
@@ -46,6 +46,9 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "POST", path: registries.REGISTRIES_PATH, access: "data", note: "creates a registry and its table from a definition" },
   { method: "GET", path: records.REGISTRY_RECORDS_PATH, access: "data", note: "a page of the records of one registry and their count" },
   { method: "POST", path: records.REGISTRY_RECORDS_PATH, access: "data", note: "adds a record; Idempotency-Key makes a repeat one add" },
+  { method: "GET", path: records.REGISTRY_RECORD_PATH, access: "data", note: "one record of a registry as it is stored now" },
+  { method: "PATCH", path: records.REGISTRY_RECORD_PATH, access: "data", note: "changes a record on the revision the form was built on" },
+  { method: "DELETE", path: records.REGISTRY_RECORD_PATH, access: "data", note: "deletes a record on the revision the owner saw" },
   { method: "GET", path: screens.SCREENS_PATH, access: "data", note: "the owner's screens, in the order they were made" },
   { method: "POST", path: screens.SCREENS_PATH, access: "data", note: "makes the first, empty screen of the owner" },
   { method: "GET", path: screens.SCREEN_PATH, access: "data", note: "the canonical snapshot of a screen with the state of each widget" },

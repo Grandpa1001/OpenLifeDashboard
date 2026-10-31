@@ -1,6 +1,8 @@
 // D15.1 — the rules of one record (Architektura §4.5, §4.6, §18.1) on the schema of F01 and the
 // cases of record-validation.cases.json. AC1: the cases of the fixture and the defaults; AC2: every
 // type, the limits on their edge, all problems at once, the canonical text of a request.
+// D23.1 — the rule of a change: joined with the stored values and checked whole; a kept value is
+// not held to a text limit lowered since it was stored, a new one is.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -8,7 +10,9 @@ import {
   canonicalJson,
   canonicalRecordRequest,
   resolveSortColumn,
+  validateRecordChanges,
   validateRecordValues,
+  type CellValue,
   type RecordPolicy,
   type RecordSchema,
 } from "../../../packages/core/dist/modules/registries/public.js";
@@ -134,5 +138,43 @@ describe("D15.1-AC2 types, limits, all problems, the canonical text", () => {
   it("the rules read nothing from outside", () => {
     const source = readFileSync(path.join(repoRoot, "packages/core/src/modules/registries/domain/record-rules.ts"), "utf8");
     expect(source).not.toMatch(/process\.env|Date\.now|Math\.random|new Date\(|from "node:/);
+  });
+});
+
+describe("D23.1 a change is joined with the stored record and checked whole", () => {
+  const STORED: Readonly<Record<string, CellValue>> = { tytul: "Książka testowa 01", autor: "Autor testowy 2", strony: 10, cena: 1037, data_ukonczenia: null, rozpoczeto: null, przypomnienie: null, ponowne_czytanie: false, status: "planowane" };
+  const change = (values: unknown, policy: RecordPolicy = POLICY, stored: Readonly<Record<string, CellValue>> = STORED) => validateRecordChanges(SCHEMA, stored, values, policy);
+
+  it("a column the change leaves out keeps its stored value, a column given as null becomes null", () => {
+    expect(change({ strony: 12, autor: null })).toEqual({ ok: true, values: { ...STORED, strony: 12, autor: null } });
+  });
+
+  it("a column the record has no value for is null, not the default of the catalog", () => {
+    const withoutStatus = Object.fromEntries(Object.entries(STORED).filter(([symbol]) => symbol !== "status"));
+    expect(change({ strony: 12 }, POLICY, withoutStatus)).toEqual({ ok: true, values: { ...withoutStatus, strony: 12, status: null } });
+  });
+
+  it("an empty change, a change that is not an object, a system and an unknown field are refused and named", () => {
+    expect(change({})).toEqual({ ok: false, issues: [{ path: "values", code: "VALUES_EMPTY" }] });
+    expect(change([])).toEqual({ ok: false, issues: [{ path: "values", code: "VALUES_NOT_OBJECT" }] });
+    expect(change({ revision: 3, kolor: "x", strony: 1 })).toEqual({ ok: false, issues: [{ path: "values.revision", code: "FIELD_SYSTEM" }, { path: "values.kolor", code: "FIELD_UNKNOWN" }] });
+  });
+
+  it("the whole record is checked: a required column set to null or to blanks, a value of a wrong type", () => {
+    expect(change({ tytul: null })).toEqual({ ok: false, issues: [{ path: "values.tytul", code: "VALUE_REQUIRED" }] });
+    expect(change({ tytul: "   ", cena: 10.375 })).toEqual({ ok: false, issues: [{ path: "values.tytul", code: "VALUE_REQUIRED" }, { path: "values.cena", code: "VALUE_INVALID" }] });
+  });
+
+  it("a stored text longer than a lowered limit is kept when the change leaves it out; a new text over the limit is refused", () => {
+    const lowered: RecordPolicy = { ...POLICY, maxTextCodePoints: 10 };
+    const long = { ...STORED, autor: "Autor o bardzo długim nazwisku" };
+    expect(change({ strony: 11 }, lowered, long)).toEqual({ ok: true, values: { ...long, strony: 11 } });
+    expect(change({ autor: "Inny długi autor" }, lowered, long)).toEqual({ ok: false, issues: [{ path: "values.autor", code: "VALUE_INVALID" }] });
+    // A kept value is still held to its type: a stored value that is wrong is not carried on.
+    expect(change({ strony: 11 }, POLICY, { ...STORED, cena: 10.5 })).toEqual({ ok: false, issues: [{ path: "values.cena", code: "VALUE_INVALID" }] });
+  });
+
+  it("the record after the change is held to the size limit", () => {
+    expect(change({ autor: "x".repeat(9_000) }, { ...POLICY, maxRecordBytes: 1024 })).toEqual({ ok: false, issues: [{ path: "values", code: "RECORD_TOO_LARGE" }] });
   });
 });

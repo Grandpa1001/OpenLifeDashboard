@@ -7,10 +7,12 @@
 // AC2: a failing insert leaves no record and no revision; the entry and the record commit or roll
 //      back together; an expired entry does not answer; empty values sort last and the identifier
 //      breaks ties; a name of a column outside the catalog never reaches SQL.
+// D23.1: a change and a delete succeed only on the stored revision, each raises data_revision by
+//      one, a stale revision changes nothing, and a failure later in the unit takes them back.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { openDatabase } from "../../../packages/sqlite/dist/connection/open-database.js";
-import { validateNewRegistry, DEFAULT_REGISTRY_LIMITS, type RecordPageQuery, type RegistryDraft, type StoredRecord, type StoredRegistry } from "../../../packages/core/dist/modules/registries/public.js";
+import { validateNewRegistry, DEFAULT_REGISTRY_LIMITS, type CellValue, type RecordPageQuery, type RegistryDraft, type StoredRecord, type StoredRegistry } from "../../../packages/core/dist/modules/registries/public.js";
 import { bindIdempotencyStore, bindRecordStore, bindRegistryStore, UnsafeIdentifierError } from "../../../packages/sqlite/dist/adapters/registries/public.js";
 import { createUnitOfWork } from "../../../packages/sqlite/dist/transactions/unit-of-work.js";
 import { afterEach, describe, expect, it } from "vitest";
@@ -307,5 +309,81 @@ describe("D15.2-AC2 what must not remain, and what never reaches SQL", () => {
     expect(stored).toEqual(texts);
     expect(rig.rows("SELECT * FROM reg_ksiazki")).toHaveLength(texts.length);
     expect(dataRevision(rig)).toBe(texts.length);
+  });
+});
+
+describe("D23.1 a change and a delete on the stored revision", () => {
+  const changed = (record: StoredRecord, values: Readonly<Record<string, CellValue>>, at = "2026-10-28T09:00:00.000Z"): StoredRecord => ({ ...record, revision: record.revision + 1, updatedAt: at, values: { ...record.values, ...values } });
+  const replace = (rig: IdentityRig, record: StoredRecord, expectedRevision: number) => unitOf(rig).run((ports) => done(ports.records.replaceIfRevision(ports.registries.find(OWNER, BOOKS.symbol)!, record, expectedRevision)));
+  const remove = (rig: IdentityRig, id: string, expectedRevision: number) => unitOf(rig).run((ports) => done(ports.records.deleteIfRevision(ports.registries.find(OWNER, BOOKS.symbol)!, id, expectedRevision)));
+  const value = <T>(result: { ok: boolean; value?: { value: T } }): T => {
+    if (!result.ok || result.value === undefined) throw new Error("the unit failed");
+    return result.value.value;
+  };
+
+  it("the record of F01 is changed on revision 1 to revision 2 with every value written, then the same revision 1 changes nothing", async () => {
+    const rig = await booksRig();
+    const first = recordOf(BOOKS.records[0]!);
+    insertAll(rig, [first, recordOf(BOOKS.records[1]!)]);
+    const next = changed(first, { strony: 12, autor: null, ponowne_czytanie: true });
+    expect(value(replace(rig, next, 1))).toBe(true);
+    expect(findRecord(rig, first.id)).toEqual(next);
+    expect(dataRevision(rig)).toBe(3);
+    // The other record and the creation time are untouched.
+    expect(findRecord(rig, BOOKS.records[1]!.id)).toEqual(recordOf(BOOKS.records[1]!));
+
+    expect(value(replace(rig, changed(first, { strony: 99 }), 1))).toBe(false);
+    expect(findRecord(rig, first.id)).toEqual(next);
+    expect(dataRevision(rig)).toBe(3);
+    rig.reopen();
+    expect(findRecord(rig, first.id)).toEqual(next);
+  });
+
+  it("a delete on a stale revision keeps the record, on the stored one removes it once", async () => {
+    const rig = await booksRig();
+    insertAll(rig, [fresh(1), fresh(2)]);
+    expect(value(remove(rig, fresh(1).id, 2))).toBe(false);
+    expect(findRecord(rig, fresh(1).id)).not.toBeNull();
+    expect(dataRevision(rig)).toBe(2);
+    expect(value(remove(rig, fresh(1).id, 1))).toBe(true);
+    expect(findRecord(rig, fresh(1).id)).toBeNull();
+    expect(dataRevision(rig)).toBe(3);
+    expect(value(remove(rig, fresh(1).id, 1))).toBe(false);
+    expect(page(rig, byCreated(1)).total).toBe(1);
+  });
+
+  it("a change or a delete followed by a failure in the same unit is taken back with its revision", async () => {
+    const rig = await booksRig();
+    insertAll(rig, [fresh(1)]);
+    const before = findRecord(rig, fresh(1).id);
+    expect(() =>
+      unitOf(rig).run((ports) => {
+        const registry = ports.registries.find(OWNER, BOOKS.symbol)!;
+        ports.records.replaceIfRevision(registry, changed(fresh(1), { tytul: "changed" }), 1);
+        ports.records.deleteIfRevision(registry, fresh(1).id, 2);
+        throw new Error("a later port failed");
+      }),
+    ).toThrow(/later port failed/);
+    expect(findRecord(rig, fresh(1).id)).toEqual(before);
+    expect(dataRevision(rig)).toBe(1);
+  });
+
+  it("a record of another owner, of another registry, a column outside the catalog and a revision that is not the next are refused before SQL", async () => {
+    const rig = await booksRig();
+    insertAll(rig, [fresh(1)]);
+    const before = findRecord(rig, fresh(1).id);
+    const own = registryOf(rig);
+    unitOf(rig).read((ports) => {
+      expect(() => ports.records.replaceIfRevision(own, { ...changed(fresh(1), {}), ownerId: "someone-else" }, 1)).toThrow(/does not belong/);
+      expect(() => ports.records.replaceIfRevision(own, changed(fresh(1), { ["tytul\" = 'x' --"]: "x" } as never), 1)).toThrow(/not a column/);
+      expect(() => ports.records.replaceIfRevision(own, { ...changed(fresh(1), {}), revision: 5 }, 1)).toThrow(/by one/);
+      return null;
+    });
+    const foreign: StoredRegistry = { ...own, ownerId: "someone-else" };
+    expect(value(unitOf(rig).run((ports) => done(ports.records.deleteIfRevision(foreign, fresh(1).id, 1))))).toBe(false);
+    expect(findRecord(rig, fresh(1).id)).toEqual(before);
+    // A registry that changed since it was read takes the change back with the whole unit.
+    expect(() => unitOf(rig).run((ports) => done(ports.records.replaceIfRevision({ ...own, schemaRevision: 2 }, changed(fresh(1), { tytul: "x" }), 1)))).toThrow(/changed or was deleted/);
+    expect(findRecord(rig, fresh(1).id)).toEqual(before);
   });
 });

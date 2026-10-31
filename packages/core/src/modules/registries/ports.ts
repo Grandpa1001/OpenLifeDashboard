@@ -54,7 +54,7 @@ export type StoredRecord = Readonly<{
   id: string;
   registryId: string;
   ownerId: string;
-  /** Starts at 1; raised on every update (D23). */
+  /** Starts at 1; raised on every change (D23.1). */
   revision: number;
   createdAt: string;
   updatedAt: string;
@@ -72,6 +72,10 @@ export type RecordPage = Readonly<{ records: readonly StoredRecord[]; total: num
 export interface RecordStore {
   insert(registry: StoredRegistry, record: StoredRecord): void;
   find(registry: StoredRegistry, recordId: string): StoredRecord | null;
+  /** Writes the record over the stored one only while that one still has `expectedRevision`; false when it has not, and nothing is written. */
+  replaceIfRevision(registry: StoredRegistry, record: StoredRecord, expectedRevision: number): boolean;
+  /** Deletes the record only while it still has `expectedRevision`; false when it has not or is gone, and nothing is deleted. */
+  deleteIfRevision(registry: StoredRegistry, recordId: string, expectedRevision: number): boolean;
   /** Sorted by the requested column, then by `id` in the same direction; empty values last. */
   page(registry: StoredRegistry, query: RecordPageQuery): RecordPage;
 }

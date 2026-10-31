@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -2373,6 +2373,48 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D22.1", "D22.2", "D22.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D23.1",
+    ready: true,
+    title: "Changing, deleting and reading one record over HTTP on the revision the form was built on (compare and set)",
+    criteria: ["D23.1-AC1", "D23.1-AC2", "D23.1-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests start the built server and read the rules of core from its build.
+        id: "workspace-build",
+        criteria: ["D23.1-AC1", "D23.1-AC2"],
+        description: "pnpm -r build produces the server with the routes of one record, the rule of a change in core and the compare and set of the record store",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/routes/records.routes.ts", "packages/contracts/src/http/records.ts", "packages/core/src/modules/registries/application/records.ts", "packages/sqlite/src/adapters/registries/record-store.ts"],
+      },
+      {
+        id: "record-change-rules",
+        criteria: ["D23.1-AC1", "D23.1-AC2"],
+        description:
+          "The rule of a change on the schema of F01: the columns it leaves out keep their stored values, the joined record is checked whole (a required title set to null or blanks, a value of a wrong type, the size), an empty change, a system and an unknown field are refused and named, and a stored text longer than a lowered limit is kept while a new one over it is refused",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/registries/record-rules.test.ts"],
+        requires: ["tests/unit/registries/record-rules.test.ts"],
+      },
+      {
+        id: "record-store-revision",
+        criteria: ["D23.1-AC1", "D23.1-AC2"],
+        description:
+          "A real SQLite file: a record of F01 changed on revision 1 has revision 2 and every value written, the same revision 1 again changes nothing; a delete on a stale revision keeps the record and on the stored one removes it once; each write raises data_revision by one; a failure later in the unit takes a change and a delete back with their revision; another owner, a column outside the catalog, a revision that is not the next and a registry changed since it was read never reach a write",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries/record-store.test.ts"],
+        requires: ["tests/integration/registries/record-store.test.ts"],
+      },
+      {
+        id: "record-edit-http",
+        criteria: ["D23.1-AC1", "D23.1-AC2"],
+        description:
+          "Raw HTTP on the built server with Książki of F01: two changes of revision 1 give 200 with revision 2 and 409 RECORD_CONFLICT without a write or a value in the details, the column the first changed stays after the second is made on revision 2, a delete is 204 and data_revision rises by one per write, the same after a restart; a stale schema (checked before the revision), system and unknown fields, an empty change, a required title set to null, a missing or zero revision, an owner in the body and a foreign Origin are refused and write nothing; an unknown record, one of another installation and an unknown registry are 404 for a read, a change and a delete; a delete on a stale revision keeps the record, a repeated delete and a late change are 404; a change repeated after a lost answer is a conflict, and an add repeated with its key is still one record (D15); the route inventory and every state before the gate on the new routes (D13.1, D20.2)",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries/record-edit-http.test.ts", "tests/integration/registries/record-http.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/unit/web/error-message.test.ts"],
+        requires: ["tests/integration/registries/record-edit-http.test.ts", "tests/integration/registries/record-http.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D23.1-regression"),
+    ],
   },
   {
     id: "D19.1",

@@ -11,7 +11,7 @@ export type RecordSchema = Readonly<{ schemaRevision: number; columns: readonly 
 /** Limits of a record, given by the caller (they come from the option catalog, `limits.recordMaxKiB`). */
 export type RecordPolicy = Readonly<{ maxTextCodePoints: number; maxRecordBytes: number }>;
 
-export type RecordIssueCode = "VALUES_NOT_OBJECT" | "FIELD_SYSTEM" | "FIELD_UNKNOWN" | "VALUE_INVALID" | "VALUE_REQUIRED" | "RECORD_TOO_LARGE";
+export type RecordIssueCode = "VALUES_NOT_OBJECT" | "VALUES_EMPTY" | "FIELD_SYSTEM" | "FIELD_UNKNOWN" | "VALUE_INVALID" | "VALUE_REQUIRED" | "RECORD_TOO_LARGE";
 export type RecordIssue = Readonly<{ path: string; code: RecordIssueCode }>;
 export type RecordValuesResult = Readonly<{ ok: true; values: Readonly<Record<string, CellValue>> }> | Readonly<{ ok: false; issues: readonly RecordIssue[] }>;
 
@@ -24,26 +24,25 @@ const BLANK = /^\s*$/u;
 
 const textual = (type: ColumnType): boolean => type === "text" || type === "choice";
 
-/**
- * The values of a new record. Every key must be a column of the schema (an unknown or a system
- * field is refused, not ignored). A column left out takes its default from the catalog; a column
- * given as `null` stays `null`. A required column has a value: not null, and for text not empty and
- * not only white space. Every problem is returned, each with the path of its field.
- */
-export function validateRecordValues(schema: RecordSchema, input: unknown, policy: RecordPolicy): RecordValuesResult {
-  if (!isPlainObject(input)) return { ok: false, issues: [{ path: "values", code: "VALUES_NOT_OBJECT" }] };
-  const issues: RecordIssue[] = [];
+/** Every key of the input that is not a column of the schema: a system field or an unknown one, refused rather than ignored. */
+function foreignFields(schema: RecordSchema, input: Readonly<Record<string, unknown>>): RecordIssue[] {
   const known = new Set(schema.columns.map((column) => column.symbol));
-  for (const key of Object.keys(input)) {
-    if (!known.has(key)) issues.push({ path: `values.${key}`, code: SYSTEM_RECORD_FIELDS.has(key) ? "FIELD_SYSTEM" : "FIELD_UNKNOWN" });
-  }
+  return Object.keys(input)
+    .filter((key) => !known.has(key))
+    .map((key) => ({ path: `values.${key}`, code: SYSTEM_RECORD_FIELDS.has(key) ? "FIELD_SYSTEM" : "FIELD_UNKNOWN" }));
+}
 
+/**
+ * The value of every column checked by its type and its required flag, and the record by its size.
+ * `maxTextCodePointsOf` gives the text limit of a column, so a value kept from the stored record may
+ * be longer than the limit is today (Architektura §4.6).
+ */
+function checkColumns(schema: RecordSchema, valueOf: (column: RecordColumn) => unknown, maxTextCodePointsOf: (column: RecordColumn) => number, policy: RecordPolicy, issues: RecordIssue[]): RecordValuesResult {
   const values: Record<string, CellValue> = {};
   for (const column of schema.columns) {
     const path = `values.${column.symbol}`;
-    const given = Object.hasOwn(input, column.symbol);
-    const value = given ? input[column.symbol] : column.defaultValue;
-    if (!isValidCellValue(column.type, column.typeOptions, value, policy.maxTextCodePoints)) {
+    const value = valueOf(column);
+    if (!isValidCellValue(column.type, column.typeOptions, value, maxTextCodePointsOf(column))) {
       issues.push({ path, code: "VALUE_INVALID" });
       continue;
     }
@@ -58,6 +57,44 @@ export function validateRecordValues(schema: RecordSchema, input: unknown, polic
     issues.push({ path: "values", code: "RECORD_TOO_LARGE" });
   }
   return issues.length === 0 ? { ok: true, values } : { ok: false, issues };
+}
+
+/**
+ * The values of a new record. Every key must be a column of the schema (an unknown or a system
+ * field is refused, not ignored). A column left out takes its default from the catalog; a column
+ * given as `null` stays `null`. A required column has a value: not null, and for text not empty and
+ * not only white space. Every problem is returned, each with the path of its field.
+ */
+export function validateRecordValues(schema: RecordSchema, input: unknown, policy: RecordPolicy): RecordValuesResult {
+  if (!isPlainObject(input)) return { ok: false, issues: [{ path: "values", code: "VALUES_NOT_OBJECT" }] };
+  return checkColumns(
+    schema,
+    (column) => (Object.hasOwn(input, column.symbol) ? input[column.symbol] : column.defaultValue),
+    () => policy.maxTextCodePoints,
+    policy,
+    foreignFields(schema, input),
+  );
+}
+
+/**
+ * The values of a stored record after a change (Architektura §4.6, §18.2): the change names only
+ * the columns it changes, and the record is checked whole after they are joined. A column the
+ * change leaves out keeps its stored value (a column the record has no value for is `null`); that
+ * value is checked by its type but not by the text limit, so lowering the limit never makes an
+ * untouched record impossible to edit. A new value meets the limit of today. A change with no
+ * column is refused: it would raise the revision and change nothing.
+ */
+export function validateRecordChanges(schema: RecordSchema, stored: Readonly<Record<string, CellValue>>, changes: unknown, policy: RecordPolicy): RecordValuesResult {
+  if (!isPlainObject(changes)) return { ok: false, issues: [{ path: "values", code: "VALUES_NOT_OBJECT" }] };
+  if (Object.keys(changes).length === 0) return { ok: false, issues: [{ path: "values", code: "VALUES_EMPTY" }] };
+  const changed = (column: RecordColumn): boolean => Object.hasOwn(changes, column.symbol);
+  return checkColumns(
+    schema,
+    (column) => (changed(column) ? changes[column.symbol] : (stored[column.symbol] ?? null)),
+    (column) => (changed(column) ? policy.maxTextCodePoints : Number.POSITIVE_INFINITY),
+    policy,
+    foreignFields(schema, changes),
+  );
 }
 
 /** JSON with the keys of every object in order, so the same input always gives the same text. */

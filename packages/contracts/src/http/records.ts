@@ -1,14 +1,18 @@
 import { z } from "zod";
 import { REGISTRIES_PATH } from "./registries.js";
 
-// The records of a registry over HTTP (Architektura §5.4, §6; D15.3). A request carries values
-// and the revision of the schema the form was built on; the identifier, the owner, the times and
+// The records of a registry over HTTP (Architektura §5.4, §6, §18.2; D15.3, D23.1). A request
+// carries values and the revision of the schema the form was built on; a change and a delete also
+// carry the revision of the record they were built on; the identifier, the owner, the times and
 // the revision of the record are the server's, and a field the contract does not know is refused.
 // What a value may be is core/registries' rule; here only the shape is checked.
 
 export const registryRecordsPath = (symbol: string): string => `${REGISTRIES_PATH}/${symbol}/records`;
 /** The route as the server registers it. */
 export const REGISTRY_RECORDS_PATH = `${REGISTRIES_PATH}/:symbol/records` as const;
+export const registryRecordPath = (symbol: string, recordId: string): string => `${registryRecordsPath(symbol)}/${recordId}`;
+/** One record: read (`GET`), changed (`PATCH`) and deleted (`DELETE`). */
+export const REGISTRY_RECORD_PATH = `${REGISTRY_RECORDS_PATH}/:recordId` as const;
 
 /** The header that makes a repeated add one add (Architektura §4.6). */
 export const IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
@@ -25,6 +29,25 @@ export const createRecordRequestSchema = z
   })
   .strict();
 export type CreateRecordRequest = z.infer<typeof createRecordRequestSchema>;
+
+const revisionSchema = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER);
+
+/**
+ * A change of a record: only the columns that change, on the revision of the record and of the
+ * schema the form was built on. The server joins it with the stored values and checks the whole.
+ */
+export const updateRecordRequestSchema = z
+  .object({
+    schemaRevision: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+    expectedRevision: revisionSchema,
+    values: z.record(z.string().max(200), z.unknown()),
+  })
+  .strict();
+export type UpdateRecordRequest = z.infer<typeof updateRecordRequestSchema>;
+
+/** A delete names the revision the owner saw; a record changed since stays. */
+export const deleteRecordRequestSchema = z.object({ expectedRevision: revisionSchema }).strict();
+export type DeleteRecordRequest = z.infer<typeof deleteRecordRequestSchema>;
 
 export const recordSchema = z
   .object({

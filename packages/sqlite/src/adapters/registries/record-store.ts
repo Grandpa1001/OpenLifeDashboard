@@ -1,7 +1,8 @@
-// RecordStore on the handle of a unit of work (Architektura §4.3, §4.6, §5.4; D15.2): the rows of
-// `reg_<symbol>`. Every identifier of a statement is taken from the registry of the catalog and
-// passes `quoteIdentifier`; a request supplies only values, bound as parameters. A write raises the
-// `data_revision` of the registry in the same unit (§18.2), and a list is a page and its count read
+// RecordStore on the handle of a unit of work (Architektura §4.3, §4.6, §5.4; D15.2, D23.1): the
+// rows of `reg_<symbol>`. Every identifier of a statement is taken from the registry of the catalog and
+// passes `quoteIdentifier`; a request supplies only values, bound as parameters. A write (an add, a
+// change or a delete) raises the `data_revision` of the registry in the same unit (§18.2); a change
+// and a delete match the stored revision in their own statement (compare and set); and a list is a page and its count read
 // from one handle, so inside a read unit they come from one snapshot.
 import { PAGE_SIZE_MAX, PAGE_SIZE_MIN, tableNameOf, type CellValue, type RecordPage, type RecordPageQuery, type RecordStore, type StoredColumn, type StoredRecord, type StoredRegistry } from "@openlife/core/registries";
 import type { TransactionHandle, TransactionStatement } from "../../transactions/unit-of-work.js";
@@ -65,6 +66,31 @@ export function bindRecordStore(tx: TransactionHandle): RecordStore {
       // The catalog row is matched on the schema the record was checked against, so a registry that
       // changed or was deleted since it was read takes the insert back with the whole unit.
       if (raiseRevision.run(registry.id, registry.ownerId, registry.schemaRevision).changes !== 1) throw new TypeError("the registry changed or was deleted since it was read");
+    },
+
+    replaceIfRevision(registry, record, expectedRevision): boolean {
+      const table = tableOf(registry);
+      if (registry.deletedAt !== null) throw new TypeError("a record of a deleted registry cannot be changed");
+      if (record.registryId !== registry.id || record.ownerId !== registry.ownerId) throw new TypeError("the record does not belong to this registry");
+      if (record.revision !== expectedRevision + 1) throw new TypeError("a change raises the revision by one");
+      const known = new Set(registry.columns.map((column) => column.symbol));
+      for (const symbol of Object.keys(record.values)) if (!known.has(symbol)) throw new TypeError(`${symbol} is not a column of the registry`);
+
+      const assignments = ["updated_at", "revision", ...registry.columns.map((column) => column.symbol)].map((name) => `${quoteIdentifier(name)} = ?`);
+      const update = prepared(`UPDATE ${table} SET ${assignments.join(", ")} WHERE "id" = ? AND "user_id" = ? AND "revision" = ?`);
+      const changed = update.run(record.updatedAt, record.revision, ...registry.columns.map((column) => encode(column, record.values[column.symbol])), record.id, registry.ownerId, expectedRevision).changes;
+      if (changed === 0) return false;
+      if (raiseRevision.run(registry.id, registry.ownerId, registry.schemaRevision).changes !== 1) throw new TypeError("the registry changed or was deleted since it was read");
+      return true;
+    },
+
+    deleteIfRevision(registry, recordId, expectedRevision): boolean {
+      const table = tableOf(registry);
+      if (registry.deletedAt !== null) throw new TypeError("a record of a deleted registry cannot be deleted");
+      const removed = prepared(`DELETE FROM ${table} WHERE "id" = ? AND "user_id" = ? AND "revision" = ?`).run(recordId, registry.ownerId, expectedRevision).changes;
+      if (removed === 0) return false;
+      if (raiseRevision.run(registry.id, registry.ownerId, registry.schemaRevision).changes !== 1) throw new TypeError("the registry changed or was deleted since it was read");
+      return true;
     },
 
     find(registry, recordId): StoredRecord | null {
