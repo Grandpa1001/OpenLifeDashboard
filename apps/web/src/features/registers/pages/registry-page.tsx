@@ -104,12 +104,21 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
   const columns = registry === null ? [] : formColumns(registry);
 
   return (
-    <main className="page">
+    // The width of the window, as the registry screens are drawn (makieta 08).
+    <main className="page page-wide">
       <nav aria-label={common.t("main.navigation")}>
         <Link to="/registers">{t("title")}</Link>
       </nav>
-      {registry === null ? <h1>{registries.isPending ? t("registry.loading") : symbol}</h1> : <h1>{registry.displayName}</h1>}
-      {registry === null ? null : <p className="registry-symbol">{registry.symbol}</p>}
+      <div className="registry-title">
+        {registry === null ? <h1>{registries.isPending ? t("registry.loading") : symbol}</h1> : <h1>{registry.displayName}</h1>}
+        {registry === null ? null : (
+          <>
+            <code className="registry-symbol">{registry.symbol}</code>
+            <span className="field-hint">{t("registry.symbolFixed")}</span>
+          </>
+        )}
+      </div>
+      {registry === null ? null : <ColumnChips columns={columns} />}
       {added ? <p role="status">{t("record.added")}</p> : null}
 
       {registries.isPending ? <p role="status">{t("registry.loading")}</p> : null}
@@ -124,9 +133,10 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
       {registries.data !== undefined && registry === null ? <p role="alert">{t("registry.notFound")}</p> : null}
 
       {registry === null ? null : (
-        <section aria-labelledby="records-heading">
-          <h2 id="records-heading">{t("table.heading")}</h2>
-          <button
+        <section className="records-section" aria-labelledby="records-heading">
+          <div className="records-toolbar">
+            <h2 id="records-heading">{t("table.heading")}</h2>
+            <button
             ref={addButton}
             type="button"
             onClick={() => {
@@ -135,7 +145,8 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
             }}
           >
             {t("record.add")}
-          </button>
+            </button>
+          </div>
           {records.isPending ? <p role="status">{t("table.loading")}</p> : null}
           {recordsFailure === null ? null : (
             <>
@@ -163,7 +174,7 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
           ) : null}
           {adding ? (
             <AddRecordDialog
-              registry={{ symbol: registry.symbol, schemaRevision: registry.schemaRevision, columns }}
+              registry={{ symbol: registry.symbol, displayName: registry.displayName, schemaRevision: registry.schemaRevision, columns }}
               timeZone={timeZone}
               onClose={closeDialog}
               onSchemaChanged={refreshDefinition}
@@ -181,5 +192,26 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
         </section>
       )}
     </main>
+  );
+}
+
+/** The columns of the registry at a glance (makieta 08): name · type, the places of a number, and whether it is required. */
+function ColumnChips({ columns }: Readonly<{ columns: readonly FormColumn[] }>) {
+  const { t } = useTranslation("registers");
+  return (
+    <section className="column-chips" aria-labelledby="column-chips-heading">
+      <h2 id="column-chips-heading" className="column-chips-heading">
+        {t("registry.columns")}
+      </h2>
+      <ul>
+        {columns.map((column) => (
+          <li key={column.symbol} className="chip">
+            {column.displayName} · {t(`types.${column.type}`)}
+            {column.type === "number" ? ` (${t("registry.places", { count: column.typeOptions.decimalPlaces ?? 0 })})` : null}
+            {column.required ? <span className="chip-required"> {t("registry.required")}</span> : null}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

@@ -74,7 +74,14 @@
   },
   "registry": {
     "loading": "Wczytywanie rejestru…",
-    "notFound": "Nie ma takiego rejestru."
+    "notFound": "Nie ma takiego rejestru.",
+    "symbolFixed": "symbol stały — nie zmienia się po utworzeniu",
+    "columns": "Kolumny",
+    "required": "wymagana",
+    "places_one": "{{count}} miejsce",
+    "places_few": "{{count}} miejsca",
+    "places_many": "{{count}} miejsc",
+    "places_other": "{{count}} miejsca"
   },
   "table": {
     "heading": "Rekordy",
@@ -100,7 +107,10 @@
     "yes": "Tak",
     "no": "Nie",
     "moneyHint": "Kwota, np. 10,37.",
-    "added": "Dodano rekord."
+    "added": "Dodano rekord.",
+    "addTo": "Dodaj rekord — {{name}}",
+    "close": "Zamknij okno",
+    "closesAfterSave": "Okno zamknie się po zapisaniu na serwerze."
   },
   "recordIssues": {
     "VALUE_REQUIRED": "To pole jest wymagane.",

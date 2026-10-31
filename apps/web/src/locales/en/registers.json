@@ -70,7 +70,12 @@
   },
   "registry": {
     "loading": "Loading the registry…",
-    "notFound": "There is no such registry."
+    "notFound": "There is no such registry.",
+    "symbolFixed": "permanent symbol — it does not change once created",
+    "columns": "Columns",
+    "required": "required",
+    "places_one": "{{count}} place",
+    "places_other": "{{count}} places"
   },
   "table": {
     "heading": "Records",
@@ -94,7 +99,10 @@
     "yes": "Yes",
     "no": "No",
     "moneyHint": "An amount, e.g. 10.37.",
-    "added": "The record was added."
+    "added": "The record was added.",
+    "addTo": "Add a record — {{name}}",
+    "close": "Close the window",
+    "closesAfterSave": "The window closes once the server has saved."
   },
   "recordIssues": {
     "VALUE_REQUIRED": "This field is required.",

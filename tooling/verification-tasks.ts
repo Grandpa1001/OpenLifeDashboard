@@ -2326,6 +2326,55 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D22.3",
+    ready: true,
+    title: "Every column type through the window of a record and the table (makieta 08): F01 typed in is stored as the fixture holds it, F03 over HTTP",
+    criteria: ["D22.3-AC1", "D22.3-AC2", "D22.3-regression"],
+    checks: [
+      {
+        // Runs first: the browser and HTTP tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D22.3-AC1", "D22.3-AC2"],
+        description: "pnpm -r build: the SPA with the page of a registry and the window of a record",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/registers/pages/registry-page.tsx", "apps/web/src/features/registers/components/add-record-dialog.tsx", "apps/web/src/features/registers/components/records-table.tsx"],
+      },
+      {
+        id: "f03-http",
+        criteria: ["D22.3-AC2"],
+        description: "The eight cases of F03 on Książki of F01 over real HTTP on the built server: each gets the status and the code of the fixture, a refusal stores nothing, markup is stored as text",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries/record-types-http.test.ts"],
+        requires: ["tests/integration/registries/record-types-http.test.ts", "tests/fixtures/cases/record-validation.cases.json", "tests/fixtures/books/books-v1.export.json"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D22.3-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/registers.json", "apps/web/src/locales/en/registers.json"],
+      },
+      {
+        id: "record-types-e2e",
+        criteria: ["D22.3-AC1", "D22.3-AC2"],
+        description:
+          "Playwright on a fresh installation: the 25 records of F01 with all nine columns typed into the window one by one are stored value for value as the fixture holds them (amounts in grosze, date-times as the instant of the wall of Warsaw) and list as the pages of the expected file, the table reads them back by type (1037 as 10.37, the date-time in the owner's zone), the columns at a glance; an unfinished date and date-time, an amount with three places and one beyond the safe range are told at their fields with no request, the largest amount is stored exactly; the records of D16.3 with the new marker of a required field; axe",
+        command: ["node", "tests/verification/e2e.ts", "record-types", "records"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/record-types.spec.ts", "tests/e2e/records.spec.ts", "tests/e2e/fixtures.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D22.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the values in the web app, the form of a registry and the window of a record.
+  {
+    id: "D22",
+    ready: true,
+    title: "Every column type: canonical values, the form of a registry as rows and the window of a record",
+    steps: ["D22.1", "D22.2", "D22.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",

@@ -428,7 +428,7 @@ main.page-wide {
 }
 
 .dialog {
-  width: min(32rem, calc(100vw - 2 * var(--space-4)));
+  width: min(40rem, calc(100vw - 2 * var(--space-4)));
   max-height: calc(100vh - 2 * var(--space-4));
   overflow-y: auto;
   padding: var(--space-6);
@@ -449,7 +449,111 @@ main.page-wide {
 }
 
 .required {
+  color: var(--color-danger);
   font-weight: 400;
+}
+
+/* The page of one registry (makieta 08): the title with its permanent symbol, the columns at a glance, the records. */
+.registry-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.registry-title .registry-symbol {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.column-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.column-chips-heading {
+  margin: 0 var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+}
+
+.column-chips ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+}
+
+.chip-required {
+  color: var(--color-danger);
+}
+
+.records-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.records-section table {
+  width: 100%;
+}
+
+.records-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dialog-header,
+.dialog-footer {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.dialog-header {
+  justify-content: space-between;
+}
+
+.dialog-header .link-button {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  font-size: var(--text-xl);
+  text-decoration: none;
+}
+
+.dialog-footer {
+  flex-wrap: wrap;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.dialog-footer .field-hint {
+  margin-right: auto;
+}
+
+/* Two fields side by side where the window is wide enough; a long text keeps the whole width. */
+.record-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-4);
 }
 
 .topbar {

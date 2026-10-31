@@ -18,14 +18,20 @@ const isKnownIssue = (code: string): code is KnownIssue => (KNOWN_ISSUES as read
 const VALUES_PREFIX = "values.";
 const WHOLE_RECORD = "values";
 
-type Registry = Readonly<{ symbol: string; schemaRevision: number; columns: readonly (FormColumn & { position: number })[] }>;
+type Registry = Readonly<{ symbol: string; displayName: string; schemaRevision: number; columns: readonly (FormColumn & { position: number })[] }>;
+
+/** Types whose native field (date, time, date and time) can hold an unfinished entry that reads as empty. */
+const NATIVE_TYPES: ReadonlySet<FormColumn["type"]> = new Set(["date", "time", "datetime"]);
+/** Marks such a field with the symbol of its column, so the check at sending finds it. */
+const SYMBOL_ATTRIBUTE = "data-column";
 
 /**
  * The window that adds a record (Scope §6.2): a field for every column of the registry, the
  * defaults of the catalog already in place, the required ones marked. It closes only when the
  * server has answered; a refusal leaves it open with the message at the field. The key of the
  * attempt is kept while the request is the same, so a repeat after a lost answer is not a second
- * record; a changed value or a changed schema is a new request and gets a new key.
+ * record; a changed value or a changed schema is a new request and gets a new key. A native date or
+ * time field left unfinished reads as an empty text: it is told at the field, never sent as null.
  */
 export function AddRecordDialog({
   registry,
@@ -91,9 +97,17 @@ export function AddRecordDialog({
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (inFlight.current !== null) return;
+    // Read at the moment of sending (Enter sends without leaving the field): the browser's own word that an entry is unfinished.
+    const unfinished = new Set(
+      [...event.currentTarget.querySelectorAll<HTMLInputElement>(`input[${SYMBOL_ATTRIBUTE}]`)].filter((input) => input.validity.badInput).map((input) => input.getAttribute(SYMBOL_ATTRIBUTE)),
+    );
     const values: Record<string, CellValue> = {};
     const unreadable = new Map<string, string>();
     for (const column of ordered) {
+      if (unfinished.has(column.symbol)) {
+        unreadable.set(column.symbol, "VALUE_INVALID");
+        continue;
+      }
       const parsed = parseInput(column, textOf(column), timeZone);
       if (parsed.ok) values[column.symbol] = parsed.value;
       else unreadable.set(column.symbol, "VALUE_INVALID");
@@ -131,21 +145,27 @@ export function AddRecordDialog({
         onClose();
       }}
     >
-      <form onSubmit={(event) => void submit(event)} noValidate>
-        <h2 id="add-record-heading">{t("record.add")}</h2>
+      <form className="record-form" onSubmit={(event) => void submit(event)} noValidate>
+        <header className="dialog-header">
+          <h2 id="add-record-heading">{t("record.addTo", { name: registry.displayName })}</h2>
+          <button type="button" className="link-button" aria-label={t("record.close")} onClick={onClose}>
+            <span aria-hidden="true">×</span>
+          </button>
+        </header>
         {problem === null ? null : <FailureAlert message={problem} />}
         {whole === undefined ? null : (
           <p className="field-error" role="alert">
             {isKnownIssue(whole) ? t(`recordIssues.${whole}`) : t("recordIssues.UNKNOWN")}
           </p>
         )}
+        <div className="record-fields">
         {ordered.map((column) => {
           const code = issues.get(column.symbol);
           const error = code === undefined ? null : isKnownIssue(code) ? t(`recordIssues.${code}`) : t("recordIssues.UNKNOWN");
           const label = (
             <>
               {column.displayName}
-              {column.required ? <span className="required"> ({t("record.required")})</span> : null}
+              {column.required ? <span className="required"> · {t("record.required")}</span> : null}
             </>
           );
           return column.type === "boolean" ? (
@@ -163,19 +183,22 @@ export function AddRecordDialog({
               hint={column.type === "money" ? t("record.moneyHint") : undefined}
               value={textOf(column)}
               onChange={(event) => edit(column.symbol, event.target.value)}
+              {...(NATIVE_TYPES.has(column.type) ? { [SYMBOL_ATTRIBUTE]: column.symbol } : {})}
               error={error}
               autoComplete="off"
             />
           );
         })}
-        <div className="form-actions">
-          <button type="submit" disabled={submitting}>
-            {submitting ? t("record.saving") : t("record.save")}
-          </button>
+        </div>
+        <footer className="dialog-footer">
+          <p className="field-hint">{t("record.closesAfterSave")}</p>
           <button type="button" className="link-button" onClick={onClose}>
             {t("record.cancel")}
           </button>
-        </div>
+          <button type="submit" disabled={submitting}>
+            {submitting ? t("record.saving") : t("record.save")}
+          </button>
+        </footer>
       </form>
     </dialog>
   );

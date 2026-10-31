@@ -46,7 +46,7 @@ test.describe("D16.3-AC1 the first record and the pages", () => {
     await expect(dialog(page)).toBeVisible();
     // A field for every column; the required one is marked; the defaults of the catalog are in place.
     await expect(dialog(page).locator("input, select")).toHaveCount(9);
-    await expect(dialog(page).getByText(`(${text(registers, "record.required")})`)).toHaveCount(1);
+    await expect(dialog(page).getByText(`· ${text(registers, "record.required")}`)).toHaveCount(1);
     await expect(field(page, "Status")).toHaveValue("planowane");
     await expect(field(page, "Ponowne czytanie")).toHaveValue("false");
     await expectNoViolations(page);

@@ -42,7 +42,7 @@ export function AddRecordForRegistry({ symbol, onAdded, onClose }: Readonly<{ sy
   }));
   return (
     <AddRecordDialog
-      registry={{ symbol: registry.symbol, schemaRevision: registry.schemaRevision, columns }}
+      registry={{ symbol: registry.symbol, displayName: registry.displayName, schemaRevision: registry.schemaRevision, columns }}
       timeZone={timeZone}
       onAdded={onAdded}
       onClose={onClose}
