@@ -10,17 +10,16 @@ import { SelectField } from "../../../lib/forms/select-field.js";
 import { createRegistry } from "../api/create-registry.js";
 import {
   COLUMN_TYPES,
-  BOOLEAN_CHOICE,
   COLUMN_FIELD,
   columnPath,
   columnPaths,
+  columnsWithIssues,
   type ColumnField,
   DECIMAL_PLACES_MAX,
   emptyColumn,
   liveProblems,
   REGISTRY_PATH,
   requestOf,
-  TYPES_WITH_DEFAULT,
   withSuggestedSymbol,
   type ColumnDraft,
   type ColumnTypeCode,
@@ -84,8 +83,10 @@ export function NewRegistryForm({
     const server = serverIssues.get(path);
     const code = server ?? live.get(path);
     if (code === undefined) return null;
-    const immediate = code === "SYMBOL_PATTERN" || code === "SYMBOL_TOO_LONG" || code === "SYMBOL_TAKEN" || code === "DEFAULT_INVALID";
+    const immediate = code === "SYMBOL_PATTERN" || code === "SYMBOL_TOO_LONG" || code === "SYMBOL_TAKEN";
     if (server === undefined && !immediate && !attempted) return null;
+    // A symbol repeated among the columns is taken in this registry, not by another registry (makieta 07).
+    if (code === "SYMBOL_TAKEN" && path.startsWith(`${REGISTRY_PATH.columns}.`)) return t("issues.COLUMN_SYMBOL_TAKEN");
     return isKnownIssue(code) ? t(`issues.${code}`) : t("issues.UNKNOWN");
   }
 
@@ -165,65 +166,85 @@ export function NewRegistryForm({
   }
 
   const overall = errorFor(REGISTRY_PATH.columns) ?? errorFor(REGISTRY_PATH.registry);
+  // Every field that shows why it is not accepted; while there is one, the form is not sent (makieta 18, wzorzec 5).
+  const fieldPaths = [REGISTRY_PATH.name, REGISTRY_PATH.symbol, ...draft.columns.flatMap((_, index) => Object.values(columnPaths(index)))];
+  const shown = fieldPaths.filter((path) => errorFor(path) !== null);
+  const rowsToFix = columnsWithIssues(shown).size;
+  // A refusal of the whole registry (the limit) is told above the form and no edit clears it, so it does not block a new attempt.
+  const blocked = shown.length > 0 || errorFor(REGISTRY_PATH.columns) !== null;
+  const summary = rowsToFix > 0 ? t("form.fixColumns", { count: rowsToFix }) : blocked ? t("form.fixFields") : null;
 
   return (
-    <form className="card" onSubmit={(event) => void submit(event)} noValidate aria-labelledby="new-registry-heading">
+    <form className="registry-form" onSubmit={(event) => void submit(event)} noValidate aria-labelledby="new-registry-heading">
       <h2 id="new-registry-heading" ref={headingRef} tabIndex={-1}>
         {t("form.heading")}
       </h2>
       {problem === null ? null : <FailureAlert message={problem} />}
-      <Field label={t("form.name")} value={draft.displayName} onChange={(event) => renameRegistry(event.target.value)} error={errorFor(REGISTRY_PATH.name)} autoComplete="off" required />
-      <Field
-        label={t("form.symbol")}
-        hint={t("form.symbolHint", { max: SYMBOL_MAX_LENGTH })}
-        value={draft.symbol}
-        onChange={(event) => typeRegistrySymbol(event.target.value)}
-        error={errorFor(REGISTRY_PATH.symbol)}
-        autoComplete="off"
-        autoCapitalize="none"
-        spellCheck={false}
-        required
-      />
-      <fieldset className="columns">
+      <div className="card registry-identity">
+        <Field label={t("form.name")} value={draft.displayName} onChange={(event) => renameRegistry(event.target.value)} error={errorFor(REGISTRY_PATH.name)} autoComplete="off" required />
+        <Field
+          label={t("form.symbol")}
+          hint={t("form.symbolHint", { max: SYMBOL_MAX_LENGTH })}
+          value={draft.symbol}
+          onChange={(event) => typeRegistrySymbol(event.target.value)}
+          error={errorFor(REGISTRY_PATH.symbol)}
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          required
+        />
+      </div>
+      <fieldset className="card columns">
         <legend>{t("form.columns")}</legend>
+        <p className="field-hint">{t("form.rowHint")}</p>
         {overall === null ? null : (
           <p className="field-error" role="alert">
             {overall}
           </p>
         )}
+        <div className="column-row column-head" aria-hidden="true">
+          <span>{t("form.head.name")}</span>
+          <span>{t("form.head.symbol")}</span>
+          <span>{t("form.head.type")}</span>
+          <span>{t("form.head.required")}</span>
+          <span />
+        </div>
         {draft.columns.map((column, index) => (
-          <ColumnEditor
+          <ColumnRow
             key={column.key}
             index={index}
             column={column}
             errorFor={errorFor}
             onName={(displayName) => editColumn(index, (current) => (current.symbolEdited ? { ...current, displayName } : { ...current, displayName, symbol: displayName.trim() === "" ? "" : withSuggestedSymbol({ ...current, displayName }, columnSymbolsExcept(draft.columns, index)).symbol }), [COLUMN_FIELD.name, COLUMN_FIELD.symbol])}
             onSymbol={(symbol) => editColumn(index, (current) => ({ ...current, symbol, symbolEdited: true }), [COLUMN_FIELD.symbol])}
-            onType={(type) => editColumn(index, (current) => ({ ...current, type, decimalPlaces: 0, defaultValue: "" }), [COLUMN_FIELD.type, COLUMN_FIELD.options, COLUMN_FIELD.default])}
-            onDecimals={(decimalPlaces) => editColumn(index, (current) => ({ ...current, decimalPlaces }), [COLUMN_FIELD.options, COLUMN_FIELD.default])}
+            onType={(type) => editColumn(index, (current) => ({ ...current, type, decimalPlaces: 0 }), [COLUMN_FIELD.type, COLUMN_FIELD.options])}
+            onDecimals={(decimalPlaces) => editColumn(index, (current) => ({ ...current, decimalPlaces }), [COLUMN_FIELD.options])}
             onRequired={(required) => editColumn(index, (current) => ({ ...current, required }), [COLUMN_FIELD.required])}
-            onDefault={(defaultValue) => editColumn(index, (current) => ({ ...current, defaultValue }), [COLUMN_FIELD.default])}
             onRemove={() => removeColumn(index)}
             removable={draft.columns.length > 1}
           />
         ))}
-        <button type="button" onClick={addColumn}>
+        <button type="button" className="add-row" onClick={addColumn}>
           {t("form.addColumn")}
         </button>
       </fieldset>
-      <div className="form-actions">
-        <button type="submit" disabled={submitting}>
-          {submitting ? t("form.creating") : t("form.create")}
-        </button>
+      <div className="form-footer">
+        <p className="form-summary" aria-live="polite">
+          {summary}
+        </p>
         <button type="button" className="link-button" onClick={onCancel}>
           {t("form.cancel")}
+        </button>
+        <button type="submit" disabled={submitting || blocked}>
+          {submitting ? t("form.creating") : t("form.create")}
         </button>
       </div>
     </form>
   );
 }
 
-function ColumnEditor({
+/** One column of the new registry as one row (makieta 07): name, symbol, type with its options, required, remove. */
+function ColumnRow({
   index,
   column,
   errorFor,
@@ -233,7 +254,6 @@ function ColumnEditor({
   onType,
   onDecimals,
   onRequired,
-  onDefault,
   onRemove,
 }: Readonly<{
   index: number;
@@ -245,58 +265,45 @@ function ColumnEditor({
   onType: (value: ColumnTypeCode) => void;
   onDecimals: (value: number) => void;
   onRequired: (value: boolean) => void;
-  onDefault: (value: string) => void;
   onRemove: () => void;
 }>) {
   const { t } = useTranslation("registers");
   const position = index + 1;
   const paths = columnPaths(index);
   return (
-    <fieldset className="column-editor">
-      <legend>{t("form.column", { position })}</legend>
-      <Field label={t("form.columnName")} value={column.displayName} onChange={(event) => onName(event.target.value)} error={errorFor(paths.name)} autoComplete="off" required />
-      <Field label={t("form.columnSymbol")} value={column.symbol} onChange={(event) => onSymbol(event.target.value)} error={errorFor(paths.symbol)} autoComplete="off" autoCapitalize="none" spellCheck={false} required />
-      <SelectField label={t("form.type")} value={column.type} onChange={(event) => onType(event.target.value as ColumnTypeCode)} error={errorFor(paths.type)}>
-        {COLUMN_TYPES.map((type) => (
-          <option key={type} value={type}>
-            {t(`types.${type}`)}
-          </option>
-        ))}
-      </SelectField>
-      {column.type === "number" ? (
-        <SelectField label={t("form.decimalPlaces")} value={String(column.decimalPlaces)} onChange={(event) => onDecimals(Number(event.target.value))} error={errorFor(paths.options)}>
-          {Array.from({ length: DECIMAL_PLACES_MAX + 1 }, (_, places) => (
-            <option key={places} value={places}>
-              {places}
+    <fieldset className="column-row">
+      <legend className="visually-hidden">{t("form.column", { position })}</legend>
+      <Field label={t("form.columnName")} labelHidden value={column.displayName} onChange={(event) => onName(event.target.value)} error={errorFor(paths.name)} autoComplete="off" required />
+      <Field label={t("form.columnSymbol")} labelHidden value={column.symbol} onChange={(event) => onSymbol(event.target.value)} error={errorFor(paths.symbol)} autoComplete="off" autoCapitalize="none" spellCheck={false} required />
+      <div className="column-type">
+        <SelectField label={t("form.type")} labelHidden value={column.type} onChange={(event) => onType(event.target.value as ColumnTypeCode)} error={errorFor(paths.type)}>
+          {COLUMN_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {t(`types.${type}`)}
             </option>
           ))}
         </SelectField>
-      ) : null}
-      {TYPES_WITH_DEFAULT.has(column.type) ? <DefaultEditor index={index} column={column} error={errorFor(paths.default)} onChange={onDefault} /> : <p className="field-hint">{t("form.noDefault")}</p>}
-      <label className="check">
+        {column.type === "number" ? (
+          <SelectField label={t("form.decimalPlaces")} labelHidden value={String(column.decimalPlaces)} onChange={(event) => onDecimals(Number(event.target.value))} error={errorFor(paths.options)}>
+            {Array.from({ length: DECIMAL_PLACES_MAX + 1 }, (_, places) => (
+              <option key={places} value={places}>
+                {places}
+              </option>
+            ))}
+          </SelectField>
+        ) : null}
+      </div>
+      <label className="check column-required">
         <input type="checkbox" checked={column.required} onChange={(event) => onRequired(event.target.checked)} />
-        {t("form.required")}
+        <span className="visually-hidden">{t("form.required")}</span>
       </label>
       {removable ? (
-        <button type="button" className="link-button" onClick={onRemove}>
-          {t("form.removeColumn", { position })}
+        <button type="button" className="link-button column-remove" aria-label={t("form.removeColumn", { position })} onClick={onRemove}>
+          {t("form.remove")}
         </button>
-      ) : null}
+      ) : (
+        <span />
+      )}
     </fieldset>
   );
-}
-
-function DefaultEditor({ column, error, onChange }: Readonly<{ index: number; column: ColumnDraft; error: string | null; onChange: (value: string) => void }>) {
-  const { t } = useTranslation("registers");
-  if (column.type === "boolean") {
-    return (
-      <SelectField label={t("form.default")} value={column.defaultValue} onChange={(event) => onChange(event.target.value)} error={error}>
-        <option value="">{t("form.defaultNone")}</option>
-        <option value={BOOLEAN_CHOICE.yes}>{t("form.yes")}</option>
-        <option value={BOOLEAN_CHOICE.no}>{t("form.no")}</option>
-      </SelectField>
-    );
-  }
-  const inputType = column.type === "date" ? "date" : column.type === "time" ? "time" : "text";
-  return <Field label={t("form.default")} type={inputType} inputMode={column.type === "number" ? "decimal" : undefined} value={column.defaultValue} onChange={(event) => onChange(event.target.value)} error={error} autoComplete="off" />;
 }

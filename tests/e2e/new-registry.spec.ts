@@ -1,6 +1,8 @@
-// D16.2 — the form of a new registry in a real browser (Scope §5.5): Książki of F01 is made
-// without SQL, the symbol follows the name and is checked as it is typed, and what the server
-// refuses is shown at its field with everything typed kept.
+// D16.2, D22.2 — the form of a new registry in a real browser (Scope §5.5, makieta 07): one row
+// per column, Książki of F01 is made without SQL, the symbol follows the name and is checked as it
+// is typed, a column gets no default here, and what the server refuses is shown at its field with
+// everything typed kept; while a field shows an error, the summary at the bottom counts the rows
+// to fix and the form is not sent.
 // AC1: Książki is created from the form with its nine columns; the symbol offered is the one the
 //      plan gives; the created registry is on the list with the columns it was given.
 // AC2: a bad symbol, a taken one, a reserved column symbol, a repeated
@@ -40,13 +42,11 @@ const create = (page: Page) => page.getByRole("button", { name: text(registers, 
 const issue = (key: string) => text(registers, `issues.${key}`);
 
 /** One column of the form: the name (the symbol follows it), the type and the rest. */
-async function fillColumn(page: Page, position: number, spec: { name: string; type?: string; required?: boolean; decimals?: string; defaultValue?: string; yesNoDefault?: string }): Promise<void> {
+async function fillColumn(page: Page, position: number, spec: { name: string; type?: string; required?: boolean; decimals?: string }): Promise<void> {
   const group = column(page, position);
   await group.getByLabel(text(registers, "form.columnName"), { exact: true }).fill(spec.name);
   if (spec.type !== undefined) await group.getByLabel(text(registers, "form.type"), { exact: true }).selectOption({ label: spec.type });
   if (spec.decimals !== undefined) await group.getByLabel(text(registers, "form.decimalPlaces"), { exact: true }).selectOption(spec.decimals);
-  if (spec.defaultValue !== undefined) await group.getByLabel(text(registers, "form.default"), { exact: true }).fill(spec.defaultValue);
-  if (spec.yesNoDefault !== undefined) await group.getByLabel(text(registers, "form.default"), { exact: true }).selectOption({ label: spec.yesNoDefault });
   if (spec.required === true) await group.getByLabel(text(registers, "form.required"), { exact: true }).check();
 }
 
@@ -71,8 +71,8 @@ test.describe("D16.2-AC1 Książki of F01 from the form", () => {
       { name: "Data ukończenia", type: types("date") },
       { name: "Rozpoczęto", type: types("datetime") },
       { name: "Godzina przypomnienia", type: types("time") },
-      { name: "Ponowne czytanie", type: types("boolean"), yesNoDefault: text(registers, "form.no") },
-      { name: "Status", type: types("choice"), defaultValue: "planowane" },
+      { name: "Ponowne czytanie", type: types("boolean") },
+      { name: "Status", type: types("choice") },
     ];
     for (const [index, spec] of more.entries()) {
       await addColumn(page);
@@ -80,8 +80,10 @@ test.describe("D16.2-AC1 Książki of F01 from the form", () => {
     }
     await expect(column(page, 4).getByLabel(text(registers, "form.columnSymbol"), { exact: true })).toHaveValue("cena");
     await expect(column(page, 3).getByLabel(text(registers, "form.columnSymbol"), { exact: true })).toHaveValue("liczba_stron");
-    // A money column has no default to type here: the conversion of an amount is not the form's job.
-    await expect(column(page, 4).getByLabel(text(registers, "form.default"), { exact: true })).toHaveCount(0);
+    // A row has a name, a symbol, a type (with the places of a number) and the flag; no default (makieta 07).
+    await expect(column(page, 3).getByRole("textbox")).toHaveCount(2);
+    await expect(column(page, 3).getByLabel(text(registers, "form.decimalPlaces"), { exact: true })).toBeVisible();
+    await expect(column(page, 4).getByLabel(text(registers, "form.decimalPlaces"), { exact: true })).toHaveCount(0);
     await expectNoViolations(page);
 
     await create(page).click();
@@ -92,7 +94,7 @@ test.describe("D16.2-AC1 Książki of F01 from the form", () => {
     await expect(card).toContainText("ksiazki");
     await expect(card).toContainText("9 columns");
 
-    // What the server holds is what was typed: the types, the options, the defaults and the flag.
+    // What the server holds is what was typed: the types, the options and the flag, and no default.
     const response = await page.request.get(`${owner.baseUrl}${REGISTRIES_PATH}`);
     const registry = registryListSchema.parse(await response.json()).registries[0]!;
     expect(registry.columns.map((each) => [each.symbol, each.type, each.required, each.defaultValue, each.typeOptions])).toEqual([
@@ -103,8 +105,8 @@ test.describe("D16.2-AC1 Książki of F01 from the form", () => {
       ["data_ukonczenia", "date", false, null, {}],
       ["rozpoczeto", "datetime", false, null, {}],
       ["godzina_przypomnienia", "time", false, null, {}],
-      ["ponowne_czytanie", "boolean", false, false, {}],
-      ["status", "choice", false, "planowane", {}],
+      ["ponowne_czytanie", "boolean", false, null, {}],
+      ["status", "choice", false, null, {}],
     ]);
     expect(query(owner.instance, "SELECT name FROM sqlite_master WHERE name = 'reg_ksiazki'")).toHaveLength(1);
   });
@@ -125,19 +127,22 @@ test.describe("D16.2-AC1 Książki of F01 from the form", () => {
     await expect(registrySymbol(page)).toHaveValue("moje_ksiazki_2");
   });
 
-  test("a number with decimals and a text default are sent in the form the API takes", async ({ page, ownerServer }) => {
+  test("a number with decimals and the required flag are sent in the form the API takes, and no column carries a default", async ({ page, ownerServer }) => {
     const owner = await ownerServer("ready");
     await openRegisters(page, owner);
     await registryName(page).fill("Waga");
-    await fillColumn(page, 1, { name: "Kilogramy", type: types("number"), decimals: "1", defaultValue: "70,5", required: true });
+    await fillColumn(page, 1, { name: "Kilogramy", type: types("number"), decimals: "1", required: true });
     await addColumn(page);
-    await fillColumn(page, 2, { name: "Uwagi", defaultValue: "brak" });
+    await fillColumn(page, 2, { name: "Uwagi" });
+    const sent = page.waitForRequest((request) => request.method() === "POST" && request.url().endsWith(REGISTRIES_PATH));
     await create(page).click();
+    const body = (await sent).postDataJSON() as { columns: Array<Record<string, unknown>> };
+    expect(body.columns.map((each) => Object.hasOwn(each, "defaultValue"))).toEqual([false, false]);
     await expect(page.getByRole("status")).toBeVisible();
     const registry = registryListSchema.parse(await (await page.request.get(`${owner.baseUrl}${REGISTRIES_PATH}`)).json()).registries[0]!;
     expect(registry.columns.map((each) => [each.symbol, each.defaultValue, each.typeOptions, each.required])).toEqual([
-      ["kilogramy", 70.5, { decimalPlaces: 1 }, true],
-      ["uwagi", "brak", {}, false],
+      ["kilogramy", null, { decimalPlaces: 1 }, true],
+      ["uwagi", null, {}, false],
     ]);
   });
 });
@@ -159,7 +164,9 @@ test.describe("D16.2-AC2 what is refused, and what is kept", () => {
     }
     await registrySymbol(page).fill("x".repeat(41));
     await expect(page.getByText(issue("SYMBOL_TOO_LONG"))).toBeVisible();
-    await create(page).click();
+    // While a field says why it is not accepted, the form cannot be sent and the bottom says so.
+    await expect(create(page)).toBeDisabled();
+    await expect(page.getByText(text(registers, "form.fixFields"))).toBeVisible();
     expect(sent).toBe(0);
     await registrySymbol(page).fill("test");
     await expect(page.getByText(issue("SYMBOL_PATTERN"))).toHaveCount(0);
@@ -175,6 +182,8 @@ test.describe("D16.2-AC2 what is refused, and what is kept", () => {
     await expect(page.getByText(issue("NAME_EMPTY"))).toHaveCount(2);
     await expect(page.getByText(issue("SYMBOL_EMPTY"))).toHaveCount(2);
     await expect(registryName(page)).toHaveAttribute("aria-invalid", "true");
+    await expect(page.getByText(text(registers, "form.fixColumns_one").replace("{{count}}", "1"))).toBeVisible();
+    await expect(create(page)).toBeDisabled();
     await expectNoViolations(page);
 
     await registryName(page).fill("Tylko nazwa");
@@ -203,7 +212,7 @@ test.describe("D16.2-AC2 what is refused, and what is kept", () => {
     await expect(page.getByRole("status")).toBeVisible();
   });
 
-  test("a reserved column symbol, a repeated one and a default that does not fit are told at the column", async ({ page, ownerServer }) => {
+  test("a reserved column symbol and a repeated one are told at the column, and the bottom counts the rows to fix", async ({ page, ownerServer }) => {
     const owner = await ownerServer("ready");
     await openRegisters(page, owner);
     await registryName(page).fill("Testy");
@@ -214,21 +223,17 @@ test.describe("D16.2-AC2 what is refused, and what is kept", () => {
     await fillColumn(page, 3, { name: "Pole" });
     // The third column was given a symbol of its own by the suggestion; a repeat typed by hand is told at once.
     await column(page, 3).getByLabel(text(registers, "form.columnSymbol"), { exact: true }).fill("pole");
-    await expect(column(page, 3).getByText(issue("SYMBOL_TAKEN"))).toBeVisible();
+    await expect(column(page, 3).getByText(issue("COLUMN_SYMBOL_TAKEN"))).toBeVisible();
+    await expect(page.getByText(text(registers, "form.fixColumns_one").replace("{{count}}", "1"))).toBeVisible();
+    await expect(create(page)).toBeDisabled();
     await column(page, 3).getByLabel(text(registers, "form.columnSymbol"), { exact: true }).fill("pole_3");
-    await addColumn(page);
-    await fillColumn(page, 4, { name: "Liczba", type: types("number"), defaultValue: "abc" });
-    await expect(column(page, 4).getByText(issue("DEFAULT_INVALID"))).toBeVisible();
-    await column(page, 4).getByLabel(text(registers, "form.default"), { exact: true }).fill("12.5");
-    await expect(column(page, 4).getByText(issue("DEFAULT_INVALID"))).toHaveCount(0);
+    await expect(create(page)).toBeEnabled();
 
-    // `id` passes the live check and 12.5 in a number of no decimal places is a value the server refuses: both at their columns.
+    // `id` passes the live check and is refused by the server: told at its column, with everything typed kept.
     await create(page).click();
     await expect(column(page, 1).getByText(issue("SYMBOL_RESERVED"))).toBeVisible();
-    await expect(column(page, 4).getByText(issue("DEFAULT_INVALID"))).toBeVisible();
     await expect(page.getByRole("status")).toHaveCount(0);
-    await column(page, 4).getByLabel(text(registers, "form.decimalPlaces"), { exact: true }).selectOption("1");
-    await expect(column(page, 4).getByText(issue("DEFAULT_INVALID"))).toHaveCount(0);
+    await expect(column(page, 3).getByLabel(text(registers, "form.columnSymbol"), { exact: true })).toHaveValue("pole_3");
     await column(page, 1).getByLabel(text(registers, "form.columnSymbol"), { exact: true }).fill("identyfikator");
     await expect(column(page, 1).getByText(issue("SYMBOL_RESERVED"))).toHaveCount(0);
     await create(page).click();

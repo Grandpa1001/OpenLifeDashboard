@@ -33,6 +33,10 @@ describe("D08.2 theme tokens", () => {
     expect(contrast(colors[token], colors.bg)).toBeGreaterThanOrEqual(TEXT_MIN);
   });
 
+  it.each(["danger", "warning", "success"] as const)("D22.2 the %s message reaches text contrast on its own surface (makieta 18)", (state) => {
+    expect(contrast(colors[state], colors[`${state}-surface`])).toBeGreaterThanOrEqual(TEXT_MIN);
+  });
+
   it("control borders reach interface contrast on cards and raised surfaces", () => {
     expect(contrast(colors["border-control"], colors.surface)).toBeGreaterThanOrEqual(UI_MIN);
     expect(contrast(colors["border-control"], colors["surface-raised"])).toBeGreaterThanOrEqual(UI_MIN);

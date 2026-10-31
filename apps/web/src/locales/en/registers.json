@@ -30,18 +30,24 @@
     "columnSymbol": "Column symbol",
     "type": "Type",
     "decimalPlaces": "Decimal places",
-    "default": "Default value",
-    "defaultNone": "None",
-    "noDefault": "A default value cannot be set here for this type.",
-    "yes": "Yes",
-    "no": "No",
     "required": "Required",
     "addColumn": "Add a column",
     "removeColumn": "Remove column {{position}}",
     "create": "Create the registry",
     "creating": "Creating…",
     "cancel": "Cancel",
-    "created": "Registry “{{name}}” was created."
+    "created": "Registry “{{name}}” was created.",
+    "rowHint": "One row is one column of the registry.",
+    "head": {
+      "name": "Name",
+      "symbol": "Symbol",
+      "type": "Type",
+      "required": "Required"
+    },
+    "remove": "Remove",
+    "fixFields": "Fix the marked fields.",
+    "fixColumns_one": "{{count}} column needs a fix",
+    "fixColumns_other": "{{count}} columns need a fix"
   },
   "issues": {
     "NAME_EMPTY": "Enter a name.",
@@ -52,6 +58,7 @@
     "SYMBOL_TOO_LONG": "The symbol is too long.",
     "SYMBOL_RESERVED": "This symbol is reserved. Choose another.",
     "SYMBOL_TAKEN": "This symbol is already taken (also by a deleted registry). Choose another.",
+    "COLUMN_SYMBOL_TAKEN": "This symbol is already used in this registry.",
     "TYPE_UNKNOWN": "Unknown type.",
     "TYPE_OPTIONS_INVALID": "The options of the type are not valid.",
     "DEFAULT_INVALID": "The default value does not fit the type.",

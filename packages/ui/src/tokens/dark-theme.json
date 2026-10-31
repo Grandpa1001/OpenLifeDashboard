@@ -8,9 +8,12 @@
     "border-control": "#636D7E",
     "text": "#E6E8EC",
     "text-muted": "#9AA3B2",
-    "danger": "#F2706B",
-    "warning": "#E6B450",
-    "success": "#4FC38A",
+    "danger": "#F0A19A",
+    "danger-surface": "#1C1615",
+    "warning": "#E0B341",
+    "warning-surface": "#1C1A16",
+    "success": "#7FD1B2",
+    "success-surface": "#15201C",
     "on-accent": "#0F1115"
   },
   "accents": {

@@ -1872,7 +1872,7 @@ const definedLater: readonly TaskDefinition[] = [
         id: "new-registry-e2e",
         criteria: ["D16.2-AC1", "D16.2-AC2"],
         description:
-          "Playwright on a fresh installation: Książki of F01 with its nine columns made from the form without SQL (symbols follow the names, the types, decimals, defaults and the required flag reach the server as typed, the table exists), the symbol stops following the name once typed and a taken one gets a number; a wrong symbol is told while typed and nothing is sent, a missing name, symbol and column are told after an attempt; a taken symbol, a reserved column symbol and a default the number does not take come back from the server at their fields with everything typed kept; a repeated column symbol is told at once; a double click makes one registry; the keyboard and the focus; a failing connection keeps the form; axe",
+          "Playwright on a fresh installation: Książki of F01 with its nine columns made from the form without SQL (symbols follow the names, the types, decimals and the required flag reach the server as typed and no default is sent, the table exists), the symbol stops following the name once typed and a taken one gets a number; a wrong symbol is told while typed and nothing is sent, a missing name, symbol and column are told after an attempt; a taken symbol and a reserved column symbol come back from the server at their fields with everything typed kept; a repeated column symbol is told at once; a double click makes one registry; the keyboard and the focus; a failing connection keeps the form; axe",
         command: ["node", "tests/verification/e2e.ts", "new-registry", "registers"],
         requires: ["tests/verification/e2e.ts", "tests/e2e/new-registry.spec.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
         timeoutMs: 15 * 60 * 1000,
@@ -2283,6 +2283,46 @@ const definedLater: readonly TaskDefinition[] = [
         requires: ["tests/unit/web/record-input.test.ts"],
       },
       ...regressionChecks("D22.1-regression"),
+    ],
+  },
+  {
+    id: "D22.2",
+    ready: true,
+    title: "The form of a new registry as rows (makieta 07): one row per column, no default, the rows to fix counted at the bottom, the state colours as tokens",
+    criteria: ["D22.2-AC1", "D22.2-AC2", "D22.2-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D22.2-AC1", "D22.2-AC2"],
+        description: "pnpm -r build: the SPA with the form of a new registry as rows and the tokens of the states",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/registers/components/new-registry-form.tsx", "apps/web/src/features/registers/lib/registry-draft.ts", "packages/ui/src/tokens/dark-theme.json"],
+      },
+      {
+        id: "state-tokens",
+        criteria: ["D22.2-AC1"],
+        description: "The colours of an error, a warning and a success (makieta 18) reach text contrast on cards, raised surfaces, the background and their own surface",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/ui"],
+        requires: ["tests/unit/ui/theme-tokens.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D22.2-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/registers.json", "apps/web/src/locales/en/registers.json"],
+      },
+      {
+        id: "new-registry-rows-e2e",
+        criteria: ["D22.2-AC1", "D22.2-AC2"],
+        description:
+          "Playwright on a fresh installation: Książki of F01 (nine columns, eight types) from rows of the form without SQL, a row has a name, a symbol, a type with the places of a number and the flag and no default, the server holds the types, places and flags and no default, the request carries no defaultValue; a wrong or repeated symbol and a missing name are told at the field of the row, the bottom counts the rows to fix and the form cannot be sent until they are fixed, a refusal of the server is told at its field with everything typed kept; axe; the list of registries on the wide page",
+        command: ["node", "tests/verification/e2e.ts", "new-registry", "registers"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/new-registry.spec.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D22.2-regression"),
     ],
   },
   {

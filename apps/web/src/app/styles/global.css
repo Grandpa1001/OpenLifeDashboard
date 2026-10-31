@@ -263,19 +263,121 @@ main.page-wide {
   font: inherit;
 }
 
-.columns,
-.column-editor {
+/* The form of a new registry (makieta 07): the name and symbol side by side, one row per column, the actions at the bottom. */
+.registry-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  min-width: 0;
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  gap: var(--space-4);
+  width: 100%;
 }
 
-.column-editor {
-  background: var(--color-bg);
+.registry-identity {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: var(--space-4);
+}
+
+.columns {
+  min-width: 0;
+  margin: 0;
+}
+
+.columns legend {
+  float: left;
+  width: 100%;
+  font-weight: 600;
+}
+
+.column-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.2fr) 6rem 5rem;
+  gap: var(--space-3);
+  align-items: start;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.column-head {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.column-type {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.column-type .field:first-child {
+  flex: 1 1 auto;
+}
+
+.column-required {
+  justify-content: center;
+}
+
+.column-head span:nth-child(4) {
+  text-align: center;
+}
+
+.column-remove {
+  min-height: var(--touch-target);
+}
+
+.add-row {
+  align-self: flex-start;
+}
+
+.form-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-4) var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.form-summary {
+  margin-right: auto;
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+}
+
+/* On a phone a column is a stack of fields: the shared headings go, each field shows its own label. */
+@media (max-width: 767px) {
+  .registry-identity,
+  .column-row {
+    grid-template-columns: 1fr;
+  }
+
+  .column-head {
+    display: none;
+  }
+
+  .column-row {
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+  }
+
+  .column-row label.visually-hidden,
+  .column-required .visually-hidden {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+
+  .column-required {
+    justify-content: flex-start;
+  }
 }
 
 .form-actions {
