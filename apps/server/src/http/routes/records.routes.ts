@@ -102,8 +102,8 @@ export function registerRecordRoutes(app: Hono<AppEnv>, deps: RecordRouteDepende
       if (query === null || !query.success) {
         return apiErrorResponse(c, 422, "VALIDATION_FAILED");
       }
-      const { sort, direction, page, pageSize } = query.data;
-      const result = listRecords(records, token, { symbol: symbolOf(c), ...(sort === undefined ? {} : { sort }), ...(direction === undefined ? {} : { direction }), ...(page === undefined ? {} : { page }), ...(pageSize === undefined ? {} : { pageSize }) }, c.get("requestId"));
+      const { sort, direction, page, pageSize, search } = query.data;
+      const result = listRecords(records, token, { symbol: symbolOf(c), ...(sort === undefined ? {} : { sort }), ...(direction === undefined ? {} : { direction }), ...(page === undefined ? {} : { page }), ...(pageSize === undefined ? {} : { pageSize }), ...(search === undefined ? {} : { search }) }, c.get("requestId"));
       if (!result.ok) {
         return refused(c, result.error);
       }

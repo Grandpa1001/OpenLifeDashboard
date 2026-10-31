@@ -2417,6 +2417,41 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D23.2",
+    ready: true,
+    title: "Searching the records of a registry over HTTP: a fragment of the textual columns, letter case aside, wildcards as text",
+    criteria: ["D23.2-AC1", "D23.2-AC2", "D23.2-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests start the built server and use the built store.
+        id: "workspace-build",
+        criteria: ["D23.2-AC1", "D23.2-AC2"],
+        description: "pnpm -r build produces the rule of a search in core, the text fold on every SQLite connection and the search parameter of the list route",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/registries/domain/record-rules.ts", "packages/sqlite/src/connection/open-database.ts", "packages/sqlite/src/adapters/registries/record-store.ts", "packages/contracts/src/http/records.ts"],
+      },
+      {
+        id: "record-search-rules-store",
+        criteria: ["D23.2-AC1", "D23.2-AC2"],
+        description:
+          "The rule of a search (trimmed, white space is no filter, more than 100 code points refused, only text and choice searched) and a real SQLite file with F01: a fragment of any textual column matches in every letter case with the count of the matches, sorted by title and in pages; Ł, Ó, Ź, Ż fold both ways; %, _ and the backslash are text and an SQL fragment is a value; a registry without textual columns matches nothing; a search the rule would not give never reaches SQL; a page of 100 with a search over 50 000 records is measured (p95, printed with the machine) against the budget of §16",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/registries/record-rules.test.ts", "tests/integration/registries/record-store.test.ts"],
+        requires: ["tests/unit/registries/record-rules.test.ts", "tests/integration/registries/record-store.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "record-search-http",
+        criteria: ["D23.2-AC1", "D23.2-AC2"],
+        description:
+          "Raw HTTP on the built server with the 25 records of F01 added through the API: a fragment of a title, an author or a status returns exactly its records and their count in any letter case, sorted by title and in pages, with the revisions of the registry unchanged; % and _ are text, 101 code points is 422 SEARCH_TOO_LONG while 100 padded with spaces is taken, a search given twice is 422, white space lists all 25; the list without a search and the data of a widget are as before (D15.3, D17.4)",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries/record-search-http.test.ts", "tests/integration/registries/record-http.test.ts", "tests/integration/dashboard/dashboard-http.test.ts"],
+        requires: ["tests/integration/registries/record-search-http.test.ts", "tests/integration/registries/record-http.test.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D23.2-regression"),
+    ],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",

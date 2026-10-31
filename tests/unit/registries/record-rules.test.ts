@@ -3,13 +3,17 @@
 // type, the limits on their edge, all problems at once, the canonical text of a request.
 // D23.1 — the rule of a change: joined with the stored values and checked whole; a kept value is
 // not held to a text limit lowered since it was stored, a new one is.
+// D23.2 — the search of a list: trimmed, empty is no filter, more than 100 code points is refused.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   canonicalJson,
   canonicalRecordRequest,
+  isSearchable,
+  resolveSearch,
   resolveSortColumn,
+  SEARCH_MAX_CODE_POINTS,
   validateRecordChanges,
   validateRecordValues,
   type CellValue,
@@ -176,5 +180,22 @@ describe("D23.1 a change is joined with the stored record and checked whole", ()
 
   it("the record after the change is held to the size limit", () => {
     expect(change({ autor: "x".repeat(9_000) }, { ...POLICY, maxRecordBytes: 1024 })).toEqual({ ok: false, issues: [{ path: "values", code: "RECORD_TOO_LARGE" }] });
+  });
+});
+
+describe("D23.2 what a list may search for", () => {
+  it("the text is trimmed, nothing left is no filter, and the limit counts code points", () => {
+    expect(resolveSearch(undefined)).toEqual({ ok: true, search: null });
+    expect(resolveSearch("   ")).toEqual({ ok: true, search: null });
+    expect(resolveSearch("  Książka 1 ")).toEqual({ ok: true, search: "Książka 1" });
+    expect(SEARCH_MAX_CODE_POINTS).toBe(100);
+    // 100 letters beyond the basic plane are 200 UTF-16 units and still within the limit.
+    expect(resolveSearch("𝔸".repeat(100))).toEqual({ ok: true, search: "𝔸".repeat(100) });
+    expect(resolveSearch(` ${"ł".repeat(100)} `)).toEqual({ ok: true, search: "ł".repeat(100) });
+    expect(resolveSearch("ł".repeat(101))).toEqual({ ok: false, issue: { path: "search", code: "SEARCH_TOO_LONG" } });
+  });
+
+  it("only the textual columns are searched", () => {
+    expect(["text", "choice", "number", "money", "date", "datetime", "time", "boolean"].filter((type) => isSearchable(type as never))).toEqual(["text", "choice"]);
   });
 });

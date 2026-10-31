@@ -61,7 +61,14 @@ export type StoredRecord = Readonly<{
   values: Readonly<Record<string, CellValue>>;
 }>;
 
-export type RecordPageQuery = Readonly<{ sort: SortColumn; direction: SortDirection; page: number; pageSize: number }>;
+export type RecordPageQuery = Readonly<{
+  sort: SortColumn;
+  direction: SortDirection;
+  page: number;
+  pageSize: number;
+  /** A fragment looked for in the textual columns, letter case aside; null lists every record. Checked by `resolveSearch`. */
+  search: string | null;
+}>;
 export type RecordPage = Readonly<{ records: readonly StoredRecord[]; total: number }>;
 
 /**
@@ -76,7 +83,7 @@ export interface RecordStore {
   replaceIfRevision(registry: StoredRegistry, record: StoredRecord, expectedRevision: number): boolean;
   /** Deletes the record only while it still has `expectedRevision`; false when it has not or is gone, and nothing is deleted. */
   deleteIfRevision(registry: StoredRegistry, recordId: string, expectedRevision: number): boolean;
-  /** Sorted by the requested column, then by `id` in the same direction; empty values last. */
+  /** Sorted by the requested column, then by `id` in the same direction; empty values last. The count is of the records the search matches. */
   page(registry: StoredRegistry, query: RecordPageQuery): RecordPage;
 }
 

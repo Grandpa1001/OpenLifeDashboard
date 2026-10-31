@@ -73,6 +73,8 @@ export const listRecordsQuerySchema = z
     direction: z.enum(["asc", "desc"]).optional(),
     page: queryInteger.optional(),
     pageSize: queryInteger.optional(),
+    /** A fragment of text; its length after trimming is the rule of core (`SEARCH_TOO_LONG`), the shape only bounds the parameter. */
+    search: z.string().max(1000).optional(),
   });
 export type ListRecordsQuery = z.infer<typeof listRecordsQuerySchema>;
 

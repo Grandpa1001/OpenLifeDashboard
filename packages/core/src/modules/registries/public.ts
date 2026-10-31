@@ -2,8 +2,8 @@
 // need no database. The ports of the catalog are here (D14.2); the use case joins with the route (D14.3).
 export { COLUMN_TYPES, DECIMAL_PLACES_MAX, isColumnType, isValidCellValue, isValidDefault, normalizeTypeOptions } from "./domain/column-rules.js";
 export type { CellValue, ColumnType, ColumnTypeOptions } from "./domain/column-rules.js";
-export { canonicalJson, canonicalRecordRequest, PAGE_SIZE_MAX, PAGE_SIZE_MIN, resolveSortColumn, SYSTEM_RECORD_FIELDS, validateRecordChanges, validateRecordValues } from "./domain/record-rules.js";
-export type { RecordColumn, RecordIssue, RecordIssueCode, RecordPolicy, RecordSchema, RecordValuesResult, SortColumn, SortDirection } from "./domain/record-rules.js";
+export { canonicalJson, canonicalRecordRequest, isSearchable, PAGE_SIZE_MAX, PAGE_SIZE_MIN, resolveSearch, resolveSortColumn, SEARCH_MAX_CODE_POINTS, SYSTEM_RECORD_FIELDS, validateRecordChanges, validateRecordValues } from "./domain/record-rules.js";
+export type { RecordColumn, RecordIssue, RecordIssueCode, RecordPolicy, RecordSchema, RecordValuesResult, SearchResult, SortColumn, SortDirection } from "./domain/record-rules.js";
 export { validateNewRegistry } from "./domain/definition.js";
 export type { ColumnDraft, DefinitionResult, NewColumn, NewRegistry, RegistryContext, RegistryDraft, RegistryIssue, RegistryIssueCode } from "./domain/definition.js";
 export { DEFAULT_REGISTRY_LIMITS, DISPLAY_NAME_MAX_CHARS } from "./domain/limits.js";

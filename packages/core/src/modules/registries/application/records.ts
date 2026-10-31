@@ -9,7 +9,7 @@
 import { DomainFault, type Commit, type ReadUnit, type Result, type UnitOfWork } from "../../../foundation/public.js";
 import { decideAccess, resolveSessionAccess, type IdentityAccessReader, type SessionStore } from "../../identity/public.js";
 import type { RegistryLimits } from "../domain/limits.js";
-import { canonicalRecordRequest, PAGE_SIZE_MAX, PAGE_SIZE_MIN, resolveSortColumn, validateRecordChanges, validateRecordValues, type RecordIssue, type SortDirection } from "../domain/record-rules.js";
+import { canonicalRecordRequest, PAGE_SIZE_MAX, PAGE_SIZE_MIN, resolveSearch, resolveSortColumn, validateRecordChanges, validateRecordValues, type RecordIssue, type SortDirection } from "../domain/record-rules.js";
 import type { IdempotencyStore, RecordStore, RegistryStore, StoredRecord, StoredRegistry } from "../ports.js";
 
 export type RecordPorts = Readonly<{
@@ -176,7 +176,7 @@ export function getRecord(deps: Pick<RecordDependencies, "unit" | "nowMs">, toke
   });
 }
 
-export type RecordListQuery = Readonly<{ symbol: string; sort?: string; direction?: SortDirection; page?: number; pageSize?: number }>;
+export type RecordListQuery = Readonly<{ symbol: string; sort?: string; direction?: SortDirection; page?: number; pageSize?: number; search?: string }>;
 export type RecordListing = Readonly<{
   registry: Readonly<{ schemaRevision: number; dataRevision: number }>;
   records: readonly StoredRecord[];
@@ -185,7 +185,7 @@ export type RecordListing = Readonly<{
   pageSize: number;
 }>;
 
-/** One page of the records of a registry and their count, read in one snapshot after the same gate as every private read. */
+/** One page of the records of a registry and their count (of those the search matches), read in one snapshot after the same gate as every private read. */
 export function listRecords(deps: Pick<RecordDependencies, "unit" | "nowMs">, token: string, query: RecordListQuery, requestId: string): Result<RecordListing> {
   const nowMs = deps.nowMs();
   return deps.unit.read((ports): Result<RecordListing> => {
@@ -204,15 +204,17 @@ export function listRecords(deps: Pick<RecordDependencies, "unit" | "nowMs">, to
     const page = query.page ?? LIST_DEFAULTS.page;
     const pageSize = query.pageSize ?? LIST_DEFAULTS.pageSize;
     const sort = resolveSortColumn(registry.columns, query.sort ?? LIST_DEFAULTS.sort);
+    const search = resolveSearch(query.search);
     const issues = [
       ...(sort === null ? [{ path: "sort", code: "SORT_UNKNOWN" }] : []),
+      ...(search.ok ? [] : [search.issue]),
       ...(!Number.isInteger(page) || page < 1 ? [{ path: "page", code: "PAGE_OUT_OF_RANGE" }] : []),
       ...(!Number.isInteger(pageSize) || pageSize < PAGE_SIZE_MIN || pageSize > PAGE_SIZE_MAX ? [{ path: "pageSize", code: "PAGE_SIZE_OUT_OF_RANGE" }] : []),
     ];
-    if (sort === null || issues.length > 0) {
+    if (sort === null || !search.ok || issues.length > 0) {
       return { ok: false, error: { code: "VALIDATION_FAILED", fields: issues.map((issue) => issue.path), issues } };
     }
-    const found = ports.records.page(registry, { sort, direction: query.direction ?? LIST_DEFAULTS.direction, page, pageSize });
+    const found = ports.records.page(registry, { sort, direction: query.direction ?? LIST_DEFAULTS.direction, page, pageSize, search: search.search });
     return { ok: true, value: { registry: { schemaRevision: registry.schemaRevision, dataRevision: registry.dataRevision }, records: found.records, total: found.total, page, pageSize } };
   });
 }

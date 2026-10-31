@@ -1,5 +1,5 @@
 // The rules of one record of a registry (Architektura §4.5, §4.6, §18.1): which values may be
-// stored, in the canonical form of the API, and what the sort of a list may name. Everything here
+// stored, in the canonical form of the API, and what the sort and the search of a list may name. Everything here
 // is decided from the schema of the registry as the catalog holds it, without a database, a clock
 // or a source of randomness. Converting what a person typed into a canonical value is D22's.
 import { utf8Length } from "../../../foundation/public.js";
@@ -124,3 +124,22 @@ export function resolveSortColumn(columns: readonly Readonly<{ symbol: string }>
 
 export const PAGE_SIZE_MIN = 1;
 export const PAGE_SIZE_MAX = 100;
+
+/** The longest search of a list, in code points after trimming (Architektura §4.5 p. 10). */
+export const SEARCH_MAX_CODE_POINTS = 100;
+
+export type SearchResult = Readonly<{ ok: true; search: string | null }> | Readonly<{ ok: false; issue: Readonly<{ path: "search"; code: "SEARCH_TOO_LONG" }> }>;
+
+/**
+ * What a list searches for: the text without the white space around it, `null` when nothing is
+ * left (no filter). Longer than the limit is refused rather than cut, so a result never answers a
+ * question other than the one asked.
+ */
+export function resolveSearch(requested: string | undefined): SearchResult {
+  const search = requested?.trim() ?? "";
+  if (search.length === 0) return { ok: true, search: null };
+  return [...search].length > SEARCH_MAX_CODE_POINTS ? { ok: false, issue: { path: "search", code: "SEARCH_TOO_LONG" } } : { ok: true, search };
+}
+
+/** The columns a search looks into: the textual ones. A registry without them matches nothing. */
+export const isSearchable = (type: ColumnType): boolean => textual(type);

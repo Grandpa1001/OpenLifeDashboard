@@ -3,8 +3,9 @@
 // passes `quoteIdentifier`; a request supplies only values, bound as parameters. A write (an add, a
 // change or a delete) raises the `data_revision` of the registry in the same unit (§18.2); a change
 // and a delete match the stored revision in their own statement (compare and set); and a list is a page and its count read
-// from one handle, so inside a read unit they come from one snapshot.
-import { PAGE_SIZE_MAX, PAGE_SIZE_MIN, tableNameOf, type CellValue, type RecordPage, type RecordPageQuery, type RecordStore, type StoredColumn, type StoredRecord, type StoredRegistry } from "@openlife/core/registries";
+// from one handle, so inside a read unit they come from one snapshot; a search filters both alike.
+import { isSearchable, PAGE_SIZE_MAX, PAGE_SIZE_MIN, SEARCH_MAX_CODE_POINTS, tableNameOf, type CellValue, type RecordPage, type RecordPageQuery, type RecordStore, type StoredColumn, type StoredRecord, type StoredRegistry } from "@openlife/core/registries";
+import { foldText, TEXT_FOLD_FUNCTION } from "../../connection/open-database.js";
 import type { TransactionHandle, TransactionStatement } from "../../transactions/unit-of-work.js";
 import { quoteIdentifier, UnsafeIdentifierError } from "./registry-ddl.js";
 
@@ -16,6 +17,22 @@ const SYSTEM_SORTS: ReadonlySet<string> = new Set(["created_at", "updated_at", "
 function tableOf(registry: StoredRegistry): string {
   if (registry.tableName !== tableNameOf(registry.symbol)) throw new UnsafeIdentifierError("a table name");
   return quoteIdentifier(registry.tableName);
+}
+
+/** `%`, `_` and the escape itself are the owner's text, not wildcards (Architektura §4.5 p. 10). */
+const likeLiteral = (text: string): string => text.replace(/[\\%_]/g, (character) => `\\${character}`);
+
+/** The filter of a search and its parameters: a fragment of any textual column, both sides folded. */
+function searchFilter(registry: StoredRegistry, search: string | null): { sql: string; params: unknown[] } {
+  if (search === null) return { sql: "", params: [] };
+  if (search.trim() !== search || search.length === 0 || [...search].length > SEARCH_MAX_CODE_POINTS) throw new RangeError("the search is not one resolveSearch gives");
+  const columns = registry.columns.filter((column) => isSearchable(column.type));
+  if (columns.length === 0) return { sql: " AND 0", params: [] };
+  const pattern = `%${likeLiteral(foldText(search))}%`;
+  return {
+    sql: ` AND (${columns.map((column) => `${TEXT_FOLD_FUNCTION}(${quoteIdentifier(column.symbol)}) LIKE ? ESCAPE '\\'`).join(" OR ")})`,
+    params: columns.map(() => pattern),
+  };
 }
 
 const encode = (column: StoredColumn, value: CellValue | undefined): unknown => {
@@ -100,7 +117,7 @@ export function bindRecordStore(tx: TransactionHandle): RecordStore {
 
     page(registry, query: RecordPageQuery): RecordPage {
       const table = tableOf(registry);
-      const { sort, direction, page, pageSize } = query;
+      const { sort, direction, page, pageSize, search } = query;
       if (!Number.isInteger(page) || page < 1 || !Number.isInteger(pageSize) || pageSize < PAGE_SIZE_MIN || pageSize > PAGE_SIZE_MAX) throw new RangeError("the page or its size is out of range");
       if (direction !== "asc" && direction !== "desc") throw new TypeError("unknown sort direction");
       const known = sort.kind === "system" ? SYSTEM_SORTS.has(sort.symbol) : registry.columns.some((column) => column.symbol === sort.symbol);
@@ -109,8 +126,9 @@ export function bindRecordStore(tx: TransactionHandle): RecordStore {
       // Empty values come last in both directions; the identifier breaks every tie the same way.
       const column = quoteIdentifier(sort.symbol);
       const order = [...(sort.kind === "column" ? [`(${column} IS NULL) ASC`] : []), `${column} ${direction === "asc" ? "ASC" : "DESC"}`, ...(sort.symbol === "id" ? [] : [`"id" ${direction === "asc" ? "ASC" : "DESC"}`])];
-      const rows = prepared(`SELECT ${selectList(registry)} FROM ${table} WHERE user_id = ? ORDER BY ${order.join(", ")} LIMIT ? OFFSET ?`).all(registry.ownerId, pageSize, (page - 1) * pageSize) as Row[];
-      const total = (prepared(`SELECT count(*) AS n FROM ${table} WHERE user_id = ?`).get(registry.ownerId) as { n: number }).n;
+      const filter = searchFilter(registry, search);
+      const rows = prepared(`SELECT ${selectList(registry)} FROM ${table} WHERE user_id = ?${filter.sql} ORDER BY ${order.join(", ")} LIMIT ? OFFSET ?`).all(registry.ownerId, ...filter.params, pageSize, (page - 1) * pageSize) as Row[];
+      const total = (prepared(`SELECT count(*) AS n FROM ${table} WHERE user_id = ?${filter.sql}`).get(registry.ownerId, ...filter.params) as { n: number }).n;
       return { records: rows.map((row) => recordOf(registry, row)), total };
     },
   };

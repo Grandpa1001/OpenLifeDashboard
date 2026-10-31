@@ -2,6 +2,7 @@
 // timeout and synchronous=FULL and reads each value back; the writer also confirms WAL. A value
 // that does not stick closes the connection with an error naming the setting, instead of
 // running on weaker guarantees. The writer is opened only by a process holding the writer lease.
+// Every connection also has the text fold a search of records compares with (D23.2).
 import Database from "better-sqlite3";
 
 export type ConnectionRole = "writer" | "reader";
@@ -18,6 +19,14 @@ export type SqliteConnection = Readonly<{
   handle: Database.Database;
   close: () => void;
 }>;
+
+/**
+ * The SQL function that folds the letter case of a text for a search of records. SQLite's own
+ * `lower()` and `LIKE` fold only ASCII, so „Ł” would not find „ł”; this one folds every letter the
+ * platform knows. It is deterministic, and a value that is not text is returned unchanged.
+ */
+export const TEXT_FOLD_FUNCTION = "ol_text_fold";
+export const foldText = (text: string): string => text.normalize("NFC").toLowerCase();
 
 /** SQLite's value of synchronous=FULL. */
 const SYNCHRONOUS_FULL = 2;
@@ -55,6 +64,7 @@ export function openDatabase(file: string, options: ConnectionOptions): SqliteCo
     confirm(db, "synchronous", "FULL", SYNCHRONOUS_FULL);
     // WAL is a property of the database file, set by the writer; a reader only observes it.
     confirm(db, "journal_mode", options.role === "writer" ? "WAL" : undefined, "wal");
+    db.function(TEXT_FOLD_FUNCTION, { deterministic: true }, (value: unknown) => (typeof value === "string" ? foldText(value) : value));
   } catch (error) {
     db.close();
     throw error;

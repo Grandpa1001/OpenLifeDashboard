@@ -7,6 +7,9 @@
 // AC2: a failing insert leaves no record and no revision; the entry and the record commit or roll
 //      back together; an expired entry does not answer; empty values sort last and the identifier
 //      breaks ties; a name of a column outside the catalog never reaches SQL.
+// D23.2: a search finds a fragment of any textual column whatever its letter case, Polish letters
+//      included; `%`, `_` and `\` are text; the count is of the matches; a page of 100 with a search
+//      over 50 000 records is measured against the budget of §16.
 // D23.1: a change and a delete succeed only on the stored revision, each raises data_revision by
 //      one, a stale revision changes nothing, and a failure later in the unit takes them back.
 import { readFileSync } from "node:fs";
@@ -80,7 +83,7 @@ const findRecord = (rig: IdentityRig, id: string): StoredRecord | null => {
   const registry = registryOf(rig);
   return unitOf(rig).read((ports) => ports.records.find(registry, id));
 };
-const byCreated = (pageNumber: number, pageSize = 10): RecordPageQuery => ({ sort: { kind: "system", symbol: "created_at" }, direction: "desc", page: pageNumber, pageSize });
+const byCreated = (pageNumber: number, pageSize = 10): RecordPageQuery => ({ sort: { kind: "system", symbol: "created_at" }, direction: "desc", page: pageNumber, pageSize, search: null });
 const dataRevision = (rig: IdentityRig): number => rig.rows<{ data_revision: number }>("SELECT data_revision FROM registry")[0]!.data_revision;
 
 describe("D15.2-AC1 the 25 records of F01 in the table and back in pages", () => {
@@ -123,13 +126,13 @@ describe("D15.2-AC1 the 25 records of F01 in the table and back in pages", () =>
     const same = "2026-10-27T12:00:00.000Z";
     insertAll(rig, [fresh(1, { autor: "B" }, same), fresh(2, { autor: "A" }, same), fresh(3, {}, same), fresh(4, { autor: "B" }, same), fresh(5, { autor: null }, same)]);
     const sorted = (symbol: string, direction: "asc" | "desc", kind: "column" | "system" = "column") =>
-      page(rig, { sort: kind === "column" ? { kind, symbol } : { kind, symbol: symbol as "id" }, direction, page: 1, pageSize: 10 }).records.map((record) => Number(record.id.slice(-1)));
+      page(rig, { sort: kind === "column" ? { kind, symbol } : { kind, symbol: symbol as "id" }, direction, page: 1, pageSize: 10, search: null }).records.map((record) => Number(record.id.slice(-1)));
     expect(sorted("autor", "asc")).toEqual([2, 1, 4, 3, 5]);
     expect(sorted("autor", "desc")).toEqual([4, 1, 2, 5, 3]);
     expect(sorted("created_at", "asc", "system")).toEqual([1, 2, 3, 4, 5]);
     expect(sorted("created_at", "desc", "system")).toEqual([5, 4, 3, 2, 1]);
     expect(sorted("id", "desc", "system")).toEqual([5, 4, 3, 2, 1]);
-    expect(page(rig, { sort: { kind: "column", symbol: "tytul" }, direction: "asc", page: 1, pageSize: 2 }).records.map((record) => record.values["tytul"])).toEqual(["Book 1", "Book 2"]);
+    expect(page(rig, { sort: { kind: "column", symbol: "tytul" }, direction: "asc", page: 1, pageSize: 2, search: null }).records.map((record) => record.values["tytul"])).toEqual(["Book 1", "Book 2"]);
   });
 
   it("a record of another owner's registry is neither found nor listed", async () => {
@@ -386,4 +389,93 @@ describe("D23.1 a change and a delete on the stored revision", () => {
     expect(() => unitOf(rig).run((ports) => done(ports.records.replaceIfRevision({ ...own, schemaRevision: 2 }, changed(fresh(1), { tytul: "x" }), 1)))).toThrow(/changed or was deleted/);
     expect(findRecord(rig, fresh(1).id)).toEqual(before);
   });
+});
+
+describe("D23.2 a search of the records", () => {
+  const search = (rig: IdentityRig, text: string | null, extra: Partial<RecordPageQuery> = {}) => page(rig, { ...byCreated(1, 100), search: text, ...extra });
+  const titles = (result: { records: readonly StoredRecord[] }) => result.records.map((record) => record.values["tytul"]);
+  const fold = (text: string) => text.normalize("NFC").toLowerCase();
+
+  it("a fragment of any textual column of F01 matches in every letter case, and the count is of the matches", async () => {
+    const rig = await booksRig();
+    insertAll(rig, BOOKS.records.map(recordOf));
+    const matching = (fragment: string) =>
+      BOOKS.records.filter((record) => ["tytul", "autor", "status"].some((symbol) => typeof record.values[symbol] === "string" && fold(record.values[symbol] as string).includes(fold(fragment)))).length;
+    for (const fragment of ["testowa 1", "KSIĄŻKA TESTOWA 1", "książka testowa 0", "autor testowy 3", "PLANOWANE", "ksiazka"]) {
+      const found = search(rig, fragment);
+      expect(found.total, fragment).toBe(matching(fragment));
+      expect(found.records, fragment).toHaveLength(matching(fragment));
+    }
+    expect(search(rig, "KSIĄŻKA TESTOWA 1").total).toBeGreaterThan(1);
+    expect(search(rig, "ksiazka").total).toBe(0);
+
+    // With a sort and pages: the matches in the order of the column, the count of all of them on each page.
+    const sorted = { sort: { kind: "column", symbol: "tytul" } as const, direction: "asc" as const };
+    const all = search(rig, "testowa 1", sorted);
+    const expectedTitles = BOOKS.records.map((record) => record.values["tytul"] as string).filter((title) => fold(title).includes("testowa 1")).sort();
+    expect(titles(all)).toEqual(expectedTitles);
+    const firstTwo = search(rig, "testowa 1", { ...sorted, pageSize: 2 });
+    const nextTwo = search(rig, "testowa 1", { ...sorted, pageSize: 2, page: 2 });
+    expect([...titles(firstTwo), ...titles(nextTwo)]).toEqual(expectedTitles.slice(0, 4));
+    expect([firstTwo.total, nextTwo.total]).toEqual([expectedTitles.length, expectedTitles.length]);
+    expect(search(rig, null).total).toBe(25);
+  });
+
+  it("Polish letters fold both ways; `%`, `_` and the backslash are text, not wildcards", async () => {
+    const rig = await booksRig();
+    insertAll(rig, [fresh(1, { tytul: "Łódź i Żółć" }), fresh(2, { tytul: "100% bawełny" }), fresh(3, { tytul: "a_b" }), fresh(4, { tytul: "C:\\dane" }), fresh(5, { tytul: "acb" }), fresh(6, { tytul: "1000 bawełny" })]);
+    const ids = (text: string) => search(rig, text).records.map((record) => Number(record.id.slice(-1))).sort();
+    expect(ids("ŁÓDŹ")).toEqual([1]);
+    expect(ids("żÓŁĆ")).toEqual([1]);
+    expect(ids("lodz")).toEqual([]);
+    expect(ids("%")).toEqual([2]);
+    expect(ids("0% b")).toEqual([2]);
+    expect(ids("_")).toEqual([3]);
+    expect(ids("a_b")).toEqual([3]);
+    expect(ids("\\")).toEqual([4]);
+    expect(ids("'; DROP TABLE reg_ksiazki; --")).toEqual([]);
+    expect(rig.rows("SELECT 1 FROM reg_ksiazki")).toHaveLength(6);
+  });
+
+  it("a registry without textual columns matches nothing; a search that resolveSearch would not give never reaches SQL", async () => {
+    const rig = await booksRig();
+    insertAll(rig, [fresh(1, { strony: 5 })]);
+    const own = registryOf(rig);
+    const numbersOnly: StoredRegistry = { ...own, columns: own.columns.filter((column) => column.type !== "text" && column.type !== "choice") };
+    unitOf(rig).read((ports) => {
+      expect(ports.records.page(numbersOnly, { ...byCreated(1), search: "5" })).toEqual({ records: [], total: 0 });
+      expect(ports.records.page(numbersOnly, byCreated(1)).total).toBe(1);
+      for (const wrong of ["", " padded ", "x".repeat(101)]) expect(() => ports.records.page(own, { ...byCreated(1), search: wrong }), JSON.stringify(wrong)).toThrow(RangeError);
+      return null;
+    });
+  });
+
+  it("a page of 100 with a search over 50 000 records of ten columns: p95 of the page and its count measured against the budget of §16", async () => {
+    const rig = await booksRig();
+    const COUNT = 50_000;
+    const records = Array.from({ length: COUNT }, (_, index) =>
+      fresh(index + 1, { tytul: `Pozycja ${index + 1} ${index % 7 === 0 ? "Żółta" : "zwykła"}`, autor: `Autor ${index % 997}`, strony: index % 900, cena: index * 3, data_ukonczenia: index % 3 === 0 ? null : "2026-10-01", status: index % 2 === 0 ? "czytam" : "planowane" }, new Date(Date.parse(NOW) + index * 1000).toISOString()),
+    );
+    insertAll(rig, records);
+    const measure = (query: RecordPageQuery) => {
+      const times: number[] = [];
+      let total = 0;
+      for (let run = 0; run < 30; run += 1) {
+        const started = performance.now();
+        total = page(rig, query).total;
+        times.push(performance.now() - started);
+      }
+      times.sort((a, b) => a - b);
+      return { p95: times[Math.ceil(times.length * 0.95) - 1]!, total };
+    };
+    const searched = measure({ ...byCreated(1, 100), search: "ŻÓŁTA" });
+    const deep = measure({ ...byCreated(400, 100), search: "autor 1" });
+    const plain = measure(byCreated(500, 100));
+    process.stdout.write(`D23.2 measurement (${process.platform} ${process.arch}, Node ${process.versions.node}, ${COUNT} records, page 100, 30 runs): search p95 ${searched.p95.toFixed(1)} ms (${searched.total} matches), deep page with search p95 ${deep.p95.toFixed(1)} ms, deep page without p95 ${plain.p95.toFixed(1)} ms\n`);
+    expect(searched.total).toBe(Math.ceil(COUNT / 7));
+    expect(plain.total).toBe(COUNT);
+    // The budget of §16 (300 ms) is checked by the measurement written above, on a stated machine; a
+    // shared CI runner is no such machine, so here only an order of magnitude guards against a scan per record.
+    for (const result of [searched, deep, plain]) expect(result.p95).toBeLessThan(2_000);
+  }, 120_000);
 });

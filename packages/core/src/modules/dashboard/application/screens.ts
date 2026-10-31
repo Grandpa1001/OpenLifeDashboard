@@ -208,7 +208,8 @@ export function readWidgetData(deps: DashboardDependencies, token: string, widge
     const pageSize = typeof configuredSize === "number" ? configuredSize : DEFAULT_PAGE_SIZE;
     if (sort === null) return { ok: true, value: emptyData(widget, "needs_rebinding", page) };
 
-    const listed = ports.records.page(registry, { sort, direction: widget.config["sortDirection"] === "asc" ? "asc" : "desc", page, pageSize });
+    // The widget does not search (Scope §6.2): it lists every record of its registry.
+    const listed = ports.records.page(registry, { sort, direction: widget.config["sortDirection"] === "asc" ? "asc" : "desc", page, pageSize, search: null });
     const rows = listed.records.map((record): DataRow => {
       const values: Record<string, CellValue> = {};
       for (const column of columns) {
