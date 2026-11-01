@@ -19,6 +19,7 @@ import { bindConfigStore } from "@openlife/sqlite/adapters/configuration";
 import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore } from "@openlife/sqlite/adapters/registries";
 import { bindOwnerPreferencesStore } from "@openlife/sqlite/adapters/settings";
 import { DEFAULT_DICTIONARY_LIMITS } from "@openlife/core/dictionaries";
+import { DEFAULT_CONFIG_LIMITS } from "@openlife/core/configuration";
 import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "@openlife/core/registries";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
 import { createWidgetCatalog } from "./adapters/widget-catalog.js";
@@ -263,6 +264,7 @@ const app = createApp({
   registries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
   records: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
   dictionaries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },
+  config: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
   screens: { dashboard: { unit: identityUnit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: environment.baseUrl, logger },
 });
 try {

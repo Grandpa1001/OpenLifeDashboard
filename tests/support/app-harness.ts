@@ -24,6 +24,7 @@ import { bindSignInStores } from "../../packages/sqlite/dist/adapters/identity/s
 import { bindTrustedDeviceStore } from "../../packages/sqlite/dist/adapters/identity/trusted-device-store.js";
 import { bindCatalogReader, bindConfigBindingCounts, bindDashboardStore } from "../../packages/sqlite/dist/adapters/dashboard/public.js";
 import { DEFAULT_DICTIONARY_LIMITS } from "../../packages/core/dist/modules/dictionaries/public.js";
+import { DEFAULT_CONFIG_LIMITS } from "../../packages/core/dist/modules/configuration/public.js";
 import { bindDictionaryLookup, bindDictionaryStore } from "../../packages/sqlite/dist/adapters/dictionaries/public.js";
 import { bindConfigStore } from "../../packages/sqlite/dist/adapters/configuration/public.js";
 import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore } from "../../packages/sqlite/dist/adapters/registries/public.js";
@@ -119,6 +120,7 @@ export async function createAppHarness() {
     registries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
     records: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
     dictionaries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },
+    config: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
   });
 

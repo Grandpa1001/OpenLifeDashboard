@@ -30,6 +30,9 @@ const FALLBACK_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   DICTIONARY_SYMBOL_TAKEN: "A dictionary with this symbol exists",
   DICTIONARY_LIMIT_EXCEEDED: "The limit of dictionaries is reached",
   DICTIONARY_CHANGED: "The dictionary changed since it was loaded; load it again",
+  CONFIG_SYMBOL_TAKEN: "An entry with this symbol exists",
+  CONFIG_LIMIT_EXCEEDED: "The limit of entries is reached",
+  CONFIG_CHANGED: "The entry changed since it was loaded; load it again",
   SCREEN_LIMIT_EXCEEDED: "The limit of screens is reached",
 };
 

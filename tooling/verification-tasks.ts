@@ -2710,6 +2710,39 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D25.2",
+    ready: true,
+    title: "ConfigTable over HTTP: the routes of an entry, the old and the new value only in the audit of the database, never in the technical log",
+    criteria: ["D25.2-AC1", "D25.2-AC2", "D25.2-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests start the built server.
+        id: "workspace-build",
+        criteria: ["D25.2-AC1", "D25.2-AC2"],
+        description: "pnpm -r build produces the server with the routes of ConfigTable and the contracts of an entry",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/routes/config.routes.ts", "packages/contracts/src/http/config.ts"],
+      },
+      {
+        id: "config-http",
+        criteria: ["D25.2-AC1", "D25.2-AC2"],
+        description:
+          "Raw HTTP on the built server: the entry of F01 created, listed as the text 20 with no bindings, read, saved and deleted, uncached; the audit of the database holds the old and the new value of every change, while the technical log, the output of the server and every refusal hold no value; two saves of revision 1 are 200 and 409 CONFIG_CHANGED without a write, a number for a value is 422 VALUE_NOT_TEXT, the rules refuse with their paths, a taken symbol is 409 CONFIG_SYMBOL_TAKEN, a stale delete 409, an unknown entry 404, a field of the owner is refused; a foreign Origin and the session of another installation change and read nothing; the inventory and every state before the gate on the five routes (D13.1, D20.2); the texts of the new codes",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/configuration", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/unit/web/error-message.test.ts"],
+        requires: ["tests/integration/configuration/config-http.test.ts", "tests/integration/configuration/config-entries.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      {
+        id: "check-locales",
+        criteria: ["D25.2-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces, the texts of the new codes among them",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/errors.json", "apps/web/src/locales/en/errors.json"],
+      },
+      ...regressionChecks("D25.2-regression"),
+    ],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",

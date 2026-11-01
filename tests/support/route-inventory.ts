@@ -8,6 +8,7 @@
 //         "data"     — gate and the starting data chosen (the private settings)
 //         "setup"    — gate; the choice of the starting data itself
 import * as bootstrap from "@openlife/contracts/http/bootstrap";
+import * as config from "@openlife/contracts/http/config";
 import * as dictionaries from "@openlife/contracts/http/dictionaries";
 import * as healthStatus from "@openlife/contracts/http/health-status";
 import * as identity from "@openlife/contracts/http/identity";
@@ -22,7 +23,7 @@ export type RouteEntry = Readonly<{ method: "GET" | "POST" | "PUT" | "PATCH" | "
 
 /** Every exported path constant of the contracts, by name. */
 export const PATH_CONSTANTS: Readonly<Record<string, string>> = Object.fromEntries(
-  [bootstrap, dictionaries, healthStatus, identity, mfa, records, registries, screens, setup].flatMap((module) =>
+  [bootstrap, config, dictionaries, healthStatus, identity, mfa, records, registries, screens, setup].flatMap((module) =>
     Object.entries(module).filter((entry): entry is [string, string] => entry[0].endsWith("_PATH") && typeof entry[1] === "string"),
   ),
 );
@@ -55,6 +56,11 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "GET", path: dictionaries.DICTIONARY_PATH, access: "data", note: "one dictionary with its values in order and its usages" },
   { method: "PUT", path: dictionaries.DICTIONARY_PATH, access: "data", note: "saves the whole content on the revision it was loaded with" },
   { method: "DELETE", path: dictionaries.DICTIONARY_PATH, access: "data", note: "deletes a dictionary and unpins its columns; records stay" },
+  { method: "GET", path: config.CONFIG_PATH, access: "data", note: "the owner's entries of ConfigTable with the number of their bindings" },
+  { method: "POST", path: config.CONFIG_PATH, access: "data", note: "creates an entry of ConfigTable; its value is text" },
+  { method: "GET", path: config.CONFIG_ENTRY_PATH, access: "data", note: "one entry of ConfigTable with the number of its bindings" },
+  { method: "PUT", path: config.CONFIG_ENTRY_PATH, access: "data", note: "saves the whole entry on the revision it was loaded with" },
+  { method: "DELETE", path: config.CONFIG_ENTRY_PATH, access: "data", note: "deletes an entry; its bindings stay and are broken" },
   { method: "GET", path: screens.SCREENS_PATH, access: "data", note: "the owner's screens, in the order they were made" },
   { method: "POST", path: screens.SCREENS_PATH, access: "data", note: "makes the first, empty screen of the owner" },
   { method: "GET", path: screens.SCREEN_PATH, access: "data", note: "the canonical snapshot of a screen with the state of each widget" },

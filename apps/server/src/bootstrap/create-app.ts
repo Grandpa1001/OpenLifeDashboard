@@ -8,6 +8,7 @@ import { installHttpFoundation } from "../http/foundation.js";
 import { publicBootstrap } from "../http/routes/bootstrap.routes.js";
 import { health } from "../http/routes/health.routes.js";
 import { registerDictionaryRoutes, type DictionaryRouteDependencies } from "../http/routes/dictionaries.routes.js";
+import { registerConfigRoutes, type ConfigRouteDependencies } from "../http/routes/config.routes.js";
 import { registerIdentityRoutes, type IdentityRouteDependencies } from "../http/routes/identity.routes.js";
 import { registerMfaEnrollmentRoutes, type MfaEnrollmentRouteDependencies } from "../http/routes/mfa-enrollment.routes.js";
 import { registerRecordRoutes, type RecordRouteDependencies } from "../http/routes/records.routes.js";
@@ -35,6 +36,7 @@ export type AppDependencies = Readonly<{
   registries: RegistryRouteDependencies;
   records: RecordRouteDependencies;
   dictionaries: DictionaryRouteDependencies;
+  config: ConfigRouteDependencies;
   screens: ScreenRouteDependencies;
 }>;
 
@@ -54,6 +56,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   registerRegistryRoutes(app, dependencies.registries);
   registerRecordRoutes(app, dependencies.records);
   registerDictionaryRoutes(app, dependencies.dictionaries);
+  registerConfigRoutes(app, dependencies.config);
   registerScreenRoutes(app, dependencies.screens);
   app.all("/api", apiNotFound);
   app.all("/api/*", apiNotFound);

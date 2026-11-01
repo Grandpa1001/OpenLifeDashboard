@@ -24,6 +24,11 @@
       "types": "./dist/http/dictionaries.d.ts",
       "default": "./dist/http/dictionaries.js"
     },
+    "./http/config": {
+      "@openlife/source": "./src/http/config.ts",
+      "types": "./dist/http/config.d.ts",
+      "default": "./dist/http/config.js"
+    },
     "./http/errors": {
       "@openlife/source": "./src/http/errors.ts",
       "types": "./dist/http/errors.d.ts",
