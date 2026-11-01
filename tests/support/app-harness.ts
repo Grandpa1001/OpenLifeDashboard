@@ -23,7 +23,8 @@ import { bindSetupStateStore } from "../../packages/sqlite/dist/adapters/identit
 import { bindSignInStores } from "../../packages/sqlite/dist/adapters/identity/sign-in-ports.js";
 import { bindTrustedDeviceStore } from "../../packages/sqlite/dist/adapters/identity/trusted-device-store.js";
 import { bindCatalogReader, bindDashboardStore } from "../../packages/sqlite/dist/adapters/dashboard/public.js";
-import { bindIdempotencyStore, bindRecordStore, bindRegistryStore } from "../../packages/sqlite/dist/adapters/registries/public.js";
+import { bindDictionaryLookup, bindDictionaryStore } from "../../packages/sqlite/dist/adapters/dictionaries/public.js";
+import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore } from "../../packages/sqlite/dist/adapters/registries/public.js";
 import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "../../packages/core/dist/modules/registries/public.js";
 import { createWidgetCatalog } from "../../apps/server/dist/adapters/widget-catalog.js";
 import { DESIGN_POLICY } from "../../apps/server/dist/bootstrap/design-policy.js";
@@ -63,6 +64,9 @@ export async function createAppHarness() {
     preferences: bindOwnerPreferencesStore(tx),
     registries: bindRegistryStore(tx),
     records: bindRecordStore(tx),
+    dictionaries: bindDictionaryStore(tx),
+    dictionaryLookup: bindDictionaryLookup(tx),
+    columnLinks: bindColumnDictionaryLinks(tx),
     dashboard: bindDashboardStore(tx),
     catalog: bindCatalogReader(tx),
     idempotency: bindIdempotencyStore(tx),

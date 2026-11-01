@@ -16,6 +16,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { closeHarnesses, createAppHarness, HARNESS_EMAIL, HARNESS_PASSWORD } from "../../support/app-harness.ts";
 import { ack, chooseEmpty, codeOf, enrolled, execute, installation, post, query, readyOwner, secretOf, send, serve, signIn, stopServer, stopServers, type Installation } from "../../support/auth-http.ts";
 import { repoRoot } from "../../support/server-process.ts";
+import { withoutDictionary } from "../../support/books-fixture.ts";
 
 afterEach(async () => {
   closeHarnesses();
@@ -29,7 +30,7 @@ const BOOKS = fixture.registries[0]!;
 const booksRequest = () => ({
   symbol: BOOKS.symbol,
   displayName: BOOKS.displayName,
-  columns: BOOKS.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required }) => ({ symbol, displayName, type, typeOptions, defaultValue, required })),
+  columns: BOOKS.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required }) => ({ symbol, displayName, type, typeOptions: withoutDictionary(typeOptions), defaultValue, required })),
 });
 const V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const code = (reply: { json: () => unknown }): string => apiErrorSchema.parse(reply.json()).code;
@@ -54,7 +55,7 @@ describe("D14.3-AC1 the owner creates and lists Książki of F01", () => {
     expect(registry.columns.map((column) => column.id).every((id) => V7.test(id))).toBe(true);
     expect(new Set([registry.id, ...registry.columns.map((column) => column.id)]).size).toBe(10);
     expect(registry.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required, position }) => ({ symbol, displayName, type, typeOptions, defaultValue, required, position }))).toEqual(
-      BOOKS.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required, position }) => ({ symbol, displayName, type, typeOptions, defaultValue, required, position })),
+      BOOKS.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required, position }) => ({ symbol, displayName, type, typeOptions: withoutDictionary(typeOptions), defaultValue, required, position })),
     );
     // Nothing of the engine leaks into the public shape.
     expect(created.text).not.toMatch(/user_id|ownerId|table_?name|reg_ksiazki/i);

@@ -34,6 +34,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { closeRigs, createIdentityRig, done, type IdentityRig } from "../../support/identity-rig.ts";
 import { scratchDir } from "../../support/scratch.ts";
 import { repoRoot } from "../../support/server-process.ts";
+import { F01_DICTIONARY_IDS } from "../../support/books-fixture.ts";
 
 afterEach(closeRigs);
 
@@ -72,7 +73,7 @@ async function booksRig(): Promise<IdentityRig> {
   const rig = await createIdentityRig();
   const draft: RegistryDraft = { symbol: BOOKS.symbol, displayName: BOOKS.displayName, columns: BOOKS.columns };
   unitOf(rig).run((ports) => {
-    const checked = validateNewRegistry(draft, { limits: DEFAULT_REGISTRY_LIMITS, takenRegistrySymbols: new Set(), activeRegistryCount: 0 });
+    const checked = validateNewRegistry(draft, { limits: DEFAULT_REGISTRY_LIMITS, takenRegistrySymbols: new Set(), activeRegistryCount: 0, dictionaryIds: F01_DICTIONARY_IDS });
     if (!checked.ok) throw new Error("the registry of F01 was refused");
     ports.registries.insert({ id: BOOKS.id, ownerId: OWNER, columnIds: BOOKS.columns.map((column) => column.id), definition: checked.value, nowIso: NOW });
     ports.dashboard.create({ id: SCREEN, ownerId: OWNER, name: "Ekran", theme: "dark", accent: "blue", nowIso: NOW });

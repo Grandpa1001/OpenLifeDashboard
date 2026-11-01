@@ -95,3 +95,14 @@ export interface IdempotencyStore {
   find(ownerId: string, operation: string, key: string, nowIso: string): IdempotencyEntry | null;
   put(entry: Readonly<{ ownerId: string; operation: string; key: string; requestHash: string; response: StoredRecord; createdAt: string; expiresAt: string }>): void;
 }
+
+/**
+ * What the registries need of the dictionaries (Architektura §13.4: `DictionaryLabels`), declared
+ * by the registries so that the two modules do not import each other: which dictionaries a column
+ * may name, and the labels of the symbols a page holds. A symbol the dictionary does not have has no
+ * label; a hidden value keeps its label (Scope §5.8).
+ */
+export interface DictionaryLookup {
+  ids(ownerId: string): ReadonlySet<string>;
+  labels(ownerId: string, dictionaryId: string, symbols: readonly string[]): ReadonlyMap<string, string>;
+}

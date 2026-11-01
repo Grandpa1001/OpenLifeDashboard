@@ -14,6 +14,7 @@ import { query, type BrowserOwner } from "../support/auth-http.ts";
 import { repoRoot } from "../support/server-process.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
 import { createRegistry, expectNoViolations, signInFully } from "./owner-session.ts";
+import { withoutDictionary } from "../support/books-fixture.ts";
 
 const registers = locale("en", "registers");
 test.use({ locale: "en-US" });
@@ -62,7 +63,7 @@ async function openBooks(page: Page, owner: BrowserOwner): Promise<void> {
   await createRegistry(page, owner, {
     symbol: BOOKS.symbol,
     displayName: BOOKS.displayName,
-    columns: BOOKS.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required }) => ({ symbol, displayName, type, typeOptions, defaultValue, required })),
+    columns: BOOKS.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required }) => ({ symbol, displayName, type, typeOptions: withoutDictionary(typeOptions), defaultValue, required })),
   });
   await page.goto(`${owner.baseUrl}/registers/${BOOKS.symbol}`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(BOOKS.displayName);

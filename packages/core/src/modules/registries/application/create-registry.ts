@@ -7,12 +7,13 @@ import type { AppendAudit } from "../../audit/public.js";
 import { decideAccess, resolveSessionAccess, type IdentityAccessReader, type SessionStore } from "../../identity/public.js";
 import { validateNewRegistry, type RegistryDraft, type RegistryIssue } from "../domain/definition.js";
 import type { RegistryLimits } from "../domain/limits.js";
-import type { RegistryStore, StoredRegistry } from "../ports.js";
+import type { DictionaryLookup, RegistryStore, StoredRegistry } from "../ports.js";
 
 export type RegistryPorts = Readonly<{
   sessions: Pick<SessionStore, "findActive">;
   access: IdentityAccessReader;
   registries: RegistryStore;
+  dictionaryLookup: DictionaryLookup;
   audit: AppendAudit;
 }>;
 
@@ -56,6 +57,7 @@ export function createRegistry(deps: RegistryDependencies, token: string, draft:
       limits: deps.limits,
       takenRegistrySymbols: ports.registries.takenSymbols(ownerId),
       activeRegistryCount: ports.registries.activeCount(ownerId),
+      dictionaryIds: ports.dictionaryLookup.ids(ownerId),
     });
     if (!checked.ok) {
       throw refusal(checked.issues);

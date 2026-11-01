@@ -164,6 +164,9 @@ jobs:
       - name: Verify D23.2 (searching the records over HTTP)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D23.2
+      - name: Verify D24.1 (the dictionaries in core and SQLite)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D24.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

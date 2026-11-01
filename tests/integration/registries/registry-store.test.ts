@@ -19,6 +19,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { closeRigs, createIdentityRig, done, type IdentityRig } from "../../support/identity-rig.ts";
 import { scratchDir } from "../../support/scratch.ts";
 import { repoRoot } from "../../support/server-process.ts";
+import { F01_DICTIONARY_IDS } from "../../support/books-fixture.ts";
 
 afterEach(closeRigs);
 
@@ -35,7 +36,7 @@ const unitOf = (rig: IdentityRig) => createUnitOfWork(rig.connection, (tx) => ({
 /** What the use case of D14.3 does, in one unit: the rules, the catalog and table, the audit. */
 function create(rig: IdentityRig, draft: RegistryDraft, ids: { registry: string; columns: readonly string[] }, limits: RegistryLimits = DEFAULT_REGISTRY_LIMITS) {
   return unitOf(rig).run((ports) => {
-    const checked = validateNewRegistry(draft, { limits, takenRegistrySymbols: ports.registries.takenSymbols(OWNER), activeRegistryCount: ports.registries.activeCount(OWNER) });
+    const checked = validateNewRegistry(draft, { limits, takenRegistrySymbols: ports.registries.takenSymbols(OWNER), activeRegistryCount: ports.registries.activeCount(OWNER), dictionaryIds: F01_DICTIONARY_IDS });
     if (!checked.ok) return done({ issues: checked.issues });
     ports.registries.insert({ id: ids.registry, ownerId: OWNER, columnIds: ids.columns, definition: checked.value, nowIso: NOW });
     ports.audit.append({ ownerId: OWNER, action: "registry.created", entityId: ids.registry, at: NOW, requestId: "req-1", details: { symbol: checked.value.symbol } });
@@ -245,7 +246,7 @@ describe("D14.2-AC2 what must not remain, and what never reaches the DDL", () =>
 
 /** A definition that passed the rules, for the tests that go around the use case. */
 function validated(symbol: string, columns: ReadonlyArray<Record<string, unknown>> = [{ symbol: "a", displayName: "A", type: "text" }]): NewRegistry {
-  const result = validateNewRegistry({ symbol, displayName: "X", columns }, { limits: DEFAULT_REGISTRY_LIMITS, takenRegistrySymbols: new Set(), activeRegistryCount: 0 });
+  const result = validateNewRegistry({ symbol, displayName: "X", columns }, { limits: DEFAULT_REGISTRY_LIMITS, takenRegistrySymbols: new Set(), activeRegistryCount: 0, dictionaryIds: F01_DICTIONARY_IDS });
   if (!result.ok) throw new Error(JSON.stringify(result.issues));
   return result.value;
 }

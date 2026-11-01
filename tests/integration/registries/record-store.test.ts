@@ -21,6 +21,7 @@ import { createUnitOfWork } from "../../../packages/sqlite/dist/transactions/uni
 import { afterEach, describe, expect, it } from "vitest";
 import { closeRigs, createIdentityRig, done, type IdentityRig } from "../../support/identity-rig.ts";
 import { repoRoot } from "../../support/server-process.ts";
+import { F01_DICTIONARY_IDS } from "../../support/books-fixture.ts";
 
 afterEach(closeRigs);
 
@@ -40,7 +41,7 @@ const draft = (): RegistryDraft => ({ symbol: BOOKS.symbol, displayName: BOOKS.d
 async function booksRig(): Promise<IdentityRig> {
   const rig = await createIdentityRig();
   unitOf(rig).run((ports) => {
-    const checked = validateNewRegistry(draft(), { limits: DEFAULT_REGISTRY_LIMITS, takenRegistrySymbols: new Set(), activeRegistryCount: 0 });
+    const checked = validateNewRegistry(draft(), { limits: DEFAULT_REGISTRY_LIMITS, takenRegistrySymbols: new Set(), activeRegistryCount: 0, dictionaryIds: F01_DICTIONARY_IDS });
     if (!checked.ok) throw new Error("the registry of F01 was refused");
     ports.registries.insert({ id: BOOKS.id, ownerId: OWNER, columnIds: BOOKS.columns.map((column) => column.id), definition: checked.value, nowIso: NOW });
     return done(null);

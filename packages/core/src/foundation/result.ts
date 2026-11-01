@@ -23,6 +23,9 @@ export type FailureCode =
   | "REGISTRY_SYMBOL_TAKEN"
   | "REGISTRY_LIMIT_EXCEEDED"
   | "SCREEN_LIMIT_EXCEEDED"
+  | "DICTIONARY_SYMBOL_TAKEN"
+  | "DICTIONARY_LIMIT_EXCEEDED"
+  | "DICTIONARY_CHANGED"
   | "MAINTENANCE";
 
 /** One reason a request was not valid: where (a field path) and why (a stable code), never the value. */

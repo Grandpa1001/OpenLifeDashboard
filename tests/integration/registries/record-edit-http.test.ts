@@ -17,6 +17,7 @@ import { REGISTRIES_PATH } from "@openlife/contracts/http/registries";
 import { afterEach, describe, expect, it } from "vitest";
 import { installation, post, query, readyOwner, send, serve, stopServer, stopServers, type Installation } from "../../support/auth-http.ts";
 import { repoRoot } from "../../support/server-process.ts";
+import { withoutDictionary } from "../../support/books-fixture.ts";
 
 afterEach(stopServers);
 
@@ -37,7 +38,7 @@ const stored = (setup: Installation) => ({
 async function books(setup: Installation): Promise<{ cookie: string; records: RecordDto[] }> {
   const owner = await readyOwner(setup);
   const cookie = owner.sessionCookie;
-  const definition = { symbol: BOOKS.symbol, displayName: BOOKS.displayName, columns: BOOKS.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required }) => ({ symbol, displayName, type, typeOptions, defaultValue, required })) };
+  const definition = { symbol: BOOKS.symbol, displayName: BOOKS.displayName, columns: BOOKS.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required }) => ({ symbol, displayName, type, typeOptions: withoutDictionary(typeOptions), defaultValue, required })) };
   expect((await post(setup.server, REGISTRIES_PATH, definition, { cookie })).status).toBe(201);
   const records: RecordDto[] = [];
   for (const [index, record] of BOOKS.records.slice(0, 2).entries()) {

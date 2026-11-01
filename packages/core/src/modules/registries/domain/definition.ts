@@ -13,6 +13,7 @@ export type RegistryIssueCode =
   | "NAME_INVALID"
   | "TYPE_UNKNOWN"
   | "TYPE_OPTIONS_INVALID"
+  | "DICTIONARY_UNKNOWN"
   | "DEFAULT_INVALID"
   | "REQUIRED_FLAG_INVALID"
   | "COLUMNS_MISSING"
@@ -42,6 +43,8 @@ export type RegistryContext = Readonly<{
   takenRegistrySymbols: ReadonlySet<string>;
   /** Registries that are not deleted. */
   activeRegistryCount: number;
+  /** The dictionaries of the owner a "choice" column may name (D24.1); records are never checked against them. */
+  dictionaryIds: ReadonlySet<string>;
 }>;
 
 export type DefinitionResult = Readonly<{ ok: true; value: NewRegistry }> | Readonly<{ ok: false; issues: readonly RegistryIssue[] }>;
@@ -49,16 +52,25 @@ export type DefinitionResult = Readonly<{ ok: true; value: NewRegistry }> | Read
 // eslint-disable-next-line no-control-regex -- a control character in a name is exactly what is refused.
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
 
-function nameOf(value: unknown, path: string, issues: RegistryIssue[]): string | null {
-  if (typeof value !== "string") {
-    issues.push({ path, code: "NAME_EMPTY" });
-    return null;
-  }
+export type DisplayNameIssue = "NAME_EMPTY" | "NAME_TOO_LONG" | "NAME_INVALID";
+
+/**
+ * The rule of every display name and label of the catalogs (Architektura Załącznik C): 1–80
+ * characters after trimming, no control characters. The trimmed name, or why it cannot be one.
+ */
+export function checkDisplayName(value: unknown): Readonly<{ ok: true; name: string }> | Readonly<{ ok: false; issue: DisplayNameIssue }> {
+  if (typeof value !== "string") return { ok: false, issue: "NAME_EMPTY" };
   const name = value.trim();
-  if (name === "") issues.push({ path, code: "NAME_EMPTY" });
-  else if (Array.from(name).length > DISPLAY_NAME_MAX_CHARS) issues.push({ path, code: "NAME_TOO_LONG" });
-  else if (CONTROL_CHARACTERS.test(name)) issues.push({ path, code: "NAME_INVALID" });
-  else return name;
+  if (name === "") return { ok: false, issue: "NAME_EMPTY" };
+  if (Array.from(name).length > DISPLAY_NAME_MAX_CHARS) return { ok: false, issue: "NAME_TOO_LONG" };
+  if (CONTROL_CHARACTERS.test(name)) return { ok: false, issue: "NAME_INVALID" };
+  return { ok: true, name };
+}
+
+function nameOf(value: unknown, path: string, issues: RegistryIssue[]): string | null {
+  const checked = checkDisplayName(value);
+  if (checked.ok) return checked.name;
+  issues.push({ path, code: checked.issue });
   return null;
 }
 
@@ -98,6 +110,8 @@ export function validateNewRegistry(draft: RegistryDraft, context: RegistryConte
 
     const options = type === null ? null : normalizeTypeOptions(type, column.typeOptions ?? {});
     if (type !== null && options === null) issues.push({ path: `${at}.typeOptions`, code: "TYPE_OPTIONS_INVALID" });
+    const unknownDictionary = options?.dictionaryId !== undefined && !context.dictionaryIds.has(options.dictionaryId);
+    if (unknownDictionary) issues.push({ path: `${at}.typeOptions.dictionaryId`, code: "DICTIONARY_UNKNOWN" });
 
     const required = column.required ?? false;
     if (typeof required !== "boolean") issues.push({ path: `${at}.required`, code: "REQUIRED_FLAG_INVALID" });
@@ -105,7 +119,7 @@ export function validateNewRegistry(draft: RegistryDraft, context: RegistryConte
     const defaultValue = column.defaultValue ?? null;
     if (type !== null && options !== null && !isValidDefault(type, options, defaultValue, context.limits.textMaxChars)) issues.push({ path: `${at}.defaultValue`, code: "DEFAULT_INVALID" });
 
-    if (columnSymbol !== null && columnName !== null && type !== null && options !== null && typeof required === "boolean" && isValidDefault(type, options, defaultValue, context.limits.textMaxChars)) {
+    if (columnSymbol !== null && columnName !== null && type !== null && options !== null && !unknownDictionary && typeof required === "boolean" && isValidDefault(type, options, defaultValue, context.limits.textMaxChars)) {
       columns.push({ symbol: columnSymbol, displayName: columnName, type, typeOptions: options, defaultValue, required, position });
     }
   });

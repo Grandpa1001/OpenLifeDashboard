@@ -4,8 +4,8 @@ export { COLUMN_TYPES, DECIMAL_PLACES_MAX, isColumnType, isValidCellValue, isVal
 export type { CellValue, ColumnType, ColumnTypeOptions } from "./domain/column-rules.js";
 export { canonicalJson, canonicalRecordRequest, isSearchable, PAGE_SIZE_MAX, PAGE_SIZE_MIN, resolveSearch, resolveSortColumn, SEARCH_MAX_CODE_POINTS, SYSTEM_RECORD_FIELDS, validateRecordChanges, validateRecordValues } from "./domain/record-rules.js";
 export type { RecordColumn, RecordIssue, RecordIssueCode, RecordPolicy, RecordSchema, RecordValuesResult, SearchResult, SortColumn, SortDirection } from "./domain/record-rules.js";
-export { validateNewRegistry } from "./domain/definition.js";
-export type { ColumnDraft, DefinitionResult, NewColumn, NewRegistry, RegistryContext, RegistryDraft, RegistryIssue, RegistryIssueCode } from "./domain/definition.js";
+export { checkDisplayName, validateNewRegistry } from "./domain/definition.js";
+export type { ColumnDraft, DefinitionResult, DisplayNameIssue, NewColumn, NewRegistry, RegistryContext, RegistryDraft, RegistryIssue, RegistryIssueCode } from "./domain/definition.js";
 export { DEFAULT_REGISTRY_LIMITS, DISPLAY_NAME_MAX_CHARS } from "./domain/limits.js";
 export type { RegistryLimits } from "./domain/limits.js";
 export { RESERVED_COLUMN_SYMBOLS } from "./domain/sql-keywords.js";
@@ -13,6 +13,6 @@ export { REGISTRY_TABLE_PREFIX, SYMBOL_MAX_LENGTH, SYMBOL_PATTERN, checkSymbol, 
 export type { SymbolIssue, SymbolSpace } from "./domain/symbols.js";
 export { createRegistry, listRegistries } from "./application/create-registry.js";
 export type { RegistryDependencies, RegistryPorts } from "./application/create-registry.js";
-export type { IdempotencyEntry, IdempotencyStore, NewRegistryRecord, RecordPage, RecordPageQuery, RecordStore, RegistryStore, StoredColumn, StoredRecord, StoredRegistry } from "./ports.js";
+export type { DictionaryLookup, IdempotencyEntry, IdempotencyStore, NewRegistryRecord, RecordPage, RecordPageQuery, RecordStore, RegistryStore, StoredColumn, StoredRecord, StoredRegistry } from "./ports.js";
 export { createRecord, DEFAULT_RECORD_MAX_BYTES, deleteRecord, getRecord, IDEMPOTENCY_RETENTION_MS, LIST_DEFAULTS, listRecords, updateRecord } from "./application/records.js";
 export type { CreatedRecord, NewRecordInput, RecordChangeInput, RecordDeleteInput, RecordDependencies, RecordListing, RecordListQuery, RecordPorts } from "./application/records.js";

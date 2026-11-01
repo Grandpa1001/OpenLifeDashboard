@@ -19,6 +19,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { closeHarnesses, createAppHarness, HARNESS_EMAIL, HARNESS_PASSWORD, type AppHarness } from "../../support/app-harness.ts";
 import { ack, chooseEmpty, codeOf, enrolled, installation, post, query, readyOwner, secretOf, send, serve, signIn, stopServer, stopServers, type Installation } from "../../support/auth-http.ts";
 import { repoRoot } from "../../support/server-process.ts";
+import { withoutDictionary } from "../../support/books-fixture.ts";
 
 afterEach(async () => {
   closeHarnesses();
@@ -33,7 +34,7 @@ const BOOKS = fixture.registries[0]!;
 const booksRequest = () => ({
   symbol: BOOKS.symbol,
   displayName: BOOKS.displayName,
-  columns: BOOKS.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required }) => ({ symbol, displayName, type, typeOptions, defaultValue, required })),
+  columns: BOOKS.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required }) => ({ symbol, displayName, type, typeOptions: withoutDictionary(typeOptions), defaultValue, required })),
 });
 const V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const code = (reply: { json: () => unknown }): string => apiErrorSchema.parse(reply.json()).code;

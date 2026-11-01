@@ -12,6 +12,7 @@ import { REGISTRIES_PATH } from "@openlife/contracts/http/registries";
 import { afterEach, describe, expect, it } from "vitest";
 import { installation, post, readyOwner, send, stopServers, type Installation } from "../../support/auth-http.ts";
 import { repoRoot } from "../../support/server-process.ts";
+import { withoutDictionary } from "../../support/books-fixture.ts";
 
 afterEach(stopServers);
 
@@ -27,7 +28,7 @@ const matching = (fragment: string) => BOOKS.records.filter((record) => TEXTUAL.
 async function books(): Promise<{ setup: Installation; cookie: string }> {
   const setup = await installation();
   const cookie = (await readyOwner(setup)).sessionCookie;
-  const definition = { symbol: BOOKS.symbol, displayName: BOOKS.displayName, columns: BOOKS.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required }) => ({ symbol, displayName, type, typeOptions, defaultValue, required })) };
+  const definition = { symbol: BOOKS.symbol, displayName: BOOKS.displayName, columns: BOOKS.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required }) => ({ symbol, displayName, type, typeOptions: withoutDictionary(typeOptions), defaultValue, required })) };
   expect((await post(setup.server, REGISTRIES_PATH, definition, { cookie })).status).toBe(201);
   for (const [index, record] of BOOKS.records.entries()) {
     expect((await post(setup.server, RECORDS, { schemaRevision: 1, values: record.values }, { cookie, headers: { [IDEMPOTENCY_KEY_HEADER]: `d23-2-add-${String(index).padStart(2, "0")}` } })).status).toBe(201);

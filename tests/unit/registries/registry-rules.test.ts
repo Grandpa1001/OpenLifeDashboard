@@ -16,9 +16,10 @@ import {
   type RegistryDraft,
 } from "../../../packages/core/dist/modules/registries/public.js";
 import { repoRoot } from "../../support/server-process.ts";
+import { F01_DICTIONARY_IDS } from "../../support/books-fixture.ts";
 
 const NONE: ReadonlySet<string> = new Set();
-const context = (over: Partial<RegistryContext> = {}): RegistryContext => ({ limits: DEFAULT_REGISTRY_LIMITS, takenRegistrySymbols: NONE, activeRegistryCount: 0, ...over });
+const context = (over: Partial<RegistryContext> = {}): RegistryContext => ({ limits: DEFAULT_REGISTRY_LIMITS, takenRegistrySymbols: NONE, activeRegistryCount: 0, dictionaryIds: NONE, ...over });
 
 describe("D14.1-AC1 symbols and their suggestion", () => {
   it.each([
@@ -107,7 +108,8 @@ const BOOKS = (): RegistryDraft => {
 
 describe("D14.1-AC2 types, options, defaults and limits", () => {
   it("the registry of F01 (nine columns, eight types) is a valid definition and keeps its order", () => {
-    const result = validateNewRegistry(BOOKS(), context());
+    // Its "Status" column names the dictionary of F01, which the context knows.
+    const result = validateNewRegistry(BOOKS(), context({ dictionaryIds: F01_DICTIONARY_IDS }));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.symbol).toBe("ksiazki");

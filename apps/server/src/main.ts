@@ -14,7 +14,8 @@ import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
 import { bindAppendAudit } from "@openlife/sqlite/adapters/audit";
 import { bindIdentityAccessReader, bindMfaStore, bindOwnerWriters, bindRecoveryCodeStore, bindSetupStateStore, bindSignInStores, bindTrustedDeviceStore } from "@openlife/sqlite/adapters/identity";
 import { bindCatalogReader, bindDashboardStore } from "@openlife/sqlite/adapters/dashboard";
-import { bindIdempotencyStore, bindRecordStore, bindRegistryStore } from "@openlife/sqlite/adapters/registries";
+import { bindDictionaryLookup, bindDictionaryStore } from "@openlife/sqlite/adapters/dictionaries";
+import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore } from "@openlife/sqlite/adapters/registries";
 import { bindOwnerPreferencesStore } from "@openlife/sqlite/adapters/settings";
 import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "@openlife/core/registries";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
@@ -187,6 +188,9 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   preferences: bindOwnerPreferencesStore(tx),
   registries: bindRegistryStore(tx),
   records: bindRecordStore(tx),
+  dictionaries: bindDictionaryStore(tx),
+  dictionaryLookup: bindDictionaryLookup(tx),
+  columnLinks: bindColumnDictionaryLinks(tx),
   dashboard: bindDashboardStore(tx),
   catalog: bindCatalogReader(tx),
   idempotency: bindIdempotencyStore(tx),

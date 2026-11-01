@@ -9,6 +9,7 @@ import { REGISTRIES_PATH } from "@openlife/contracts/http/registries";
 import { afterEach, describe, expect, it } from "vitest";
 import { installation, post, query, readyOwner, stopServers } from "../../support/auth-http.ts";
 import { repoRoot } from "../../support/server-process.ts";
+import { withoutDictionary } from "../../support/books-fixture.ts";
 
 afterEach(async () => {
   await stopServers();
@@ -26,7 +27,7 @@ describe("D22.3-AC2 the cases of F03 through the real API", () => {
   it("every case gets the status and the code of the fixture; a refusal stores nothing and markup is stored as text", async () => {
     const setup = await installation();
     const owner = await readyOwner(setup);
-    const definition = { symbol: BOOKS.symbol, displayName: BOOKS.displayName, columns: BOOKS.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required }) => ({ symbol, displayName, type, typeOptions, defaultValue, required })) };
+    const definition = { symbol: BOOKS.symbol, displayName: BOOKS.displayName, columns: BOOKS.columns.map(({ symbol, displayName, type, typeOptions, defaultValue, required }) => ({ symbol, displayName, type, typeOptions: withoutDictionary(typeOptions), defaultValue, required })) };
     expect((await post(setup.server, REGISTRIES_PATH, definition, { cookie: owner.sessionCookie })).status).toBe(201);
     expect(cases.registrySymbol).toBe(BOOKS.symbol);
     expect(cases.cases).toHaveLength(8);

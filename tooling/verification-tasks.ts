@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -2541,6 +2541,47 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D23.1", "D23.2", "D23.3", "D23.4"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D24.1",
+    ready: true,
+    title: "The dictionaries in core and SQLite: rules, stores, use cases with compare and set, unpinning through the catalog, labels for the registries",
+    criteria: ["D24.1-AC1", "D24.1-AC2", "D24.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests read core and the adapters from their build.
+        id: "workspace-build",
+        criteria: ["D24.1-AC1", "D24.1-AC2"],
+        description: "pnpm -r build: the module core/dictionaries, migration 13, the dictionary adapter and the column links of the registries adapter",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/dictionaries/public.ts", "packages/sqlite/src/migrations/0013-dictionaries.ts", "packages/sqlite/src/adapters/dictionaries/dictionary-store.ts", "packages/sqlite/src/adapters/registries/column-links.ts"],
+      },
+      {
+        id: "dictionary-rules",
+        criteria: ["D24.1-AC1", "D24.1-AC2"],
+        description:
+          "The rules on the dictionary of F01: its four values in order with the archived one hidden; trimmed names and labels; a save is the whole list and the audit sees the symbols that came and went; a bad, long or taken symbol, an empty, long or controlled name, a repeated or bad value symbol, an empty label, a hidden that is no boolean, a value that is no object, the limits of 200 and 500 on their edge, each with its path; a choice column may name only a dictionary of the owner",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/dictionaries/dictionary-rules.test.ts", "tests/unit/registries/registry-rules.test.ts"],
+        requires: ["tests/unit/dictionaries/dictionary-rules.test.ts", "tests/unit/registries/registry-rules.test.ts"],
+      },
+      {
+        id: "dictionaries-sqlite",
+        criteria: ["D24.1-AC1", "D24.1-AC2"],
+        description:
+          "A real SQLite file with the production adapters and use cases: the dictionary of F01 created, read in its order and saved whole with revision + 1, kept values keep their identifiers, the same after a restart, audited; the lookup gives Archiwalne for the hidden value and nothing for spoza_slownika or for another owner; the list has the column of Książki that uses it; deleting it unpins the column, raises the schema revision and leaves the 25 records and their status counts as they were, and frees the symbol; a stale revision, a taken symbol, the limit, a bad content and another token change nothing; another owner's dictionary is not reached; a failing audit takes back a creation and a deletion with its unpinning; migration 13 in the plan",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/dictionaries/dictionaries.test.ts", "tests/integration/sqlite/migrations.test.ts"],
+        requires: ["tests/integration/dictionaries/dictionaries.test.ts", "tests/integration/sqlite/migrations.test.ts", "tests/support/books-fixture.ts"],
+      },
+      {
+        id: "registries-regression",
+        criteria: ["D24.1-AC2"],
+        description: "The registries, records and screens of F01 over SQLite and HTTP as before, with Status sent as a plain choice column where the test is not about dictionaries (D14–D23)",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries", "tests/integration/dashboard"],
+        requires: ["tests/integration/registries/registry-http.test.ts", "tests/integration/dashboard/dashboard-http.test.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D24.1-regression"),
+    ],
   },
   {
     id: "D19.1",
