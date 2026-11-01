@@ -6,7 +6,7 @@
 import { DomainFault, type Commit, type Failure, type ReadUnit, type Result, type UnitOfWork } from "../../../foundation/public.js";
 import type { AppendAudit } from "../../audit/public.js";
 import { decideAccess, resolveSessionAccess, type IdentityAccessReader, type SessionStore } from "../../identity/public.js";
-import { resolveSortColumn, type CellValue, type RecordStore, type RegistryStore, type StoredColumn, type StoredRegistry } from "../../registries/public.js";
+import { pageLabels, resolveSortColumn, type CellValue, type DictionaryLookup, type PageLabels, type RecordStore, type RegistryStore, type StoredColumn, type StoredRegistry } from "../../registries/public.js";
 import type { DesignInput, DesignPolicy, WidgetState } from "../domain/design.js";
 import { isValidScreenName, stateOfStoredWidget, validateDesign, type DesignContext } from "../domain/design-rules.js";
 import type { DashboardCatalogReader, DashboardStore, StoredScreen, StoredWidget, WidgetCatalogPort, WidgetTypeManifest } from "../ports.js";
@@ -18,6 +18,8 @@ export type DashboardPorts = Readonly<{
   catalog: DashboardCatalogReader;
   registries: RegistryStore;
   records: RecordStore;
+  /** The labels of a "choice" column with a dictionary, shown in the table (Scope §6.2). */
+  dictionaryLookup: DictionaryLookup;
   audit: AppendAudit;
 }>;
 
@@ -145,6 +147,8 @@ export type WidgetData = Readonly<{
   registry: Readonly<{ symbol: string; schemaRevision: number; dataRevision: number }> | null;
   columns: readonly DataColumn[];
   rows: readonly DataRow[];
+  /** By the key of a column: the labels of the dictionary values on this page. */
+  labels: PageLabels;
   total: number;
   page: number;
   pageSize: number;
@@ -155,7 +159,7 @@ const REGISTER_TABLE = "register-table";
 
 const emptyData = (widget: StoredWidget, state: WidgetState, page: number): WidgetData => {
   const size = widget.config["pageSize"];
-  return { widgetId: widget.id, state, registry: null, columns: [], rows: [], total: 0, page, pageSize: typeof size === "number" ? size : DEFAULT_PAGE_SIZE };
+  return { widgetId: widget.id, state, registry: null, columns: [], rows: [], labels: {}, total: 0, page, pageSize: typeof size === "number" ? size : DEFAULT_PAGE_SIZE };
 };
 
 /**
@@ -218,6 +222,7 @@ export function readWidgetData(deps: DashboardDependencies, token: string, widge
       }
       return { id: record.id, values };
     });
-    return { ok: true, value: { widgetId: widget.id, state: "ok", registry: { symbol: registry.symbol, schemaRevision: registry.schemaRevision, dataRevision: registry.dataRevision }, columns, rows, total: listed.total, page, pageSize } };
+    const labels = pageLabels(ports.dictionaryLookup, ownerId, columns.map((column) => ({ key: column.key, dictionaryId: column.kind === "column" ? column.typeOptions.dictionaryId : undefined })), rows.map((row) => row.values));
+    return { ok: true, value: { widgetId: widget.id, state: "ok", registry: { symbol: registry.symbol, schemaRevision: registry.schemaRevision, dataRevision: registry.dataRevision }, columns, rows, labels, total: listed.total, page, pageSize } };
   });
 }

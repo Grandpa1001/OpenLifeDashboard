@@ -132,6 +132,32 @@ test.describe("D23.4-AC2 no match, a late answer, the first page and the widget"
     await expect(page.getByText(say("table.range", { from: 1, to: want.length, total: want.length }))).toBeVisible();
   });
 
+  test("while the next page loads, the range stays with the rows on screen: never the range of one page over the rows of another", async ({ page, ownerServer }) => {
+    const owner = await ownerServer("ready");
+    await books(page, owner);
+    const firstPage = await titles(page);
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route(`**${registryRecordsPath("ksiazki")}?*`, async (route) => {
+      if (new URL(route.request().url()).searchParams.get("page") !== "2") return route.continue();
+      const response = await route.fetch();
+      await held;
+      return route.fulfill({ response });
+    });
+    await page.getByRole("button", { name: text(registers, "table.next") }).click();
+    // The answer for page 2 is held: the rows are page 1's, and so is the range; the table says it is busy.
+    await expect(page.getByRole("region", { name: "Książki" })).toHaveAttribute("aria-busy", "true");
+    await expect(page.getByText("1–10 of 25")).toBeVisible();
+    await expect(page.getByText("11–20 of 25")).toHaveCount(0);
+    expect(await titles(page)).toEqual(firstPage);
+    release();
+    await expect(page.getByText("11–20 of 25")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Książki" })).not.toHaveAttribute("aria-busy", "true");
+    const secondPage = await titles(page);
+    expect(secondPage).toHaveLength(10);
+    expect(secondPage.some((title) => firstPage.includes(title))).toBe(false);
+  });
+
   test("on a phone the toolbar wraps and the page does not scroll sideways: the wide table scrolls in its own region", async ({ page, ownerServer }) => {
     const owner = await ownerServer("ready");
     await page.setViewportSize({ width: 390, height: 844 });

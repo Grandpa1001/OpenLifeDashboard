@@ -8,6 +8,7 @@
 //         "data"     — gate and the starting data chosen (the private settings)
 //         "setup"    — gate; the choice of the starting data itself
 import * as bootstrap from "@openlife/contracts/http/bootstrap";
+import * as dictionaries from "@openlife/contracts/http/dictionaries";
 import * as healthStatus from "@openlife/contracts/http/health-status";
 import * as identity from "@openlife/contracts/http/identity";
 import * as mfa from "@openlife/contracts/http/mfa";
@@ -21,7 +22,7 @@ export type RouteEntry = Readonly<{ method: "GET" | "POST" | "PUT" | "PATCH" | "
 
 /** Every exported path constant of the contracts, by name. */
 export const PATH_CONSTANTS: Readonly<Record<string, string>> = Object.fromEntries(
-  [bootstrap, healthStatus, identity, mfa, records, registries, screens, setup].flatMap((module) =>
+  [bootstrap, dictionaries, healthStatus, identity, mfa, records, registries, screens, setup].flatMap((module) =>
     Object.entries(module).filter((entry): entry is [string, string] => entry[0].endsWith("_PATH") && typeof entry[1] === "string"),
   ),
 );
@@ -49,6 +50,11 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "GET", path: records.REGISTRY_RECORD_PATH, access: "data", note: "one record of a registry as it is stored now" },
   { method: "PATCH", path: records.REGISTRY_RECORD_PATH, access: "data", note: "changes a record on the revision the form was built on" },
   { method: "DELETE", path: records.REGISTRY_RECORD_PATH, access: "data", note: "deletes a record on the revision the owner saw" },
+  { method: "GET", path: dictionaries.DICTIONARIES_PATH, access: "data", note: "the owner's dictionaries with the columns that use each" },
+  { method: "POST", path: dictionaries.DICTIONARIES_PATH, access: "data", note: "creates a dictionary with its values" },
+  { method: "GET", path: dictionaries.DICTIONARY_PATH, access: "data", note: "one dictionary with its values in order and its usages" },
+  { method: "PUT", path: dictionaries.DICTIONARY_PATH, access: "data", note: "saves the whole content on the revision it was loaded with" },
+  { method: "DELETE", path: dictionaries.DICTIONARY_PATH, access: "data", note: "deletes a dictionary and unpins its columns; records stay" },
   { method: "GET", path: screens.SCREENS_PATH, access: "data", note: "the owner's screens, in the order they were made" },
   { method: "POST", path: screens.SCREENS_PATH, access: "data", note: "makes the first, empty screen of the owner" },
   { method: "GET", path: screens.SCREEN_PATH, access: "data", note: "the canonical snapshot of a screen with the state of each widget" },

@@ -23,10 +23,20 @@ export function RecordsTable({
   locale,
   timeZone,
   actions,
-}: Readonly<{ caption: string; columns: readonly FormColumn[]; records: readonly RecordDto[]; locale: string; timeZone: string; actions?: (record: RecordDto) => ReactNode }>) {
+  busy = false,
+}: Readonly<{
+  caption: string;
+  columns: readonly FormColumn[];
+  records: readonly RecordDto[];
+  locale: string;
+  timeZone: string;
+  actions?: (record: RecordDto) => ReactNode;
+  /** The rows are those of the previous page while the next one loads. */
+  busy?: boolean;
+}>) {
   const { t } = useTranslation("registers");
   return (
-    <div className="table-scroll" role="region" aria-label={caption} tabIndex={0}>
+    <div className="table-scroll" role="region" aria-label={caption} tabIndex={0} aria-busy={busy || undefined}>
       <table>
         <caption className="visually-hidden">{caption}</caption>
         <thead>

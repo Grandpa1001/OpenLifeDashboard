@@ -47,6 +47,12 @@ function requestOf(route: RouteEntry, design: unknown): { body: unknown; headers
       return { body: { ...WAGA, symbol: "pomiary", displayName: "Pomiary" }, headers: {} };
     case "POST /api/v1/registries/:symbol/records":
       return { body: { schemaRevision: 1, values: { kg: 71.5 } }, headers: { "Idempotency-Key": "d20-2-access-key" } };
+    case "POST /api/v1/dictionaries":
+      return { body: { symbol: "waga", displayName: "Jednostki wagi", values: [{ symbol: "kg", label: "Kilogramy" }] }, headers: {} };
+    case "PUT /api/v1/dictionaries/:symbol":
+      return { body: { expectedRevision: 1, displayName: "Jednostki wagi", values: [{ symbol: "kg", label: "Kilogramy" }, { symbol: "lb", label: "Funty" }] }, headers: {} };
+    case "DELETE /api/v1/dictionaries/:symbol":
+      return { body: { expectedRevision: 2 }, headers: {} };
     case "PATCH /api/v1/registries/:symbol/records/:recordId":
       return { body: { schemaRevision: 1, expectedRevision: 1, values: { kg: 72 } }, headers: {} };
     case "DELETE /api/v1/registries/:symbol/records/:recordId":
@@ -85,7 +91,7 @@ const designOf = (registry: { id: string; symbol: string; columns: Array<{ id: s
 /** Everything the data routes can change, as one text: any difference is a stored change. */
 function stored(setup: Installation): string {
   const registryTables = query<{ name: string }>(setup.instance, "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'reg\\_%' ESCAPE '\\' ORDER BY 1").map((row) => row.name);
-  const tables = ["registry", "registry_column", "screen", "widget", "binding", "idempotency_entry", ...registryTables];
+  const tables = ["registry", "registry_column", "screen", "widget", "binding", "idempotency_entry", "dictionary", "dictionary_value", ...registryTables];
   return JSON.stringify(tables.map((table) => query(setup.instance, `SELECT * FROM "${table}" ORDER BY 1`)));
 }
 
@@ -107,7 +113,10 @@ async function expectRefused(setup: Installation, label: string, cookie: string 
 describe("D20.2 the table is the inventory", () => {
   it("covers every route of the data access with a request of its own, and the inventory has them", () => {
     expect(DATA_ROUTES.map(keyOf).sort()).toEqual([
+      "DELETE /api/v1/dictionaries/:symbol",
       "DELETE /api/v1/registries/:symbol/records/:recordId",
+      "GET /api/v1/dictionaries",
+      "GET /api/v1/dictionaries/:symbol",
       "GET /api/v1/registries",
       "GET /api/v1/registries/:symbol/records",
       "GET /api/v1/registries/:symbol/records/:recordId",
@@ -116,9 +125,11 @@ describe("D20.2 the table is the inventory", () => {
       "GET /api/v1/widget-types",
       "GET /api/v1/widgets/:id/data",
       "PATCH /api/v1/registries/:symbol/records/:recordId",
+      "POST /api/v1/dictionaries",
       "POST /api/v1/registries",
       "POST /api/v1/registries/:symbol/records",
       "POST /api/v1/screens",
+      "PUT /api/v1/dictionaries/:symbol",
       "PUT /api/v1/screens/:id/design",
     ]);
   });
@@ -175,6 +186,12 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     await run(route("GET", "/records/:recordId"), withRecord);
     expect((await run(route("PATCH", "/records/:recordId"), withRecord)).status).toBe(200);
     expect((await run(route("DELETE", "/records/:recordId"), withRecord)).status).toBe(204);
+    // A dictionary under the same symbol as the registry: the path names a dictionary there, a registry here.
+    expect((await run(route("POST", "/dictionaries"), withRecord)).status).toBe(201);
+    await run(route("GET", "/dictionaries"), withRecord);
+    await run(route("GET", "/dictionaries/:symbol"), withRecord);
+    expect((await run(route("PUT", "/dictionaries/:symbol"), withRecord)).status).toBe(200);
+    expect((await run(route("DELETE", "/dictionaries/:symbol"), withRecord)).status).toBe(200);
     const screenReply = await run(route("POST", "/screens"), withRecord);
     const ids: Ids = { ...withRecord, screen: screenSchema.parse(screenReply.json()).id };
     await run(route("GET", "/screens"), ids);

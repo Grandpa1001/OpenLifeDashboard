@@ -2525,7 +2525,7 @@ const definedLater: readonly TaskDefinition[] = [
         id: "record-search-e2e",
         criteria: ["D23.4-AC1", "D23.4-AC2"],
         description:
-          "Playwright on a fresh installation with the 25 records of F01: a fragment in any letter case shows exactly its records with 1–N of N and lands in the address, Sort by title ascending is the order of the fixture page after page, a reload keeps the search, the sort and the page and back returns to the page before; no match says so in one sentence with Clear the search, a new search starts from page 1, the box takes 100 characters; a slower answer to an older search does not replace the newer one; on a phone the page does not scroll sideways and the table scrolls in its region; the widget has no search and no sort; the records, types and edits of D16.3, D22.3 and D23.3 with the new pager; axe",
+          "Playwright on a fresh installation with the 25 records of F01: a fragment in any letter case shows exactly its records with 1–N of N and lands in the address, Sort by title ascending is the order of the fixture page after page, a reload keeps the search, the sort and the page and back returns to the page before; no match says so in one sentence with Clear the search, a new search starts from page 1, the box takes 100 characters; a slower answer to an older search does not replace the newer one; while the next page loads the range stays with the rows on screen and the table is busy; on a phone the page does not scroll sideways and the table scrolls in its region; the widget has no search and no sort; the records, types and edits of D16.3, D22.3 and D23.3 with the new pager; axe",
         command: ["node", "tests/verification/e2e.ts", "record-search", "records", "record-types", "record-edit"],
         requires: ["tests/verification/e2e.ts", "tests/e2e/record-search.spec.ts", "tests/e2e/records.spec.ts", "tests/e2e/record-types.spec.ts", "tests/e2e/record-edit.spec.ts", "tests/e2e/owner-session.ts"],
         timeoutMs: 15 * 60 * 1000,
@@ -2581,6 +2581,40 @@ const definedLater: readonly TaskDefinition[] = [
         timeoutMs: 15 * 60 * 1000,
       },
       ...regressionChecks("D24.1-regression"),
+    ],
+  },
+  {
+    id: "D24.2",
+    ready: true,
+    title: "Dictionaries and their labels over HTTP: the routes of a dictionary, the labels of a page of records and of the data of a widget, S7",
+    criteria: ["D24.2-AC1", "D24.2-AC2", "D24.2-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests start the built server.
+        id: "workspace-build",
+        criteria: ["D24.2-AC1", "D24.2-AC2"],
+        description: "pnpm -r build produces the server with the routes of the dictionaries and the labels of a page, and the contracts of the dictionaries",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/routes/dictionaries.routes.ts", "packages/contracts/src/http/dictionaries.ts", "packages/core/src/modules/registries/application/page-labels.ts"],
+      },
+      {
+        id: "dictionary-http",
+        criteria: ["D24.2-AC1", "D24.2-AC2"],
+        description:
+          "Raw HTTP on the built server with F01 made through the API: the page of 25 records and the data of a register table carry the labels Planowane, W trakcie, Ukończone and the hidden Archiwalne five times each and none for the five spoza_slownika, a page only its own; the list has four values and the column of Książki; deleting the dictionary unpins the column with schema revision + 1, takes every label away and leaves the records byte for byte (S7); two saves of revision 1 are 200 and 409 DICTIONARY_CHANGED without a write, the rules refuse with their paths, a taken symbol and a stale delete are 409, a column naming an unknown dictionary is 422 DICTIONARY_UNKNOWN, a record with a symbol outside the dictionary is stored, a foreign Origin, an unknown dictionary and the cookie of another installation are refused; the inventory and every state before the gate on the five routes (D13.1, D20.2); the texts of the new codes",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/dictionaries/dictionary-http.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/unit/web/error-message.test.ts"],
+        requires: ["tests/integration/dictionaries/dictionary-http.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      {
+        id: "records-and-widgets-regression",
+        criteria: ["D24.2-AC1"],
+        description: "The records and the data of a widget over HTTP as before, now with their labels (D15.3, D17.4, D23.1, D23.2)",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries", "tests/integration/dashboard/dashboard-http.test.ts"],
+        requires: ["tests/integration/registries/record-http.test.ts", "tests/integration/dashboard/dashboard-http.test.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D24.2-regression"),
     ],
   },
   {

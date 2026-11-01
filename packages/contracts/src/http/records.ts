@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { pageLabelsSchema } from "./dictionaries.js";
 import { REGISTRIES_PATH } from "./registries.js";
 
 // The records of a registry over HTTP (Architektura §5.4, §6, §18.2; D15.3, D23.1). A request
@@ -84,6 +85,8 @@ export const recordPageSchema = z
     total: z.number().int().min(0),
     page: z.number().int().min(1),
     pageSize: z.number().int().min(1),
+    /** The labels of the dictionary values on this page (D24.2). */
+    labels: pageLabelsSchema,
     /** The revisions a form built from this page sends back (`schemaRevision`). */
     schemaRevision: z.number().int().min(1),
     dataRevision: z.number().int().min(0),

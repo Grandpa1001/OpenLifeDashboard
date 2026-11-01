@@ -27,6 +27,9 @@ const FALLBACK_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   IDEMPOTENCY_CONFLICT: "This idempotency key was used for a different request",
   SCHEMA_CHANGED: "The registry changed since the form was loaded; reload it",
   RECORD_CONFLICT: "The record changed since the form was loaded; load the newer version",
+  DICTIONARY_SYMBOL_TAKEN: "A dictionary with this symbol exists",
+  DICTIONARY_LIMIT_EXCEEDED: "The limit of dictionaries is reached",
+  DICTIONARY_CHANGED: "The dictionary changed since it was loaded; load it again",
   SCREEN_LIMIT_EXCEEDED: "The limit of screens is reached",
 };
 

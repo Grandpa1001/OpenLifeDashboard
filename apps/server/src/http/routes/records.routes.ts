@@ -107,8 +107,8 @@ export function registerRecordRoutes(app: Hono<AppEnv>, deps: RecordRouteDepende
       if (!result.ok) {
         return refused(c, result.error);
       }
-      const { registry, records: found, total, page: shownPage, pageSize: shownSize } = result.value;
-      const dto: RecordPageDto = { records: found.map(toDto), total, page: shownPage, pageSize: shownSize, schemaRevision: registry.schemaRevision, dataRevision: registry.dataRevision };
+      const { registry, records: found, labels, total, page: shownPage, pageSize: shownSize } = result.value;
+      const dto: RecordPageDto = { records: found.map(toDto), labels, total, page: shownPage, pageSize: shownSize, schemaRevision: registry.schemaRevision, dataRevision: registry.dataRevision };
       return c.json(dto);
     }),
   );

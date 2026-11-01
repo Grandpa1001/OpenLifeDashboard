@@ -10,7 +10,8 @@ import { DomainFault, type Commit, type ReadUnit, type Result, type UnitOfWork }
 import { decideAccess, resolveSessionAccess, type IdentityAccessReader, type SessionStore } from "../../identity/public.js";
 import type { RegistryLimits } from "../domain/limits.js";
 import { canonicalRecordRequest, PAGE_SIZE_MAX, PAGE_SIZE_MIN, resolveSearch, resolveSortColumn, validateRecordChanges, validateRecordValues, type RecordIssue, type SortDirection } from "../domain/record-rules.js";
-import type { IdempotencyStore, RecordStore, RegistryStore, StoredRecord, StoredRegistry } from "../ports.js";
+import type { DictionaryLookup, IdempotencyStore, RecordStore, RegistryStore, StoredRecord, StoredRegistry } from "../ports.js";
+import { pageLabels, type PageLabels } from "./page-labels.js";
 
 export type RecordPorts = Readonly<{
   sessions: Pick<SessionStore, "findActive">;
@@ -18,6 +19,7 @@ export type RecordPorts = Readonly<{
   registries: RegistryStore;
   records: RecordStore;
   idempotency: IdempotencyStore;
+  dictionaryLookup: DictionaryLookup;
 }>;
 
 export type RecordDependencies = Readonly<{
@@ -180,6 +182,8 @@ export type RecordListQuery = Readonly<{ symbol: string; sort?: string; directio
 export type RecordListing = Readonly<{
   registry: Readonly<{ schemaRevision: number; dataRevision: number }>;
   records: readonly StoredRecord[];
+  /** The labels of the dictionary values on this page, read in its snapshot. */
+  labels: PageLabels;
   total: number;
   page: number;
   pageSize: number;
@@ -215,6 +219,7 @@ export function listRecords(deps: Pick<RecordDependencies, "unit" | "nowMs">, to
       return { ok: false, error: { code: "VALIDATION_FAILED", fields: issues.map((issue) => issue.path), issues } };
     }
     const found = ports.records.page(registry, { sort, direction: query.direction ?? LIST_DEFAULTS.direction, page, pageSize, search: search.search });
-    return { ok: true, value: { registry: { schemaRevision: registry.schemaRevision, dataRevision: registry.dataRevision }, records: found.records, total: found.total, page, pageSize } };
+    const labels = pageLabels(ports.dictionaryLookup, registry.ownerId, registry.columns.map((column) => ({ key: column.symbol, dictionaryId: column.typeOptions.dictionaryId })), found.records.map((record) => record.values));
+    return { ok: true, value: { registry: { schemaRevision: registry.schemaRevision, dataRevision: registry.dataRevision }, records: found.records, labels, total: found.total, page, pageSize } };
   });
 }

@@ -19,6 +19,11 @@
       "types": "./dist/http/bootstrap.d.ts",
       "default": "./dist/http/bootstrap.js"
     },
+    "./http/dictionaries": {
+      "@openlife/source": "./src/http/dictionaries.ts",
+      "types": "./dist/http/dictionaries.d.ts",
+      "default": "./dist/http/dictionaries.js"
+    },
     "./http/errors": {
       "@openlife/source": "./src/http/errors.ts",
       "types": "./dist/http/errors.d.ts",

@@ -237,6 +237,7 @@ export function RegistryPage({ symbol, view, onView }: Readonly<{ symbol: string
           {records.data !== undefined && records.data.total > 0 ? (
             <>
               <RecordsTable
+                busy={records.isPlaceholderData}
                 caption={registry.displayName}
                 columns={columns}
                 records={records.data.records}
@@ -261,7 +262,8 @@ export function RegistryPage({ symbol, view, onView }: Readonly<{ symbol: string
                   <span aria-hidden="true">‹</span>
                 </button>
                 {(() => {
-                  const range = pageRange(page, RECORDS_PAGE_SIZE, records.data.records.length, records.data.total);
+                  // The page the rows on screen came from: while the next one loads, the previous rows and their own range stay together.
+                  const range = pageRange(records.data.page, records.data.pageSize, records.data.records.length, records.data.total);
                   return range === null ? null : <span aria-live="polite">{t("table.range", range)}</span>;
                 })()}
                 <button type="button" aria-label={t("table.next")} disabled={page >= pageCount(records.data.total, RECORDS_PAGE_SIZE)} onClick={() => setPage(page + 1)}>

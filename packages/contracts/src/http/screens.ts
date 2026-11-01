@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { pageLabelsSchema } from "./dictionaries.js";
 
 // The screen of the owner over HTTP (Architektura §4.2, §5.3–5.6, §6, §18.3, §18.5; D17): one
 // snapshot holds the screen, its widgets, their configuration, bindings and layouts, and one PUT
@@ -182,6 +183,8 @@ export const widgetDataSchema = z
         .strict(),
     ),
     rows: z.array(z.object({ id: idSchema, values: z.record(z.string(), cellSchema) }).strict()),
+    /** The labels of the dictionary values on this page, by the key of a column (D24.2). */
+    labels: pageLabelsSchema,
     total: z.number().int().min(0),
     page: z.number().int().min(1),
     pageSize: z.number().int().min(1),
