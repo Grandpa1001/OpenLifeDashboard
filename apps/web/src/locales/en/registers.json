@@ -228,5 +228,66 @@
       "VALUE_NOT_OBJECT": "Invalid value.",
       "HIDDEN_INVALID": "Invalid hidden flag."
     }
+  },
+  "config": {
+    "title": "Configuration",
+    "loading": "Loading the configuration…",
+    "empty": "You have no configuration entries yet.",
+    "lead": "Your text values, kept for future widgets and reports; no widget of this version reads them. Each entry has the path",
+    "new": "New entry",
+    "count_one": "{{count}} entry",
+    "count_other": "{{count}} entries",
+    "head": {
+      "name": "Name",
+      "symbol": "Symbol",
+      "value": "Value",
+      "description": "Description",
+      "bindings": "Bindings"
+    },
+    "edit": "Edit entry {{name}}",
+    "remove": "Delete entry {{name}}",
+    "dialog": {
+      "add": "New configuration entry",
+      "edit": "Edit entry — {{name}}",
+      "name": "Entry name",
+      "symbolHint": "Fixed once created: lowercase letters, digits and _, up to {{max}} characters. Path: {{path}}",
+      "symbolFixed": "fixed symbol — it does not change once created",
+      "value": "Value",
+      "valueCount": "{{length}} / {{max}} characters",
+      "description": "Description",
+      "descriptionHint": "Optional, up to {{max}} characters.",
+      "textOnly": "The value is always stored as text, exactly as you type it.",
+      "create": "Create entry",
+      "deletedMeanwhile": "This entry was deleted in the meantime. Close the window; the list will be refreshed."
+    },
+    "conflict": {
+      "changed": "The entry was changed in the meantime, for example in another tab.",
+      "kept": "Your changes were neither saved nor lost.",
+      "load": "Load the current version",
+      "overwrite": "Save my version instead"
+    },
+    "delete": {
+      "question": "Delete the entry “{{name}}”?",
+      "unbound": "No widget uses this entry.",
+      "bound_one": "{{count}} widget binding points at this entry. After the delete the widget will need to be bound again.",
+      "bound_other": "{{count}} widget bindings point at this entry. After the delete the widgets will need to be bound again.",
+      "symbolFree": "The symbol {{symbol}} will be free again. The audit keeps the last value.",
+      "confirm": "Delete entry"
+    },
+    "done": {
+      "add": "Created the entry “{{name}}”.",
+      "edit": "Saved the entry “{{name}}”.",
+      "delete": "Deleted the entry “{{name}}”."
+    },
+    "issues": {
+      "SYMBOL_TAKEN": "An entry with this symbol already exists. Choose another one.",
+      "VALUE_NOT_TEXT": "The value must be text.",
+      "VALUE_TOO_LONG": "The value is too long (up to 10,000 characters).",
+      "VALUE_INVALID": "The value has invalid characters.",
+      "DESCRIPTION_NOT_TEXT": "The description must be text.",
+      "DESCRIPTION_TOO_LONG": "The description is too long (up to 500 characters).",
+      "DESCRIPTION_INVALID": "The description has characters that are not allowed (a tab, for example).",
+      "LIMIT_ENTRIES": "The limit of configuration entries is reached."
+    }
   }
 }

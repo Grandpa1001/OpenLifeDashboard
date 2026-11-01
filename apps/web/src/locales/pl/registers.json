@@ -242,5 +242,70 @@
       "VALUE_NOT_OBJECT": "Nieprawidłowa wartość.",
       "HIDDEN_INVALID": "Nieprawidłowe oznaczenie ukrycia."
     }
+  },
+  "config": {
+    "title": "Konfiguracja",
+    "loading": "Wczytywanie konfiguracji…",
+    "empty": "Nie masz jeszcze żadnego wpisu konfiguracji.",
+    "lead": "Twoje wartości tekstowe zachowane na przyszłe widgety i raporty; żaden widget tej wersji ich nie czyta. Każdy wpis ma ścieżkę",
+    "new": "Nowy wpis",
+    "count_one": "{{count}} wpis",
+    "count_few": "{{count}} wpisy",
+    "count_many": "{{count}} wpisów",
+    "count_other": "{{count}} wpisu",
+    "head": {
+      "name": "Nazwa",
+      "symbol": "Symbol",
+      "value": "Wartość",
+      "description": "Opis",
+      "bindings": "Powiązania"
+    },
+    "edit": "Edytuj wpis {{name}}",
+    "remove": "Usuń wpis {{name}}",
+    "dialog": {
+      "add": "Nowy wpis konfiguracji",
+      "edit": "Edytuj wpis — {{name}}",
+      "name": "Nazwa wpisu",
+      "symbolHint": "Stały po utworzeniu: małe litery bez polskich znaków, cyfry i _, do {{max}} znaków. Ścieżka: {{path}}",
+      "symbolFixed": "symbol stały — nie zmienia się po utworzeniu",
+      "value": "Wartość",
+      "valueCount": "{{length}} / {{max}} znaków",
+      "description": "Opis",
+      "descriptionHint": "Opcjonalny, do {{max}} znaków.",
+      "textOnly": "Wartość zawsze zapisuje się jako tekst, dokładnie tak, jak ją wpiszesz.",
+      "create": "Utwórz wpis",
+      "deletedMeanwhile": "Ten wpis został usunięty w międzyczasie. Zamknij okno; lista zostanie odświeżona."
+    },
+    "conflict": {
+      "changed": "Wpis zmieniono w międzyczasie, np. w innej karcie.",
+      "kept": "Twoje zmiany nie zostały zapisane ani utracone.",
+      "load": "Wczytaj aktualną wersję",
+      "overwrite": "Zapisz moją wersję zamiast niej"
+    },
+    "delete": {
+      "question": "Usunąć wpis „{{name}}”?",
+      "unbound": "Żaden widget nie korzysta z tego wpisu.",
+      "bound_one": "{{count}} powiązanie widgetu wskazuje ten wpis. Po usunięciu widget będzie wymagał ponownego podpięcia.",
+      "bound_few": "{{count}} powiązania widgetów wskazują ten wpis. Po usunięciu widgety będą wymagały ponownego podpięcia.",
+      "bound_many": "{{count}} powiązań widgetów wskazuje ten wpis. Po usunięciu widgety będą wymagały ponownego podpięcia.",
+      "bound_other": "{{count}} powiązania widgetów wskazują ten wpis. Po usunięciu widgety będą wymagały ponownego podpięcia.",
+      "symbolFree": "Symbol {{symbol}} będzie znów wolny. Audyt zachowa ostatnią wartość.",
+      "confirm": "Usuń wpis"
+    },
+    "done": {
+      "add": "Utworzono wpis „{{name}}”.",
+      "edit": "Zapisano wpis „{{name}}”.",
+      "delete": "Usunięto wpis „{{name}}”."
+    },
+    "issues": {
+      "SYMBOL_TAKEN": "Wpis o tym symbolu już istnieje. Wybierz inny.",
+      "VALUE_NOT_TEXT": "Wartość musi być tekstem.",
+      "VALUE_TOO_LONG": "Wartość jest za długa (do 10 000 znaków).",
+      "VALUE_INVALID": "Wartość zawiera nieprawidłowe znaki.",
+      "DESCRIPTION_NOT_TEXT": "Opis musi być tekstem.",
+      "DESCRIPTION_TOO_LONG": "Opis jest za długi (do 500 znaków).",
+      "DESCRIPTION_INVALID": "Opis zawiera niedozwolone znaki (np. tabulator).",
+      "LIMIT_ENTRIES": "Osiągnięto limit wpisów konfiguracji."
+    }
   }
 }

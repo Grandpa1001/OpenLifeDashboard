@@ -9,6 +9,7 @@ import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
 import { fetchRegistries } from "../api/registries.js";
 import { useDictionaries } from "../api/use-dictionaries.js";
+import { useConfigEntries } from "../api/use-config.js";
 import { NewRegistryForm } from "../components/new-registry-form.js";
 
 /** A failure of the gate or of the session: the server no longer lets this owner here, and the guard of the route knows where to. */
@@ -59,6 +60,7 @@ export function RegistersPage() {
   });
 
   const dictionaries = useDictionaries();
+  const config = useConfigEntries();
   const [adding, setAdding] = useState(false);
   const [created, setCreated] = useState<string | null>(null);
   const addButton = useRef<HTMLButtonElement>(null);
@@ -150,6 +152,12 @@ export function RegistersPage() {
             <Link to="/dictionaries">{t("dictionaries.title")}</Link>
           </p>
           <p>{dictionaries.data === undefined ? t("dictionaries.loading") : t("dictionaries.count", { count: dictionaries.data.length })}</p>
+        </div>
+        <div className="card registry-card">
+          <p className="config-entry">
+            <Link to="/config">{t("config.title")}</Link>
+          </p>
+          <p>{config.data === undefined ? t("config.loading") : t("config.count", { count: config.data.length })}</p>
         </div>
       </section>
     </main>

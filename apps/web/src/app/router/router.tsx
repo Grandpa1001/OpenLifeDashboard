@@ -10,6 +10,7 @@ import { MainPage } from "../../features/dashboard/pages/main-page.js";
 import { RegistryPage } from "../../features/registers/pages/registry-page.js";
 import { RegistersPage } from "../../features/registers/pages/registers-page.js";
 import { DictionariesPage } from "../../features/registers/pages/dictionaries-page.js";
+import { ConfigPage } from "../../features/registers/pages/config-page.js";
 import { parseRecordsView, viewSearch, type RecordsView } from "../../features/registers/lib/records-view.js";
 import { SetupPage, type PendingStep } from "../../features/setup/pages/setup-page.js";
 import { setInterfaceLanguage } from "../../lib/language.js";
@@ -113,6 +114,13 @@ const dictionariesRoute = createRoute({
   },
 });
 
+const configRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/config",
+  beforeLoad: ({ context }) => admitPrivate(context),
+  component: ConfigPage,
+});
+
 const setupRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/setup",
@@ -155,7 +163,7 @@ const registryRoute = createRoute({
 
 export function createAppRouter(queryClient: QueryClient) {
   return createRouter({
-    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute, registersRoute, registryRoute, dictionariesRoute, designerRoute]),
+    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute, registersRoute, registryRoute, dictionariesRoute, configRoute, designerRoute]),
     context: { queryClient },
     defaultPreload: false,
   });

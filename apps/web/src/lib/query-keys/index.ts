@@ -6,4 +6,5 @@ export const queryKeys = {
   screens: { list: ["screens", "list"] as const, screen: (id: string) => ["screens", "screen", id] as const, widgetData: (id: string) => ["screens", "widget-data", id] as const, allWidgetData: ["screens", "widget-data"] as const, widgetTypes: ["screens", "widget-types"] as const },
   registries: { list: ["registries", "list"] as const, records: (symbol: string) => ["registries", "records", symbol] as const, allRecords: ["registries", "records"] as const },
   dictionaries: { list: ["dictionaries", "list"] as const },
+  config: { list: ["config", "list"] as const },
 } as const;

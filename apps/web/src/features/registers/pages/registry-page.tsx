@@ -16,6 +16,7 @@ import { fetchRecordPage } from "../api/records.js";
 import { DeleteRecordDialog } from "../components/delete-record-dialog.js";
 import { RecordDialog } from "../components/record-dialog.js";
 import { RecordsTable } from "../components/records-table.js";
+import { BinIcon, PencilIcon } from "../components/row-icons.js";
 import { recordName } from "../lib/record-edit.js";
 import { pageCount, RECORDS_PAGE_SIZE } from "../lib/paging.js";
 import { DEFAULT_VIEW, pageRange, SEARCH_DEBOUNCE_MS, SEARCH_MAX_CODE_POINTS, sortOptions, withSearch, withSort, type RecordsView } from "../lib/records-view.js";
@@ -340,23 +341,5 @@ function ColumnChips({ columns }: Readonly<{ columns: readonly FormColumn[] }>) 
         ))}
       </ul>
     </section>
-  );
-}
-
-/** The icons of the actions of a row (makieta 08); the button carries the name, the icon is hidden from assistive technology. */
-function PencilIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-    </svg>
-  );
-}
-
-function BinIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-    </svg>
   );
 }

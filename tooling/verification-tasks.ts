@@ -2743,6 +2743,56 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D25.3",
+    ready: true,
+    title: "ConfigTable in the browser (makieta 23): the list of entries with their path, value and bindings, the window of an entry, the conflict of two tabs and the delete with its bindings",
+    criteria: ["D25.3-AC1", "D25.3-AC2", "D25.3-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA, the unit test reads the limits of core from its build.
+        id: "workspace-build",
+        criteria: ["D25.3-AC1", "D25.3-AC2"],
+        description: "pnpm -r build: the SPA with /config, the window of an entry and the entry from the registers",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/registers/pages/config-page.tsx", "apps/web/src/features/registers/components/config-entry-dialog.tsx", "apps/web/src/features/registers/lib/config-draft.ts", "apps/web/src/app/router/router.tsx"],
+      },
+      {
+        id: "config-draft-web",
+        criteria: ["D25.3-AC1", "D25.3-AC2"],
+        description:
+          "The draft of an entry as pure functions: the limits of the web app equal the rules of core, the live checks give the same paths and codes as core on the same drafts, the value and the description are sent as typed and only the name trimmed, an untouched form is no change",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/config-draft.test.ts"],
+        requires: ["tests/unit/web/config-draft.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D25.3-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/registers.json", "apps/web/src/locales/en/registers.json"],
+      },
+      {
+        id: "config-e2e",
+        criteria: ["D25.3-AC1", "D25.3-AC2"],
+        description:
+          "Playwright on a fresh installation without SQL: the entry of F01 added from /registers, shown as Field.Config.norma_czytania with its value and 0 bindings, stored as text, changed with the symbol fixed and deleted, every change in the audit of the database with both values; a page that says no widget of this version reads the entries; a bad, taken symbol and an overlong value told at the field with no request; a save from a second tab is a conflict that keeps what was typed until the owner saves it or loads the stored version; the delete warns of the bindings; the Designer offers the register table nothing of ConfigTable; on a phone no sideways scroll; keyboard; axe; the registers, dictionaries and kreator as before",
+        command: ["node", "tests/verification/e2e.ts", "config.spec", "registers", "dictionaries", "new-registry", "designer"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/config.spec.ts", "tests/e2e/registers.spec.ts", "tests/e2e/dictionaries.spec.ts", "tests/e2e/new-registry.spec.ts", "tests/e2e/designer.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D25.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the module, its HTTP and its screen.
+  {
+    id: "D25",
+    ready: true,
+    title: "ConfigTable: entries of text, Field.Config and Field.System, the old and the new value only in the audit of the database",
+    steps: ["D25.1", "D25.2", "D25.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",
