@@ -13,8 +13,9 @@ name: CI
 #
 # The full tier is split by topic into jobs that run side by side, each with its own report
 # artifact: platform (D01-D08, Docker, images, the G0 inputs), access (D09-D13), registries
-# (D14-D17), screens (D18) and installer (D19). A new task joins the job of its topic, so no
-# single job grows past its time limit.
+# (D14-D17), data (the parents from D22 on), screens (D18) and installer (D19). The fast tier is
+# split the same way: core (D01-D20.2), data (the steps of the code from D22.1 on) and browser. A
+# new task joins the job of its topic, so no single job grows past its time limit.
 
 on:
   pull_request:
