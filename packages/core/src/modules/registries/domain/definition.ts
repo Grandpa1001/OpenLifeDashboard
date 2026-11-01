@@ -83,6 +83,35 @@ function symbolOf(value: unknown, space: "registry" | "column", taken: ReadonlyS
   return value as string;
 }
 
+/** What the rules of one column need of the registry and the owner. */
+export type ColumnContext = Readonly<{ limits: Pick<RegistryLimits, "textMaxChars">; dictionaryIds: ReadonlySet<string> }>;
+
+/**
+ * One column of a definition, at `at` (the path of its fields) and `position`; its symbol must not
+ * be in `takenColumnSymbols`, to which it is added. The column, or null with its issues pushed. The
+ * same rule makes the columns of a new registry and a column added later (D26).
+ */
+export function checkColumn(entry: unknown, at: string, position: number, takenColumnSymbols: Set<string>, context: ColumnContext, issues: RegistryIssue[]): NewColumn | null {
+  const column = (typeof entry === "object" && entry !== null ? entry : {}) as ColumnDraft;
+  const columnSymbol = symbolOf(column.symbol, "column", takenColumnSymbols, `${at}.symbol`, issues);
+  if (typeof column.symbol === "string") takenColumnSymbols.add(column.symbol);
+  const columnName = nameOf(column.displayName, `${at}.displayName`, issues);
+  let type: ColumnType | null = null;
+  if (isColumnType(column.type)) type = column.type;
+  else issues.push({ path: `${at}.type`, code: "TYPE_UNKNOWN" });
+  const options = type === null ? null : normalizeTypeOptions(type, column.typeOptions ?? {});
+  if (type !== null && options === null) issues.push({ path: `${at}.typeOptions`, code: "TYPE_OPTIONS_INVALID" });
+  const unknownDictionary = options?.dictionaryId !== undefined && !context.dictionaryIds.has(options.dictionaryId);
+  if (unknownDictionary) issues.push({ path: `${at}.typeOptions.dictionaryId`, code: "DICTIONARY_UNKNOWN" });
+  const required = column.required ?? false;
+  if (typeof required !== "boolean") issues.push({ path: `${at}.required`, code: "REQUIRED_FLAG_INVALID" });
+  const defaultValue = column.defaultValue ?? null;
+  const defaultOk = type !== null && options !== null && isValidDefault(type, options, defaultValue, context.limits.textMaxChars);
+  if (type !== null && options !== null && !defaultOk) issues.push({ path: `${at}.defaultValue`, code: "DEFAULT_INVALID" });
+  if (columnSymbol === null || columnName === null || type === null || options === null || unknownDictionary || typeof required !== "boolean" || !defaultOk) return null;
+  return { symbol: columnSymbol, displayName: columnName, type, typeOptions: options, defaultValue, required, position };
+}
+
 /** Validates the definition of a registry that does not exist yet; a column may be required without a default. */
 export function validateNewRegistry(draft: RegistryDraft, context: RegistryContext): DefinitionResult {
   const issues: RegistryIssue[] = [];
@@ -98,32 +127,9 @@ export function validateNewRegistry(draft: RegistryDraft, context: RegistryConte
   const columns: NewColumn[] = [];
   const takenColumnSymbols = new Set<string>();
   columnDrafts.slice(0, context.limits.maxColumns).forEach((entry, position) => {
-    const at = `columns.${position}`;
-    const column = (typeof entry === "object" && entry !== null ? entry : {}) as ColumnDraft;
-    const columnSymbol = symbolOf(column.symbol, "column", takenColumnSymbols, `${at}.symbol`, issues);
-    if (typeof column.symbol === "string") takenColumnSymbols.add(column.symbol);
-    const columnName = nameOf(column.displayName, `${at}.displayName`, issues);
-
-    let type: ColumnType | null = null;
-    if (isColumnType(column.type)) type = column.type;
-    else issues.push({ path: `${at}.type`, code: "TYPE_UNKNOWN" });
-
-    const options = type === null ? null : normalizeTypeOptions(type, column.typeOptions ?? {});
-    if (type !== null && options === null) issues.push({ path: `${at}.typeOptions`, code: "TYPE_OPTIONS_INVALID" });
-    const unknownDictionary = options?.dictionaryId !== undefined && !context.dictionaryIds.has(options.dictionaryId);
-    if (unknownDictionary) issues.push({ path: `${at}.typeOptions.dictionaryId`, code: "DICTIONARY_UNKNOWN" });
-
-    const required = column.required ?? false;
-    if (typeof required !== "boolean") issues.push({ path: `${at}.required`, code: "REQUIRED_FLAG_INVALID" });
-
-    const defaultValue = column.defaultValue ?? null;
-    if (type !== null && options !== null && !isValidDefault(type, options, defaultValue, context.limits.textMaxChars)) issues.push({ path: `${at}.defaultValue`, code: "DEFAULT_INVALID" });
-
-    if (columnSymbol !== null && columnName !== null && type !== null && options !== null && !unknownDictionary && typeof required === "boolean" && isValidDefault(type, options, defaultValue, context.limits.textMaxChars)) {
-      columns.push({ symbol: columnSymbol, displayName: columnName, type, typeOptions: options, defaultValue, required, position });
-    }
+    const column = checkColumn(entry, `columns.${position}`, position, takenColumnSymbols, context, issues);
+    if (column !== null) columns.push(column);
   });
-
   if (issues.length > 0 || symbol === null || displayName === null) return { ok: false, issues };
   return { ok: true, value: { symbol, displayName, columns } };
 }

@@ -58,7 +58,12 @@ const jobs = parsed.jobs ?? {};
 const tasksOf = (job: string): string[] => (jobs[job]?.steps ?? []).flatMap((step) => /^pnpm verify:task -- (\S+)$/.exec(step.run ?? "")?.slice(1) ?? []);
 const SLOW = ["D02.1", "D02.2", "D02.3", "D03", "D04", "D05", "D06", "D07", "D08", "D19.3", "D19", "D20", "D20.3", "G0"];
 const GATES = ["D13.3", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "G0"];
-const fastTasks = [...tasksOf("fast-core"), ...tasksOf("fast-browser")];
+// The fast tier is every job named fast-*: the code in more than one job side by side, and the browser.
+const fastJobs = Object.keys(jobs).filter((job) => job.startsWith("fast-"));
+const fastTasks = fastJobs.flatMap(tasksOf);
+check.expect(new Set(fastTasks).size === fastTasks.length && ["fast-core", "fast-browser"].every((job) => fastJobs.includes(job)), "the jobs of the fast tier run each task once", fastJobs.join(", "));
+const fastUploads = fastJobs.map((job) => workflow.split(`\n  ${job}:\n`)[1]?.split(/\n {2}[a-z0-9-]+:\n/)[0]?.match(/name: (verification-[a-z-]+)\n/)?.[1]);
+check.expect(fastUploads.every(Boolean) && new Set(fastUploads).size === fastJobs.length, "each job of the fast tier uploads its own report artifact", fastUploads.join(", "));
 check.expect(fastTasks.length > 0 && SLOW.every((id) => !fastTasks.includes(id)), "the fast tier runs no Docker, image or G0 task", fastTasks.join(", "));
 check.expect(GATES.every((id) => !fastTasks.includes(id)), "the fast tier runs no gate or handover: they join the reports of the full tier", fastTasks.join(", "));
 check.expect(["D01", "D09", "D10", "D11", "D12", "D13.1", "D13.2", "D14.1", "D14.2", "D14.3", "D15.1", "D15.2", "D15.3", "D16.1", "D16.2", "D16.3", "D17.1", "D17.2", "D17.3", "D17.4", "D18.1", "D18.2", "D18.3", "D19.1", "D19.2", "D20.1", "D20.2"].every((id) => fastTasks.includes(id)), "the fast tier runs the tasks of the code that changes from step to step", fastTasks.join(", "));

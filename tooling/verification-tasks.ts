@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -2791,6 +2791,31 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D25.1", "D25.2", "D25.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D26.1",
+    ready: true,
+    title: "A change of the structure before it is made, in core: the rules of each kind of change, exact conversions between types, the report of a conversion, the blocks of a required column and the state of a plan",
+    criteria: ["D26.1-AC1", "D26.1-AC2", "D26.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests read core from its build.
+        id: "workspace-build",
+        criteria: ["D26.1-AC1", "D26.1-AC2"],
+        description: "pnpm -r build: the rules of a change of structure, the conversions and the days of the owner's zone in core/registries",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/registries/domain/structure-change.ts", "packages/core/src/modules/registries/domain/convert.ts", "packages/core/src/modules/registries/domain/zoned-day.ts"],
+      },
+      {
+        id: "structure-change-rules",
+        criteria: ["D26.1-AC1", "D26.1-AC2"],
+        description:
+          "On Książki of F01: S9 \"12\" and \"abc\" as numbers are 12 and a failure in the report; every supported pair on a table of cases, exact or not at all (decimal places, grosze up to the safe integer, 2026-02-31, a date-time without a zone, the owner's midnight and day across both changes of the clock), the pairs without meaning refused; the report counts once and keeps the twenty most frequent failures first; each kind of change normalized and bound by a canonical text; an unknown kind or column, the last column, a taken or reserved symbol, a bad new column, the column limit, an unsupported pair, no change at all and a replacement of the wrong type refused with their paths; a required column that would lose values or keep empty cells blocked; a plan of another revision stale and after ten minutes expired; the columns of a new registry, the rules of records and Field.System as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/registries", "tests/unit/configuration"],
+        requires: ["tests/unit/registries/structure-change.test.ts", "tests/unit/registries/registry-rules.test.ts", "tests/unit/configuration/config-rules.test.ts"],
+      },
+      ...regressionChecks("D26.1-regression"),
+    ],
   },
   {
     id: "D19.1",
