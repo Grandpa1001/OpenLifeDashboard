@@ -4,6 +4,7 @@
 // access epoch). The stop is a hook on the unit of work, owned by this harness; no production code
 // has a test entry point. Everything else is the production composition of apps/server/src/main.ts.
 import { randomBytes, randomUUID } from "node:crypto";
+import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { createApp } from "../../apps/server/dist/bootstrap/create-app.js";
 import { createReadiness } from "../../apps/server/dist/bootstrap/readiness.js";
@@ -27,10 +28,12 @@ import { DEFAULT_DICTIONARY_LIMITS } from "../../packages/core/dist/modules/dict
 import { DEFAULT_CONFIG_LIMITS } from "../../packages/core/dist/modules/configuration/public.js";
 import { bindDictionaryLookup, bindDictionaryStore } from "../../packages/sqlite/dist/adapters/dictionaries/public.js";
 import { bindConfigStore } from "../../packages/sqlite/dist/adapters/configuration/public.js";
-import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore } from "../../packages/sqlite/dist/adapters/registries/public.js";
+import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore, bindTableColumns, bindTableRebuild } from "../../packages/sqlite/dist/adapters/registries/public.js";
 import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "../../packages/core/dist/modules/registries/public.js";
 import { createWidgetCatalog } from "../../apps/server/dist/adapters/widget-catalog.js";
 import { createStructurePlanSigner } from "../../apps/server/dist/adapters/structure-plan-signer.js";
+import { openMaintenanceGate } from "../../apps/server/dist/adapters/filesystem/maintenance-gate.js";
+import { acquireWriterLease } from "../../apps/server/dist/adapters/filesystem/writer-lease.js";
 import { DESIGN_POLICY } from "../../apps/server/dist/bootstrap/design-policy.js";
 import { sha256Hex } from "../../apps/server/dist/adapters/crypto/sha256-hex.js";
 import { createUuidV7 } from "../../apps/server/dist/adapters/ids/uuid-v7.js";
@@ -46,16 +49,26 @@ export const HARNESS_PASSWORD = "a passphrase for the harness";
 const INSTANCE_ID = "5a1e9c47-3b2d-4f60-8c1a-7d4e2b9f0a13";
 
 const opened: SqliteConnection[] = [];
-/** Closes every database a harness opened; call it from afterEach. */
+const leases: Array<() => void> = [];
+/** Closes every database a harness opened and releases its writer lease; call it from afterEach. */
 export function closeHarnesses(): void {
   for (const connection of opened.splice(0)) if (connection.handle.open) connection.close();
+  for (const release of leases.splice(0)) release();
 }
 
 export type HarnessReply = Readonly<{ status: number; text: string; json: () => unknown; setCookies: string[]; cookie: string | null }>;
 
 export async function createAppHarness() {
   const dir = scratchDir("openlife-harness-");
-  const connection = openDatabase(path.join(dir, "app.db"), { role: "writer", busyTimeoutMs: 5000 });
+  // The writer lease and the maintenance gate as the bootstrap takes them, before the database exists.
+  const workingPaths = { maintenance: path.join(dir, "maintenance"), database: path.join(dir, "app.db") };
+  mkdirSync(workingPaths.maintenance);
+  const writer = acquireWriterLease(workingPaths.maintenance);
+  if (!writer.ok) throw new Error(`the harness could not take the writer lease: ${writer.code}`);
+  leases.push(() => writer.lease.release());
+  const gate = openMaintenanceGate(writer.lease, workingPaths);
+  if (!gate.ok) throw new Error(`the harness could not open the gate: ${gate.code}`);
+  const connection = openDatabase(workingPaths.database, { role: "writer", busyTimeoutMs: 5000 });
   opened.push(connection);
   initializeDatabase(connection, PRODUCT_MIGRATION_PLAN, { instanceId: INSTANCE_ID, createdAt: new Date().toISOString() });
   const inner = createUnitOfWork(connection, (tx) => ({
@@ -68,6 +81,8 @@ export async function createAppHarness() {
     preferences: bindOwnerPreferencesStore(tx),
     registries: bindRegistryStore(tx),
     records: bindRecordStore(tx),
+    columns: bindTableColumns(tx),
+    rebuild: bindTableRebuild(tx),
     dictionaries: bindDictionaryStore(tx),
     dictionaryLookup: bindDictionaryLookup(tx),
     columnLinks: bindColumnDictionaryLinks(tx),
@@ -123,7 +138,7 @@ export async function createAppHarness() {
     setup: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     registries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
     records: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
-    structure: { ...structure, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
+    structure: { ...structure, gate: gate.gate, newId: createUuidV7(), newOperationId: randomUUID, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
     dictionaries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },
     config: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
@@ -153,6 +168,8 @@ export async function createAppHarness() {
     elsewhere: inner,
     /** The dependencies of the structure use cases as the app has them, for the check of a plan no route makes yet (D26.2; D28–D30 call it under the writer). */
     structure,
+    /** The maintenance gate of the harness, to read the operations the routes record. */
+    gate: gate.gate,
     /** The session token a `name=value` cookie of this app carries, or null. */
     sessionToken: (cookie: string): Promise<string | null> => cookies.verify(decodeURIComponent(cookie.slice(cookie.indexOf("=") + 1))),
     rows: <T>(sql: string): T[] => connection.handle.prepare(sql).all() as T[],

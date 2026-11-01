@@ -62,7 +62,7 @@ export type StructurePreview = Readonly<{
 const DEFAULT_TIME_ZONE = "UTC";
 
 /** The owner of a private read: the session must pass the data access. */
-function ownerOf(ports: StructurePorts, token: string, nowMs: number, requestId: string): Result<string> {
+function ownerOf(ports: Pick<StructurePorts, "sessions" | "access">, token: string, nowMs: number, requestId: string): Result<string> {
   const access = resolveSessionAccess(ports, token, nowMs, requestId);
   if (access === null) return { ok: false, error: { code: "AUTH_REQUIRED" } };
   const decision = decideAccess(access.snapshot, "data", nowMs);
@@ -159,4 +159,10 @@ export function checkStructurePlan(deps: StructureDependencies, token: string, i
     if (failure !== null) return { ok: false, error: failure };
     return checkedChange(ports, deps, registry, input.change);
   });
+}
+
+/** The owner a session may change the structure for, read before an operation of the gate begins; the writer reads it again at the commit. */
+export function structureOwner(deps: Readonly<{ unit: ReadUnit<Pick<StructurePorts, "sessions" | "access">>; nowMs: () => number }>, token: string, requestId: string): Result<string> {
+  const nowMs = deps.nowMs();
+  return deps.unit.read((ports) => ownerOf(ports, token, nowMs, requestId));
 }

@@ -47,6 +47,7 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "GET", path: registries.REGISTRIES_PATH, access: "data", note: "the owner's registries that are not deleted" },
   { method: "POST", path: registries.REGISTRIES_PATH, access: "data", note: "creates a registry and its table from a definition" },
   { method: "POST", path: registries.REGISTRY_STRUCTURE_PREVIEW_PATH, access: "data", note: "what one change of the structure would do, and its plan; writes nothing" },
+  { method: "POST", path: registries.REGISTRY_STRUCTURE_PATH, access: "data", note: "carries out a change of a column on its plan, in an operation of the gate" },
   { method: "GET", path: records.REGISTRY_RECORDS_PATH, access: "data", note: "a page of the records of one registry and their count" },
   { method: "POST", path: records.REGISTRY_RECORDS_PATH, access: "data", note: "adds a record; Idempotency-Key makes a repeat one add" },
   { method: "GET", path: records.REGISTRY_RECORD_PATH, access: "data", note: "one record of a registry as it is stored now" },

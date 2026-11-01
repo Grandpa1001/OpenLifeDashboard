@@ -8,12 +8,12 @@
 // under the writer. A removed column keeps its row in the catalog, so its bindings are broken and its
 // symbol is free again. Who may ask for it is the caller's (the operation of the gate, the route).
 import type { AppendAudit, AuditDetails } from "../../audit/public.js";
-import type { Commit } from "../../../foundation/public.js";
+import { DomainFault, type Commit } from "../../../foundation/public.js";
 import type { RegistryLimits } from "../domain/limits.js";
 import { isEmptyCell } from "../domain/record-rules.js";
 import { assessChange } from "../domain/structure-change.js";
 import type { DictionaryLookup, PlanSigner, RecordStore, RegistryStore, StoredColumn, StoredRegistry, TableColumns } from "../ports.js";
-import { otherKind, plannedChange, type PlannedChangeInput } from "./planned-change.js";
+import { otherKind, plannedChange, writerOf, type PlannedChangeInput, type WriterAccessPorts } from "./planned-change.js";
 
 export type ColumnChangePorts = Readonly<{
   registries: RegistryStore;
@@ -93,4 +93,13 @@ export function applyColumnChange(ports: ColumnChangePorts, deps: ColumnChangeDe
     value: { registryId: registry.id, schemaRevision: registry.schemaRevision + 1, columnId, affected },
     invalidations: [{ resource: "schema", ownerId: registry.ownerId, resourceId: registry.id }],
   };
+}
+
+/**
+ * A column change asked for by a session (D28.2): the session is read again in this unit and must be
+ * the owner the operation was begun for, so a session ended or a gate closed meanwhile writes nothing.
+ */
+export function carryOutColumnChange(ports: ColumnChangePorts & WriterAccessPorts, deps: ColumnChangeDependencies, token: string, input: ColumnChangeInput): Commit<ColumnChanged> {
+  if (writerOf(ports, token, deps.nowMs, input.requestId) !== input.ownerId) throw new DomainFault({ code: "AUTH_REQUIRED" });
+  return applyColumnChange(ports, deps, input);
 }

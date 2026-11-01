@@ -81,14 +81,14 @@ export const structurePreviewPath = (symbol: string): string => `${REGISTRIES_PA
 const columnIdSchema = z.string().max(64);
 const typeOptionsRequestSchema = z.record(z.string().max(100), z.unknown());
 
-export const structureChangeRequestSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("addColumn"), column: newColumnRequestSchema }).strict(),
-  z.object({ kind: z.literal("renameColumn"), columnId: columnIdSchema, displayName: z.string().max(400) }).strict(),
-  z.object({ kind: z.literal("removeColumn"), columnId: columnIdSchema }).strict(),
-  z.object({ kind: z.literal("changeType"), columnId: columnIdSchema, type: z.string().max(40), typeOptions: typeOptionsRequestSchema.optional(), required: z.boolean().optional(), replacement: cellValueSchema.optional() }).strict(),
-  z.object({ kind: z.literal("setRequired"), columnId: columnIdSchema, required: z.boolean(), replacement: cellValueSchema.optional() }).strict(),
-  z.object({ kind: z.literal("deleteRegistry") }).strict(),
-]);
+const addColumnSchema = z.object({ kind: z.literal("addColumn"), column: newColumnRequestSchema }).strict();
+const renameColumnSchema = z.object({ kind: z.literal("renameColumn"), columnId: columnIdSchema, displayName: z.string().max(400) }).strict();
+const removeColumnSchema = z.object({ kind: z.literal("removeColumn"), columnId: columnIdSchema }).strict();
+const changeTypeSchema = z.object({ kind: z.literal("changeType"), columnId: columnIdSchema, type: z.string().max(40), typeOptions: typeOptionsRequestSchema.optional(), required: z.boolean().optional(), replacement: cellValueSchema.optional() }).strict();
+const setRequiredSchema = z.object({ kind: z.literal("setRequired"), columnId: columnIdSchema, required: z.boolean(), replacement: cellValueSchema.optional() }).strict();
+const deleteRegistrySchema = z.object({ kind: z.literal("deleteRegistry") }).strict();
+
+export const structureChangeRequestSchema = z.discriminatedUnion("kind", [addColumnSchema, renameColumnSchema, removeColumnSchema, changeTypeSchema, setRequiredSchema, deleteRegistrySchema]);
 export type StructureChangeRequest = z.infer<typeof structureChangeRequestSchema>;
 
 export const structurePreviewRequestSchema = z.object({ change: structureChangeRequestSchema }).strict();
@@ -115,3 +115,33 @@ export const structurePreviewSchema = z
   })
   .strict();
 export type StructurePreviewDto = z.infer<typeof structurePreviewSchema>;
+
+// Carrying out a change of the structure on its plan (Architektura §4.5, §4.6, §5.2; D28.2). The body
+// is the change of the preview and the plan it returned; the server checks the plan again under the
+// writer, in an operation of the maintenance gate, and answers with the new schema revision. This
+// route takes the changes of a column (add, rename, remove, required); a change of type with its copy
+// and the deletion of a registry join it in D29 and D30.
+
+export const REGISTRY_STRUCTURE_PATH = `${REGISTRIES_PATH}/:symbol/structure` as const;
+export const structurePath = (symbol: string): string => `${REGISTRIES_PATH}/${symbol}/structure`;
+
+/** The longest plan a preview issues, with room to spare; the signature decides the rest. */
+const PLAN_TOKEN_MAX = 1024;
+
+export const structureChangeExecuteRequestSchema = z
+  .object({
+    change: z.discriminatedUnion("kind", [addColumnSchema, renameColumnSchema, removeColumnSchema, setRequiredSchema]),
+    planToken: z.string().min(1).max(PLAN_TOKEN_MAX),
+  })
+  .strict();
+export type StructureChangeExecuteRequest = z.infer<typeof structureChangeExecuteRequestSchema>;
+
+export const structureChangedSchema = z
+  .object({
+    registry: z.object({ symbol: z.string(), schemaRevision: z.number().int().min(1) }).strict(),
+    columnId: z.string(),
+    /** The records whose values the change wrote. */
+    affected: countSchema,
+  })
+  .strict();
+export type StructureChangedDto = z.infer<typeof structureChangedSchema>;

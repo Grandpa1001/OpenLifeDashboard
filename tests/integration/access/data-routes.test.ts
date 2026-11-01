@@ -12,7 +12,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { apiErrorSchema } from "@openlife/contracts/http/errors";
-import { registryListSchema, REGISTRIES_PATH } from "@openlife/contracts/http/registries";
+import { registryListSchema, REGISTRIES_PATH, structurePath, structurePreviewPath, structurePreviewSchema } from "@openlife/contracts/http/registries";
 import { SIGN_OUT_PATH } from "@openlife/contracts/http/identity";
 import { recordSchema } from "@openlife/contracts/http/records";
 import { SCREENS_PATH, screenSchema } from "@openlife/contracts/http/screens";
@@ -32,6 +32,8 @@ const PLACEHOLDER = { symbol: "waga", screen: "019a0000-0000-7000-8000-000000000
 const LAYOUT = { phone: { x: 0, y: 0, w: 1, h: 8 }, tablet: { x: 0, y: 0, w: 8, h: 8 }, desktop: { x: 0, y: 0, w: 8, h: 8 } };
 const WAGA = { symbol: "waga", displayName: "Waga", columns: [{ symbol: "kg", displayName: "Kg", type: "number", typeOptions: { decimalPlaces: 1 } }] };
 const code = (reply: Reply): string => apiErrorSchema.parse(reply.json()).code;
+/** A change of the structure the owner past the gate carries out on a plan of its own preview. */
+const RENAME_KG = { kind: "renameColumn", columnId: "019a0000-0000-7000-8000-0000000000c9", displayName: "Kilogramy" };
 
 type Ids = Readonly<{ symbol: string; screen: string; widget: string; record: string }>;
 
@@ -41,12 +43,14 @@ const fill = (route: RouteEntry, ids: Ids): string => {
 };
 
 /** A well-formed request for the route, so that only the access can be the reason of a refusal. */
-function requestOf(route: RouteEntry, design: unknown): { body: unknown; headers: Record<string, string> } {
+function requestOf(route: RouteEntry, design: unknown, planToken = "a-plan-that-no-preview-issued"): { body: unknown; headers: Record<string, string> } {
   switch (keyOf(route)) {
     case `POST ${REGISTRIES_PATH}`:
       return { body: { ...WAGA, symbol: "pomiary", displayName: "Pomiary" }, headers: {} };
     case "POST /api/v1/registries/:symbol/structure/preview":
       return { body: { change: { kind: "deleteRegistry" } }, headers: {} };
+    case "POST /api/v1/registries/:symbol/structure":
+      return { body: { change: RENAME_KG, planToken }, headers: {} };
     case "POST /api/v1/registries/:symbol/records":
       return { body: { schemaRevision: 1, values: { kg: 71.5 } }, headers: { "Idempotency-Key": "d20-2-access-key" } };
     case "POST /api/v1/dictionaries":
@@ -140,6 +144,7 @@ describe("D20.2 the table is the inventory", () => {
       "POST /api/v1/dictionaries",
       "POST /api/v1/registries",
       "POST /api/v1/registries/:symbol/records",
+      "POST /api/v1/registries/:symbol/structure",
       "POST /api/v1/registries/:symbol/structure/preview",
       "POST /api/v1/screens",
       "PUT /api/v1/config/:symbol",
@@ -220,6 +225,14 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     expect((await run(route("PUT", "/design"), ids, designOf(registry, ids.widget))).status).toBe(200);
     await run(route("GET", "/widget-types"), ids);
     await run(route("GET", "/data"), ids);
+    // Last, because it raises the schema revision the requests above are built on: a rename of the column
+    // of waga on the plan of its own preview; the column is the server's, so its identifier is read first.
+    const kg = { ...RENAME_KG, columnId: registry.columns.find((column) => column.symbol === "kg")?.id ?? "" };
+    const planned = await send(server, "POST", structurePreviewPath("waga"), { change: kg }, { cookie: session });
+    const planToken = structurePreviewSchema.parse(planned.json()).planToken ?? "";
+    const renamed = await send(server, "POST", structurePath("waga"), { change: kg, planToken }, { cookie: session });
+    answered.set("POST /api/v1/registries/:symbol/structure", renamed.status);
+    expect(renamed.status).toBe(200);
     expect([...answered.keys()].sort(), "every data route has its positive control").toEqual(DATA_ROUTES.map(keyOf).sort());
     for (const [key, status] of answered) expect([200, 201, 204], `the owner past the gate on ${key}`).toContain(status);
 

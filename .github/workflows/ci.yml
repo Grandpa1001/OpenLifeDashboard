@@ -226,6 +226,9 @@ jobs:
       - name: Verify D28.1 (adding, renaming, removing a column and making it required, in core and SQLite)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D28.1
+      - name: Verify D28.2 (carrying out a change of a column over HTTP under the gate, S8)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D28.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -558,7 +561,7 @@ jobs:
     # The data of the registries: column types, record changes and search, dictionaries and
     # ConfigTable, every parent over its work orders. Its own job, as in the fast tier, so neither
     # job runs out of its 30 minutes as the parents are added.
-    name: verify:task (full tier, data D22-D26)
+    name: verify:task (full tier, data D22-D32)
     needs: changes
     if: ${{ needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
@@ -609,6 +612,9 @@ jobs:
       - name: Verify D27 (the parent, D27.1–D27.2 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D27
+      - name: Verify D28 (the parent, D28.1–D28.2 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D28
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

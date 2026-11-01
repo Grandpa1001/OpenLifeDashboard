@@ -16,7 +16,7 @@ import { bindIdentityAccessReader, bindMfaStore, bindOwnerWriters, bindRecoveryC
 import { bindCatalogReader, bindConfigBindingCounts, bindDashboardStore, bindDependentWidgets } from "@openlife/sqlite/adapters/dashboard";
 import { bindDictionaryLookup, bindDictionaryStore } from "@openlife/sqlite/adapters/dictionaries";
 import { bindConfigStore } from "@openlife/sqlite/adapters/configuration";
-import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore } from "@openlife/sqlite/adapters/registries";
+import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore, bindTableColumns, bindTableRebuild } from "@openlife/sqlite/adapters/registries";
 import { bindOwnerPreferencesStore } from "@openlife/sqlite/adapters/settings";
 import { DEFAULT_DICTIONARY_LIMITS } from "@openlife/core/dictionaries";
 import { DEFAULT_CONFIG_LIMITS } from "@openlife/core/configuration";
@@ -192,6 +192,8 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   preferences: bindOwnerPreferencesStore(tx),
   registries: bindRegistryStore(tx),
   records: bindRecordStore(tx),
+  columns: bindTableColumns(tx),
+  rebuild: bindTableRebuild(tx),
   dictionaries: bindDictionaryStore(tx),
   dictionaryLookup: bindDictionaryLookup(tx),
   columnLinks: bindColumnDictionaryLinks(tx),
@@ -266,7 +268,7 @@ const app = createApp({
   setup: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
   registries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
   records: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
-  structure: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, signer: planSigner, limits: DEFAULT_REGISTRY_LIMITS, logger },
+  structure: { unit: identityUnit, gate: gate.gate, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), newOperationId: randomUUID, signer: planSigner, limits: DEFAULT_REGISTRY_LIMITS, logger },
   dictionaries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },
   config: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
   screens: { dashboard: { unit: identityUnit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: environment.baseUrl, logger },

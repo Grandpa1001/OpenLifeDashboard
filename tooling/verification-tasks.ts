@@ -2982,6 +2982,51 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D28.2",
+    ready: true,
+    title: "Carrying out a change of a column over HTTP on its plan, in an operation of the maintenance gate, with the session read again at the commit; S8",
+    criteria: ["D28.2-AC1", "D28.2-AC2", "D28.2-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests start the built server and compose the app from its build.
+        id: "workspace-build",
+        criteria: ["D28.2-AC1", "D28.2-AC2"],
+        description: "pnpm -r build: the route that carries a change out, its contract, the operation of the gate around any change of the structure and the session read again in the writer's unit",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/routes/structure.routes.ts", "apps/server/src/workers/rebuild-operation.ts", "packages/contracts/src/http/registries.ts", "packages/core/src/modules/registries/application/column-change.ts"],
+      },
+      {
+        id: "structure-change-http",
+        criteria: ["D28.2-AC1", "D28.2-AC2"],
+        description:
+          "Raw HTTP on the built server with Książki of F01 and its table widget: autor removed on the plan of its preview answers revision 2, uncached, the widget needs a binding and is ok once bound again (S8); a required ocena with the default 5 fills 25 records and autor added again is a new column; each change is one operation of the gate, closed after it, and audited; a plan made stale by a record is 409 PLAN_STALE with nothing written and the operation closed; a change of type and a deletion are 422; a foreign Origin and no session are refused; on the composition of the app a session that ends between the read of the route and the writer's unit writes nothing and the operation closes; the inventory and every state before the gate on the new route (D13.1, D20.2); the preview, the rebuild, the column changes, the records, the request authority and the gate as before",
+        command: [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "tests/integration/registries",
+          "tests/integration/auth/route-inventory.test.ts",
+          "tests/integration/auth/request-authority.test.ts",
+          "tests/integration/access/data-routes.test.ts",
+          "tests/integration/maintenance/rebuild-operation.test.ts",
+        ],
+        requires: ["tests/integration/registries/structure-change-http.test.ts", "tests/support/books-http.ts", "tests/support/app-harness.ts", "tests/support/route-inventory.ts", "tests/integration/access/data-routes.test.ts"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      ...regressionChecks("D28.2-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the column changes in core and SQLite and their route.
+  {
+    id: "D28",
+    ready: true,
+    title: "Adding, renaming and removing a column and making it required, on a plan, under the gate, with S8",
+    steps: ["D28.1", "D28.2"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",

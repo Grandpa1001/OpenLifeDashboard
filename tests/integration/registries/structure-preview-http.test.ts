@@ -8,19 +8,15 @@
 // AC2: a record or a definition written after the preview makes the plan stale; another change,
 //      another owner, a changed or foreign token is invalid; after ten minutes it has expired; a
 //      foreign Origin and no session are refused; 50 000 records are previewed within the budget.
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { apiErrorSchema } from "@openlife/contracts/http/errors";
 import { IDEMPOTENCY_KEY_HEADER, registryRecordsPath } from "@openlife/contracts/http/records";
-import { REGISTRIES_PATH, registryListSchema, structurePreviewPath, structurePreviewSchema, type RegistryDto } from "@openlife/contracts/http/registries";
-import { SCREENS_PATH, screenDesignPath, screenSchema } from "@openlife/contracts/http/screens";
+import { REGISTRIES_PATH, structurePreviewPath, structurePreviewSchema } from "@openlife/contracts/http/registries";
 import { afterEach, describe, expect, it } from "vitest";
 import { createStructurePlanSigner } from "../../../apps/server/dist/adapters/structure-plan-signer.js";
 import { checkStructurePlan, planFailure, STRUCTURE_PLAN_TTL_MS, type StoredRegistry } from "../../../packages/core/dist/modules/registries/public.js";
-import { installation, post, query, readyOwner, send, stopServers, type Installation } from "../../support/auth-http.ts";
+import { installation, post, readyOwner, send, stopServers, type Installation } from "../../support/auth-http.ts";
 import { closeHarnesses } from "../../support/app-harness.ts";
-import { withoutDictionary } from "../../support/books-fixture.ts";
-import { repoRoot } from "../../support/server-process.ts";
+import { BOOKS, booksOverApi, columnId, definitionOf, registryOf, SCREEN, stored, TABLE } from "../../support/books-http.ts";
 import { createSignedInHarness } from "../../support/signed-in-harness.ts";
 
 afterEach(async () => {
@@ -28,54 +24,8 @@ afterEach(async () => {
   await stopServers();
 });
 
-type FixtureColumn = { id: string; symbol: string; displayName: string; type: string; typeOptions: unknown; defaultValue: unknown; required: boolean };
-type FixtureBinding = { slot: string; ordinal: number; path: string; target: { kind: string; registryId?: string; columnId?: string; symbol?: string } };
-type FixtureWidget = { id: string; type: string; config: Record<string, unknown>; layout: unknown; bindings: FixtureBinding[] };
-const fixture = JSON.parse(readFileSync(path.join(repoRoot, "tests/fixtures/books/books-v1.export.json"), "utf8")) as {
-  registries: Array<{ id: string; symbol: string; displayName: string; columns: FixtureColumn[]; records: Array<{ values: Record<string, unknown> }> }>;
-  screens: Array<{ name: string; widgets: FixtureWidget[] }>;
-};
-const BOOKS = fixture.registries[0]!;
-const SCREEN = fixture.screens[0]!;
-const TABLE = SCREEN.widgets.find((widget) => widget.type === "register-table")!;
-const definitionOf = (symbol: string, displayName: string, columns: ReadonlyArray<Omit<FixtureColumn, "id">>) => ({
-  symbol,
-  displayName,
-  columns: columns.map(({ symbol: column, displayName: name, type, typeOptions, defaultValue, required }) => ({ symbol: column, displayName: name, type, typeOptions: withoutDictionary(typeOptions), defaultValue, required })),
-});
 const code = (reply: { json: () => unknown }): string => apiErrorSchema.parse(reply.json()).code;
-
-/** Everything a preview could change, as one text. */
-function stored(setup: Installation): string {
-  const tables = ["registry", "registry_column", "screen", "widget", "binding", "idempotency_entry", "audit_log", ...query<{ name: string }>(setup.instance, "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'reg\\_%' ESCAPE '\\' ORDER BY 1").map((row) => row.name)];
-  return JSON.stringify(tables.map((table) => query(setup.instance, `SELECT * FROM "${table}" ORDER BY 1`)));
-}
-
-const registryOf = async (setup: Installation, cookie: string, symbol: string): Promise<RegistryDto> => {
-  const found = registryListSchema.parse((await send(setup.server, "GET", REGISTRIES_PATH, undefined, { cookie })).json()).registries.find((registry) => registry.symbol === symbol);
-  if (found === undefined) throw new Error(`no registry ${symbol}`);
-  return found;
-};
-
-/** Książki with the 25 records of F01 and the screen of F01 with its table widget, bound to the server's identifiers. */
-async function books(): Promise<{ setup: Installation; cookie: string; registry: RegistryDto; screenId: string }> {
-  const setup = await installation();
-  const cookie = (await readyOwner(setup)).sessionCookie;
-  expect((await post(setup.server, REGISTRIES_PATH, definitionOf(BOOKS.symbol, BOOKS.displayName, BOOKS.columns), { cookie })).status).toBe(201);
-  for (const [index, record] of BOOKS.records.entries()) {
-    expect((await post(setup.server, registryRecordsPath(BOOKS.symbol), { schemaRevision: 1, values: record.values }, { cookie, headers: { [IDEMPOTENCY_KEY_HEADER]: `d26-2-add-${index}` } })).status).toBe(201);
-  }
-  const registry = await registryOf(setup, cookie, BOOKS.symbol);
-  const columnIdOf = (fixtureId: string): string => registry.columns.find((column) => column.symbol === BOOKS.columns.find((each) => each.id === fixtureId)?.symbol)!.id;
-  const screenId = screenSchema.parse((await post(setup.server, SCREENS_PATH, { name: SCREEN.name }, { cookie })).json()).id;
-  const widget = {
-    ...TABLE,
-    bindings: TABLE.bindings.map((binding) => ({ ...binding, target: { ...binding.target, registryId: registry.id, ...(binding.target.columnId === undefined ? {} : { columnId: columnIdOf(binding.target.columnId) }) } })),
-  };
-  const design = await send(setup.server, "PUT", screenDesignPath(screenId), { name: SCREEN.name, theme: "dark", accent: "blue", widgets: [widget] }, { cookie });
-  expect(design.status).toBe(200);
-  return { setup, cookie, registry, screenId };
-}
+const books = () => booksOverApi("d26-2");
 
 const preview = async (setup: Installation, cookie: string, symbol: string, change: unknown) => send(setup.server, "POST", structurePreviewPath(symbol), { change }, { cookie });
 const previewed = async (setup: Installation, cookie: string, symbol: string, change: unknown) => {
@@ -84,7 +34,6 @@ const previewed = async (setup: Installation, cookie: string, symbol: string, ch
   expect(reply.headers.get("cache-control")).toBe("no-store");
   return structurePreviewSchema.parse(reply.json());
 };
-const columnId = (registry: RegistryDto, symbol: string): string => registry.columns.find((column) => column.symbol === symbol)!.id;
 
 describe("D26.2-AC1 what a change of F01 would do, through the real API", () => {
   it("removing autor: 25 records, the 22 with an author, the table widget by its slot; strony to text converts all 25; nothing is written", async () => {

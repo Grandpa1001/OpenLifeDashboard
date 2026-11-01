@@ -3,6 +3,7 @@
 // preview checked against it, and the change checked again against its columns. Each failure is a
 // fault of the unit, so nothing is written.
 import { DomainFault } from "../../../foundation/public.js";
+import { decideAccess, resolveSessionAccess, type IdentityAccessReader, type SessionStore } from "../../identity/public.js";
 import type { RegistryLimits } from "../domain/limits.js";
 import { validateStructureChange, type StructureChange } from "../domain/structure-change.js";
 import type { DictionaryLookup, PlanSigner, RegistryStore, StoredRegistry } from "../ports.js";
@@ -26,3 +27,17 @@ export function plannedChange(
 
 /** A kind of change this use case does not carry out: the request names another one. */
 export const otherKind = (): DomainFault => new DomainFault({ code: "VALIDATION_FAILED", fields: ["kind"], issues: [{ path: "kind", code: "CHANGE_UNKNOWN" }] });
+
+export type WriterAccessPorts = Readonly<{ sessions: Pick<SessionStore, "findActive">; access: IdentityAccessReader }>;
+
+/**
+ * The owner of a change of the structure, read again inside the unit of the writer: the session must
+ * still pass the data access at the commit, whatever a read before the operation said (D13.2).
+ */
+export function writerOf(ports: WriterAccessPorts, token: string, nowMs: number, requestId: string): string {
+  const access = resolveSessionAccess(ports, token, nowMs, requestId);
+  if (access === null) throw new DomainFault({ code: "AUTH_REQUIRED" });
+  const decision = decideAccess(access.snapshot, "data", nowMs);
+  if (!decision.allow) throw new DomainFault({ code: decision.code });
+  return access.session.ownerId;
+}

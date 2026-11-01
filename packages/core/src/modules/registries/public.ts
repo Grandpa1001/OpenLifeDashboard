@@ -21,13 +21,14 @@ export type { CreatedRecord, NewRecordInput, RecordChangeInput, RecordDeleteInpu
 export { dayBefore, dayInZone, startOfDayInZone } from "./domain/zoned-day.js";
 export { convertCell, isConversionSupported } from "./domain/convert.js";
 export type { Conversion, ConversionColumn, ConversionContext } from "./domain/convert.js";
-export { applyColumnChange } from "./application/column-change.js";
+export { applyColumnChange, carryOutColumnChange } from "./application/column-change.js";
+export type { WriterAccessPorts } from "./application/planned-change.js";
 export type { ColumnChanged, ColumnChangeDependencies, ColumnChangeInput, ColumnChangePorts } from "./application/column-change.js";
 export { changeColumnType } from "./application/type-change.js";
 export type { TypeChangeDependencies, TypeChanged, TypeChangeInput, TypeChangePorts } from "./application/type-change.js";
 export { planTypeChange } from "./domain/type-change.js";
 export type { CellRewrite, TypeChangePlan } from "./domain/type-change.js";
-export { checkStructurePlan, planFailure, previewStructureChange } from "./application/structure-preview.js";
+export { checkStructurePlan, planFailure, previewStructureChange, structureOwner } from "./application/structure-preview.js";
 export type { StructureDependencies, StructurePlanInput, StructurePorts, StructurePreview, StructurePreviewInput } from "./application/structure-preview.js";
 export { assessChange, canonicalChange, CONVERSION_SAMPLES_MAX, conversionOf, planState, reportConversion, STRUCTURE_CHANGE_KINDS, STRUCTURE_PLAN_TTL_MS, validateStructureChange } from "./domain/structure-change.js";
 export type { ConversionReport, PlanClaims, PlanState, StructureBlock, StructureChange, StructureChangeKind, StructureChangeResult, StructureColumn, StructureContext, StructureFacts, StructureIssue, StructureIssueCode, StructureSchema } from "./domain/structure-change.js";
