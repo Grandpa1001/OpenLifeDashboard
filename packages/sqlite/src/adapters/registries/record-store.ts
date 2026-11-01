@@ -6,9 +6,10 @@
 // from one handle, so inside a read unit they come from one snapshot; a search filters both alike.
 // The preview of a structure change (D26.2) counts the records and the values of a column and reads
 // one column of every record row by row, never the whole table at once.
-import { isSearchable, PAGE_SIZE_MAX, PAGE_SIZE_MIN, SEARCH_MAX_CODE_POINTS, tableNameOf, type CellValue, type RecordPage, type RecordPageQuery, type RecordStore, type StoredColumn, type StoredRecord, type StoredRegistry } from "@openlife/core/registries";
+import { isSearchable, PAGE_SIZE_MAX, PAGE_SIZE_MIN, SEARCH_MAX_CODE_POINTS, tableNameOf, type RecordPage, type RecordPageQuery, type RecordStore, type StoredColumn, type StoredRecord, type StoredRegistry } from "@openlife/core/registries";
 import { foldText, TEXT_FOLD_FUNCTION } from "../../connection/open-database.js";
 import type { TransactionHandle, TransactionStatement } from "../../transactions/unit-of-work.js";
+import { decodeCell, encodeCell } from "./cell-encoding.js";
 import { quoteIdentifier, UnsafeIdentifierError } from "./registry-ddl.js";
 
 type Row = Record<string, unknown> & { id: string; created_at: string; updated_at: string; revision: number };
@@ -37,15 +38,6 @@ function searchFilter(registry: StoredRegistry, search: string | null): { sql: s
   };
 }
 
-const encode = (column: StoredColumn, value: CellValue | undefined): unknown => {
-  if (value === undefined || value === null) return null;
-  return column.type === "boolean" ? (value === true ? 1 : 0) : value;
-};
-
-const decode = (column: StoredColumn, value: unknown): CellValue => {
-  if (value === null || value === undefined) return null;
-  return column.type === "boolean" ? value === 1 : (value as CellValue);
-};
 
 /** A column of the catalog by its symbol: a name outside the registry never reaches SQL. */
 function columnOf(registry: StoredRegistry, symbol: string): StoredColumn {
@@ -75,7 +67,7 @@ export function bindRecordStore(tx: TransactionHandle): RecordStore {
     revision: row.revision,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    values: Object.fromEntries(registry.columns.map((column) => [column.symbol, decode(column, row[column.symbol])])),
+    values: Object.fromEntries(registry.columns.map((column) => [column.symbol, decodeCell(column, row[column.symbol])])),
   });
 
   return {
@@ -88,7 +80,7 @@ export function bindRecordStore(tx: TransactionHandle): RecordStore {
 
       const names = ["id", "user_id", "created_at", "updated_at", "revision", ...registry.columns.map((column) => column.symbol)].map(quoteIdentifier);
       const insert = prepared(`INSERT INTO ${table} (${names.join(", ")}) VALUES (${names.map(() => "?").join(", ")})`);
-      insert.run(record.id, registry.ownerId, record.createdAt, record.updatedAt, record.revision, ...registry.columns.map((column) => encode(column, record.values[column.symbol])));
+      insert.run(record.id, registry.ownerId, record.createdAt, record.updatedAt, record.revision, ...registry.columns.map((column) => encodeCell(column, record.values[column.symbol])));
       // The catalog row is matched on the schema the record was checked against, so a registry that
       // changed or was deleted since it was read takes the insert back with the whole unit.
       if (raiseRevision.run(registry.id, registry.ownerId, registry.schemaRevision).changes !== 1) throw new TypeError("the registry changed or was deleted since it was read");
@@ -104,7 +96,7 @@ export function bindRecordStore(tx: TransactionHandle): RecordStore {
 
       const assignments = ["updated_at", "revision", ...registry.columns.map((column) => column.symbol)].map((name) => `${quoteIdentifier(name)} = ?`);
       const update = prepared(`UPDATE ${table} SET ${assignments.join(", ")} WHERE "id" = ? AND "user_id" = ? AND "revision" = ?`);
-      const changed = update.run(record.updatedAt, record.revision, ...registry.columns.map((column) => encode(column, record.values[column.symbol])), record.id, registry.ownerId, expectedRevision).changes;
+      const changed = update.run(record.updatedAt, record.revision, ...registry.columns.map((column) => encodeCell(column, record.values[column.symbol])), record.id, registry.ownerId, expectedRevision).changes;
       if (changed === 0) return false;
       if (raiseRevision.run(registry.id, registry.ownerId, registry.schemaRevision).changes !== 1) throw new TypeError("the registry changed or was deleted since it was read");
       return true;
@@ -154,7 +146,7 @@ export function bindRecordStore(tx: TransactionHandle): RecordStore {
     *columnValues(registry, columnSymbol) {
       const column = columnOf(registry, columnSymbol);
       const rows = prepared(`SELECT ${quoteIdentifier(column.symbol)} AS value FROM ${tableOf(registry)} WHERE user_id = ?`).iterate(registry.ownerId);
-      for (const row of rows) yield decode(column, (row as { value: unknown }).value);
+      for (const row of rows) yield decodeCell(column, (row as { value: unknown }).value);
     },
   };
 }

@@ -31,8 +31,9 @@ function decimalText(text: string): RegExpExecArray | null {
   return NUMBER.exec(normalized);
 }
 
-/** A number written without an exponent and without digits it does not have. */
-const plainNumber = (value: number): string => new Intl.NumberFormat("en-US", { useGrouping: false, maximumFractionDigits: 20 }).format(value);
+/** A number written without an exponent and without digits it does not have. One formatter for the module: making one per value cost 0.7 s for 50 000 values (D27.1). */
+const PLAIN_NUMBER = new Intl.NumberFormat("en-US", { useGrouping: false, maximumFractionDigits: 20 });
+const plainNumber = (value: number): string => PLAIN_NUMBER.format(value);
 
 /** Grosze as `[-]units.cc`, exact for every safe integer. */
 function centsText(cents: number): string {

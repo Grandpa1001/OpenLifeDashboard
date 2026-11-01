@@ -5,6 +5,7 @@ import type { CellValue } from "./domain/column-rules.js";
 import type { NewColumn, NewRegistry } from "./domain/definition.js";
 import type { SortColumn, SortDirection } from "./domain/record-rules.js";
 import type { PlanClaims } from "./domain/structure-change.js";
+import type { CellRewrite } from "./domain/type-change.js";
 
 /** What the engine needs to create a registry: the validated definition and the identifiers it was given. */
 export type NewRegistryRecord = Readonly<{
@@ -48,6 +49,12 @@ export interface RegistryStore {
   find(ownerId: string, symbol: string): StoredRegistry | null;
   /** Registries that are not deleted, in the order they were created. */
   list(ownerId: string): readonly StoredRegistry[];
+  /**
+   * Writes the new definition of one column and raises the schema revision, only while the registry
+   * still has the revision it was read with; anything else is a bug upstream and throws, so the whole
+   * unit (the rebuilt table among it) is taken back.
+   */
+  changeColumn(registry: StoredRegistry, column: StoredColumn, nowIso: string): void;
 }
 
 /** A record as it is stored and returned: values by the symbols of the columns, in canonical form. */
@@ -138,4 +145,17 @@ export interface PlanSigner {
   issue(claims: PlanClaims, binding: Readonly<{ ownerId: string; change: string }>): string;
   /** The claims of a token this installation issued for exactly this owner and change; null for any other token. */
   open(token: string, binding: Readonly<{ ownerId: string; change: string }>): PlanClaims | null;
+}
+
+/** The column whose values a rebuild rewrites, and what each value becomes. */
+export type RebuiltColumn = Readonly<{ symbol: string; rewrite: (value: CellValue) => CellRewrite }>;
+
+/**
+ * The rebuild of a registry's table in the unit of work of the writer (Architektura §4.5, §5.2;
+ * D27.1): a new table of the target columns, every row copied with its identifier, owner, times and
+ * revision and the one column rewritten, the count checked, the old table replaced by the new one
+ * under its name, and its indexes made again. Any failure throws and the unit takes everything back.
+ */
+export interface TableRebuild {
+  rebuild(registry: StoredRegistry, columns: readonly StoredColumn[], changed: RebuiltColumn): Readonly<{ rows: number; failed: number }>;
 }

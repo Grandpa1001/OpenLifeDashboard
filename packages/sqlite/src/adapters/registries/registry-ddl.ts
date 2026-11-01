@@ -51,13 +51,18 @@ const isIndexed = (column: NewColumn): boolean => column.type === "date" || colu
 
 export type RegistryDdl = Readonly<{ table: string; indexes: readonly string[] }>;
 
+/** The table of the definition under a given name: the registry's own, or the new table of a rebuild (D27.1). */
+export function registryTableSql(definition: NewRegistry, tableName: string): string {
+  const body = [...ENGINE_COLUMNS, ...definition.columns.map(columnSql)].join(",\n  ");
+  return `CREATE TABLE ${quoteIdentifier(tableName)} (\n  ${body}\n) STRICT`;
+}
+
 export function registryDdl(definition: NewRegistry): RegistryDdl {
   if (checkSymbol(definition.symbol, "registry", new Set()) !== null) throw new UnsafeIdentifierError("a registry symbol");
   const tableName = tableNameOf(definition.symbol);
   const table = quoteIdentifier(tableName);
-  const body = [...ENGINE_COLUMNS, ...definition.columns.map(columnSql)].join(",\n  ");
   return {
-    table: `CREATE TABLE ${table} (\n  ${body}\n) STRICT`,
+    table: registryTableSql(definition, tableName),
     indexes: definition.columns.filter(isIndexed).map((column) => `CREATE INDEX ${quoteIdentifier(`idx_${tableName}_${column.symbol}`)} ON ${table} (${quoteIdentifier(column.symbol)})`),
   };
 }

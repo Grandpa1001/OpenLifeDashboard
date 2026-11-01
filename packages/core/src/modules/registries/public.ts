@@ -13,7 +13,7 @@ export { REGISTRY_TABLE_PREFIX, SYMBOL_MAX_LENGTH, SYMBOL_PATTERN, checkSymbol, 
 export type { SymbolIssue, SymbolSpace } from "./domain/symbols.js";
 export { createRegistry, listRegistries } from "./application/create-registry.js";
 export type { RegistryDependencies, RegistryPorts } from "./application/create-registry.js";
-export type { DependentWidget, DependentWidgets, DictionaryLookup, IdempotencyEntry, IdempotencyStore, NewRegistryRecord, RecordPage, RecordPageQuery, PlanSigner, RecordStore, RegistryStore, StoredColumn, StoredRecord, StoredRegistry } from "./ports.js";
+export type { DependentWidget, DependentWidgets, DictionaryLookup, IdempotencyEntry, IdempotencyStore, NewRegistryRecord, RecordPage, RecordPageQuery, PlanSigner, RebuiltColumn, RecordStore, RegistryStore, TableRebuild, StoredColumn, StoredRecord, StoredRegistry } from "./ports.js";
 export { pageLabels } from "./application/page-labels.js";
 export type { LabelledColumn, PageLabels } from "./application/page-labels.js";
 export { createRecord, DEFAULT_RECORD_MAX_BYTES, deleteRecord, getRecord, IDEMPOTENCY_RETENTION_MS, LIST_DEFAULTS, listRecords, updateRecord } from "./application/records.js";
@@ -21,6 +21,10 @@ export type { CreatedRecord, NewRecordInput, RecordChangeInput, RecordDeleteInpu
 export { dayBefore, dayInZone, startOfDayInZone } from "./domain/zoned-day.js";
 export { convertCell, isConversionSupported } from "./domain/convert.js";
 export type { Conversion, ConversionColumn, ConversionContext } from "./domain/convert.js";
+export { changeColumnType } from "./application/type-change.js";
+export type { TypeChangeDependencies, TypeChanged, TypeChangeInput, TypeChangePorts } from "./application/type-change.js";
+export { planTypeChange } from "./domain/type-change.js";
+export type { CellRewrite, TypeChangePlan } from "./domain/type-change.js";
 export { checkStructurePlan, planFailure, previewStructureChange } from "./application/structure-preview.js";
 export type { StructureDependencies, StructurePlanInput, StructurePorts, StructurePreview, StructurePreviewInput } from "./application/structure-preview.js";
 export { assessChange, canonicalChange, CONVERSION_SAMPLES_MAX, conversionOf, planState, reportConversion, STRUCTURE_CHANGE_KINDS, STRUCTURE_PLAN_TTL_MS, validateStructureChange } from "./domain/structure-change.js";

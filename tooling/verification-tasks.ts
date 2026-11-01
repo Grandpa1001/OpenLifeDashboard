@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -2876,6 +2876,38 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D26.1", "D26.2"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D27.1",
+    ready: true,
+    title: "The PoC of the rebuild of a registry's table for a change of a column's type: eight stages in one unit of the writer, the plan checked again, a failure after each stage taken back",
+    criteria: ["D27.1-AC1", "D27.1-AC2", "D27.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests read core, the adapters and the signer from their builds.
+        id: "workspace-build",
+        criteria: ["D27.1-AC1", "D27.1-AC2"],
+        description: "pnpm -r build: the plan and the use case of a type change in core, the rebuild of a table and the change of a column in the SQLite adapters",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "packages/core/src/modules/registries/domain/type-change.ts",
+          "packages/core/src/modules/registries/application/type-change.ts",
+          "packages/sqlite/src/adapters/registries/table-rebuild.ts",
+          "packages/sqlite/src/adapters/registries/registry-store.ts",
+          "packages/sqlite/src/adapters/registries/cell-encoding.ts",
+        ],
+      },
+      {
+        id: "table-rebuild",
+        criteria: ["D27.1-AC1", "D27.1-AC2"],
+        description:
+          "On a real database file: Książki of F01 strony number to text keeps the 25 rows with their identifiers, owner, times and revisions, stores the text of each number, has the DDL and the indexes a new registry of the definition gets, schema revision 2, an audit without values, the bindings untouched and no table left of the rebuild; S9 text to number keeps 12, empties abc and counts it, and a required column takes the replacement; a failure after each of the eight stages, half-way through the copy and in a conversion leaves the schema, the catalog, the rows, the bindings and the audit exactly as they were, and the same plan then succeeds; a count of failures other than the report's is taken back; another change, another owner, an expired plan and a plan made stale by a record change nothing; 50 000 records of ten columns rebuilt five times with the time and the growth of the WAL measured; the records, the preview and the conversions as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries", "tests/unit/registries"],
+        requires: ["tests/integration/registries/table-rebuild.test.ts", "tests/integration/registries/record-store.test.ts", "tests/integration/registries/structure-preview-http.test.ts", "tests/unit/registries/structure-change.test.ts"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      ...regressionChecks("D27.1-regression"),
+    ],
   },
   {
     id: "D19.1",

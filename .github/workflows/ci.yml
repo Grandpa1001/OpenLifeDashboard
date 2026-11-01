@@ -217,6 +217,9 @@ jobs:
       - name: Verify D26.2 (the preview of a change of the structure over SQLite and HTTP)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D26.2
+      - name: Verify D27.1 (the PoC of the rebuild of a table for a change of a column's type)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D27.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
