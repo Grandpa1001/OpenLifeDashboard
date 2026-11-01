@@ -22,7 +22,7 @@ import { bindRecoveryCodeStore } from "../../packages/sqlite/dist/adapters/ident
 import { bindSetupStateStore } from "../../packages/sqlite/dist/adapters/identity/setup-state.js";
 import { bindSignInStores } from "../../packages/sqlite/dist/adapters/identity/sign-in-ports.js";
 import { bindTrustedDeviceStore } from "../../packages/sqlite/dist/adapters/identity/trusted-device-store.js";
-import { bindCatalogReader, bindConfigBindingCounts, bindDashboardStore } from "../../packages/sqlite/dist/adapters/dashboard/public.js";
+import { bindCatalogReader, bindConfigBindingCounts, bindDashboardStore, bindDependentWidgets } from "../../packages/sqlite/dist/adapters/dashboard/public.js";
 import { DEFAULT_DICTIONARY_LIMITS } from "../../packages/core/dist/modules/dictionaries/public.js";
 import { DEFAULT_CONFIG_LIMITS } from "../../packages/core/dist/modules/configuration/public.js";
 import { bindDictionaryLookup, bindDictionaryStore } from "../../packages/sqlite/dist/adapters/dictionaries/public.js";
@@ -30,6 +30,7 @@ import { bindConfigStore } from "../../packages/sqlite/dist/adapters/configurati
 import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore } from "../../packages/sqlite/dist/adapters/registries/public.js";
 import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "../../packages/core/dist/modules/registries/public.js";
 import { createWidgetCatalog } from "../../apps/server/dist/adapters/widget-catalog.js";
+import { createStructurePlanSigner } from "../../apps/server/dist/adapters/structure-plan-signer.js";
 import { DESIGN_POLICY } from "../../apps/server/dist/bootstrap/design-policy.js";
 import { sha256Hex } from "../../apps/server/dist/adapters/crypto/sha256-hex.js";
 import { createUuidV7 } from "../../apps/server/dist/adapters/ids/uuid-v7.js";
@@ -74,6 +75,7 @@ export async function createAppHarness() {
     configBindings: bindConfigBindingCounts(tx),
     dashboard: bindDashboardStore(tx),
     catalog: bindCatalogReader(tx),
+    dependents: bindDependentWidgets(tx),
     idempotency: bindIdempotencyStore(tx),
     access: bindIdentityAccessReader(tx, Date.now),
     audit: bindAppendAudit(tx),
@@ -104,6 +106,8 @@ export async function createAppHarness() {
   const cookies = createSessionCookies({ instanceId: INSTANCE_ID, secret });
   const trustedDeviceCookies = createTrustedDeviceCookies({ instanceId: INSTANCE_ID, secret });
   const mfaCrypto = createMfaCrypto(randomBytes(32).toString("hex"));
+  const planSigner = createStructurePlanSigner(randomBytes(32).toString("hex"));
+  const structure = { unit, nowMs: Date.now, signer: planSigner, limits: DEFAULT_REGISTRY_LIMITS };
   const clientIp = () => "127.0.0.1";
   const common = { nowMs: Date.now, newId: randomUUID, newSessionToken: () => randomBytes(32).toString("base64url"), logger, allowedOrigin: HARNESS_ORIGIN, secureCookies: false, cookies, keys, clientIp };
   const app = createApp({
@@ -119,6 +123,7 @@ export async function createAppHarness() {
     setup: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     registries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
     records: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
+    structure: { ...structure, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
     dictionaries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },
     config: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
@@ -146,6 +151,10 @@ export async function createAppHarness() {
     },
     /** Something that happens elsewhere: a unit of work of its own. */
     elsewhere: inner,
+    /** The dependencies of the structure use cases as the app has them, for the check of a plan no route makes yet (D26.2; D28–D30 call it under the writer). */
+    structure,
+    /** The session token a `name=value` cookie of this app carries, or null. */
+    sessionToken: (cookie: string): Promise<string | null> => cookies.verify(decodeURIComponent(cookie.slice(cookie.indexOf("=") + 1))),
     rows: <T>(sql: string): T[] => connection.handle.prepare(sql).all() as T[],
     sql: (statement: string): void => void connection.handle.exec(statement),
     connection,

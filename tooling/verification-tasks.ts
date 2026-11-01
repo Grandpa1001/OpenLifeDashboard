@@ -2818,6 +2818,66 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D26.2",
+    ready: true,
+    title: "The preview of a change of the structure over SQLite and HTTP: the report of the records, the widgets and the conversion, and a signed plan bound to the change, the owner and both revisions",
+    criteria: ["D26.2-AC1", "D26.2-AC2", "D26.2-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests start the built server and read core, the adapters and the signer from their builds.
+        id: "workspace-build",
+        criteria: ["D26.2-AC1", "D26.2-AC2"],
+        description: "pnpm -r build: the use cases of the preview and the plan, the scan of a column, the dependent widgets, the signer of a plan and the route of the preview",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "packages/core/src/modules/registries/application/structure-preview.ts",
+          "packages/sqlite/src/adapters/registries/record-store.ts",
+          "packages/sqlite/src/adapters/dashboard/catalog-reader.ts",
+          "apps/server/src/adapters/structure-plan-signer.ts",
+          "apps/server/src/http/routes/structure.routes.ts",
+          "packages/contracts/src/http/registries.ts",
+        ],
+      },
+      {
+        id: "structure-preview-http",
+        criteria: ["D26.2-AC1", "D26.2-AC2"],
+        description:
+          "Raw HTTP on the built server with Książki of F01 and its table widget: removing autor reports 25 records, the 22 with an author and the widget by its slot columns; strony to text converts 25; deleting the registry touches every record and every slot; a new required column without a default is blocked; S9 converts 12 and fails abc with its sample, required without a replacement is REQUIRED_VALUES_LOST without a plan, a replacement of the wrong type and a column of another registry are refused at their fields; nothing is written or audited; on the composition of the app the plan of the same change is current, a new record and a new schema revision make it PLAN_STALE, another change, another owner, a rewritten claim and a foreign token PLAN_INVALID, ten minutes later PLAN_EXPIRED; a foreign Origin and no session refused; a type change of 50 000 records measured; the inventory and every state before the gate on the new route (D13.1, D20.2); the records, the dashboard and the unit of work as before; the texts of the new codes",
+        command: [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "tests/integration/registries",
+          "tests/integration/dashboard",
+          "tests/integration/sqlite/unit-of-work.test.ts",
+          "tests/integration/auth/route-inventory.test.ts",
+          "tests/integration/access/data-routes.test.ts",
+          "tests/unit/web/error-message.test.ts",
+        ],
+        requires: ["tests/integration/registries/structure-preview-http.test.ts", "tests/integration/registries/record-store.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/support/route-inventory.ts", "tests/support/app-harness.ts"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      {
+        id: "check-locales",
+        criteria: ["D26.2-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces, the texts of PLAN_INVALID, PLAN_EXPIRED and PLAN_STALE among them",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/errors.json", "apps/web/src/locales/en/errors.json"],
+      },
+      ...regressionChecks("D26.2-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the rules in core and the preview over SQLite and HTTP.
+  {
+    id: "D26",
+    ready: true,
+    title: "The preview of a change of the structure: the records and widgets it touches, the report of a conversion and a short-lived plan bound to the registry as it is",
+    steps: ["D26.1", "D26.2"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",

@@ -214,6 +214,9 @@ jobs:
       - name: Verify D26.1 (a change of the structure before it is made, in core)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D26.1
+      - name: Verify D26.2 (the preview of a change of the structure over SQLite and HTTP)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D26.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -591,6 +594,9 @@ jobs:
       - name: Verify D25 (the parent, D25.1–D25.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D25
+      - name: Verify D26 (the parent, D26.1–D26.2 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D26
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -68,3 +68,50 @@ export type RegistryListDto = z.infer<typeof registryListSchema>;
 /** The issues a rejected definition lists in `details.issues`: where, and why as a stable code. */
 export const registryIssueSchema = z.object({ path: z.string(), code: z.string() }).strict();
 export const registryRejectionDetailsSchema = z.object({ issues: z.array(registryIssueSchema) }).strict();
+
+// The preview of a change of the structure (Scope §5.6, Architektura §4.6, §5.2; D26.2). One request
+// is one change; a column is named by its permanent identifier. The rules of a change (what a type
+// may change to, what a new column may be) are core/registries'; here only the shape is checked. The
+// preview writes nothing: it answers with what the change would do and, unless it is blocked, a plan
+// that lasts a short time and is bound to this change and the registry as it is now.
+
+export const REGISTRY_STRUCTURE_PREVIEW_PATH = `${REGISTRIES_PATH}/:symbol/structure/preview` as const;
+export const structurePreviewPath = (symbol: string): string => `${REGISTRIES_PATH}/${symbol}/structure/preview`;
+
+const columnIdSchema = z.string().max(64);
+const typeOptionsRequestSchema = z.record(z.string().max(100), z.unknown());
+
+export const structureChangeRequestSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("addColumn"), column: newColumnRequestSchema }).strict(),
+  z.object({ kind: z.literal("renameColumn"), columnId: columnIdSchema, displayName: z.string().max(400) }).strict(),
+  z.object({ kind: z.literal("removeColumn"), columnId: columnIdSchema }).strict(),
+  z.object({ kind: z.literal("changeType"), columnId: columnIdSchema, type: z.string().max(40), typeOptions: typeOptionsRequestSchema.optional(), required: z.boolean().optional(), replacement: cellValueSchema.optional() }).strict(),
+  z.object({ kind: z.literal("setRequired"), columnId: columnIdSchema, required: z.boolean(), replacement: cellValueSchema.optional() }).strict(),
+  z.object({ kind: z.literal("deleteRegistry") }).strict(),
+]);
+export type StructureChangeRequest = z.infer<typeof structureChangeRequestSchema>;
+
+export const structurePreviewRequestSchema = z.object({ change: structureChangeRequestSchema }).strict();
+export type StructurePreviewRequest = z.infer<typeof structurePreviewRequestSchema>;
+
+export const STRUCTURE_BLOCKS = ["REQUIRED_VALUES_LOST", "REQUIRED_EMPTY"] as const;
+
+const countSchema = z.number().int().min(0);
+
+export const structurePreviewSchema = z
+  .object({
+    registry: z.object({ symbol: z.string(), schemaRevision: z.number().int().min(1), dataRevision: z.number().int().min(0) }).strict(),
+    records: countSchema,
+    affected: countSchema,
+    widgets: z.array(z.object({ screen: z.object({ id: z.string(), name: z.string() }).strict(), widgetId: z.string(), title: z.string().nullable(), slots: z.array(z.string()) }).strict()),
+    /** For a change of a column's type: the values that would change, stay, are empty or would not convert, with the most frequent failures. */
+    conversion: z
+      .object({ converted: countSchema, unchanged: countSchema, empty: countSchema, failed: countSchema, samples: z.array(z.object({ value: cellValueSchema, count: z.number().int().min(1) }).strict()) })
+      .strict()
+      .optional(),
+    blocked: z.enum(STRUCTURE_BLOCKS).nullable(),
+    planToken: z.string().nullable(),
+    expiresAt: z.iso.datetime().nullable(),
+  })
+  .strict();
+export type StructurePreviewDto = z.infer<typeof structurePreviewSchema>;

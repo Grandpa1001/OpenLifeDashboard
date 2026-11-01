@@ -97,8 +97,12 @@ export function validateStructureChange(draft: unknown, schema: StructureSchema,
   }
 }
 
-/** The text the signature of a plan binds a change by: equal for equal changes, whatever the order of the fields. */
-export const canonicalChange = (change: StructureChange): string => canonicalJson(change);
+/**
+ * The text the signature of a plan binds a change by: the change as the request states it, equal
+ * whatever the order of its fields. Not the checked change, which depends on the schema (a type
+ * change keeps the column's `required`): a plan of an older schema is then stale, not another change.
+ */
+export const canonicalChange = (request: unknown): string => canonicalJson(request);
 
 /** What converting the values of a column would do: how many would change, stay, are empty or fail, and the most frequent failures. */
 export type ConversionReport = Readonly<{ converted: number; unchanged: number; empty: number; failed: number; samples: readonly Readonly<{ value: CellValue; count: number }>[] }>;

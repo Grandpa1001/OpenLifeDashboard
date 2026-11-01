@@ -4,6 +4,7 @@
 import type { CellValue } from "./domain/column-rules.js";
 import type { NewColumn, NewRegistry } from "./domain/definition.js";
 import type { SortColumn, SortDirection } from "./domain/record-rules.js";
+import type { PlanClaims } from "./domain/structure-change.js";
 
 /** What the engine needs to create a registry: the validated definition and the identifiers it was given. */
 export type NewRegistryRecord = Readonly<{
@@ -85,6 +86,15 @@ export interface RecordStore {
   deleteIfRevision(registry: StoredRegistry, recordId: string, expectedRevision: number): boolean;
   /** Sorted by the requested column, then by `id` in the same direction; empty values last. The count is of the records the search matches. */
   page(registry: StoredRegistry, query: RecordPageQuery): RecordPage;
+  /** The number of records of the registry. */
+  count(registry: StoredRegistry): number;
+  /** How many records have a value in the column and how many have none. */
+  columnFacts(registry: StoredRegistry, columnSymbol: string): Readonly<{ values: number; empty: number }>;
+  /**
+   * The values of one column of every record, in canonical form, read one row at a time so a large
+   * registry is never held in memory. Consumed whole before the next statement of the unit.
+   */
+  columnValues(registry: StoredRegistry, columnSymbol: string): Iterable<CellValue>;
 }
 
 export type IdempotencyEntry = Readonly<{ requestHash: string; response: StoredRecord }>;
@@ -105,4 +115,27 @@ export interface IdempotencyStore {
 export interface DictionaryLookup {
   ids(ownerId: string): ReadonlySet<string>;
   labels(ownerId: string, dictionaryId: string, symbols: readonly string[]): ReadonlyMap<string, string>;
+}
+
+/** A widget of the owner's screens that a change of the structure would touch, and the slots it binds there. */
+export type DependentWidget = Readonly<{ screenId: string; screenName: string; widgetId: string; /** The title of its configuration; null when it has none. */ title: string | null; slots: readonly string[] }>;
+
+/**
+ * What the registries need of the dashboard (Architektura §13.4): the widgets bound to a registry or
+ * to one of its columns, by permanent identifier. Declared here and implemented by the adapter of the
+ * dashboard, so the SQL of bindings stays there and the two modules do not import each other.
+ */
+export interface DependentWidgets {
+  /** Widgets bound to the column, or to anything of the registry when `columnId` is null; in the order of their screens and positions. */
+  of(ownerId: string, registryId: string, columnId: string | null): readonly DependentWidget[];
+}
+
+/**
+ * The signature of a plan (Architektura §5.2, §14.4): a token that states its claims and is bound to
+ * the owner and the change without stating them. Only this installation can issue one.
+ */
+export interface PlanSigner {
+  issue(claims: PlanClaims, binding: Readonly<{ ownerId: string; change: string }>): string;
+  /** The claims of a token this installation issued for exactly this owner and change; null for any other token. */
+  open(token: string, binding: Readonly<{ ownerId: string; change: string }>): PlanClaims | null;
 }

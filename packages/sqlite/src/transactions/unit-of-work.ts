@@ -11,6 +11,8 @@ export type TransactionStatement = Readonly<{
   run: (...params: unknown[]) => Database.RunResult;
   get: (...params: unknown[]) => unknown;
   all: (...params: unknown[]) => unknown[];
+  /** The rows one at a time, for a scan that must not hold a whole table in memory; every step checks the unit too. */
+  iterate: (...params: unknown[]) => IterableIterator<unknown>;
 }>;
 
 export type TransactionHandle = Readonly<{
@@ -61,6 +63,11 @@ export function createUnitOfWork<P>(connection: SqliteConnection, bindPorts: (tx
           run: guard((...params: unknown[]) => statement.run(...params)),
           get: guard((...params: unknown[]) => statement.get(...params)),
           all: guard((...params: unknown[]) => statement.all(...params)),
+          iterate: guard((...params: unknown[]) => {
+            const rows = statement.iterate(...params);
+            const next = guard(() => rows.next());
+            return { next, return: (value?: unknown) => rows.return?.(value) ?? { done: true, value: undefined }, [Symbol.iterator]() { return this; } } as IterableIterator<unknown>;
+          }),
         };
       }),
     };

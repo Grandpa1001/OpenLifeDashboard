@@ -14,6 +14,7 @@ import { registerMfaEnrollmentRoutes, type MfaEnrollmentRouteDependencies } from
 import { registerRecordRoutes, type RecordRouteDependencies } from "../http/routes/records.routes.js";
 import { registerScreenRoutes, type ScreenRouteDependencies } from "../http/routes/screens.routes.js";
 import { registerRegistryRoutes, type RegistryRouteDependencies } from "../http/routes/registries.routes.js";
+import { registerStructureRoutes, type StructureRouteDependencies } from "../http/routes/structure.routes.js";
 import { registerSetupRoutes, type SetupRouteDependencies } from "../http/routes/setup.routes.js";
 import { registerMfaVerificationRoutes, type MfaVerificationRouteDependencies } from "../http/routes/mfa-verification.routes.js";
 import type { Readiness } from "./readiness.js";
@@ -34,6 +35,7 @@ export type AppDependencies = Readonly<{
   mfaVerification: MfaVerificationRouteDependencies;
   setup: SetupRouteDependencies;
   registries: RegistryRouteDependencies;
+  structure: StructureRouteDependencies;
   records: RecordRouteDependencies;
   dictionaries: DictionaryRouteDependencies;
   config: ConfigRouteDependencies;
@@ -54,6 +56,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   registerMfaVerificationRoutes(app, dependencies.mfaVerification);
   registerSetupRoutes(app, dependencies.setup);
   registerRegistryRoutes(app, dependencies.registries);
+  registerStructureRoutes(app, dependencies.structure);
   registerRecordRoutes(app, dependencies.records);
   registerDictionaryRoutes(app, dependencies.dictionaries);
   registerConfigRoutes(app, dependencies.config);

@@ -4,6 +4,8 @@
 // change or a delete) raises the `data_revision` of the registry in the same unit (§18.2); a change
 // and a delete match the stored revision in their own statement (compare and set); and a list is a page and its count read
 // from one handle, so inside a read unit they come from one snapshot; a search filters both alike.
+// The preview of a structure change (D26.2) counts the records and the values of a column and reads
+// one column of every record row by row, never the whole table at once.
 import { isSearchable, PAGE_SIZE_MAX, PAGE_SIZE_MIN, SEARCH_MAX_CODE_POINTS, tableNameOf, type CellValue, type RecordPage, type RecordPageQuery, type RecordStore, type StoredColumn, type StoredRecord, type StoredRegistry } from "@openlife/core/registries";
 import { foldText, TEXT_FOLD_FUNCTION } from "../../connection/open-database.js";
 import type { TransactionHandle, TransactionStatement } from "../../transactions/unit-of-work.js";
@@ -44,6 +46,13 @@ const decode = (column: StoredColumn, value: unknown): CellValue => {
   if (value === null || value === undefined) return null;
   return column.type === "boolean" ? value === 1 : (value as CellValue);
 };
+
+/** A column of the catalog by its symbol: a name outside the registry never reaches SQL. */
+function columnOf(registry: StoredRegistry, symbol: string): StoredColumn {
+  const column = registry.columns.find((each) => each.symbol === symbol);
+  if (column === undefined) throw new TypeError(`${symbol} is not a column of the registry`);
+  return column;
+}
 
 export function bindRecordStore(tx: TransactionHandle): RecordStore {
   // Statements are built from the catalog, so there are few of them per unit; they are kept for the unit.
@@ -130,6 +139,22 @@ export function bindRecordStore(tx: TransactionHandle): RecordStore {
       const rows = prepared(`SELECT ${selectList(registry)} FROM ${table} WHERE user_id = ?${filter.sql} ORDER BY ${order.join(", ")} LIMIT ? OFFSET ?`).all(registry.ownerId, ...filter.params, pageSize, (page - 1) * pageSize) as Row[];
       const total = (prepared(`SELECT count(*) AS n FROM ${table} WHERE user_id = ?${filter.sql}`).get(registry.ownerId, ...filter.params) as { n: number }).n;
       return { records: rows.map((row) => recordOf(registry, row)), total };
+    },
+
+    count(registry): number {
+      return (prepared(`SELECT count(*) AS n FROM ${tableOf(registry)} WHERE user_id = ?`).get(registry.ownerId) as { n: number }).n;
+    },
+
+    columnFacts(registry, columnSymbol) {
+      const column = quoteIdentifier(columnOf(registry, columnSymbol).symbol);
+      const row = prepared(`SELECT count(${column}) AS filled, count(*) - count(${column}) AS empty FROM ${tableOf(registry)} WHERE user_id = ?`).get(registry.ownerId) as { filled: number; empty: number };
+      return { values: row.filled, empty: row.empty };
+    },
+
+    *columnValues(registry, columnSymbol) {
+      const column = columnOf(registry, columnSymbol);
+      const rows = prepared(`SELECT ${quoteIdentifier(column.symbol)} AS value FROM ${tableOf(registry)} WHERE user_id = ?`).iterate(registry.ownerId);
+      for (const row of rows) yield decode(column, (row as { value: unknown }).value);
     },
   };
 }

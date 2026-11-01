@@ -2,9 +2,11 @@
 // registries of the owner by identifier with their columns, deleted ones included (a binding to a
 // deleted column is broken, not unknown), the symbol of an entry of ConfigTable (D25.1), and the
 // screen a widget identifier lives on, whoever owns it. The bindings that point at entries are
-// counted here too: the SQL of `binding` stays in the adapter of the dashboard (Architektura §13.4).
+// counted here too, and the widgets a change of a registry's structure would touch are listed here
+// (D26.2): the SQL of `binding` stays in the adapter of the dashboard (Architektura §13.4).
 import type { ConfigBindingCounts } from "@openlife/core/configuration";
 import type { CatalogRegistry, DashboardCatalogReader } from "@openlife/core/dashboard";
+import type { DependentWidget, DependentWidgets } from "@openlife/core/registries";
 import type { TransactionHandle } from "../../transactions/unit-of-work.js";
 
 export function bindCatalogReader(tx: TransactionHandle): DashboardCatalogReader {
@@ -37,5 +39,31 @@ export function bindConfigBindingCounts(tx: TransactionHandle): ConfigBindingCou
   );
   return {
     counts: (ownerId) => new Map((counts.all(ownerId) as { entry: string; n: number }[]).map((row) => [row.entry, row.n])),
+  };
+}
+
+export function bindDependentWidgets(tx: TransactionHandle): DependentWidgets {
+  // The index on the registry of a target finds the bindings; the column narrows them when one is named.
+  const bound = tx.prepare(
+    `SELECT screen.id AS screen_id, screen.name AS screen_name, widget.id AS widget_id, json_extract(widget.config, '$.title') AS title, binding.slot AS slot
+       FROM binding JOIN widget ON widget.id = binding.widget_id JOIN screen ON screen.id = widget.screen_id
+      WHERE screen.user_id = ? AND json_extract(binding.target, '$.registryId') = ?
+        AND (? IS NULL OR (json_extract(binding.target, '$.kind') = 'column' AND json_extract(binding.target, '$.columnId') = ?))
+      ORDER BY screen.created_at, screen.id, widget.position, widget.id, binding.position, binding.slot`,
+  );
+  return {
+    of(ownerId, registryId, columnId): readonly DependentWidget[] {
+      const rows = bound.all(ownerId, registryId, columnId, columnId) as { screen_id: string; screen_name: string; widget_id: string; title: unknown; slot: string }[];
+      const widgets = new Map<string, { screenId: string; screenName: string; widgetId: string; title: string | null; slots: string[] }>();
+      for (const row of rows) {
+        let widget = widgets.get(row.widget_id);
+        if (widget === undefined) {
+          widget = { screenId: row.screen_id, screenName: row.screen_name, widgetId: row.widget_id, title: typeof row.title === "string" && row.title !== "" ? row.title : null, slots: [] };
+          widgets.set(row.widget_id, widget);
+        }
+        if (!widget.slots.includes(row.slot)) widget.slots.push(row.slot);
+      }
+      return [...widgets.values()];
+    },
   };
 }

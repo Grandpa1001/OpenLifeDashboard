@@ -45,6 +45,8 @@ function requestOf(route: RouteEntry, design: unknown): { body: unknown; headers
   switch (keyOf(route)) {
     case `POST ${REGISTRIES_PATH}`:
       return { body: { ...WAGA, symbol: "pomiary", displayName: "Pomiary" }, headers: {} };
+    case "POST /api/v1/registries/:symbol/structure/preview":
+      return { body: { change: { kind: "deleteRegistry" } }, headers: {} };
     case "POST /api/v1/registries/:symbol/records":
       return { body: { schemaRevision: 1, values: { kg: 71.5 } }, headers: { "Idempotency-Key": "d20-2-access-key" } };
     case "POST /api/v1/dictionaries":
@@ -138,6 +140,7 @@ describe("D20.2 the table is the inventory", () => {
       "POST /api/v1/dictionaries",
       "POST /api/v1/registries",
       "POST /api/v1/registries/:symbol/records",
+      "POST /api/v1/registries/:symbol/structure/preview",
       "POST /api/v1/screens",
       "PUT /api/v1/config/:symbol",
       "PUT /api/v1/dictionaries/:symbol",
@@ -190,6 +193,7 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     const registry = registryListSchema.parse((await run(route("GET", "/registries"), waga)).json()).registries.find((candidate) => candidate.symbol === "waga");
     if (registry === undefined) throw new Error("the registry was not made");
     await run(route("POST", "/registries"), waga);
+    expect((await run(route("POST", "/structure/preview"), waga)).status).toBe(200);
     const added = await run(route("POST", "/records"), waga);
     expect(added.status).toBe(201);
     const withRecord: Ids = { ...waga, record: recordSchema.parse(added.json()).id };

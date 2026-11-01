@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
 import { bindAppendAudit } from "@openlife/sqlite/adapters/audit";
 import { bindIdentityAccessReader, bindMfaStore, bindOwnerWriters, bindRecoveryCodeStore, bindSetupStateStore, bindSignInStores, bindTrustedDeviceStore } from "@openlife/sqlite/adapters/identity";
-import { bindCatalogReader, bindConfigBindingCounts, bindDashboardStore } from "@openlife/sqlite/adapters/dashboard";
+import { bindCatalogReader, bindConfigBindingCounts, bindDashboardStore, bindDependentWidgets } from "@openlife/sqlite/adapters/dashboard";
 import { bindDictionaryLookup, bindDictionaryStore } from "@openlife/sqlite/adapters/dictionaries";
 import { bindConfigStore } from "@openlife/sqlite/adapters/configuration";
 import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore } from "@openlife/sqlite/adapters/registries";
@@ -23,6 +23,7 @@ import { DEFAULT_CONFIG_LIMITS } from "@openlife/core/configuration";
 import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "@openlife/core/registries";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
 import { createWidgetCatalog } from "./adapters/widget-catalog.js";
+import { createStructurePlanSigner } from "./adapters/structure-plan-signer.js";
 import { DESIGN_POLICY } from "./bootstrap/design-policy.js";
 import { sha256Hex } from "./adapters/crypto/sha256-hex.js";
 import { createUuidV7 } from "./adapters/ids/uuid-v7.js";
@@ -198,6 +199,7 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   configBindings: bindConfigBindingCounts(tx),
   dashboard: bindDashboardStore(tx),
   catalog: bindCatalogReader(tx),
+  dependents: bindDependentWidgets(tx),
   idempotency: bindIdempotencyStore(tx),
   access: bindIdentityAccessReader(tx, Date.now),
   audit: bindAppendAudit(tx),
@@ -207,6 +209,7 @@ const clientIp = (c: Context<AppEnv>): string => getConnInfo(c).remote.address ?
 const cookies = createSessionCookies({ instanceId: paths.instanceId, secret });
 const trustedDeviceCookies = createTrustedDeviceCookies({ instanceId: paths.instanceId, secret });
 const mfaCrypto = createMfaCrypto(environment.appEncryptionKey.reveal());
+const planSigner = createStructurePlanSigner(environment.appEncryptionKey.reveal());
 const secureCookies = environment.baseUrl.startsWith("https:");
 const newSessionToken = (): string => randomBytes(32).toString("base64url");
 const app = createApp({
@@ -263,6 +266,7 @@ const app = createApp({
   setup: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
   registries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
   records: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
+  structure: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, signer: planSigner, limits: DEFAULT_REGISTRY_LIMITS, logger },
   dictionaries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },
   config: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
   screens: { dashboard: { unit: identityUnit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: environment.baseUrl, logger },

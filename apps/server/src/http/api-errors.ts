@@ -33,6 +33,9 @@ const FALLBACK_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   CONFIG_SYMBOL_TAKEN: "An entry with this symbol exists",
   CONFIG_LIMIT_EXCEEDED: "The limit of entries is reached",
   CONFIG_CHANGED: "The entry changed since it was loaded; load it again",
+  PLAN_INVALID: "The plan is not one issued for this change; preview it again",
+  PLAN_EXPIRED: "The plan has expired; preview the change again",
+  PLAN_STALE: "The registry changed since the preview; preview the change again",
   SCREEN_LIMIT_EXCEEDED: "The limit of screens is reached",
 };
 
