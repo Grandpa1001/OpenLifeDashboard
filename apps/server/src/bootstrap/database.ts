@@ -8,7 +8,10 @@
 // verified again, otherwise a new one is taken); already at the new version → it only closes. Upgrading an existing database (D05.2) is one `migrate` operation under the
 // writer lease: verified pre_migration snapshot of the old version → all pending migrations in
 // one transaction → check → close the operation. No snapshot, no migration; a failing migration
-// rolls back as a whole and leaves the database at its version and the snapshot published.
+// rolls back as a whole and leaves the database at its version and the snapshot published. An
+// interrupted `rebuild` of a registry's table (D27.2) is one transaction: the registry is either at
+// the schema revision it started from or one above, and the operation only closes; anything else
+// refuses the start.
 import type { DatabaseSnapshotPort } from "@openlife/core/maintenance";
 import { ConnectionSettingError, openDatabase, type SqliteConnection } from "@openlife/sqlite/connection";
 import {
@@ -23,6 +26,7 @@ import {
   type DatabaseRefusalCode,
   type MigrationPlan,
 } from "@openlife/sqlite/migrations";
+import { readRebuildOutcome } from "@openlife/sqlite/adapters/registries";
 import type { MaintenanceOperation } from "@openlife/contracts/workers/maintenance-state";
 import type { MaintenanceGate } from "../adapters/filesystem/maintenance-gate.js";
 
@@ -88,7 +92,7 @@ async function open(inputs: DatabaseOpenInputs): Promise<DatabaseOpenResult> {
   // snapshot operation has no owner before the backup jobs (D48/D49).
   const reconcilable =
     active !== null &&
-    ((active.reason === "init" && active.targetSchemaVersion === target) || (active.reason === "migrate" && active.toSchemaVersion === target));
+    ((active.reason === "init" && active.targetSchemaVersion === target) || (active.reason === "migrate" && active.toSchemaVersion === target) || active.reason === "rebuild");
   if (active !== null && !reconcilable) {
     return RECOVERY_REQUIRED;
   }
@@ -96,6 +100,9 @@ async function open(inputs: DatabaseOpenInputs): Promise<DatabaseOpenResult> {
 
   if (active?.reason === "migrate") {
     return resumeMigration(inputs, active, state.generation, inspection);
+  }
+  if (active?.reason === "rebuild") {
+    return closeRebuild(inputs, active, state.generation, inspection);
   }
   if (active !== null) {
     if (inspection.kind === "empty") {
@@ -155,6 +162,28 @@ async function resumeMigration(
     return upgrade(inputs, operation, generation, true);
   }
   return RECOVERY_REQUIRED;
+}
+
+type RebuildOperation = Extract<MaintenanceOperation, { reason: "rebuild" }>;
+
+/**
+ * A rebuild changes no schema version of the application, so the database must be current; the
+ * registry then says whether its one transaction committed. Both outcomes only close the operation.
+ */
+function closeRebuild(inputs: DatabaseOpenInputs, operation: RebuildOperation, generation: number, inspection: ReturnType<typeof inspectDatabase>): DatabaseOpenResult {
+  if (inspection.kind !== "current") return RECOVERY_REQUIRED;
+  const connection = openWriter(inputs);
+  try {
+    if (readRebuildOutcome(connection, operation.registryId, operation.fromSchemaRevision) === "unknown") {
+      connection.close();
+      return RECOVERY_REQUIRED;
+    }
+    inputs.gate.complete(operation.operationId, generation);
+    return { ok: true, connection, schemaVersion: inspection.schemaVersion, created: false };
+  } catch (error) {
+    connection.close();
+    throw error;
+  }
 }
 
 /** A new `migrate` operation for the pending upgrade. */

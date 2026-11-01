@@ -2910,6 +2910,46 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D27.2",
+    ready: true,
+    title: "The rebuild as an operation of the maintenance gate under the writer lease, and the reconciliation of a rebuild a crash left active",
+    criteria: ["D27.2-AC1", "D27.2-AC2", "D27.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests start the built server and the CLI and read the gate and the executor from their builds.
+        id: "workspace-build",
+        criteria: ["D27.2-AC1", "D27.2-AC2"],
+        description: "pnpm -r build: the rebuild variant of the gate, the executor of the operation, the reader of an interrupted rebuild and the reconciliation in the bootstrap",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "packages/contracts/src/workers/maintenance-state.ts",
+          "apps/server/src/workers/rebuild-operation.ts",
+          "apps/server/src/bootstrap/database.ts",
+          "packages/sqlite/src/adapters/registries/rebuild-outcome.ts",
+        ],
+      },
+      {
+        id: "rebuild-operation",
+        criteria: ["D27.2-AC1", "D27.2-AC2"],
+        description:
+          "On a real installation with pomiary made through the API of the built server: the operation records rebuild in the gate while its unit runs and closes it one generation later, with 12 kept and abc empty; reset-password while the writer is held is INSTANCE_BUSY and the database is unchanged; a stale plan and a unit that fails close the operation with the catalog, the rows and the schema unchanged, and an unknown registry begins no operation; a start with a rebuild left active closes it at the revision it started from and one above and is ready; another revision, an unknown registry and a table of a rebuild left behind refuse the start with MAINTENANCE_RECOVERY_REQUIRED and change neither the gate nor the database; the bootstrap, the upgrade, the recovery and the gate as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance"],
+        requires: ["tests/integration/maintenance/rebuild-operation.test.ts", "tests/integration/maintenance/database-bootstrap.test.ts", "tests/integration/maintenance/database-recovery.test.ts", "tests/integration/maintenance/maintenance-gate.test.ts"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      ...regressionChecks("D27.2-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the rebuild in one unit and the operation of the gate around it.
+  {
+    id: "D27",
+    ready: true,
+    title: "The PoC of an atomic rebuild of a registry's table: eight stages in one unit of the writer, a failure after each taken back, one exclusivity with the gate and the CLI",
+    steps: ["D27.1", "D27.2"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",

@@ -7,3 +7,5 @@ export { bindRecordStore } from "./record-store.js";
 export { bindIdempotencyStore } from "./idempotency-store.js";
 export { bindColumnDictionaryLinks } from "./column-links.js";
 export { bindTableRebuild, REBUILD_PAGE_ROWS, REBUILD_TABLE_SUFFIX } from "./table-rebuild.js";
+export { readRebuildOutcome } from "./rebuild-outcome.js";
+export type { RebuildOutcome } from "./rebuild-outcome.js";
