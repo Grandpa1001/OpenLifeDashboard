@@ -248,6 +248,9 @@ jobs:
       - name: Verify D23.4 (searching, sorting and paging the records in the browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D23.4
+      - name: Verify D24.3 (dictionaries in the browser, S7)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D24.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -488,6 +491,9 @@ jobs:
       - name: Verify D23 (the parent, D23.1–D23.4 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D23
+      - name: Verify D24 (the parent, D24.1–D24.3 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D24
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

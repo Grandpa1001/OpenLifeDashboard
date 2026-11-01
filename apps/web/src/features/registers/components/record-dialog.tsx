@@ -8,6 +8,8 @@ import { formatCell } from "../../../lib/format/cell-format.js";
 import { Field } from "../../../lib/forms/field.js";
 import { SelectField } from "../../../lib/forms/select-field.js";
 import { addRecord, fetchRecord, updateRecord } from "../api/records.js";
+import { useDictionaries } from "../api/use-dictionaries.js";
+import { choiceOptions } from "../lib/dictionary-draft.js";
 import { newIdempotencyKey } from "../lib/idempotency-key.js";
 import { changedValues, conflictRows, rebaseTyped, sameRecord, type ConflictRow } from "../lib/record-edit.js";
 import { BOOLEAN_TEXT, initialText, parseInput, valueText, type CellValue, type FormColumn } from "../lib/record-input.js";
@@ -81,6 +83,13 @@ export function RecordDialog({
   }, []);
 
   const textOf = (column: FormColumn): string => typed.get(column.symbol) ?? initialText(column, timeZone);
+  const dictionaries = useDictionaries();
+  /** The values a choice column offers, when it has a dictionary and the dictionaries could be read; otherwise its field is a text. */
+  const valuesOf = (column: FormColumn) => {
+    const id = column.type === "choice" ? column.typeOptions.dictionaryId : undefined;
+    if (id === undefined || dictionaries.isError) return null;
+    return dictionaries.data?.find((dictionary) => dictionary.id === id)?.values ?? [];
+  };
 
   function edit(symbol: string, value: string): void {
     setTyped((current) => new Map(current).set(symbol, value));
@@ -230,6 +239,18 @@ export function RecordDialog({
                 {column.required ? <span className="required"> · {t("record.required")}</span> : null}
               </>
             );
+            const values = valuesOf(column);
+            if (values !== null)
+              return (
+                <SelectField key={column.symbol} label={label} value={textOf(column)} onChange={(event) => edit(column.symbol, event.target.value)} error={error}>
+                  <option value="">{t("record.none")}</option>
+                  {choiceOptions(values, textOf(column)).map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </SelectField>
+              );
             return column.type === "boolean" ? (
               <SelectField key={column.symbol} label={label} value={textOf(column)} onChange={(event) => edit(column.symbol, event.target.value)} error={error}>
                 <option value="">{t("record.none")}</option>

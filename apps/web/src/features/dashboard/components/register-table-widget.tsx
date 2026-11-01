@@ -6,6 +6,7 @@ import { Link } from "@tanstack/react-router";
 import type { ApiFailure } from "../../../lib/api-client/request.js";
 import { useTranslation } from "react-i18next";
 import { formatCell } from "../../../lib/format/cell-format.js";
+import { valueLabel } from "../../../lib/format/value-label.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
 import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
 import { useOwnerDisplay } from "../../../lib/session/use-owner-display.js";
@@ -94,7 +95,8 @@ export function RegisterTableWidget({ widget, renderAddRecord }: Readonly<{ widg
         allowAdd={config["allowAdd"] !== false && symbol !== null}
         labels={labels}
         columnLabel={columnLabel}
-        cellText={(column, value) => formatCell(column, value, display)}
+        // A value of a dictionary by its label, hidden ones too; one the dictionary does not have as it is stored.
+        cellText={(column, value) => valueLabel(data.data?.labels ?? {}, column.key, value) ?? formatCell(column, value, display)}
         designerLink={(label) => <Link to="/designer">{label}</Link>}
         onAdd={() => setAdding(true)}
         onPage={setPage}

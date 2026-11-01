@@ -7,7 +7,8 @@
     "retry": "Try again",
     "columns_one": "{{count}} column",
     "columns_other": "{{count}} columns",
-    "new": "New registry"
+    "new": "New registry",
+    "config": "Dictionaries and configuration"
   },
   "types": {
     "text": "Text",
@@ -47,7 +48,9 @@
     "remove": "Remove",
     "fixFields": "Fix the marked fields.",
     "fixColumns_one": "{{count}} column needs a fix",
-    "fixColumns_other": "{{count}} columns need a fix"
+    "fixColumns_other": "{{count}} columns need a fix",
+    "dictionaryOf": "Dictionary of column {{position}}",
+    "noDictionary": "No dictionary"
   },
   "issues": {
     "NAME_EMPTY": "Enter a name.",
@@ -66,7 +69,8 @@
     "COLUMNS_MISSING": "Add at least one column.",
     "LIMIT_COLUMNS": "Too many columns.",
     "LIMIT_REGISTRIES": "The limit of registries is reached.",
-    "UNKNOWN": "This value is not valid."
+    "UNKNOWN": "This value is not valid.",
+    "DICTIONARY_UNKNOWN": "There is no such dictionary. Choose another one."
   },
   "registry": {
     "loading": "Loading the registry…",
@@ -145,5 +149,84 @@
     "VALUES_NOT_OBJECT": "The values are not valid.",
     "UNKNOWN": "This value is not valid.",
     "VALUES_EMPTY": "Nothing was changed."
+  },
+  "dictionaries": {
+    "title": "Dictionaries",
+    "navigation": "Back",
+    "loading": "Loading dictionaries…",
+    "empty": "You have no dictionaries yet.",
+    "choose": "Choose a dictionary from the list or create a new one.",
+    "notFound": "There is no such dictionary.",
+    "count_one": "{{count}} dictionary",
+    "count_other": "{{count}} dictionaries",
+    "values_one": "{{count}} value",
+    "values_other": "{{count}} values",
+    "usages_one": "{{count}} column",
+    "usages_other": "{{count}} columns",
+    "new": {
+      "open": "New dictionary",
+      "heading": "New dictionary",
+      "name": "Dictionary name",
+      "symbolHint": "Fixed once created: lowercase letters, digits and _, up to {{max}} characters.",
+      "create": "Create dictionary"
+    },
+    "editor": {
+      "name": "Dictionary name",
+      "label": "Label",
+      "symbol": "Symbol",
+      "hidden": "Hidden",
+      "labelOf": "Label of item {{position}}",
+      "symbolOf": "Symbol of item {{position}}",
+      "hiddenOf": "Item {{name}} hidden",
+      "position": "item {{position}}",
+      "move": "Move item {{name}} ({{position}} of {{count}})",
+      "movedTo": "{{label}}: position {{position}} of {{count}}.",
+      "keyboardHint": "The up and down arrows change the order; Home and End move to the start and the end.",
+      "orderHint": "The order of the values is the order of the choice list. Drag the handle or use the arrow keys.",
+      "symbolFixed": "Fixed symbol: records store the symbol",
+      "remove": "Remove item {{name}}",
+      "add": "Add value",
+      "empty": "This dictionary has no values yet.",
+      "save": "Save dictionary",
+      "discard": "Undo changes",
+      "note": "A hidden value leaves the choice list of new records, but stays in the records that have it and is still shown by its label. Removing a value makes the records show its raw symbol."
+    },
+    "removeValue": {
+      "question": "Remove the value “{{label}}”?",
+      "effect": "Records with this value keep it, but show the raw symbol {{symbol}}.",
+      "untilSaved": "The change is stored when the dictionary is saved.",
+      "confirm": "Remove value"
+    },
+    "delete": {
+      "open": "Delete dictionary",
+      "question": "Delete the dictionary “{{name}}”?",
+      "unused": "No column uses this dictionary.",
+      "used_one": "This column will stop showing labels:",
+      "used_other": "These {{count}} columns will stop showing labels:",
+      "columns": "Columns that use the dictionary",
+      "recordsKept": "Records keep their values and show them as raw symbols.",
+      "confirm": "Delete dictionary"
+    },
+    "conflict": {
+      "changed": "The dictionary was changed in the meantime, for example in another tab.",
+      "kept": "Your changes were neither saved nor lost.",
+      "load": "Load the current version",
+      "overwrite": "Save my version instead"
+    },
+    "done": {
+      "created": "Created the dictionary “{{name}}”.",
+      "saved": "Saved the dictionary “{{name}}”.",
+      "deleted": "Deleted the dictionary “{{name}}”.",
+      "unpinned": "Unpinned columns: {{columns}}."
+    },
+    "issues": {
+      "SYMBOL_TAKEN": "A dictionary with this symbol already exists. Choose another one.",
+      "VALUE_SYMBOL_TAKEN": "Symbol already used in this dictionary.",
+      "LIMIT_VALUES": "Too many values in the dictionary.",
+      "LIMIT_DICTIONARIES": "The limit of dictionaries is reached.",
+      "VALUES_NOT_LIST": "Invalid list of values.",
+      "VALUE_NOT_OBJECT": "Invalid value.",
+      "HIDDEN_INVALID": "Invalid hidden flag."
+    }
   }
 }

@@ -9,7 +9,8 @@
     "columns_few": "{{count}} kolumny",
     "columns_many": "{{count}} kolumn",
     "columns_other": "{{count}} kolumny",
-    "new": "Nowy rejestr"
+    "new": "Nowy rejestr",
+    "config": "Słowniki i konfiguracja"
   },
   "types": {
     "text": "Tekst",
@@ -51,7 +52,9 @@
     "fixColumns_one": "{{count}} kolumna wymaga poprawy",
     "fixColumns_few": "{{count}} kolumny wymagają poprawy",
     "fixColumns_many": "{{count}} kolumn wymaga poprawy",
-    "fixColumns_other": "{{count}} kolumny wymagają poprawy"
+    "fixColumns_other": "{{count}} kolumny wymagają poprawy",
+    "dictionaryOf": "Słownik kolumny {{position}}",
+    "noDictionary": "Bez słownika"
   },
   "issues": {
     "NAME_EMPTY": "Podaj nazwę.",
@@ -70,7 +73,8 @@
     "COLUMNS_MISSING": "Dodaj co najmniej jedną kolumnę.",
     "LIMIT_COLUMNS": "Za dużo kolumn.",
     "LIMIT_REGISTRIES": "Osiągnięto limit rejestrów.",
-    "UNKNOWN": "Ta wartość nie jest prawidłowa."
+    "UNKNOWN": "Ta wartość nie jest prawidłowa.",
+    "DICTIONARY_UNKNOWN": "Nie ma takiego słownika. Wybierz inny."
   },
   "registry": {
     "loading": "Wczytywanie rejestru…",
@@ -151,5 +155,92 @@
     "VALUES_NOT_OBJECT": "Nieprawidłowe wartości.",
     "UNKNOWN": "Ta wartość nie jest prawidłowa.",
     "VALUES_EMPTY": "Nic nie zostało zmienione."
+  },
+  "dictionaries": {
+    "title": "Słowniki",
+    "navigation": "Powrót",
+    "loading": "Wczytywanie słowników…",
+    "empty": "Nie masz jeszcze żadnego słownika.",
+    "choose": "Wybierz słownik z listy albo utwórz nowy.",
+    "notFound": "Nie ma takiego słownika.",
+    "count_one": "{{count}} słownik",
+    "count_few": "{{count}} słowniki",
+    "count_many": "{{count}} słowników",
+    "count_other": "{{count}} słownika",
+    "values_one": "{{count}} wartość",
+    "values_few": "{{count}} wartości",
+    "values_many": "{{count}} wartości",
+    "values_other": "{{count}} wartości",
+    "usages_one": "{{count}} kolumna",
+    "usages_few": "{{count}} kolumny",
+    "usages_many": "{{count}} kolumn",
+    "usages_other": "{{count}} kolumny",
+    "new": {
+      "open": "Nowy słownik",
+      "heading": "Nowy słownik",
+      "name": "Nazwa słownika",
+      "symbolHint": "Stały po utworzeniu: małe litery bez polskich znaków, cyfry i _, do {{max}} znaków.",
+      "create": "Utwórz słownik"
+    },
+    "editor": {
+      "name": "Nazwa słownika",
+      "label": "Etykieta",
+      "symbol": "Symbol",
+      "hidden": "Ukryta",
+      "labelOf": "Etykieta pozycji {{position}}",
+      "symbolOf": "Symbol pozycji {{position}}",
+      "hiddenOf": "Pozycja {{name}} ukryta",
+      "position": "pozycja {{position}}",
+      "move": "Przenieś pozycję {{name}} ({{position}} z {{count}})",
+      "movedTo": "{{label}}: pozycja {{position}} z {{count}}.",
+      "keyboardHint": "Strzałki w górę i w dół zmieniają kolejność, Home i End przenoszą na początek i koniec.",
+      "orderHint": "Kolejność wartości to kolejność na liście wyboru. Przeciągnij uchwyt albo użyj strzałek.",
+      "symbolFixed": "Symbol stały: rekordy przechowują symbol",
+      "remove": "Usuń pozycję {{name}}",
+      "add": "Dodaj wartość",
+      "empty": "Ten słownik nie ma jeszcze wartości.",
+      "save": "Zapisz słownik",
+      "discard": "Cofnij zmiany",
+      "note": "Ukryta wartość znika z listy wyboru w nowych rekordach, ale zostaje w tych, które już ją mają, i nadal wyświetla się etykietą. Usunięcie wartości sprawia, że rekordy pokażą jej surowy symbol."
+    },
+    "removeValue": {
+      "question": "Usunąć wartość „{{label}}”?",
+      "effect": "Rekordy z tą wartością zachowają ją, ale pokażą surowy symbol {{symbol}}.",
+      "untilSaved": "Zmiana zapisze się razem ze słownikiem.",
+      "confirm": "Usuń wartość"
+    },
+    "delete": {
+      "open": "Usuń słownik",
+      "question": "Usunąć słownik „{{name}}”?",
+      "unused": "Żadna kolumna nie używa tego słownika.",
+      "used_one": "Ta kolumna przestanie pokazywać etykiety:",
+      "used_few": "Te {{count}} kolumny przestaną pokazywać etykiety:",
+      "used_many": "Tych {{count}} kolumn przestanie pokazywać etykiety:",
+      "used_other": "Te {{count}} kolumny przestaną pokazywać etykiety:",
+      "columns": "Kolumny używające słownika",
+      "recordsKept": "Rekordy zachowają swoje wartości i pokażą je jako surowe symbole.",
+      "confirm": "Usuń słownik"
+    },
+    "conflict": {
+      "changed": "Słownik zmieniono w międzyczasie, np. w innej karcie.",
+      "kept": "Twoje zmiany nie zostały zapisane ani utracone.",
+      "load": "Wczytaj aktualną wersję",
+      "overwrite": "Zapisz moją wersję zamiast niej"
+    },
+    "done": {
+      "created": "Utworzono słownik „{{name}}”.",
+      "saved": "Zapisano słownik „{{name}}”.",
+      "deleted": "Usunięto słownik „{{name}}”.",
+      "unpinned": "Odpięte kolumny: {{columns}}."
+    },
+    "issues": {
+      "SYMBOL_TAKEN": "Słownik o tym symbolu już istnieje. Wybierz inny.",
+      "VALUE_SYMBOL_TAKEN": "Symbol już użyty w tym słowniku.",
+      "LIMIT_VALUES": "Za dużo wartości w słowniku.",
+      "LIMIT_DICTIONARIES": "Osiągnięto limit słowników.",
+      "VALUES_NOT_LIST": "Nieprawidłowa lista wartości.",
+      "VALUE_NOT_OBJECT": "Nieprawidłowa wartość.",
+      "HIDDEN_INVALID": "Nieprawidłowe oznaczenie ukrycia."
+    }
   }
 }

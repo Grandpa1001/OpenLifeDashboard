@@ -9,6 +9,7 @@ import { AddRecordForRegistry } from "../../features/registers/components/add-re
 import { MainPage } from "../../features/dashboard/pages/main-page.js";
 import { RegistryPage } from "../../features/registers/pages/registry-page.js";
 import { RegistersPage } from "../../features/registers/pages/registers-page.js";
+import { DictionariesPage } from "../../features/registers/pages/dictionaries-page.js";
 import { parseRecordsView, viewSearch, type RecordsView } from "../../features/registers/lib/records-view.js";
 import { SetupPage, type PendingStep } from "../../features/setup/pages/setup-page.js";
 import { setInterfaceLanguage } from "../../lib/language.js";
@@ -98,6 +99,20 @@ const registersRoute = createRoute({
   component: RegistersPage,
 });
 
+const dictionariesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dictionaries",
+  // The dictionary open in the editor (D24.3); a reload keeps it.
+  validateSearch: (raw: Record<string, unknown>): { symbol?: string } => (typeof raw["symbol"] === "string" && raw["symbol"] !== "" ? { symbol: raw["symbol"] } : {}),
+  beforeLoad: ({ context }) => admitPrivate(context),
+  component: function DictionariesRoute() {
+    const navigate = dictionariesRoute.useNavigate();
+    const { symbol } = dictionariesRoute.useSearch();
+    const onSelect = useCallback((next: string | null) => void navigate({ search: next === null ? {} : { symbol: next } }), [navigate]);
+    return <DictionariesPage selected={symbol ?? null} onSelect={onSelect} />;
+  },
+});
+
 const setupRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/setup",
@@ -140,7 +155,7 @@ const registryRoute = createRoute({
 
 export function createAppRouter(queryClient: QueryClient) {
   return createRouter({
-    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute, registersRoute, registryRoute, designerRoute]),
+    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute, registersRoute, registryRoute, dictionariesRoute, designerRoute]),
     context: { queryClient },
     defaultPreload: false,
   });

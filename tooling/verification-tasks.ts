@@ -2618,6 +2618,56 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D24.3",
+    ready: true,
+    title: "Dictionaries in the browser (makieta 22): the list and the editor, the dictionary of a column in the kreator, the choice in the window of a record, the labels in the table and the widget, S7",
+    criteria: ["D24.3-AC1", "D24.3-AC2", "D24.3-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D24.3-AC1", "D24.3-AC2"],
+        description: "pnpm -r build: the SPA with /dictionaries, the dictionary of a column in the kreator, the choice list of a record and the labels of a page",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/registers/pages/dictionaries-page.tsx", "apps/web/src/features/registers/components/dictionary-editor.tsx", "apps/web/src/lib/format/value-label.ts", "apps/web/src/app/router/router.tsx"],
+      },
+      {
+        id: "dictionary-draft-web",
+        criteria: ["D24.3-AC1", "D24.3-AC2"],
+        description:
+          "The editor and the labels as pure functions: a move keeps the other values in order, a new value gets a free symbol from its label and a stored one keeps its own, the request is the whole list in order on the revision of the editor, the field of a record offers the visible values in order and keeps a hidden or unknown current one, a label is read only as an own key of the page",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/dictionary-draft.test.ts"],
+        requires: ["tests/unit/web/dictionary-draft.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D24.3-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/registers.json", "apps/web/src/locales/en/registers.json"],
+      },
+      {
+        id: "dictionaries-e2e",
+        criteria: ["D24.3-AC1", "D24.3-AC2"],
+        description:
+          "Playwright on a fresh installation without SQL: the dictionary of F01 made on /dictionaries from Registries, Książki with its Status through it from the kreator, a record chosen from a list without the hidden value, Planowane and the hidden Archiwalne in the table and the widget; the dictionary deleted names the column it unpins, both show the raw symbol and the records are the same (S7); the order changed with the arrows and by dragging is saved and offered in that order; removing a value asks and tells what the records will show; a save from a second tab is a conflict that keeps what was typed until the owner saves it or loads the stored version; editing a record with a hidden or unknown value keeps it; on a phone the page does not scroll sideways; keyboard; axe; the kreator, the list of registries, the records, their edits and the widget of D16 to D23 as before",
+        command: ["node", "tests/verification/e2e.ts", "dictionaries", "new-registry", "registers", "records", "record-edit", "dashboard"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/dictionaries.spec.ts", "tests/e2e/new-registry.spec.ts", "tests/e2e/registers.spec.ts", "tests/e2e/records.spec.ts", "tests/e2e/record-edit.spec.ts", "tests/e2e/dashboard.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D24.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the module, its HTTP and its screens.
+  {
+    id: "D24",
+    ready: true,
+    title: "Dictionaries: values in order, hidden values, labels on a page, usages and unpinning, without a foreign key from the records (S7)",
+    steps: ["D24.1", "D24.2", "D24.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",

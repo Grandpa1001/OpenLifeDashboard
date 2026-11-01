@@ -1,3 +1,4 @@
+import type { DictionaryDto } from "@openlife/contracts/http/dictionaries";
 import type { RegistryDto } from "@openlife/contracts/http/registries";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -44,6 +45,7 @@ const KNOWN_ISSUES = [
   "COLUMNS_MISSING",
   "LIMIT_COLUMNS",
   "LIMIT_REGISTRIES",
+  "DICTIONARY_UNKNOWN",
 ] as const;
 type KnownIssue = (typeof KNOWN_ISSUES)[number];
 const isKnownIssue = (code: string): code is KnownIssue => (KNOWN_ISSUES as readonly string[]).includes(code);
@@ -57,10 +59,11 @@ const INITIAL: RegistryDraft = { displayName: "", symbol: "", symbolEdited: fals
  */
 export function NewRegistryForm({
   takenSymbols,
+  dictionaries,
   onCreated,
   onCancel,
   onGateLost,
-}: Readonly<{ takenSymbols: ReadonlySet<string>; onCreated: (registry: RegistryDto) => void; onCancel: () => void; onGateLost: () => void }>) {
+}: Readonly<{ takenSymbols: ReadonlySet<string>; dictionaries: readonly DictionaryDto[]; onCreated: (registry: RegistryDto) => void; onCancel: () => void; onGateLost: () => void }>) {
   const { t } = useTranslation("registers");
   const [draft, setDraft] = useState<RegistryDraft>(INITIAL);
   const [attempted, setAttempted] = useState(false);
@@ -214,10 +217,12 @@ export function NewRegistryForm({
             key={column.key}
             index={index}
             column={column}
+            dictionaries={dictionaries}
             errorFor={errorFor}
             onName={(displayName) => editColumn(index, (current) => (current.symbolEdited ? { ...current, displayName } : { ...current, displayName, symbol: displayName.trim() === "" ? "" : withSuggestedSymbol({ ...current, displayName }, columnSymbolsExcept(draft.columns, index)).symbol }), [COLUMN_FIELD.name, COLUMN_FIELD.symbol])}
             onSymbol={(symbol) => editColumn(index, (current) => ({ ...current, symbol, symbolEdited: true }), [COLUMN_FIELD.symbol])}
-            onType={(type) => editColumn(index, (current) => ({ ...current, type, decimalPlaces: 0 }), [COLUMN_FIELD.type, COLUMN_FIELD.options])}
+            onType={(type) => editColumn(index, (current) => ({ ...current, type, decimalPlaces: 0, dictionaryId: "" }), [COLUMN_FIELD.type, COLUMN_FIELD.options, COLUMN_FIELD.dictionary])}
+            onDictionary={(dictionaryId) => editColumn(index, (current) => ({ ...current, dictionaryId }), [COLUMN_FIELD.dictionary])}
             onDecimals={(decimalPlaces) => editColumn(index, (current) => ({ ...current, decimalPlaces }), [COLUMN_FIELD.options])}
             onRequired={(required) => editColumn(index, (current) => ({ ...current, required }), [COLUMN_FIELD.required])}
             onRemove={() => removeColumn(index)}
@@ -243,27 +248,31 @@ export function NewRegistryForm({
   );
 }
 
-/** One column of the new registry as one row (makieta 07): name, symbol, type with its options, required, remove. */
+/** One column of the new registry as one row (makieta 07): name, symbol, type with its options (a dictionary for a choice), required, remove. */
 function ColumnRow({
   index,
   column,
+  dictionaries,
   errorFor,
   removable,
   onName,
   onSymbol,
   onType,
   onDecimals,
+  onDictionary,
   onRequired,
   onRemove,
 }: Readonly<{
   index: number;
   column: ColumnDraft;
+  dictionaries: readonly DictionaryDto[];
   errorFor: (path: string) => string | null;
   removable: boolean;
   onName: (value: string) => void;
   onSymbol: (value: string) => void;
   onType: (value: ColumnTypeCode) => void;
   onDecimals: (value: number) => void;
+  onDictionary: (dictionaryId: string) => void;
   onRequired: (value: boolean) => void;
   onRemove: () => void;
 }>) {
@@ -288,6 +297,16 @@ function ColumnRow({
             {Array.from({ length: DECIMAL_PLACES_MAX + 1 }, (_, places) => (
               <option key={places} value={places}>
                 {places}
+              </option>
+            ))}
+          </SelectField>
+        ) : null}
+        {column.type === "choice" ? (
+          <SelectField label={t("form.dictionaryOf", { position })} labelHidden value={column.dictionaryId} onChange={(event) => onDictionary(event.target.value)} error={errorFor(paths.dictionary)}>
+            <option value="">{t("form.noDictionary")}</option>
+            {dictionaries.map((dictionary) => (
+              <option key={dictionary.id} value={dictionary.id}>
+                {dictionary.displayName}
               </option>
             ))}
           </SelectField>

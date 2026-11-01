@@ -21,19 +21,21 @@ export type ColumnDraft = Readonly<{
   symbolEdited: boolean;
   type: ColumnTypeCode;
   decimalPlaces: number;
+  /** The dictionary that shows the values of a choice column; empty for none (D24.3). */
+  dictionaryId: string;
   required: boolean;
 }>;
 
 export type RegistryDraft = Readonly<{ displayName: string; symbol: string; symbolEdited: boolean; columns: readonly ColumnDraft[] }>;
 
-export const emptyColumn = (key: number): ColumnDraft => ({ key, displayName: "", symbol: "", symbolEdited: false, type: "text", decimalPlaces: 0, required: false });
+export const emptyColumn = (key: number): ColumnDraft => ({ key, displayName: "", symbol: "", symbolEdited: false, type: "text", decimalPlaces: 0, dictionaryId: "", required: false });
 
 /** The path an issue of the server or of the live check names, as the server writes it. */
 export type FieldPath = string;
 export type FieldProblem = "NAME_EMPTY" | "SYMBOL_EMPTY" | "SYMBOL_PATTERN" | "SYMBOL_TOO_LONG" | "SYMBOL_TAKEN" | "COLUMNS_MISSING";
 
 /** The fields of a column the server names in its issues. */
-export const COLUMN_FIELD = { name: "displayName", symbol: "symbol", type: "type", options: "typeOptions", required: "required" } as const;
+export const COLUMN_FIELD = { name: "displayName", symbol: "symbol", type: "type", options: "typeOptions", dictionary: "typeOptions.dictionaryId", required: "required" } as const;
 export type ColumnField = (typeof COLUMN_FIELD)[keyof typeof COLUMN_FIELD];
 export const columnPath = (index: number, field: ColumnField): FieldPath => `columns.${index}.${field}`;
 /** The paths of the fields of the column at `index`, by name. */
@@ -42,6 +44,7 @@ export const columnPaths = (index: number) => ({
   symbol: columnPath(index, COLUMN_FIELD.symbol),
   type: columnPath(index, COLUMN_FIELD.type),
   options: columnPath(index, COLUMN_FIELD.options),
+  dictionary: columnPath(index, COLUMN_FIELD.dictionary),
   required: columnPath(index, COLUMN_FIELD.required),
 });
 
@@ -100,7 +103,7 @@ export function requestOf(draft: RegistryDraft): CreateRegistryRequest {
       symbol: column.symbol,
       displayName: column.displayName.trim(),
       type: column.type,
-      typeOptions: column.type === "number" ? { decimalPlaces: column.decimalPlaces } : {},
+      typeOptions: column.type === "number" ? { decimalPlaces: column.decimalPlaces } : column.type === "choice" && column.dictionaryId !== "" ? { dictionaryId: column.dictionaryId } : {},
       required: column.required,
     })),
   };

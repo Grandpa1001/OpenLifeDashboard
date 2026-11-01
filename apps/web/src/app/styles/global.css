@@ -810,3 +810,208 @@ main.page-wide {
   gap: var(--space-4);
   align-items: center;
 }
+
+/* Dictionaries (makieta 22): the list beside the editor; one under the other on a phone. */
+.dictionaries-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 21rem) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-self: stretch;
+  min-width: 0;
+}
+
+.dictionaries-side,
+.dictionaries-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.dictionary-list {
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dictionary-list a {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: var(--touch-target);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.dictionary-list li:last-child a {
+  border-bottom: 0;
+}
+
+.dictionary-list a[aria-current="true"] {
+  background: var(--color-surface-raised);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.dictionary-name {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dictionary-name code {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.dictionary-badges {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-end;
+}
+
+.badge {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.dictionary-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.dictionary-title h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dictionary-title .danger-outline {
+  margin-left: auto;
+}
+
+.danger-outline {
+  border-color: var(--color-danger);
+  background: transparent;
+  color: var(--color-danger);
+}
+
+.dictionary-form,
+.dictionary-new {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.value-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.value-row {
+  display: grid;
+  grid-template-columns: var(--touch-target) minmax(0, 1.4fr) minmax(0, 1fr) 4.5rem var(--touch-target);
+  gap: var(--space-3);
+  align-items: start;
+  min-width: 0;
+}
+
+.value-head {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.value-head span:nth-child(4) {
+  text-align: center;
+}
+
+.value-row.dragging {
+  opacity: 0.7;
+}
+
+.grab {
+  cursor: grab;
+  touch-action: none;
+}
+
+.value-row.dragging .grab {
+  cursor: grabbing;
+}
+
+.symbol-fixed {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: var(--touch-target);
+  min-width: 0;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.value-hidden {
+  justify-content: center;
+  min-height: var(--touch-target);
+}
+
+.value-hidden-word {
+  display: none;
+}
+
+.panel-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 767px) {
+  .dictionaries-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .value-head {
+    display: none;
+  }
+
+  .value-row {
+    grid-template-columns: var(--touch-target) minmax(0, 1fr) var(--touch-target);
+  }
+
+  .value-row .symbol-fixed,
+  .value-row > .field:nth-child(3) {
+    grid-column: 2;
+  }
+
+  .value-row .value-hidden {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+
+  .value-row .value-hidden-word {
+    display: inline;
+  }
+
+  .value-row > .icon-button:last-child {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}
+
+.config-entry {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}

@@ -7,7 +7,7 @@ export type FormColumn = Readonly<{
   symbol: string;
   displayName: string;
   type: "text" | "number" | "money" | "date" | "datetime" | "time" | "boolean" | "choice";
-  typeOptions: Readonly<{ decimalPlaces?: number | undefined }>;
+  typeOptions: Readonly<{ decimalPlaces?: number | undefined; dictionaryId?: string | undefined }>;
   defaultValue: string | number | boolean | null;
   required: boolean;
 }>;

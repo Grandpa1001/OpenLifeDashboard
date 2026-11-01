@@ -241,6 +241,7 @@ export function RegistryPage({ symbol, view, onView }: Readonly<{ symbol: string
                 caption={registry.displayName}
                 columns={columns}
                 records={records.data.records}
+                labels={records.data.labels}
                 locale={locale}
                 timeZone={timeZone}
                 actions={(record) => {

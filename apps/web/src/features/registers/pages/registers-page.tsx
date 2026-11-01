@@ -8,6 +8,7 @@ import { describeFailure } from "../../../lib/failures/error-message.js";
 import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
 import { fetchRegistries } from "../api/registries.js";
+import { useDictionaries } from "../api/use-dictionaries.js";
 import { NewRegistryForm } from "../components/new-registry-form.js";
 
 /** A failure of the gate or of the session: the server no longer lets this owner here, and the guard of the route knows where to. */
@@ -57,6 +58,7 @@ export function RegistersPage() {
     },
   });
 
+  const dictionaries = useDictionaries();
   const [adding, setAdding] = useState(false);
   const [created, setCreated] = useState<string | null>(null);
   const addButton = useRef<HTMLButtonElement>(null);
@@ -98,6 +100,7 @@ export function RegistersPage() {
       {adding ? (
         <NewRegistryForm
           takenSymbols={taken}
+          dictionaries={dictionaries.data ?? []}
           onGateLost={askGuard}
           onCancel={closeForm}
           onCreated={(registry) => {
@@ -138,6 +141,16 @@ export function RegistersPage() {
             ))}
           </ul>
         ) : null}
+      </section>
+      <section aria-labelledby="config-heading">
+        <h2 id="config-heading">{t("list.config")}</h2>
+        <div className="card registry-card">
+          {/* One entry under the heading of the section, not a registry: no heading of its own. */}
+          <p className="config-entry">
+            <Link to="/dictionaries">{t("dictionaries.title")}</Link>
+          </p>
+          <p>{dictionaries.data === undefined ? t("dictionaries.loading") : t("dictionaries.count", { count: dictionaries.data.length })}</p>
+        </div>
       </section>
     </main>
   );

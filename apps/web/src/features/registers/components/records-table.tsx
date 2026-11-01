@@ -1,8 +1,10 @@
+import type { PageLabels } from "@openlife/contracts/http/dictionaries";
 import type { RecordDto } from "@openlife/contracts/http/records";
 import type { TFunction } from "i18next";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { formatCell, type Display } from "../../../lib/format/cell-format.js";
+import { valueLabel } from "../../../lib/format/value-label.js";
 import type { CellValue, FormColumn } from "../lib/record-input.js";
 
 /** A value as the table and the comparison of a conflict show it: by its type, emptiness and booleans in words. */
@@ -14,12 +16,13 @@ export function cellText(t: TFunction<"registers">, column: FormColumn, value: C
 
 /**
  * The records of one page as a table: the values read by their type, emptiness and booleans in
- * words. With `actions`, a last column holds what can be done with each record (makieta 08).
+ * words, a value of a dictionary by its label when the page has one (D24.3). With `actions`, a last column holds what can be done with each record (makieta 08).
  */
 export function RecordsTable({
   caption,
   columns,
   records,
+  labels,
   locale,
   timeZone,
   actions,
@@ -28,6 +31,7 @@ export function RecordsTable({
   caption: string;
   columns: readonly FormColumn[];
   records: readonly RecordDto[];
+  labels: PageLabels;
   locale: string;
   timeZone: string;
   actions?: (record: RecordDto) => ReactNode;
@@ -58,7 +62,7 @@ export function RecordsTable({
             <tr key={record.id}>
               {columns.map((column) => (
                 <td key={column.symbol} className={column.type === "number" || column.type === "money" ? "numeric" : undefined}>
-                  {cellText(t, column, record.values[column.symbol] ?? null, { locale, timeZone })}
+                  {valueLabel(labels, column.symbol, record.values[column.symbol] ?? null) ?? cellText(t, column, record.values[column.symbol] ?? null, { locale, timeZone })}
                 </td>
               ))}
               {actions === undefined ? null : <td className="actions">{actions(record)}</td>}
