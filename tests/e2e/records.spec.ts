@@ -69,8 +69,7 @@ test.describe("D16.3-AC1 the first record and the pages", () => {
     const cells = rows(page).nth(1).getByRole("cell");
     // The last cell holds the actions of the row (D23.3), named by their buttons.
     await expect(cells).toHaveText(["Diuna", "Frank Herbert", "412", "39.99", "Feb 3, 2026", /^Jul 15, 2026,? 12:00/, "18:30", "Yes", "planowane", ""]);
-    await expect(page.getByText("Page 1 of 1")).toBeVisible();
-    await expect(page.getByText("1 record in total")).toBeVisible();
+    await expect(page.getByText("1–1 of 1")).toBeVisible();
     await expectNoViolations(page);
 
     // The amount is in grosze and the date-time is the instant of the wall of Warsaw, in UTC.
@@ -85,16 +84,15 @@ test.describe("D16.3-AC1 the first record and the pages", () => {
     await page.goto(`${owner.baseUrl}/registers/ksiazki`);
 
     const titles = async () => (await rows(page).getByRole("cell", { name: /^Książka / }).allTextContents()).map((title) => title);
-    await expect(page.getByText("Page 1 of 3")).toBeVisible();
-    await expect(page.getByText("25 records in total")).toBeVisible();
+    await expect(page.getByText("1–10 of 25")).toBeVisible();
     expect(await titles()).toEqual(Array.from({ length: 10 }, (_, index) => `Książka ${String(25 - index).padStart(2, "0")}`));
     await expect(page.getByRole("button", { name: text(registers, "table.previous") })).toBeDisabled();
 
     await page.getByRole("button", { name: text(registers, "table.next") }).click();
-    await expect(page.getByText("Page 2 of 3")).toBeVisible();
+    await expect(page.getByText("11–20 of 25")).toBeVisible();
     expect(await titles()).toEqual(Array.from({ length: 10 }, (_, index) => `Książka ${String(15 - index).padStart(2, "0")}`));
     await page.getByRole("button", { name: text(registers, "table.next") }).click();
-    await expect(page.getByText("Page 3 of 3")).toBeVisible();
+    await expect(page.getByText("21–25 of 25")).toBeVisible();
     expect(await titles()).toEqual(["05", "04", "03", "02", "01"].map((number) => `Książka ${number}`));
     await expect(page.getByRole("button", { name: text(registers, "table.next") })).toBeDisabled();
     await expectNoViolations(page);
@@ -103,8 +101,7 @@ test.describe("D16.3-AC1 the first record and the pages", () => {
     await addButton(page).click();
     await field(page, "Tytuł").fill("Nowa");
     await save(page).click();
-    await expect(page.getByText("Page 1 of 3")).toBeVisible();
-    await expect(page.getByText("26 records in total")).toBeVisible();
+    await expect(page.getByText("1–10 of 26")).toBeVisible();
     expect(await rows(page).nth(1).getByRole("cell").first().textContent()).toBe("Nowa");
   });
 
@@ -231,14 +228,14 @@ test.describe("D16.3-AC2 what is refused, lost and changed", () => {
     await expect(dialog(page)).toHaveCount(0);
     expect(stored(owner)).toHaveLength(1);
     await expect(rows(page)).toHaveCount(2);
-    await expect(page.getByText("1 record in total")).toBeVisible();
+    await expect(page.getByText("1–1 of 1")).toBeVisible();
     expect(query(owner.instance, "SELECT 1 FROM idempotency_entry")).toHaveLength(1);
 
     // A second attempt with a changed value is a request of its own, with its own key.
     await addButton(page).click();
     await field(page, "Tytuł").fill("Dwa");
     await save(page).click();
-    await expect(page.getByText("2 records in total")).toBeVisible();
+    await expect(page.getByText("1–2 of 2")).toBeVisible();
     expect(query(owner.instance, "SELECT 1 FROM idempotency_entry")).toHaveLength(2);
   });
 

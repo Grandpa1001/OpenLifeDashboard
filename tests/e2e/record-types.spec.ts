@@ -105,7 +105,7 @@ test.describe("D22.3-AC1 the 25 records of F01 typed into the window", () => {
 
     // The pages are those of the expected file, and the values are read by type in the owner's language and zone.
     const titles = async () => page.getByRole("row").getByRole("cell", { name: /^Książka testowa / }).allTextContents();
-    await expect(page.getByText("Page 1 of 3")).toBeVisible();
+    await expect(page.getByText("1–10 of 25")).toBeVisible();
     expect(await titles()).toEqual(expected.pageTitles[0]);
     const firstOnPage = RECORDS_IN_ORDER[24]!.values;
     const cells = page.getByRole("row").nth(1).getByRole("cell");
@@ -114,7 +114,7 @@ test.describe("D22.3-AC1 the 25 records of F01 typed into the window", () => {
       await page.getByRole("button", { name: text(registers, "table.next") }).click();
       await expect.poll(titles).toEqual(pageTitles);
     }
-    await expect(page.getByText("Page 3 of 3")).toBeVisible();
+    await expect(page.getByText("21–25 of 25")).toBeVisible();
     await expectNoViolations(page);
 
     // The first record of F01 (1037 grosze) and one with a date-time, as the table shows them.

@@ -1,12 +1,14 @@
 import type { RecordDto, RecordPageDto } from "@openlife/contracts/http/records";
 import type { RegistryDto } from "@openlife/contracts/http/registries";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ApiFailure } from "../../../lib/api-client/request.js";
 import { describeFailure } from "../../../lib/failures/error-message.js";
 import { FailureAlert } from "../../../lib/failures/failure-alert.js";
+import { Field } from "../../../lib/forms/field.js";
+import { SelectField } from "../../../lib/forms/select-field.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
 import { useOwnerDisplay } from "../../../lib/session/use-owner-display.js";
 import { fetchRegistries } from "../api/registries.js";
@@ -16,6 +18,7 @@ import { RecordDialog } from "../components/record-dialog.js";
 import { RecordsTable } from "../components/records-table.js";
 import { recordName } from "../lib/record-edit.js";
 import { pageCount, RECORDS_PAGE_SIZE } from "../lib/paging.js";
+import { DEFAULT_VIEW, pageRange, SEARCH_DEBOUNCE_MS, SEARCH_MAX_CODE_POINTS, sortOptions, withSearch, withSort, type RecordsView } from "../lib/records-view.js";
 import type { FormColumn } from "../lib/record-input.js";
 
 class CallFailure extends Error {
@@ -42,13 +45,18 @@ type Open = Readonly<{ kind: "add" }> | Readonly<{ kind: "edit"; record: RecordD
  * `/registers/:symbol`: the records of one registry, a page at a time from the server, the window
  * that adds or changes one and the question before one is deleted (makieta 08, 21). When a window
  * closes, the focus goes back to the button that opened it, or to "Add" when that row is gone.
+ *
+ * The search, the sort and the page are the `view` of the address (D23.4), changed through
+ * `onView`: a reload and "back" keep them. The search is sent a moment after the last key; every
+ * view is its own query, so a slower answer to an older search never replaces a newer one, and the
+ * table keeps the last page it had while the next one loads.
  */
-export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
+export function RegistryPage({ symbol, view, onView }: Readonly<{ symbol: string; view: RecordsView; onView: (next: RecordsView, options?: Readonly<{ replace?: boolean }>) => void }>) {
   const { t } = useTranslation("registers");
   const common = useTranslation("common");
   const queryClient = useQueryClient();
   const router = useRouter();
-  const [page, setPage] = useState(1);
+  const [typedSearch, setTypedSearch] = useState(view.search);
   const [open, setOpen] = useState<Open | null>(null);
   /** What the last window did, for the status line. */
   const [done, setDone] = useState<Open["kind"] | null>(null);
@@ -70,12 +78,22 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
   const registry = registries.data?.find((candidate) => candidate.symbol === symbol) ?? null;
 
   const { locale, timeZone } = useOwnerDisplay();
+  const columns = registry === null ? [] : formColumns(registry);
+
+  // A sort the registry does not have (an edited address, a removed column) is the default sort, not an error.
+  const sorts = sortOptions(columns);
+  const sortKnown = sorts.some((option) => option.sort === view.sort && option.direction === view.direction);
+  const shown: RecordsView = sortKnown || registry === null ? view : { ...view, sort: DEFAULT_VIEW.sort, direction: DEFAULT_VIEW.direction };
+  const { page } = shown;
+  const search = shown.search.trim();
+  const setPage = (next: number, replace = false): void => onView({ ...shown, page: next }, { replace });
 
   const records = useQuery<RecordPageDto>({
-    queryKey: [...queryKeys.registries.records(symbol), page],
+    queryKey: [...queryKeys.registries.records(symbol), search, shown.sort, shown.direction, page],
     enabled: registry !== null,
+    placeholderData: keepPreviousData,
     queryFn: async ({ signal }) => {
-      const result = await fetchRecordPage(symbol, page, RECORDS_PAGE_SIZE, signal);
+      const result = await fetchRecordPage(symbol, { page, pageSize: RECORDS_PAGE_SIZE, sort: shown.sort, direction: shown.direction, search }, signal);
       if (!result.ok) {
         if (result.failure.kind === "aborted") throw new DOMException("aborted", "AbortError");
         throw new CallFailure(result.failure);
@@ -97,8 +115,18 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
   // A page past the end (records were removed elsewhere) goes back to the last one that exists.
   const lastPage = records.data === undefined ? null : pageCount(records.data.total, RECORDS_PAGE_SIZE);
   useEffect(() => {
-    if (lastPage !== null && page > lastPage) setPage(lastPage);
-  }, [lastPage, page]);
+    if (lastPage !== null && !records.isPlaceholderData && page > lastPage) setPage(lastPage, true);
+  });
+
+  // The search box follows the address when it changes from outside (back, a link), and the address follows the box after a pause.
+  useEffect(() => {
+    setTypedSearch(view.search);
+  }, [view.search]);
+  useEffect(() => {
+    if (typedSearch === view.search) return undefined;
+    const timer = setTimeout(() => onView(withSearch(view, typedSearch), { replace: true }), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [typedSearch, view, onView]);
 
   useEffect(() => {
     if (open === null && returnFocus.current) {
@@ -119,7 +147,6 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
   const refreshRecords = (): void => void queryClient.invalidateQueries({ queryKey: queryKeys.registries.records(symbol) });
 
   const refreshDefinition = (): void => void queryClient.invalidateQueries({ queryKey: queryKeys.registries.list });
-  const columns = registry === null ? [] : formColumns(registry);
 
   return (
     // The width of the window, as the registry screens are drawn (makieta 08).
@@ -154,6 +181,37 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
         <section className="records-section" aria-labelledby="records-heading">
           <div className="records-toolbar">
             <h2 id="records-heading">{t("table.heading")}</h2>
+            <div className="records-filters" role="search" aria-label={t("table.search")}>
+              <Field
+                label={t("table.search")}
+                labelHidden
+                type="search"
+                placeholder={t("table.searchPlaceholder")}
+                maxLength={SEARCH_MAX_CODE_POINTS}
+                value={typedSearch}
+                onChange={(event) => setTypedSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  // Enter does not wait for the pause.
+                  if (event.key === "Enter" && typedSearch !== view.search) onView(withSearch(view, typedSearch), { replace: true });
+                }}
+                autoComplete="off"
+              />
+              <SelectField
+                label={t("table.sort")}
+                labelHidden
+                value={`${shown.sort}:${shown.direction}`}
+                onChange={(event) => {
+                  const option = sorts.find((candidate) => candidate.value === event.target.value);
+                  if (option !== undefined) onView(withSort(view, option.sort, option.direction));
+                }}
+              >
+                {sorts.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.column === null ? t("table.sortNewest") : t(option.direction === "asc" ? "table.sortAsc" : "table.sortDesc", { column: option.column })}
+                  </option>
+                ))}
+              </SelectField>
+            </div>
             <button ref={addButton} type="button" onClick={(event) => openWindow({ kind: "add" }, event.currentTarget)}>
               {t("record.add")}
             </button>
@@ -167,7 +225,15 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
               </button>
             </>
           )}
-          {records.data !== undefined && records.data.total === 0 ? <p>{t("table.empty_registry")}</p> : null}
+          {records.data !== undefined && records.data.total === 0 && search === "" ? <p>{t("table.empty_registry")}</p> : null}
+          {records.data !== undefined && records.data.total === 0 && search !== "" ? (
+            <div className="records-empty">
+              <p>{t("table.noMatches", { search })}</p>
+              <button type="button" onClick={() => onView(withSearch(view, ""))}>
+                {t("table.clearSearch")}
+              </button>
+            </div>
+          ) : null}
           {records.data !== undefined && records.data.total > 0 ? (
             <>
               <RecordsTable
@@ -191,14 +257,16 @@ export function RegistryPage({ symbol }: Readonly<{ symbol: string }>) {
                 }}
               />
               <nav className="pager" aria-label={t("table.pager")}>
-                <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                  {t("table.previous")}
+                <button type="button" aria-label={t("table.previous")} disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                  <span aria-hidden="true">‹</span>
                 </button>
-                <span>{t("table.page", { page, pages: pageCount(records.data.total, RECORDS_PAGE_SIZE) })}</span>
-                <button type="button" disabled={page >= pageCount(records.data.total, RECORDS_PAGE_SIZE)} onClick={() => setPage(page + 1)}>
-                  {t("table.next")}
+                {(() => {
+                  const range = pageRange(page, RECORDS_PAGE_SIZE, records.data.records.length, records.data.total);
+                  return range === null ? null : <span aria-live="polite">{t("table.range", range)}</span>;
+                })()}
+                <button type="button" aria-label={t("table.next")} disabled={page >= pageCount(records.data.total, RECORDS_PAGE_SIZE)} onClick={() => setPage(page + 1)}>
+                  <span aria-hidden="true">›</span>
                 </button>
-                <span>{t("table.total", { count: records.data.total })}</span>
               </nav>
             </>
           ) : null}

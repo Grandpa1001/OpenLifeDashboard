@@ -1,5 +1,6 @@
 import type { NextAction } from "@openlife/contracts/http/identity";
 import type { QueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
 import { createRootRouteWithContext, createRoute, createRouter, Outlet, redirect } from "@tanstack/react-router";
 import { LoginPage } from "../../features/auth/pages/login-page.js";
 import { MfaPage } from "../../features/auth/pages/mfa-page.js";
@@ -8,6 +9,7 @@ import { AddRecordForRegistry } from "../../features/registers/components/add-re
 import { MainPage } from "../../features/dashboard/pages/main-page.js";
 import { RegistryPage } from "../../features/registers/pages/registry-page.js";
 import { RegistersPage } from "../../features/registers/pages/registers-page.js";
+import { parseRecordsView, viewSearch, type RecordsView } from "../../features/registers/lib/records-view.js";
 import { SetupPage, type PendingStep } from "../../features/setup/pages/setup-page.js";
 import { setInterfaceLanguage } from "../../lib/language.js";
 import { currentIdentityStatus } from "../../lib/session/identity-status.js";
@@ -123,9 +125,16 @@ const setupRoute = createRoute({
 const registryRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/registers/$symbol",
+  // The search, sort and page of the records (D23.4); only what differs from the default stays in the address.
+  validateSearch: (raw: Record<string, unknown>) => viewSearch(parseRecordsView(raw)),
   beforeLoad: ({ context }) => admitPrivate(context),
   component: function RegistryRoute() {
-    return <RegistryPage symbol={registryRoute.useParams().symbol} />;
+    const navigate = registryRoute.useNavigate();
+    const search = registryRoute.useSearch();
+    // One object per address, so the pause of the search box is not restarted by every render.
+    const view = useMemo(() => parseRecordsView(search), [search]);
+    const onView = useCallback((next: RecordsView, options?: Readonly<{ replace?: boolean }>) => void navigate({ search: viewSearch(next), replace: options?.replace ?? false }), [navigate]);
+    return <RegistryPage symbol={registryRoute.useParams().symbol} view={view} onView={onView} />;
   },
 });
 

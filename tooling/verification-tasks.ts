@@ -2493,6 +2493,56 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D23.4",
+    ready: true,
+    title: "Searching, sorting and paging the records in the browser (makieta 08): the view in the address, a range pager, a search sent after a pause",
+    criteria: ["D23.4-AC1", "D23.4-AC2", "D23.4-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA, the unit test reads the limit of core from its build.
+        id: "workspace-build",
+        criteria: ["D23.4-AC1", "D23.4-AC2"],
+        description: "pnpm -r build: the SPA with the search, the sort and the pager of the page of a registry and the view in its address",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/registers/pages/registry-page.tsx", "apps/web/src/features/registers/lib/records-view.ts", "apps/web/src/app/router/router.tsx"],
+      },
+      {
+        id: "records-view-web",
+        criteria: ["D23.4-AC1", "D23.4-AC2"],
+        description:
+          "The view in the address: missing or foreign values fall back to the defaults, the address holds only what differs and reads back the same, a search keeps at most the 100 code points of core, a new search or sort is page 1; the options of Sort (newest, then each column both ways) and the range of the pager",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/records-view.test.ts"],
+        requires: ["tests/unit/web/records-view.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D23.4-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/registers.json", "apps/web/src/locales/en/registers.json"],
+      },
+      {
+        id: "record-search-e2e",
+        criteria: ["D23.4-AC1", "D23.4-AC2"],
+        description:
+          "Playwright on a fresh installation with the 25 records of F01: a fragment in any letter case shows exactly its records with 1–N of N and lands in the address, Sort by title ascending is the order of the fixture page after page, a reload keeps the search, the sort and the page and back returns to the page before; no match says so in one sentence with Clear the search, a new search starts from page 1, the box takes 100 characters; a slower answer to an older search does not replace the newer one; on a phone the page does not scroll sideways and the table scrolls in its region; the widget has no search and no sort; the records, types and edits of D16.3, D22.3 and D23.3 with the new pager; axe",
+        command: ["node", "tests/verification/e2e.ts", "record-search", "records", "record-types", "record-edit"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/record-search.spec.ts", "tests/e2e/records.spec.ts", "tests/e2e/record-types.spec.ts", "tests/e2e/record-edit.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D23.4-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: change, delete and search over HTTP and in the browser.
+  {
+    id: "D23",
+    ready: true,
+    title: "Changing, deleting, searching and sorting the records of a registry: compare and set over HTTP, the conflict of two tabs and the view in the address",
+    steps: ["D23.1", "D23.2", "D23.3", "D23.4"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",

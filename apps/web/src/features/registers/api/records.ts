@@ -14,8 +14,16 @@ import {
 } from "@openlife/contracts/http/records";
 import { apiRequest } from "../../../lib/api-client/request.js";
 
-export const fetchRecordPage = (symbol: string, page: number, pageSize: number, signal?: AbortSignal) =>
-  apiRequest({ method: "GET", path: `${registryRecordsPath(encodeURIComponent(symbol))}?page=${page}&pageSize=${pageSize}`, schema: recordPageSchema, signal });
+export type RecordPageQuery = Readonly<{ page: number; pageSize: number; sort?: string; direction?: "asc" | "desc"; search?: string }>;
+
+/** A page of records; the search, sort and page are query parameters, never part of a path. */
+export const fetchRecordPage = (symbol: string, query: RecordPageQuery, signal?: AbortSignal) => {
+  const params = new URLSearchParams({ page: String(query.page), pageSize: String(query.pageSize) });
+  if (query.sort !== undefined) params.set("sort", query.sort);
+  if (query.direction !== undefined) params.set("direction", query.direction);
+  if (query.search !== undefined && query.search.trim() !== "") params.set("search", query.search);
+  return apiRequest({ method: "GET", path: `${registryRecordsPath(encodeURIComponent(symbol))}?${params.toString()}`, schema: recordPageSchema, signal });
+};
 
 /** The add carries the key of the attempt: the same key with the same body is one record, however often it is sent. */
 export const addRecord = (symbol: string, key: string, request: CreateRecordRequest, signal?: AbortSignal) => {

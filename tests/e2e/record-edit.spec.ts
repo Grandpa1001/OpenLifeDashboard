@@ -136,7 +136,7 @@ test.describe("D23.3-AC2 a delete, a record gone elsewhere, a lost answer and th
     await expect(question).toHaveCount(0);
     await expect(page.getByRole("status")).toHaveText(text(registers, "record.done.delete"));
     await expect(row(page, "Diuna")).toHaveCount(0);
-    await expect(page.getByText("1 record in total")).toBeVisible();
+    await expect(page.getByText("1–1 of 1")).toBeVisible();
     expect(stored(owner).map((each) => each.tytul)).toEqual(["Solaris"]);
     // The row is gone, so the focus goes to "Add".
     await expect(page.getByRole("button", { name: text(registers, "record.add"), exact: true })).toBeFocused();

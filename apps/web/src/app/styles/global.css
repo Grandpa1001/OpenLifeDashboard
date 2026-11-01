@@ -507,6 +507,9 @@ main.page-wide {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  /* The page lays its children at their own width; the records take the page's, and a wide table scrolls in its region. */
+  align-self: stretch;
+  min-width: 0;
 }
 
 .records-section table {
@@ -778,4 +781,32 @@ main.page-wide {
   padding: var(--space-2);
   border-bottom: 1px solid var(--color-border);
   text-align: left;
+}
+
+/* Search and sort of the records, beside the heading (makieta 08); under it on a phone. */
+.records-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  margin-left: auto;
+}
+
+.records-filters .field {
+  margin: 0;
+}
+
+.records-filters input[type="search"] {
+  width: min(16rem, 100%);
+}
+
+.records-filters select {
+  max-width: 100%;
+}
+
+.records-empty {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
 }
