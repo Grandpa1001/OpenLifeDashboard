@@ -161,9 +161,11 @@ export async function enrolled(setup: Installation, password: string = OWNER_PAS
   const passwordCookie = login.cookie ?? "";
   const challenge = enrollmentChallengeSchema.parse((await begin(setup.server, passwordCookie)).json());
   const secret = secretOf(challenge.otpauthUri);
-  const confirmed = await confirm(setup.server, passwordCookie, challenge.challengeId, await codeOf(secret));
+  // The code itself is returned: one computed again later may belong to the next step of 30 seconds.
+  const code = await codeOf(secret);
+  const confirmed = await confirm(setup.server, passwordCookie, challenge.challengeId, code);
   const codes: IssuedRecoveryCodesDto | null = confirmed.status === 200 ? issuedRecoveryCodesSchema.parse(confirmed.json()) : null;
-  return { passwordCookie, challenge, secret, confirmed, codes };
+  return { passwordCookie, challenge, secret, code, confirmed, codes };
 }
 
 /** An owner who enrolled and acknowledged the codes, with the starting data chosen as empty (D11.4 will do that over HTTP). */

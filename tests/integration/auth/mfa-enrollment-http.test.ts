@@ -100,7 +100,7 @@ describe("D11.1-AC1 begin → confirm → acknowledge", () => {
     expect((await ack(server, relogin.cookie, firstBatch)).status).toBe(409);
     expect(mfaState(instance)?.enrollment_state).toBe("awaiting_recovery_ack");
     // The code of the step already used is refused; the next step's code is a fresh proof.
-    expect((await reissue(server, relogin.cookie, await codeOf(first.secret))).status).toBe(401);
+    expect((await reissue(server, relogin.cookie, first.code)).status).toBe(401);
     const reissued = await reissue(server, relogin.cookie, await codeOf(first.secret, 1));
     expect(reissued.status).toBe(200);
     const second = issuedRecoveryCodesSchema.parse(reissued.json());
@@ -202,8 +202,8 @@ describe("D11.1-AC2 refusals", () => {
     const setup = await installation();
     const { server } = setup;
     const first = await enrolled(setup);
-    const used = await codeOf(first.secret);
-    const refused = await reissue(server, first.confirmed.cookie, used);
+    // Exactly the code the enrollment was confirmed with, not one computed again: the clock may have turned to the next step since.
+    const refused = await reissue(server, first.confirmed.cookie, first.code);
     expect(refused.status).toBe(401);
     expect(apiErrorSchema.parse(refused.json()).code).toBe("MFA_INVALID_CODE");
   });
