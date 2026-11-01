@@ -24,6 +24,11 @@
       "types": "./dist/modules/dictionaries/public.d.ts",
       "default": "./dist/modules/dictionaries/public.js"
     },
+    "./configuration": {
+      "@openlife/source": "./src/modules/configuration/public.ts",
+      "types": "./dist/modules/configuration/public.d.ts",
+      "default": "./dist/modules/configuration/public.js"
+    },
     "./foundation": {
       "@openlife/source": "./src/foundation/public.ts",
       "types": "./dist/foundation/public.d.ts",

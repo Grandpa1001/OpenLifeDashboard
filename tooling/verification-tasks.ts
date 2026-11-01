@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -2667,6 +2667,47 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D24.1", "D24.2", "D24.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D25.1",
+    ready: true,
+    title: "ConfigTable in core and SQLite: the rules of an entry, its store, use cases with compare and set, the old and the new value in the audit, Field.Config and Field.System",
+    criteria: ["D25.1-AC1", "D25.1-AC2", "D25.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests read core and the adapters from their build.
+        id: "workspace-build",
+        criteria: ["D25.1-AC1", "D25.1-AC2"],
+        description: "pnpm -r build: the module core/configuration, migration 14, the configuration adapter and the catalog of the dashboard adapter that resolves an entry and counts its bindings",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/configuration/public.ts", "packages/sqlite/src/migrations/0014-config-entries.ts", "packages/sqlite/src/adapters/configuration/config-store.ts", "packages/sqlite/src/adapters/dashboard/catalog-reader.ts"],
+      },
+      {
+        id: "config-rules",
+        criteria: ["D25.1-AC1", "D25.1-AC2"],
+        description:
+          "The rules on the entry of F01: norma_czytania = \"20\" is text kept as sent, never trimmed, an empty value and description allowed, 10 000 and 500 code points on their edge; a value that is no text, too long or malformed, a description that is no text, too long or with control characters, a bad, long or taken symbol and the limit of 500 refused with their paths; Field.System gives the owner's today and yesterday across midnight and both changes of the clock, now in UTC, the zone, the language and the version; a binding to an entry needs Field.Config.<symbol> of an entry of the owner, the register table of this build takes none, and a stored widget whose entry is gone is to be bound again; the rules of a design as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/configuration/config-rules.test.ts", "tests/unit/dashboard/design-rules.test.ts"],
+        requires: ["tests/unit/configuration/config-rules.test.ts", "tests/unit/dashboard/design-rules.test.ts"],
+      },
+      {
+        id: "config-sqlite",
+        criteria: ["D25.1-AC1", "D25.1-AC2"],
+        description:
+          "A real SQLite file with the production adapters and use cases: the entry of F01 created and stored as the text 20, read through the reader of Field.Config, saved whole with revision + 1, the same after a restart, and every change in the audit of the database with the old and the new value; the list counts the bindings of each entry; a delete frees the symbol, leaves the bindings and audits the last value; a stale revision writes and audits nothing, a taken symbol and the limit are conflicts, a bad content is refused with its paths and without its value, another token and another owner's entry change nothing; a failing audit takes back a creation, a save and a delete; migration 14 in the plan",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/configuration/config-entries.test.ts", "tests/integration/sqlite/migrations.test.ts"],
+        requires: ["tests/integration/configuration/config-entries.test.ts", "tests/integration/sqlite/migrations.test.ts"],
+      },
+      {
+        id: "dashboard-regression",
+        criteria: ["D25.1-AC2"],
+        description: "The screens, widgets and bindings over SQLite and HTTP as before, with the catalog that now knows the entries (D17, D18)",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/dashboard"],
+        requires: ["tests/integration/dashboard/dashboard-http.test.ts", "tests/integration/dashboard/dashboard-store.test.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D25.1-regression"),
+    ],
   },
   {
     id: "D19.1",

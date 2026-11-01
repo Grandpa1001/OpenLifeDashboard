@@ -10,7 +10,7 @@ export const REGISTRY_TABLE_PREFIX = "reg_";
 export const tableNameOf = (symbol: string): string => `${REGISTRY_TABLE_PREFIX}${symbol}`;
 
 /** Registries are told apart from each other, columns within their registry, dictionaries from each other and values within their dictionary. */
-export type SymbolSpace = "registry" | "column" | "dictionary" | "dictionaryValue";
+export type SymbolSpace = "registry" | "column" | "dictionary" | "dictionaryValue" | "configEntry";
 export type SymbolIssue = "SYMBOL_PATTERN" | "SYMBOL_TOO_LONG" | "SYMBOL_RESERVED" | "SYMBOL_TAKEN";
 
 const isReserved = (symbol: string, space: SymbolSpace): boolean => space === "column" && RESERVED_COLUMN_SYMBOLS.has(symbol);

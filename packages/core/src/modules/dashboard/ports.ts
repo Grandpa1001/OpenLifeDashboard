@@ -44,6 +44,8 @@ export type CatalogRegistry = Readonly<{
 export interface DashboardCatalogReader {
   /** The registry with this identifier if it is the owner's, or null (also for another owner's). */
   registry(ownerId: string, registryId: string): CatalogRegistry | null;
+  /** The entry of ConfigTable with this identifier if it is the owner's, or null: an entry is deleted outright, so a stored binding to null is broken. */
+  configEntry(ownerId: string, entryId: string): Readonly<{ symbol: string }> | null;
   /** The screen that holds a widget with this identifier, of any owner, or null. */
   screenOfWidget(widgetId: string): string | null;
 }

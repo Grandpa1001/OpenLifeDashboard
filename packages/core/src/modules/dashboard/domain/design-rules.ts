@@ -35,6 +35,7 @@ const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/u;
 
 const REGISTER_PATH = "Field.Register";
 const SYSTEM_PATH = "Field.System";
+const CONFIG_PATH = "Field.Config";
 
 /** The registry a target belongs to, if it is of a registry. */
 const registryOf = (target: FieldRef): string | null => (target.kind === "registry" || target.kind === "column" || target.kind === "systemColumn" ? target.registryId : null);
@@ -43,7 +44,7 @@ type Looked = { registry: CatalogRegistry | null };
 type Inspection = Readonly<{ issues: readonly DesignIssue[]; state: WidgetState; config: Readonly<Record<string, unknown>> }>;
 
 /** The path a target must carry, or null when the catalog does not know the target at all. */
-function expectedPath(target: FieldRef, registry: CatalogRegistry | null): string | null {
+function expectedPath(target: FieldRef, registry: CatalogRegistry | null, entry: Readonly<{ symbol: string }> | null): string | null {
   switch (target.kind) {
     case "registry":
       return registry === null ? null : `${REGISTER_PATH}.${registry.symbol}`;
@@ -56,7 +57,7 @@ function expectedPath(target: FieldRef, registry: CatalogRegistry | null): strin
     case "system":
       return `${SYSTEM_PATH}.${target.symbol}`;
     case "config":
-      return null;
+      return entry === null ? null : `${CONFIG_PATH}.${entry.symbol}`;
   }
 }
 
@@ -73,7 +74,11 @@ export function isValidScreenName(name: string, policy: Pick<DesignPolicy, "name
   return trimmed !== "" && Array.from(trimmed).length <= policy.nameMaxChars && !CONTROL_CHARACTERS.test(name);
 }
 
-function inspectWidget(widget: WidgetInput, base: string, context: DesignContext, lookup: (registryId: string) => CatalogRegistry | null): Inspection {
+/**
+ * `stored` is a widget read back, not one being saved: an entry of ConfigTable it points at that is
+ * gone was deleted since (entries leave no row), so the binding is broken rather than unknown.
+ */
+function inspectWidget(widget: WidgetInput, base: string, context: DesignContext, lookup: (registryId: string) => CatalogRegistry | null, stored: boolean): Inspection {
   const issues: DesignIssue[] = [];
   const add = (path: string, code: DesignIssueCode): void => void issues.push({ path: `${base}.${path}`, code });
   const { policy } = context;
@@ -103,8 +108,10 @@ function inspectWidget(widget: WidgetInput, base: string, context: DesignContext
     const here = `bindings.${index}`;
     const registryId = registryOf(binding.target);
     if (registryId !== null) registries.add(registryId);
-    if (binding.target.kind === "config") {
-      add(`${here}.target`, "TARGET_UNSUPPORTED");
+    const entry = binding.target.kind === "config" ? context.catalog.configEntry(context.ownerId, binding.target.entryId) : null;
+    if (binding.target.kind === "config" && entry === null) {
+      if (stored) broken = true;
+      else add(`${here}.target`, "TARGET_UNKNOWN");
       return;
     }
     const registry = registryId === null ? null : lookup(registryId);
@@ -112,7 +119,7 @@ function inspectWidget(widget: WidgetInput, base: string, context: DesignContext
       add(`${here}.target`, "TARGET_UNKNOWN");
       return;
     }
-    const expected = expectedPath(binding.target, registry);
+    const expected = expectedPath(binding.target, registry, entry);
     if (expected === null) {
       add(`${here}.target`, "TARGET_UNKNOWN");
       return;
@@ -176,7 +183,7 @@ export function validateDesign(input: DesignInput, context: DesignContext): Desi
       if (holder !== null && holder !== context.screenId) issues.push({ path: `${base}.id`, code: "WIDGET_ID_TAKEN" });
     }
     seen.add(widget.id);
-    const inspected = inspectWidget(widget, base, context, lookup);
+    const inspected = inspectWidget(widget, base, context, lookup, false);
     issues.push(...inspected.issues);
     widgets.push({ id: widget.id, type: widget.type, config: inspected.config, layout: widget.layout, bindings: widget.bindings, state: inspected.state });
   });
@@ -192,7 +199,7 @@ export function validateDesign(input: DesignInput, context: DesignContext): Desi
  * `needs_refresh`: the owner confirms the widget again, and nothing is read for it.
  */
 export function stateOfStoredWidget(widget: WidgetInput, context: DesignContext): WidgetState {
-  const inspected = inspectWidget(widget, "widget", context, lookupOf(context));
+  const inspected = inspectWidget(widget, "widget", context, lookupOf(context), true);
   return inspected.issues.length > 0 ? "needs_refresh" : inspected.state;
 }
 

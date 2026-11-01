@@ -24,6 +24,11 @@
       "types": "./dist/adapters/dictionaries/public.d.ts",
       "default": "./dist/adapters/dictionaries/public.js"
     },
+    "./adapters/configuration": {
+      "@openlife/source": "./src/adapters/configuration/public.ts",
+      "types": "./dist/adapters/configuration/public.d.ts",
+      "default": "./dist/adapters/configuration/public.js"
+    },
     "./adapters/identity": {
       "@openlife/source": "./src/adapters/identity/public.ts",
       "types": "./dist/adapters/identity/public.d.ts",

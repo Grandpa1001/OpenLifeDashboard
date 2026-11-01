@@ -26,6 +26,9 @@ export type FailureCode =
   | "DICTIONARY_SYMBOL_TAKEN"
   | "DICTIONARY_LIMIT_EXCEEDED"
   | "DICTIONARY_CHANGED"
+  | "CONFIG_SYMBOL_TAKEN"
+  | "CONFIG_LIMIT_EXCEEDED"
+  | "CONFIG_CHANGED"
   | "MAINTENANCE";
 
 /** One reason a request was not valid: where (a field path) and why (a stable code), never the value. */

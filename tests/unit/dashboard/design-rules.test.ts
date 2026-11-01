@@ -52,13 +52,14 @@ const policy: DesignPolicy = {
 };
 
 /** A context over a catalog the test controls; `lookups` counts the questions put to the registries. */
-function contextOf(registries: readonly CatalogRegistry[] = [booksRegistry(), WAGA], widgetScreens: Record<string, string> = {}, overridePolicy: Partial<DesignPolicy> = {}) {
+function contextOf(registries: readonly CatalogRegistry[] = [booksRegistry(), WAGA], widgetScreens: Record<string, string> = {}, overridePolicy: Partial<DesignPolicy> = {}, configEntries: Record<string, string> = {}) {
   const lookups: string[] = [];
   const catalog: DashboardCatalogReader = {
     registry: (owner, id) => {
       lookups.push(id);
       return owner === OWNER ? (registries.find((registry) => registry.id === id) ?? null) : null;
     },
+    configEntry: (owner, id) => (owner === OWNER && Object.hasOwn(configEntries, id) ? { symbol: configEntries[id]! } : null),
     screenOfWidget: (id) => widgetScreens[id] ?? null,
   };
   const context: DesignContext = { ownerId: OWNER, screenId: SCREEN, policy: { ...policy, ...overridePolicy }, widgets: createWidgetCatalog(), catalog };
@@ -203,7 +204,7 @@ describe("D17.2-AC2 what is refused, with the path and the code", () => {
     expect(only(withBindings(dup(columnBinding("autor", 2))))).toContainEqual({ path: "widgets.0.bindings", code: "ORDINAL_GAP" });
     expect(only(withBindings(dup({ ...registryBinding(), slot: "columns", ordinal: 1 })))).toContainEqual({ path: "widgets.0.bindings", code: "TARGET_KIND_NOT_ACCEPTED" });
     const configTarget: SlotBinding = { slot: "columns", ordinal: 1, path: "Field.Config.imie", target: { kind: "config", entryId: "019a0000-0000-7000-8000-0000000009fd" } };
-    expect(only(withBindings(dup(configTarget)))).toEqual(expect.arrayContaining([{ path: "widgets.0.bindings", code: "TARGET_KIND_NOT_ACCEPTED" }, { path: "widgets.0.bindings.2.target", code: "TARGET_UNSUPPORTED" }]));
+    expect(only(withBindings(dup(configTarget)))).toEqual(expect.arrayContaining([{ path: "widgets.0.bindings", code: "TARGET_KIND_NOT_ACCEPTED" }, { path: "widgets.0.bindings.2.target", code: "TARGET_UNKNOWN" }]));
   });
 
   it("a type this build lacks, a configuration that is wrong, and the sizes of the configuration and the bindings", () => {

@@ -22,9 +22,10 @@ import { bindRecoveryCodeStore } from "../../packages/sqlite/dist/adapters/ident
 import { bindSetupStateStore } from "../../packages/sqlite/dist/adapters/identity/setup-state.js";
 import { bindSignInStores } from "../../packages/sqlite/dist/adapters/identity/sign-in-ports.js";
 import { bindTrustedDeviceStore } from "../../packages/sqlite/dist/adapters/identity/trusted-device-store.js";
-import { bindCatalogReader, bindDashboardStore } from "../../packages/sqlite/dist/adapters/dashboard/public.js";
+import { bindCatalogReader, bindConfigBindingCounts, bindDashboardStore } from "../../packages/sqlite/dist/adapters/dashboard/public.js";
 import { DEFAULT_DICTIONARY_LIMITS } from "../../packages/core/dist/modules/dictionaries/public.js";
 import { bindDictionaryLookup, bindDictionaryStore } from "../../packages/sqlite/dist/adapters/dictionaries/public.js";
+import { bindConfigStore } from "../../packages/sqlite/dist/adapters/configuration/public.js";
 import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore } from "../../packages/sqlite/dist/adapters/registries/public.js";
 import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "../../packages/core/dist/modules/registries/public.js";
 import { createWidgetCatalog } from "../../apps/server/dist/adapters/widget-catalog.js";
@@ -68,6 +69,8 @@ export async function createAppHarness() {
     dictionaries: bindDictionaryStore(tx),
     dictionaryLookup: bindDictionaryLookup(tx),
     columnLinks: bindColumnDictionaryLinks(tx),
+    config: bindConfigStore(tx),
+    configBindings: bindConfigBindingCounts(tx),
     dashboard: bindDashboardStore(tx),
     catalog: bindCatalogReader(tx),
     idempotency: bindIdempotencyStore(tx),
