@@ -6,13 +6,13 @@
 // audit as they were. Who may ask for it is decided by the caller: the operation of the gate (D27.2)
 // and the route with its session (D29) wrap this work, it reads no session itself.
 import type { AppendAudit } from "../../audit/public.js";
-import { DomainFault, type Commit } from "../../../foundation/public.js";
+import type { Commit } from "../../../foundation/public.js";
 import type { OwnerPreferencesStore } from "../../settings/public.js";
 import type { RegistryLimits } from "../domain/limits.js";
-import { assessChange, conversionOf, reportConversion, validateStructureChange } from "../domain/structure-change.js";
+import { assessChange, conversionOf, reportConversion } from "../domain/structure-change.js";
 import { planTypeChange } from "../domain/type-change.js";
 import type { DictionaryLookup, PlanSigner, RecordStore, RegistryStore, TableRebuild } from "../ports.js";
-import { planFailure } from "./structure-preview.js";
+import { otherKind, plannedChange, type PlannedChangeInput } from "./planned-change.js";
 
 export type TypeChangePorts = Readonly<{
   registries: RegistryStore;
@@ -24,22 +24,15 @@ export type TypeChangePorts = Readonly<{
 }>;
 
 export type TypeChangeDependencies = Readonly<{ signer: PlanSigner; limits: RegistryLimits; nowMs: number }>;
-export type TypeChangeInput = Readonly<{ ownerId: string; symbol: string; change: unknown; planToken: string; requestId: string }>;
+export type TypeChangeInput = PlannedChangeInput;
 export type TypeChanged = Readonly<{ registryId: string; schemaRevision: number; rows: number; failed: number }>;
 
 /** A zone the owner has not chosen yet is UTC, as in the preview. */
 const DEFAULT_TIME_ZONE = "UTC";
 
 export function changeColumnType(ports: TypeChangePorts, deps: TypeChangeDependencies, input: TypeChangeInput): Commit<TypeChanged> {
-  const registry = ports.registries.find(input.ownerId, input.symbol);
-  if (registry === null || registry.deletedAt !== null) throw new DomainFault({ code: "NOT_FOUND" });
-  const failure = planFailure(deps.signer, { planToken: input.planToken, ownerId: input.ownerId, change: input.change, registry }, deps.nowMs);
-  if (failure !== null) throw new DomainFault(failure);
-
-  const checked = validateStructureChange(input.change, { registryId: registry.id, columns: registry.columns }, { limits: deps.limits, dictionaryIds: ports.dictionaryLookup.ids(registry.ownerId) });
-  if (!checked.ok) throw new DomainFault({ code: "VALIDATION_FAILED", fields: [...new Set(checked.issues.map((issue) => issue.path))], issues: checked.issues });
-  const change = checked.value;
-  if (change.kind !== "changeType") throw new DomainFault({ code: "VALIDATION_FAILED", fields: ["kind"], issues: [{ path: "kind", code: "CHANGE_UNKNOWN" }] });
+  const { registry, change } = plannedChange(ports, deps, input);
+  if (change.kind !== "changeType") throw otherKind();
   const column = registry.columns.find((each) => each.id === change.columnId);
   if (column === undefined) throw new TypeError("a checked change names a column of the registry");
 

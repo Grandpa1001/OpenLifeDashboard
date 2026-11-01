@@ -2,7 +2,8 @@
 // in `registry` and `registry_column` and the table `reg_<symbol>`. The catalog rows and the DDL are
 // statements of one transaction, so a table that cannot be created leaves no catalog row behind, and
 // a catalog row that cannot be written leaves no table. A change of one column (D27.1) writes its
-// definition and raises the schema revision only on the revision the registry was read with.
+// definition and raises the schema revision only on the revision the registry was read with; so
+// does adding, renaming and removing a column (D28.1), and a removed column keeps its row.
 import { checkSymbol, tableNameOf, type ColumnType, type NewRegistryRecord, type RegistryStore, type StoredColumn, type StoredRegistry } from "@openlife/core/registries";
 import type { TransactionHandle } from "../../transactions/unit-of-work.js";
 import { registryDdl } from "./registry-ddl.js";
@@ -35,8 +36,15 @@ export function bindRegistryStore(tx: TransactionHandle): RegistryStore {
   const byOwnerAndSymbol = tx.prepare("SELECT * FROM registry WHERE user_id = ? AND symbol = ?");
   const live = tx.prepare("SELECT * FROM registry WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at, id");
   const updateColumn = tx.prepare("UPDATE registry_column SET type = ?, type_options = ?, default_value = ?, required = ? WHERE id = ? AND registry_id = ? AND symbol = ? AND deleted_at IS NULL");
+  const renameActive = tx.prepare("UPDATE registry_column SET display_name = ? WHERE id = ? AND registry_id = ? AND deleted_at IS NULL");
+  const removeActive = tx.prepare("UPDATE registry_column SET deleted_at = ? WHERE id = ? AND registry_id = ? AND deleted_at IS NULL");
   const raiseSchema = tx.prepare("UPDATE registry SET schema_revision = schema_revision + 1, updated_at = ? WHERE id = ? AND user_id = ? AND schema_revision = ? AND deleted_at IS NULL");
   const columnsOf = tx.prepare("SELECT id, symbol, display_name, type, type_options, default_value, required, position FROM registry_column WHERE registry_id = ? AND deleted_at IS NULL ORDER BY position, id");
+
+  /** The schema revision raised only from the one the registry was read with: anything else takes the unit back. */
+  const raiseSchemaOf = (registry: StoredRegistry, nowIso: string): void => {
+    if (raiseSchema.run(nowIso, registry.id, registry.ownerId, registry.schemaRevision).changes !== 1) throw new TypeError("the registry changed or was deleted since it was read");
+  };
 
   const stored = (row: RegistryRow): StoredRegistry => ({
     id: row.id,
@@ -98,11 +106,24 @@ export function bindRegistryStore(tx: TransactionHandle): RegistryStore {
       return row === undefined ? null : stored(row);
     },
     list: (ownerId) => (live.all(ownerId) as RegistryRow[]).map(stored),
+    addColumn(registry, column, nowIso): void {
+      if (checkSymbol(column.symbol, "column", new Set(registry.columns.map((each) => each.symbol))) !== null) throw new TypeError("the column symbol was refused");
+      insertColumn.run(column.id, registry.id, column.symbol, column.displayName, column.type, JSON.stringify(column.typeOptions), column.defaultValue === null ? null : JSON.stringify(column.defaultValue), column.required ? 1 : 0, column.position, nowIso);
+      raiseSchemaOf(registry, nowIso);
+    },
+    renameColumn(registry, columnId, displayName, nowIso): void {
+      if (renameActive.run(displayName, columnId, registry.id).changes !== 1) throw new TypeError("the column is not an active column of the registry");
+      raiseSchemaOf(registry, nowIso);
+    },
+    removeColumn(registry, columnId, nowIso): void {
+      if (removeActive.run(nowIso, columnId, registry.id).changes !== 1) throw new TypeError("the column is not an active column of the registry");
+      raiseSchemaOf(registry, nowIso);
+    },
     changeColumn(registry, column, nowIso): void {
       // The symbol is part of the match: a column keeps its symbol, and a definition that says otherwise changes nothing.
       const changed = updateColumn.run(column.type, JSON.stringify(column.typeOptions), column.defaultValue === null ? null : JSON.stringify(column.defaultValue), column.required ? 1 : 0, column.id, registry.id, column.symbol).changes;
       if (changed !== 1) throw new TypeError("the column is not an active column of the registry");
-      if (raiseSchema.run(nowIso, registry.id, registry.ownerId, registry.schemaRevision).changes !== 1) throw new TypeError("the registry changed or was deleted since it was read");
+      raiseSchemaOf(registry, nowIso);
     },
   };
 }

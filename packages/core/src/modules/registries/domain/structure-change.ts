@@ -148,13 +148,16 @@ export type StructureFacts = Readonly<{ records: number; column?: Readonly<{ val
 /**
  * The records a change would touch and whether it is blocked. A required column may not be left
  * with empty cells: a type change that would lose values or a column that has empty cells needs a
- * replacement, and a new required column of a registry with records needs a default.
+ * replacement, and a new required column of a registry with records needs a default, which then
+ * fills every record; a new optional column changes no record.
  */
 export function assessChange(change: StructureChange, facts: StructureFacts): Readonly<{ affected: number; blocked: StructureBlock | null }> {
   switch (change.kind) {
     case "addColumn": {
+      // Only a required column takes its default into the records there are (Architektura §5.2); an optional one keeps it for new records.
+      if (!change.column.required) return { affected: 0, blocked: null };
       const filled = change.column.defaultValue !== null;
-      return { affected: filled ? facts.records : 0, blocked: change.column.required && !filled && facts.records > 0 ? "REQUIRED_EMPTY" : null };
+      return { affected: filled ? facts.records : 0, blocked: !filled && facts.records > 0 ? "REQUIRED_EMPTY" : null };
     }
     case "renameColumn":
       return { affected: 0, blocked: null };

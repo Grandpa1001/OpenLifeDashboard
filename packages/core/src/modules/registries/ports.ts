@@ -55,6 +55,12 @@ export interface RegistryStore {
    * unit (the rebuilt table among it) is taken back.
    */
   changeColumn(registry: StoredRegistry, column: StoredColumn, nowIso: string): void;
+  /** Adds a column to the catalog (D28.1); the same guard on the schema revision, which it raises. */
+  addColumn(registry: StoredRegistry, column: StoredColumn, nowIso: string): void;
+  /** Gives an active column another display name; the same guard. */
+  renameColumn(registry: StoredRegistry, columnId: string, displayName: string, nowIso: string): void;
+  /** Marks an active column removed; its row stays, so a binding to it is broken, and its symbol is free again. The same guard. */
+  removeColumn(registry: StoredRegistry, columnId: string, nowIso: string): void;
 }
 
 /** A record as it is stored and returned: values by the symbols of the columns, in canonical form. */
@@ -158,4 +164,18 @@ export type RebuiltColumn = Readonly<{ symbol: string; rewrite: (value: CellValu
  */
 export interface TableRebuild {
   rebuild(registry: StoredRegistry, columns: readonly StoredColumn[], changed: RebuiltColumn): Readonly<{ rows: number; failed: number }>;
+}
+
+/**
+ * The DDL of one column of a registry's table in the unit of work of the writer (Architektura §5.2;
+ * D28.1). The column comes from the catalog, never from a request; any failure throws and the unit
+ * takes everything back.
+ */
+export interface TableColumns {
+  /** Adds the column (and its index, for a date), and writes `fill` into every record there is when it is not null; the number of records written. */
+  add(registry: StoredRegistry, column: StoredColumn, fill: CellValue): number;
+  /** Drops the index of the column, if it has one, and the column with its values. */
+  remove(registry: StoredRegistry, column: StoredColumn): void;
+  /** Writes `value` into every cell of the column that `isEmpty` says is empty; the number of cells written. */
+  fillEmpty(registry: StoredRegistry, column: StoredColumn, value: CellValue, isEmpty: (value: CellValue) => boolean): number;
 }

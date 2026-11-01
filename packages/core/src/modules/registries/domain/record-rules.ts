@@ -24,6 +24,9 @@ const BLANK = /^\s*$/u;
 
 const textual = (type: ColumnType): boolean => type === "text" || type === "choice";
 
+/** A cell a required column may not keep: no value, or a text of white space alone (D28.1 fills these when a column becomes required). */
+export const isEmptyCell = (type: ColumnType, value: unknown): boolean => value === null || (textual(type) && typeof value === "string" && BLANK.test(value));
+
 /** Every key of the input that is not a column of the schema: a system field or an unknown one, refused rather than ignored. */
 function foreignFields(schema: RecordSchema, input: Readonly<Record<string, unknown>>): RecordIssue[] {
   const known = new Set(schema.columns.map((column) => column.symbol));
@@ -46,7 +49,7 @@ function checkColumns(schema: RecordSchema, valueOf: (column: RecordColumn) => u
       issues.push({ path, code: "VALUE_INVALID" });
       continue;
     }
-    if (column.required && (value === null || (textual(column.type) && typeof value === "string" && BLANK.test(value)))) {
+    if (column.required && isEmptyCell(column.type, value)) {
       issues.push({ path, code: "VALUE_REQUIRED" });
       continue;
     }

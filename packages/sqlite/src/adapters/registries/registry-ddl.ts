@@ -40,14 +40,22 @@ export function quoteIdentifier(name: string): string {
   return `"${name}"`;
 }
 
-function columnSql(column: NewColumn): string {
+/** One column of a registry's table, as `CREATE TABLE` and `ALTER TABLE … ADD COLUMN` (D28.1) write it. */
+export function columnSql(column: NewColumn): string {
   if (checkSymbol(column.symbol, "column", new Set()) !== null) throw new UnsafeIdentifierError("a column symbol");
   const guard = column.type === "boolean" ? ` CHECK (${quoteIdentifier(column.symbol)} IN (0, 1))` : "";
   return `${quoteIdentifier(column.symbol)} ${SQLITE_TYPE[column.type]}${guard}`;
 }
 
 /** Date and date-time columns are indexed: widgets ask for ranges of them (Architektura §4.3). */
-const isIndexed = (column: NewColumn): boolean => column.type === "date" || column.type === "datetime";
+export const isIndexed = (column: NewColumn): boolean => column.type === "date" || column.type === "datetime";
+
+/** The name of the index of a date or date-time column, the same whenever the index is made. */
+export const indexNameOf = (tableName: string, column: Pick<NewColumn, "symbol">): string => `idx_${tableName}_${column.symbol}`;
+
+export function indexSql(tableName: string, column: NewColumn): string {
+  return `CREATE INDEX ${quoteIdentifier(indexNameOf(tableName, column))} ON ${quoteIdentifier(tableName)} (${quoteIdentifier(column.symbol)})`;
+}
 
 export type RegistryDdl = Readonly<{ table: string; indexes: readonly string[] }>;
 
@@ -60,9 +68,8 @@ export function registryTableSql(definition: NewRegistry, tableName: string): st
 export function registryDdl(definition: NewRegistry): RegistryDdl {
   if (checkSymbol(definition.symbol, "registry", new Set()) !== null) throw new UnsafeIdentifierError("a registry symbol");
   const tableName = tableNameOf(definition.symbol);
-  const table = quoteIdentifier(tableName);
   return {
     table: registryTableSql(definition, tableName),
-    indexes: definition.columns.filter(isIndexed).map((column) => `CREATE INDEX ${quoteIdentifier(`idx_${tableName}_${column.symbol}`)} ON ${table} (${quoteIdentifier(column.symbol)})`),
+    indexes: definition.columns.filter(isIndexed).map((column) => indexSql(tableName, column)),
   };
 }

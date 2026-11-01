@@ -2,7 +2,7 @@
 // need no database. The ports of the catalog are here (D14.2); the use case joins with the route (D14.3).
 export { COLUMN_TYPES, DECIMAL_PLACES_MAX, isColumnType, isValidCellValue, isValidDefault, normalizeTypeOptions } from "./domain/column-rules.js";
 export type { CellValue, ColumnType, ColumnTypeOptions } from "./domain/column-rules.js";
-export { canonicalJson, canonicalRecordRequest, isSearchable, PAGE_SIZE_MAX, PAGE_SIZE_MIN, resolveSearch, resolveSortColumn, SEARCH_MAX_CODE_POINTS, SYSTEM_RECORD_FIELDS, validateRecordChanges, validateRecordValues } from "./domain/record-rules.js";
+export { canonicalJson, canonicalRecordRequest, isEmptyCell, isSearchable, PAGE_SIZE_MAX, PAGE_SIZE_MIN, resolveSearch, resolveSortColumn, SEARCH_MAX_CODE_POINTS, SYSTEM_RECORD_FIELDS, validateRecordChanges, validateRecordValues } from "./domain/record-rules.js";
 export type { RecordColumn, RecordIssue, RecordIssueCode, RecordPolicy, RecordSchema, RecordValuesResult, SearchResult, SortColumn, SortDirection } from "./domain/record-rules.js";
 export { checkColumn, checkDisplayName, validateNewRegistry } from "./domain/definition.js";
 export type { ColumnContext, ColumnDraft, DefinitionResult, DisplayNameIssue, NewColumn, NewRegistry, RegistryContext, RegistryDraft, RegistryIssue, RegistryIssueCode } from "./domain/definition.js";
@@ -13,7 +13,7 @@ export { REGISTRY_TABLE_PREFIX, SYMBOL_MAX_LENGTH, SYMBOL_PATTERN, checkSymbol, 
 export type { SymbolIssue, SymbolSpace } from "./domain/symbols.js";
 export { createRegistry, listRegistries } from "./application/create-registry.js";
 export type { RegistryDependencies, RegistryPorts } from "./application/create-registry.js";
-export type { DependentWidget, DependentWidgets, DictionaryLookup, IdempotencyEntry, IdempotencyStore, NewRegistryRecord, RecordPage, RecordPageQuery, PlanSigner, RebuiltColumn, RecordStore, RegistryStore, TableRebuild, StoredColumn, StoredRecord, StoredRegistry } from "./ports.js";
+export type { DependentWidget, DependentWidgets, DictionaryLookup, IdempotencyEntry, IdempotencyStore, NewRegistryRecord, RecordPage, RecordPageQuery, PlanSigner, RebuiltColumn, RecordStore, RegistryStore, TableColumns, TableRebuild, StoredColumn, StoredRecord, StoredRegistry } from "./ports.js";
 export { pageLabels } from "./application/page-labels.js";
 export type { LabelledColumn, PageLabels } from "./application/page-labels.js";
 export { createRecord, DEFAULT_RECORD_MAX_BYTES, deleteRecord, getRecord, IDEMPOTENCY_RETENTION_MS, LIST_DEFAULTS, listRecords, updateRecord } from "./application/records.js";
@@ -21,6 +21,8 @@ export type { CreatedRecord, NewRecordInput, RecordChangeInput, RecordDeleteInpu
 export { dayBefore, dayInZone, startOfDayInZone } from "./domain/zoned-day.js";
 export { convertCell, isConversionSupported } from "./domain/convert.js";
 export type { Conversion, ConversionColumn, ConversionContext } from "./domain/convert.js";
+export { applyColumnChange } from "./application/column-change.js";
+export type { ColumnChanged, ColumnChangeDependencies, ColumnChangeInput, ColumnChangePorts } from "./application/column-change.js";
 export { changeColumnType } from "./application/type-change.js";
 export type { TypeChangeDependencies, TypeChanged, TypeChangeInput, TypeChangePorts } from "./application/type-change.js";
 export { planTypeChange } from "./domain/type-change.js";

@@ -223,6 +223,9 @@ jobs:
       - name: Verify D27.2 (the rebuild as an operation of the maintenance gate, and its reconciliation)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D27.2
+      - name: Verify D28.1 (adding, renaming, removing a column and making it required, in core and SQLite)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D28.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

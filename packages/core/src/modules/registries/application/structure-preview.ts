@@ -9,6 +9,7 @@ import type { Failure, ReadUnit, Result } from "../../../foundation/public.js";
 import { decideAccess, resolveSessionAccess, type IdentityAccessReader, type SessionStore } from "../../identity/public.js";
 import type { OwnerPreferencesStore } from "../../settings/public.js";
 import type { RegistryLimits } from "../domain/limits.js";
+import { isEmptyCell } from "../domain/record-rules.js";
 import {
   assessChange,
   canonicalChange,
@@ -102,6 +103,11 @@ export function previewStructureChange(deps: StructureDependencies, token: strin
       // The scan is consumed whole here, before any other statement of the unit.
       conversion = reportConversion(ports.records.columnValues(registry, column.symbol), conversionOf(column, change, { timeZone, textMaxCodePoints: deps.limits.textMaxChars }));
       facts = { ...facts, conversion };
+    } else if (change.kind === "setRequired" && column !== null) {
+      // Empty by the rule of a record (white space alone is empty text), not by NULL alone: the cells D28 fills.
+      let empty = 0;
+      for (const value of ports.records.columnValues(registry, column.symbol)) if (isEmptyCell(column.type, value)) empty += 1;
+      facts = { ...facts, column: { values: facts.records - empty, empty } };
     } else if (column !== null) {
       facts = { ...facts, column: ports.records.columnFacts(registry, column.symbol) };
     }

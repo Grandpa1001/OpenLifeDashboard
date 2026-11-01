@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -2948,6 +2948,38 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D27.1", "D27.2"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D28.1",
+    ready: true,
+    title: "Adding, renaming and removing a column and making it required, on a plan in one unit of the writer; the symbol of a removed column free again",
+    criteria: ["D28.1-AC1", "D28.1-AC2", "D28.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests read core, the adapters, the migrations and the signer from their builds.
+        id: "workspace-build",
+        criteria: ["D28.1-AC1", "D28.1-AC2"],
+        description: "pnpm -r build: migration 15, the use case of a column change, the DDL of a column and the column changes of the catalog",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "packages/sqlite/src/migrations/0015-column-symbols.ts",
+          "packages/core/src/modules/registries/application/column-change.ts",
+          "packages/core/src/modules/registries/application/planned-change.ts",
+          "packages/sqlite/src/adapters/registries/table-columns.ts",
+          "packages/sqlite/src/adapters/registries/registry-store.ts",
+        ],
+      },
+      {
+        id: "column-change",
+        criteria: ["D28.1-AC1", "D28.1-AC2"],
+        description:
+          "On a real database file with Książki of F01: a required ocena with the default 5 fills the 25 records, an optional date column gets its index and fills nothing; the indexed data_ukonczenia and autor leave the table with the index and stay removed in the catalog, and autor added again is a new column while the binding names the removed one; a new name touches the catalog only; autor made required fills its four empty cells, white space among them; every change raises the schema revision, audits without values and keeps the revisions and times of the records; a failure after each stage of each change leaves the schema, the catalog, the rows, the bindings and the audit as they were; a stale, foreign or expired plan writes nothing and a miscount is taken back; migration 15 keeps the catalog of version 14 and refuses two active columns of one symbol; the preview, the rebuild, the records, the migrations, the dashboard and the dictionaries as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries", "tests/unit/registries", "tests/integration/sqlite/migrations.test.ts", "tests/integration/dashboard", "tests/integration/dictionaries"],
+        requires: ["tests/integration/registries/column-change.test.ts", "tests/integration/registries/table-rebuild.test.ts", "tests/integration/registries/structure-preview-http.test.ts", "tests/integration/sqlite/migrations.test.ts", "tests/unit/registries/structure-change.test.ts"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      ...regressionChecks("D28.1-regression"),
+    ],
   },
   {
     id: "D19.1",
