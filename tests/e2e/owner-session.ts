@@ -5,12 +5,15 @@ import type { Page } from "@playwright/test";
 import { REGISTRIES_PATH } from "@openlife/contracts/http/registries";
 import { registryRecordsPath } from "@openlife/contracts/http/records";
 import type { BrowserOwner } from "../support/auth-http.ts";
-import { expect, locale, text } from "./fixtures.ts";
+import { expect, locale, test, text } from "./fixtures.ts";
 
 const auth = locale("en", "auth");
 
+/** Axe has no limit of its own: the step bounds it so a stalled run fails here, not at the end of the test. */
+const AXE_TIMEOUT_MS = 30_000;
+
 export async function expectNoViolations(page: Page): Promise<void> {
-  const result = await new AxeBuilder({ page }).analyze();
+  const result = await test.step("axe", () => new AxeBuilder({ page }).analyze(), { timeout: AXE_TIMEOUT_MS });
   expect(result.violations.map((violation) => `${violation.id}: ${violation.nodes.map((node) => node.target.join(" ")).join(", ")}`)).toEqual([]);
 }
 

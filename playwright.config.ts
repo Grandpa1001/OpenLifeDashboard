@@ -20,5 +20,9 @@ export default defineConfig({
     // the enrollment among them: kept only for a local failure. The evidence a verification run
     // leaves (and CI uploads) carries the report, never a trace (D12.2-AC2).
     trace: evidence ? "off" : "retain-on-failure",
+    // A click or a fill that cannot land fails at its own line: without a limit it waits out the whole
+    // test and the report names no step (record-types, run 41333078061).
+    actionTimeout: 15_000,
+    navigationTimeout: 30_000,
   },
 });
