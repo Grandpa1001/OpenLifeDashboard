@@ -2082,7 +2082,8 @@ const definedLater: readonly TaskDefinition[] = [
         criteria: ["D18.1-AC1", "D18.1-AC2"],
         description:
           "Playwright on a fresh installation: the screen of F01 with 25 records as pages of 10, 10 and 5 with the bound columns only, the window with the whole structure of the registry, the added record on the first page after the answer and after a reload; no button when adding is off, an empty table says so; the phone, the tablet and the desktop each place two widgets by their own layout (one column under each other, two side by side of 4 columns, two of 6 columns of 368 px height); markup in a title and a value is text; no screen and an empty screen invite to the Designer; a draft, a broken binding and a configuration to confirm say so with the link; a widget that fails to draw does not take the other widget with it and 'try again' draws it anew; a failing read has 'try again', an ended session leads to the sign-in; a screen the server cannot give has 'try again'; axe",
-        command: ["node", "tests/verification/e2e.ts", "dashboard"],
+        // "dashboard" alone matches the path of the repository (OpenLifeDashboard) and would run every spec.
+        command: ["node", "tests/verification/e2e.ts", "dashboard.spec"],
         requires: ["tests/verification/e2e.ts", "tests/e2e/dashboard.spec.ts", "tests/e2e/owner-session.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
         timeoutMs: 15 * 60 * 1000,
       },
@@ -2651,7 +2652,7 @@ const definedLater: readonly TaskDefinition[] = [
         criteria: ["D24.3-AC1", "D24.3-AC2"],
         description:
           "Playwright on a fresh installation without SQL: the dictionary of F01 made on /dictionaries from Registries, Książki with its Status through it from the kreator, a record chosen from a list without the hidden value, Planowane and the hidden Archiwalne in the table and the widget; the dictionary deleted names the column it unpins, both show the raw symbol and the records are the same (S7); the order changed with the arrows and by dragging is saved and offered in that order; removing a value asks and tells what the records will show; a save from a second tab is a conflict that keeps what was typed until the owner saves it or loads the stored version; editing a record with a hidden or unknown value keeps it; on a phone the page does not scroll sideways; keyboard; axe; the kreator, the list of registries, the records, their edits and the widget of D16 to D23 as before",
-        command: ["node", "tests/verification/e2e.ts", "dictionaries", "new-registry", "registers", "records", "record-edit", "dashboard"],
+        command: ["node", "tests/verification/e2e.ts", "dictionaries", "new-registry", "registers", "records", "record-edit", "dashboard.spec"],
         requires: ["tests/verification/e2e.ts", "tests/e2e/dictionaries.spec.ts", "tests/e2e/new-registry.spec.ts", "tests/e2e/registers.spec.ts", "tests/e2e/records.spec.ts", "tests/e2e/record-edit.spec.ts", "tests/e2e/dashboard.spec.ts", "tests/e2e/owner-session.ts"],
         timeoutMs: 15 * 60 * 1000,
       },
