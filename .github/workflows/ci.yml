@@ -9,7 +9,8 @@ name: CI
 #   - when a commit message contains [full] (before a gate, before a release),
 #   - when the commit touches what the slow checks are about (docker/, the bootstrap, the
 #     migrations and the connection, the workflow, the verification map, the lockfile).
-# The gates read the reports of the full tier only; a gate is never decided on a partial set.
+# The gates run only with the full tier and are never decided on a partial set: G0 joins the reports
+# of the full tier, G1 and G2 those of the fast tier of the same run.
 #
 # The full tier is split by topic into jobs that run side by side, each with its own report
 # artifact: platform (D01-D08, Docker, images, the G0 inputs), access (D09-D13), registries
@@ -980,6 +981,61 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: verification-g0
+          path: .artifacts/
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error
+
+  g2:
+    # Gate G2 (DEV §8.4, §9.29): runs the whole of F01 on one installation in a browser, then joins the
+    # reports of the tasks of KM2 from the fast tier (data, browser, structure, structure in a browser)
+    # and decides every item from their logs. Like the other gates it runs only with the full tier,
+    # never on a partial set.
+    name: verify:task G2 (full F01, dictionary, ConfigTable and structure reports)
+    needs: [changes, fast-data, fast-browser, fast-structure, fast-structure-browser]
+    if: ${{ !cancelled() && needs.changes.outputs.full == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
+      - name: Cache the Playwright browser
+        id: browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install the Playwright browser
+        if: ${{ steps.browser.outputs.cache-hit != 'true' }}
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install the system libraries of the cached browser
+        if: ${{ steps.browser.outputs.cache-hit == 'true' }}
+        run: pnpm exec playwright install-deps chromium
+      - name: Download the reports of the fast tier of KM2
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: verification-fast-{data,browser,structure,structure-browser}
+          path: .artifacts/ci-reports
+      - name: Verify G2 (the path of F01, the matrix and the reports of KM2)
+        run: pnpm verify:task -- G2
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-g2
           path: .artifacts/
           include-hidden-files: true
           retention-days: 14

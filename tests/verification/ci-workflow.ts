@@ -56,8 +56,8 @@ type Job = { needs?: string | string[]; if?: string; steps?: Step[] };
 const parsed = parseDocument(workflow).toJS() as { on?: Record<string, unknown>; concurrency?: Record<string, unknown>; jobs?: Record<string, Job> };
 const jobs = parsed.jobs ?? {};
 const tasksOf = (job: string): string[] => (jobs[job]?.steps ?? []).flatMap((step) => /^pnpm verify:task -- (\S+)$/.exec(step.run ?? "")?.slice(1) ?? []);
-const SLOW = ["D02.1", "D02.2", "D02.3", "D03", "D04", "D05", "D06", "D07", "D08", "D19.3", "D19", "D20", "D20.3", "G0"];
-const GATES = ["D13.3", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "G0"];
+const SLOW = ["D02.1", "D02.2", "D02.3", "D03", "D04", "D05", "D06", "D07", "D08", "D19.3", "D19", "D20", "D20.3", "G0", "G2"];
+const GATES = ["D13.3", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "G0", "G2"];
 // The fast tier is every job named fast-*: the code in more than one job side by side, and the browser.
 const fastJobs = Object.keys(jobs).filter((job) => job.startsWith("fast-"));
 const fastTasks = fastJobs.flatMap(tasksOf);
@@ -87,6 +87,10 @@ check.expect(uploadNames.every(Boolean) && new Set(uploadNames).size === fullJob
 const needs = (job: string): string[] => [jobs[job]?.needs ?? []].flat();
 check.expect(["fast-core", "fast-browser", "full-install"].every((job) => needs("g1").includes(job)) && (jobs["g1"]?.if ?? "").includes("needs.full-install.result != 'skipped'"), "G1 hangs on the fast tier and the installer job and never runs on a partial set");
 check.expect(needs("image").includes("full") && needs("g0").includes("full") && needs("g0").includes("image"), "the images and G0 hang on the full tier");
+check.expect(
+  ["changes", "fast-data", "fast-browser", "fast-structure", "fast-structure-browser"].every((job) => needs("g2").includes(job)) && (jobs["g2"]?.if ?? "").includes("needs.changes.outputs.full == 'true'"),
+  "G2 hangs on the fast jobs of KM2 and runs only with the full tier, never on a partial set",
+);
 check.expect((jobs["g0"]?.if ?? "").includes("needs.full.result != 'skipped'"), "G0 does not run when the full tier was skipped (never on a partial set)");
 check.expect(Object.keys(parsed.on ?? {}).sort().join() === ["pull_request", "push", "schedule", "workflow_dispatch"].sort().join(), "CI runs on pushes, pull requests, nightly and by hand");
 check.expect(workflow.includes("[full]") && workflow.includes("COMMIT_MESSAGE"), "a commit message with [full] asks for the full tier");

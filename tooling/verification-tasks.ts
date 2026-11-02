@@ -2239,7 +2239,7 @@ const definedLater: readonly TaskDefinition[] = [
         description:
           "The G1 gate on synthetic reports: a complete set passes; a failed or renamed test line and a failed check fail; a missing report and a report of other code are blocked; the result always lists every item",
         command: ["node", "tests/verification/g1-gate-controls.ts"],
-        requires: ["tests/verification/g1-gate-controls.ts", "tests/verification/g1-gate.ts", "tests/verification/g1-matrix.ts"],
+        requires: ["tests/verification/g1-gate-controls.ts", "tests/verification/g1-gate.ts", "tests/verification/g1-matrix.ts", "tests/verification/gate-controls.ts", "tests/verification/gate-run.ts"],
       },
       {
         id: "g1-gate",
@@ -2247,7 +2247,7 @@ const definedLater: readonly TaskDefinition[] = [
         description:
           "Joins the reports of D12, D15.3, D16.3, D18.1, D18.3, D19.3, D20.1 and D20.2 for exactly this code and decides every item of G1 from the passed test that proves it: installation, login with the second factor, own registry, widget, pages 10/10/5, the same key once, no store without the second factor or the title, restarts, no way around the gate; names what is not run. A missing report is blocked",
         command: ["node", "tests/verification/g1-gate.ts"],
-        requires: ["tests/verification/g1-gate.ts", "tests/verification/g1-matrix.ts", "tests/verification/report-join.ts", "tests/support/route-inventory.ts"],
+        requires: ["tests/verification/g1-gate.ts", "tests/verification/g1-matrix.ts", "tests/verification/gate-run.ts", "tests/verification/report-join.ts", "tests/support/route-inventory.ts"],
       },
       ...regressionChecks("D20.3-regression"),
     ],
@@ -3454,6 +3454,55 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D32.1", "D32.2"],
     criteria: [],
     checks: [],
+  },
+  {
+    // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
+    // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
+    id: "G2",
+    ready: true,
+    title: "Gate G2: the full registry F01, its dictionary and ConfigTable, and the editing of the structure",
+    criteria: ["G2-path", "G2-matrix", "G2-reports"],
+    checks: [
+      {
+        // Runs first: the path test uses the built server and SPA.
+        id: "workspace-build",
+        criteria: ["G2-path"],
+        description: "pnpm -r build: the server and the SPA the path of F01 runs on",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/main.ts", "apps/web/src/app/router/router.tsx"],
+      },
+      {
+        id: "g2-path-e2e",
+        criteria: ["G2-path"],
+        description:
+          "Playwright on a fresh installation: F01 whole through the routes of the product (the dictionary with its hidden status, Książki with every type and 25 records, five with a status outside the dictionary, ConfigTable and the table widget); 1037 shows 10.37, the hidden status its label and the unknown one its symbol in the table and the widget, the entry is the text 20; a change whose copy cannot be made keeps every record; Autor removed after its effects leaves the widget needing its binding",
+        command: ["node", "tests/verification/e2e.ts", "g2-path"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/g2-path.spec.ts", "tests/fixtures/books/books-v1.export.json", "tests/e2e/owner-session.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "g2-matrix-static",
+        criteria: ["G2-matrix"],
+        description: "Every item of G2 names ready reports, checks of those tasks and test titles written as they stand in the sources the checks run; every report joined proves an item",
+        command: ["node", "tests/verification/g2-matrix-static.ts"],
+        requires: ["tests/verification/g2-matrix-static.ts", "tests/verification/g2-matrix.ts"],
+      },
+      {
+        id: "g2-gate-controls",
+        criteria: ["G2-matrix"],
+        description: "The G2 gate on synthetic reports: a complete set passes; a failed or renamed test line and a failed check fail; a missing report and a report of other code are blocked; the result always lists every item",
+        command: ["node", "tests/verification/g2-gate-controls.ts"],
+        requires: ["tests/verification/g2-gate-controls.ts", "tests/verification/gate-controls.ts", "tests/verification/g2-gate.ts", "tests/verification/gate-run.ts", "tests/verification/g2-matrix.ts"],
+      },
+      {
+        id: "g2-gate",
+        criteria: ["G2-reports"],
+        description:
+          "Joins the reports of D22.1, D22.3, D24.2, D24.3, D25.2, D25.3, D27.1, D28.1, D28.2, D29.2, D30.1, D31.1, D31.2 and D31.3 for exactly this code and decides every item of G2 from the passed test that proves it: an exact amount, the labels of the dictionary, ConfigTable as text, autor removed breaking the binding, a DDL that fails taken back, the report of a change of type; names what is not run. A missing report is blocked",
+        command: ["node", "tests/verification/g2-gate.ts"],
+        requires: ["tests/verification/g2-gate.ts", "tests/verification/g2-matrix.ts", "tests/verification/gate-run.ts", "tests/verification/report-join.ts"],
+      },
+    ],
   },
   {
     id: "D19.1",
