@@ -32,6 +32,7 @@ import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindR
 import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "../../packages/core/dist/modules/registries/public.js";
 import { createWidgetCatalog } from "../../apps/server/dist/adapters/widget-catalog.js";
 import { createStructurePlanSigner } from "../../apps/server/dist/adapters/structure-plan-signer.js";
+import { createDatabaseSnapshots } from "../../apps/server/dist/adapters/filesystem/database-snapshots.js";
 import { openMaintenanceGate } from "../../apps/server/dist/adapters/filesystem/maintenance-gate.js";
 import { acquireWriterLease } from "../../apps/server/dist/adapters/filesystem/writer-lease.js";
 import { DESIGN_POLICY } from "../../apps/server/dist/bootstrap/design-policy.js";
@@ -61,8 +62,9 @@ export type HarnessReply = Readonly<{ status: number; text: string; json: () => 
 export async function createAppHarness() {
   const dir = scratchDir("openlife-harness-");
   // The writer lease and the maintenance gate as the bootstrap takes them, before the database exists.
-  const workingPaths = { maintenance: path.join(dir, "maintenance"), database: path.join(dir, "app.db") };
+  const workingPaths = { maintenance: path.join(dir, "maintenance"), database: path.join(dir, "app.db"), backups: path.join(dir, "backup") };
   mkdirSync(workingPaths.maintenance);
+  mkdirSync(workingPaths.backups);
   const writer = acquireWriterLease(workingPaths.maintenance);
   if (!writer.ok) throw new Error(`the harness could not take the writer lease: ${writer.code}`);
   leases.push(() => writer.lease.release());
@@ -123,6 +125,14 @@ export async function createAppHarness() {
   const mfaCrypto = createMfaCrypto(randomBytes(32).toString("hex"));
   const planSigner = createStructurePlanSigner(randomBytes(32).toString("hex"));
   const structure = { unit, nowMs: Date.now, signer: planSigner, limits: DEFAULT_REGISTRY_LIMITS };
+  const snapshots = createDatabaseSnapshots(connection, {
+    backupsDir: workingPaths.backups,
+    reserveMiB: 0,
+    instanceId: INSTANCE_ID,
+    build: { appVersion: "0.0.0", buildRevision: "harness", imageDigest: null },
+    now: () => new Date().toISOString(),
+    newSnapshotId: randomUUID,
+  });
   const clientIp = () => "127.0.0.1";
   const common = { nowMs: Date.now, newId: randomUUID, newSessionToken: () => randomBytes(32).toString("base64url"), logger, allowedOrigin: HARNESS_ORIGIN, secureCookies: false, cookies, keys, clientIp };
   const app = createApp({
@@ -138,7 +148,7 @@ export async function createAppHarness() {
     setup: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     registries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
     records: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
-    structure: { ...structure, gate: gate.gate, newId: createUuidV7(), newOperationId: randomUUID, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
+    structure: { ...structure, gate: gate.gate, snapshots, newId: createUuidV7(), newOperationId: randomUUID, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
     dictionaries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },
     config: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
@@ -170,6 +180,8 @@ export async function createAppHarness() {
     structure,
     /** The maintenance gate of the harness, to read the operations the routes record. */
     gate: gate.gate,
+    /** The folder of the copies the routes take (D29). */
+    backupsDir: workingPaths.backups,
     /** The session token a `name=value` cookie of this app carries, or null. */
     sessionToken: (cookie: string): Promise<string | null> => cookies.verify(decodeURIComponent(cookie.slice(cookie.indexOf("=") + 1))),
     rows: <T>(sql: string): T[] => connection.handle.prepare(sql).all() as T[],

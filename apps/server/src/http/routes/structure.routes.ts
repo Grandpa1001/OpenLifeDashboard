@@ -14,6 +14,7 @@ import {
   type StructurePreviewDto,
 } from "@openlife/contracts/http/registries";
 import type { ReadUnit, UnitOfWork } from "@openlife/core/foundation";
+import type { DatabaseSnapshotPort } from "@openlife/core/maintenance";
 import {
   carryOutColumnChange,
   previewStructureChange,
@@ -40,6 +41,8 @@ export type StructureRouteDependencies = Readonly<{
   unit: UnitOfWork<StructureRoutePorts> & ReadUnit<StructureRoutePorts>;
   /** The gate opened under the writer lease of this process. */
   gate: MaintenanceGate;
+  /** Copies of the database through the writer connection, taken before a change of type (D29). */
+  snapshots: Pick<DatabaseSnapshotPort, "create">;
   /** Wall clock in milliseconds. */
   nowMs: () => number;
   /** UUIDv7 for an added column. */
@@ -77,7 +80,7 @@ export function registerStructureRoutes(app: Hono<AppEnv>, deps: StructureRouteD
     }),
   );
 
-  const inGate = createStructureOperation({ gate: deps.gate, unit: deps.unit, nowMs: deps.nowMs, newOperationId: deps.newOperationId });
+  const inGate = createStructureOperation({ gate: deps.gate, unit: deps.unit, snapshots: deps.snapshots, nowMs: deps.nowMs, newOperationId: deps.newOperationId });
   app.post(
     REGISTRY_STRUCTURE_PATH,
     ...guard,
@@ -86,9 +89,10 @@ export function registerStructureRoutes(app: Hono<AppEnv>, deps: StructureRouteD
       const owner = structureOwner(deps, token, requestId);
       if (!owner.ok) return refused(c, owner.error);
       const input = { ownerId: owner.value, symbol: symbolOf(c), change: body.change, planToken: body.planToken, requestId };
-      const result = inGate(input, (ports, nowMs) => carryOutColumnChange(ports, { signer: deps.signer, limits: deps.limits, nowMs, newId: deps.newId }, token, input));
+      const result = await inGate(input, (ports, nowMs) => carryOutColumnChange(ports, { signer: deps.signer, limits: deps.limits, nowMs, newId: deps.newId }, token, input));
       if (!result.ok) return refused(c, result.error);
-      const dto: StructureChangedDto = { registry: { symbol: input.symbol, schemaRevision: result.value.schemaRevision }, columnId: result.value.columnId, affected: result.value.affected };
+      const changed = result.value.value;
+      const dto: StructureChangedDto = { registry: { symbol: input.symbol, schemaRevision: changed.schemaRevision }, columnId: changed.columnId, affected: changed.affected };
       return c.json(dto);
     }),
   );

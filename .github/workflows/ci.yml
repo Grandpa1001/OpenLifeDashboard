@@ -229,6 +229,9 @@ jobs:
       - name: Verify D28.2 (carrying out a change of a column over HTTP under the gate, S8)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D28.2
+      - name: Verify D29.1 (the copy pre_type_change as the first phase of a change of type)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D29.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -1,7 +1,8 @@
 // Ports of the maintenance module (Architektura §11.4, §18.4).
 
 export type SnapshotRequest = Readonly<{
-  reason: "pre_migration";
+  /** Before an upgrade (D05) or a change of a registry's type (D29). */
+  reason: "pre_migration" | "pre_type_change";
   scope: "database";
   /** The maintenance operation the snapshot belongs to and its fence (gate generation). */
   operationId: string;
@@ -14,7 +15,8 @@ export type SnapshotResult =
 
 /**
  * Creates a verified `database` snapshot of the source under the writer lease (D05). It runs
- * before and outside any unit of work; no snapshot means no migration of an existing database.
+ * before and outside any unit of work; no snapshot means no migration of an existing database and
+ * no change of a registry's type.
  */
 export interface DatabaseSnapshotPort {
   create(request: SnapshotRequest): Promise<SnapshotResult>;

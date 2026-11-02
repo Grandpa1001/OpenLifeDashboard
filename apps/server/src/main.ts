@@ -110,21 +110,15 @@ if (!gate.ok) {
 }
 // Read before the database step: a broken image fails here, not inside an upgrade operation.
 const build = readBuildInfo();
+// One set of options for the copies of the upgrade (bootstrap) and of a change of structure (D29).
+const snapshotOptions = { backupsDir: workingPaths.backups, reserveMiB, instanceId: paths.instanceId, build, now: () => new Date().toISOString(), newSnapshotId: randomUUID };
 const database = await openInstallationDatabase({
   file: workingPaths.database,
   gate: gate.gate,
   plan: PRODUCT_MIGRATION_PLAN,
   instanceId: paths.instanceId,
   busyTimeoutMs: environment.dbBusyTimeoutMs,
-  createSnapshots: (source) =>
-    createDatabaseSnapshots(source, {
-      backupsDir: workingPaths.backups,
-      reserveMiB,
-      instanceId: paths.instanceId,
-      build,
-      now: () => new Date().toISOString(),
-      newSnapshotId: randomUUID,
-    }),
+  createSnapshots: (source) => createDatabaseSnapshots(source, snapshotOptions),
   now: () => new Date().toISOString(),
   newOperationId: randomUUID,
 });
@@ -268,7 +262,7 @@ const app = createApp({
   setup: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
   registries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
   records: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
-  structure: { unit: identityUnit, gate: gate.gate, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), newOperationId: randomUUID, signer: planSigner, limits: DEFAULT_REGISTRY_LIMITS, logger },
+  structure: { unit: identityUnit, gate: gate.gate, snapshots: createDatabaseSnapshots(database.connection, snapshotOptions), cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), newOperationId: randomUUID, signer: planSigner, limits: DEFAULT_REGISTRY_LIMITS, logger },
   dictionaries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },
   config: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
   screens: { dashboard: { unit: identityUnit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: environment.baseUrl, logger },

@@ -4,7 +4,7 @@ import { z } from "zod";
 // kept outside the database it protects. It is separate from the writer lease: recovering the
 // lease after a crash never clears an operation recorded here. The union of operations is
 // closed; an unknown variant is refused, not ignored. D04.3/D05 refine phases of their own
-// operations here, and D27.2 adds the rebuild of a registry's table, without a second gate format.
+// operations here, D27.2 adds the rebuild of a registry's table and D29.1 its copy, without a second gate format.
 
 export const MAINTENANCE_STATE_FORMAT_VERSION = 1;
 
@@ -38,12 +38,21 @@ const snapshotOperationSchema = z
   .strict();
 
 /**
- * The rebuild of one registry's table for a change of its structure (D27.2). The rebuild is one
- * transaction, so a crash leaves the registry at `fromSchemaRevision` (nothing kept) or one above
- * (committed): either way the operation only closes; anything else needs a human.
+ * A change of one registry's structure (D27.2, D28.2). The change is one transaction, so a crash
+ * leaves the registry at `fromSchemaRevision` (nothing kept) or one above (committed): either way the
+ * operation only closes; anything else needs a human. A change of type first takes its copy in the
+ * phase `snapshot` (D29.1), when nothing can have been committed yet; `snapshotId` names the copy once
+ * it is published, and a change without a copy has none.
  */
 const rebuildOperationSchema = z
-  .object({ ...operationFields, reason: z.literal("rebuild"), phase: z.enum(["rebuilding"]), registryId: z.string().min(1).max(64), fromSchemaRevision: z.int().min(1) })
+  .object({
+    ...operationFields,
+    reason: z.literal("rebuild"),
+    phase: z.enum(["snapshot", "rebuilding"]),
+    registryId: z.string().min(1).max(64),
+    fromSchemaRevision: z.int().min(1),
+    snapshotId: z.string().min(1).nullable().optional(),
+  })
   .strict();
 
 export const maintenanceOperationSchema = z.discriminatedUnion("reason", [

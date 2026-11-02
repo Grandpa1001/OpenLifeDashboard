@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -3025,6 +3025,40 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D28.1", "D28.2"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D29.1",
+    ready: true,
+    title: "The copy pre_type_change as the first phase of the operation of a change of type: no copy, no change, and its reconciliation",
+    criteria: ["D29.1-AC1", "D29.1-AC2", "D29.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests hold the writer of a built installation and start the built server.
+        id: "workspace-build",
+        criteria: ["D29.1-AC1", "D29.1-AC2"],
+        description: "pnpm -r build: the phases snapshot and rebuilding of the gate, the reason pre_type_change of a copy, the operation of a change of the structure with its copy and the reconciliation of the phase snapshot",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/workers/rebuild-operation.ts", "apps/server/src/bootstrap/database.ts", "packages/contracts/src/workers/maintenance-state.ts", "packages/core/src/modules/maintenance/ports.ts"],
+      },
+      {
+        id: "type-change-snapshot",
+        criteria: ["D29.1-AC1", "D29.1-AC2"],
+        description:
+          "On a real installation (lease, gate file, database, folder of copies) with pomiary made through the API: S9 text to number shows the phase snapshot and then rebuilding with the copy's ID; the published package verifies, has the reason pre_type_change and the operation's ID and holds 12 and abc as text at revision 1, while the registry has 12 and an empty cell; a copy that fails or lacks room starts no unit, publishes nothing and changes nothing; an active operation is MAINTENANCE; a record written after the copy makes the plan stale and stays; a start with the phase snapshot left active closes it at the revision it started from and discards the staging, one above refuses the start; the rebuild of D27.2, the snapshots of D05, the upgrade and the changes of a column over HTTP as before",
+        command: [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "tests/integration/maintenance",
+          "tests/integration/registries/structure-change-http.test.ts",
+          "tests/integration/registries/table-rebuild.test.ts",
+        ],
+        requires: ["tests/integration/maintenance/type-change-snapshot.test.ts", "tests/integration/maintenance/rebuild-operation.test.ts", "tests/support/rebuild-writer.ts", "tests/support/app-harness.ts"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      ...regressionChecks("D29.1-regression"),
+    ],
   },
   {
     id: "D19.1",

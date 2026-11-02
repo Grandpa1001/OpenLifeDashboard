@@ -169,15 +169,19 @@ type RebuildOperation = Extract<MaintenanceOperation, { reason: "rebuild" }>;
 /**
  * A rebuild changes no schema version of the application, so the database must be current; the
  * registry then says whether its one transaction committed. Both outcomes only close the operation.
+ * In the phase `snapshot` the unit had not begun, so only the revision it started from is consistent;
+ * a copy left in staging by the crash is discarded, a published one stays (D29.1).
  */
-function closeRebuild(inputs: DatabaseOpenInputs, operation: RebuildOperation, generation: number, inspection: ReturnType<typeof inspectDatabase>): DatabaseOpenResult {
+async function closeRebuild(inputs: DatabaseOpenInputs, operation: RebuildOperation, generation: number, inspection: ReturnType<typeof inspectDatabase>): Promise<DatabaseOpenResult> {
   if (inspection.kind !== "current") return RECOVERY_REQUIRED;
   const connection = openWriter(inputs);
   try {
-    if (readRebuildOutcome(connection, operation.registryId, operation.fromSchemaRevision) === "unknown") {
+    const outcome = readRebuildOutcome(connection, operation.registryId, operation.fromSchemaRevision);
+    if (outcome === "unknown" || (operation.phase === "snapshot" && outcome !== "not_committed")) {
       connection.close();
       return RECOVERY_REQUIRED;
     }
+    if (operation.phase === "snapshot") await inputs.createSnapshots(connection).discardUnpublished();
     inputs.gate.complete(operation.operationId, generation);
     return { ok: true, connection, schemaVersion: inspection.schemaVersion, created: false };
   } catch (error) {
