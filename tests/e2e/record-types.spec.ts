@@ -122,9 +122,15 @@ test.describe("D22.3-AC1 the 25 records of F01 typed into the window", () => {
     const recordWithTime = RECORDS_IN_ORDER.find((each) => each.values["rozpoczeto"] !== null)!;
     const timeTitle = recordWithTime.values["tytul"] as string;
     const pageOf = expected.pageTitles.findIndex((titlesOfPage) => titlesOfPage.includes(timeTitle));
+    // Each click waits for the page it asked for: a click before the page shows its rows would ask for the same page again.
     await page.getByRole("button", { name: text(registers, "table.previous") }).click();
+    await expect(page.getByText("11–20 of 25")).toBeVisible();
     await page.getByRole("button", { name: text(registers, "table.previous") }).click();
-    for (let at = 0; at < pageOf; at += 1) await page.getByRole("button", { name: text(registers, "table.next") }).click();
+    await expect(page.getByText("1–10 of 25")).toBeVisible();
+    for (let at = 0; at < pageOf; at += 1) {
+      await page.getByRole("button", { name: text(registers, "table.next") }).click();
+      await expect.poll(titles).toEqual(expected.pageTitles[at + 1]);
+    }
     const timeRow = page.getByRole("row").filter({ hasText: timeTitle });
     const shownTime = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short", timeZone: OWNER_ZONE }).format(new Date(recordWithTime.values["rozpoczeto"] as string));
     await expect(timeRow.getByRole("cell").nth(5)).toHaveText(shownTime);

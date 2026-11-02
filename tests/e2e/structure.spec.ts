@@ -213,8 +213,9 @@ test.describe("D31.1-AC2 one change at a time, and a refusal keeps the form", ()
     await confirmAndSave(page, say("structure.change.renameColumn", { name: "Cena", to: "Cena okładkowa" }));
     await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
 
-    // On a phone the rows are stacks and the page does not scroll sideways.
-    await page.setViewportSize({ width: 390, height: 844 });
+    // On a narrow phone the rows are stacks and the page does not scroll sideways; 320 px leaves room for
+    // the wider fonts of the CI runner (401 px at 390 in run 41465169401, 390 on macOS).
+    await page.setViewportSize({ width: 320, height: 844 });
     await page.reload();
     await expect(nameOf(page, "Tytuł")).toBeVisible();
     const widths = (await page.evaluate("({ page: document.documentElement.scrollWidth, view: window.innerWidth })")) as { page: number; view: number };

@@ -310,6 +310,17 @@ main.page-wide {
   left: 0;
 }
 
+/* A field never widens its track: a select is as wide as its longest option, wider on some fonts than a phone. */
+.column-row > *,
+.column-type .field {
+  min-width: 0;
+}
+
+.column-type select {
+  width: 100%;
+  min-width: 0;
+}
+
 .column-head {
   color: var(--color-text-muted);
   font-size: var(--text-xs);
