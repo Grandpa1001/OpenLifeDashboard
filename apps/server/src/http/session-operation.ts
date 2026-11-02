@@ -17,7 +17,7 @@ import { readSessionToken } from "./session-cookie-http.js";
 /** A second-factor request is a few short fields; more is refused before it is read. */
 const BODY_MAX_BYTES = 1024;
 
-const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 403 | 404 | 409 | 422 | 429>>> = {
+const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 403 | 404 | 409 | 422 | 429 | 503>>> = {
   AUTH_LOCKED: 429,
   AUTH_REQUIRED: 401,
   MFA_INVALID_CODE: 401,
@@ -45,6 +45,10 @@ const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 403 | 404 | 409 | 422 
   SCREEN_LIMIT_EXCEEDED: 409,
   NOT_FOUND: 404,
   VALIDATION_FAILED: 422,
+  // Maintenance: the change can be asked for again once the operation or the disk allows it.
+  MAINTENANCE: 503,
+  SNAPSHOT_LOW_SPACE: 503,
+  SNAPSHOT_FAILED: 503,
 };
 
 export type SessionOperationKit = Readonly<{

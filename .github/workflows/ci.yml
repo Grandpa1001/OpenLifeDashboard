@@ -232,6 +232,9 @@ jobs:
       - name: Verify D29.1 (the copy pre_type_change as the first phase of a change of type)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D29.1
+      - name: Verify D29.2 (carrying out a change of type over HTTP after its copy, S9)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D29.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -618,6 +621,9 @@ jobs:
       - name: Verify D28 (the parent, D28.1–D28.2 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D28
+      - name: Verify D29 (the parent, D29.1–D29.2 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D29
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

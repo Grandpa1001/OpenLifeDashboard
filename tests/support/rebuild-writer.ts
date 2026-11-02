@@ -10,8 +10,9 @@ import { createDatabaseSnapshots } from "../../apps/server/dist/adapters/filesys
 import { installationWorkingPaths } from "../../apps/server/dist/adapters/filesystem/installation-paths.js";
 import { openMaintenanceGate } from "../../apps/server/dist/adapters/filesystem/maintenance-gate.js";
 import { acquireWriterLease } from "../../apps/server/dist/adapters/filesystem/writer-lease.js";
+import { createStructureOperation, type StructureOperationDependencies } from "../../apps/server/dist/workers/rebuild-operation.js";
 import type { DatabaseSnapshotPort } from "../../packages/core/dist/modules/maintenance/public.js";
-import type { TableRebuild } from "../../packages/core/dist/modules/registries/public.js";
+import { changeColumnType, type TableRebuild, type TypeChangeDependencies, type TypeChangeInput, type TypeChangePorts } from "../../packages/core/dist/modules/registries/public.js";
 import { bindAppendAudit } from "../../packages/sqlite/dist/adapters/audit/append-audit.js";
 import { bindDictionaryLookup } from "../../packages/sqlite/dist/adapters/dictionaries/public.js";
 import { bindRecordStore, bindRegistryStore, bindTableRebuild } from "../../packages/sqlite/dist/adapters/registries/public.js";
@@ -78,4 +79,10 @@ export function writerOf(setup: Installation, options: WriterOptions = {}) {
     newSnapshotId: randomUUID,
   });
   return { gate: opened.gate, unit, connection, snapshots: (options.snapshots ?? ((inner) => inner))(snapshots) };
+}
+
+/** The change of a column's type as the route runs it, without its session: the copy pre_type_change, then the rebuild (D27.2, D29.1). */
+export function createRebuildOperation(deps: StructureOperationDependencies<TypeChangePorts> & Readonly<{ change: Omit<TypeChangeDependencies, "nowMs"> }>) {
+  const operation = createStructureOperation(deps);
+  return (input: TypeChangeInput) => operation(input, (ports, nowMs) => changeColumnType(ports, { ...deps.change, nowMs }, input), "pre_type_change");
 }

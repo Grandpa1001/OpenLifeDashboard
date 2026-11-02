@@ -16,11 +16,10 @@ import { databaseSnapshotMetaSchema } from "@openlife/contracts/backups/database
 import { afterEach, describe, expect, it } from "vitest";
 import { verifyDatabaseSnapshot } from "../../../apps/server/dist/adapters/filesystem/database-snapshots.js";
 import { createStructurePlanSigner } from "../../../apps/server/dist/adapters/structure-plan-signer.js";
-import { createRebuildOperation } from "../../../apps/server/dist/workers/rebuild-operation.js";
 import { canonicalChange, DEFAULT_REGISTRY_LIMITS, STRUCTURE_PLAN_TTL_MS } from "../../../packages/core/dist/modules/registries/public.js";
 import { execute, query, serve, stopServer, stopServers, type Installation } from "../../support/auth-http.ts";
 import { backupsDir, databaseFile, packages, restoredRows, sha256, stagingEntries, stateFile } from "../../support/database-fixtures.ts";
-import { closeWriters, stopped, writerOf, type WriterOptions } from "../../support/rebuild-writer.ts";
+import { closeWriters, createRebuildOperation, stopped, writerOf, type WriterOptions } from "../../support/rebuild-writer.ts";
 import { outputEvent, runServerEntry } from "../../support/server-process.ts";
 
 afterEach(async () => {
@@ -69,7 +68,7 @@ describe("D29.1-AC1 the copy pre_type_change is taken before the rebuild, in the
     const result = await writer.run("req-d29-1");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.value).toEqual({ registryId: registry.id, schemaRevision: 2, rows: 2, failed: 1 });
+    expect(result.value.value).toEqual({ registryId: registry.id, schemaRevision: 2, columnId: registry.columnId, rows: 2, affected: 2, failed: 1 });
     const { snapshotId } = result.value;
     const [during, rebuilding] = seen;
     expect(during).toMatchObject({ generation: generation + 1, activeOperation: { reason: "rebuild", phase: "snapshot", snapshotId: null, registryId: registry.id, fromSchemaRevision: 1 } });

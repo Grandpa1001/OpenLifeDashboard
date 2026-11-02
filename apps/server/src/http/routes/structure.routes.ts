@@ -4,7 +4,8 @@
 // case runs in a read unit, where the database refuses a write. Carrying a change out (D28.2),
 // `POST /api/v1/registries/:symbol/structure`, takes the change and its plan: the session is read
 // first, the change then runs in an operation of the maintenance gate, and inside its unit the session
-// is read again and the plan checked under the writer. Nothing is cached.
+// is read again and the plan checked under the writer. A change of type (D29.2) first takes the copy
+// `pre_type_change` in the same operation; no copy, no change. Nothing is cached.
 import {
   REGISTRY_STRUCTURE_PATH,
   REGISTRY_STRUCTURE_PREVIEW_PATH,
@@ -17,6 +18,7 @@ import type { ReadUnit, UnitOfWork } from "@openlife/core/foundation";
 import type { DatabaseSnapshotPort } from "@openlife/core/maintenance";
 import {
   carryOutColumnChange,
+  carryOutTypeChange,
   previewStructureChange,
   structureOwner,
   type ColumnChangePorts,
@@ -24,6 +26,7 @@ import {
   type RegistryLimits,
   type StructurePorts,
   type StructurePreview,
+  type TypeChangePorts,
   type WriterAccessPorts,
 } from "@openlife/core/registries";
 import type { MaintenanceGate } from "../../adapters/filesystem/maintenance-gate.js";
@@ -35,7 +38,7 @@ import type { AppEnv } from "../app-env.js";
 import { JSON_BODY_MAX_BYTES } from "../security-limits.js";
 import { createSessionOperationKit } from "../session-operation.js";
 
-type StructureRoutePorts = StructurePorts & ColumnChangePorts & WriterAccessPorts;
+type StructureRoutePorts = StructurePorts & ColumnChangePorts & TypeChangePorts & WriterAccessPorts;
 
 export type StructureRouteDependencies = Readonly<{
   unit: UnitOfWork<StructureRoutePorts> & ReadUnit<StructureRoutePorts>;
@@ -89,10 +92,19 @@ export function registerStructureRoutes(app: Hono<AppEnv>, deps: StructureRouteD
       const owner = structureOwner(deps, token, requestId);
       if (!owner.ok) return refused(c, owner.error);
       const input = { ownerId: owner.value, symbol: symbolOf(c), change: body.change, planToken: body.planToken, requestId };
+      const registry = { symbol: input.symbol };
+      if (body.change.kind === "changeType") {
+        // The copy pre_type_change first (D29); the session is read again in the unit after it.
+        const result = await inGate(input, (ports, nowMs) => carryOutTypeChange(ports, { signer: deps.signer, limits: deps.limits, nowMs }, token, input), "pre_type_change");
+        if (!result.ok) return refused(c, result.error);
+        const { value: changed, snapshotId } = result.value;
+        const dto: StructureChangedDto = { registry: { ...registry, schemaRevision: changed.schemaRevision }, columnId: changed.columnId, affected: changed.affected, failed: changed.failed, ...(snapshotId === null ? {} : { snapshotId }) };
+        return c.json(dto);
+      }
       const result = await inGate(input, (ports, nowMs) => carryOutColumnChange(ports, { signer: deps.signer, limits: deps.limits, nowMs, newId: deps.newId }, token, input));
       if (!result.ok) return refused(c, result.error);
       const changed = result.value.value;
-      const dto: StructureChangedDto = { registry: { symbol: input.symbol, schemaRevision: changed.schemaRevision }, columnId: changed.columnId, affected: changed.affected };
+      const dto: StructureChangedDto = { registry: { ...registry, schemaRevision: changed.schemaRevision }, columnId: changed.columnId, affected: changed.affected };
       return c.json(dto);
     }),
   );

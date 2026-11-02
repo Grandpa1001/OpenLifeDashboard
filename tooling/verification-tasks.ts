@@ -3061,6 +3061,60 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D29.2",
+    ready: true,
+    title: "Carrying out a change of type over HTTP after its copy pre_type_change, with the session read again at the commit; S9",
+    criteria: ["D29.2-AC1", "D29.2-AC2", "D29.2-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests start the built server and compose the app from its build.
+        id: "workspace-build",
+        criteria: ["D29.2-AC1", "D29.2-AC2"],
+        description: "pnpm -r build: changeType in the request of the route, the answer with failed and snapshotId, carryOutTypeChange, the codes MAINTENANCE, SNAPSHOT_LOW_SPACE and SNAPSHOT_FAILED and their texts",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/routes/structure.routes.ts", "packages/contracts/src/http/registries.ts", "packages/contracts/src/http/errors.ts", "packages/core/src/modules/registries/application/type-change.ts", "apps/web/src/locales/pl/errors.json", "apps/web/src/locales/en/errors.json"],
+      },
+      {
+        id: "type-change-http",
+        criteria: ["D29.2-AC1", "D29.2-AC2"],
+        description:
+          "Raw HTTP on the built server: S9 previews 12 and abc and carries the change out with failed 1 as reported and the ID of a published copy pre_type_change, leaving 12 and an empty cell; a required column is blocked without a replacement and takes 0 with one; F01 strony number to text converts 25 records; a folder of copies that cannot stage is 503 SNAPSHOT_FAILED with nothing changed; a stale plan is 409; a foreign Origin and no session are refused; on the composition of the app an active operation is 503 MAINTENANCE and a session ended after the copy writes nothing; the inventory and every state before the gate on the route (D13.1, D20.2); the copy of D29.1, the rebuild, the column changes, the preview and the failure texts as before",
+        command: [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "tests/integration/registries",
+          "tests/integration/maintenance/type-change-snapshot.test.ts",
+          "tests/integration/maintenance/rebuild-operation.test.ts",
+          "tests/integration/auth/route-inventory.test.ts",
+          "tests/integration/auth/request-authority.test.ts",
+          "tests/integration/access/data-routes.test.ts",
+          "tests/unit/web/error-message.test.ts",
+        ],
+        requires: ["tests/integration/registries/type-change-http.test.ts", "tests/integration/registries/structure-change-http.test.ts", "tests/support/rebuild-writer.ts", "tests/support/app-harness.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      {
+        id: "check-locales",
+        criteria: ["D29.2-AC2"],
+        description: "pnpm check:locales: the three new failure texts have the same keys in pl and en",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/errors.json", "apps/web/src/locales/en/errors.json"],
+      },
+      ...regressionChecks("D29.2-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the copy as a phase of the operation and the route.
+  {
+    id: "D29",
+    ready: true,
+    title: "A change of type with its copy pre_type_change, the plan checked again under the operation, the required column; S9",
+    steps: ["D29.1", "D29.2"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",

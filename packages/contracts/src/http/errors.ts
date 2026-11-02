@@ -34,6 +34,9 @@ export const API_ERROR_CODES = [
   "PLAN_EXPIRED",
   "PLAN_STALE",
   "SCREEN_LIMIT_EXCEEDED",
+  "MAINTENANCE",
+  "SNAPSHOT_LOW_SPACE",
+  "SNAPSHOT_FAILED",
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

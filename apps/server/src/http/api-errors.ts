@@ -37,6 +37,9 @@ const FALLBACK_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   PLAN_EXPIRED: "The plan has expired; preview the change again",
   PLAN_STALE: "The registry changed since the preview; preview the change again",
   SCREEN_LIMIT_EXCEEDED: "The limit of screens is reached",
+  MAINTENANCE: "A maintenance operation is in progress; try again when it ends",
+  SNAPSHOT_LOW_SPACE: "There is not enough free space for the copy the change needs; nothing was changed",
+  SNAPSHOT_FAILED: "The copy the change needs could not be made; nothing was changed",
 };
 
 export function apiErrorResponse(

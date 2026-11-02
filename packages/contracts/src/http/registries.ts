@@ -119,8 +119,8 @@ export type StructurePreviewDto = z.infer<typeof structurePreviewSchema>;
 // Carrying out a change of the structure on its plan (Architektura §4.5, §4.6, §5.2; D28.2). The body
 // is the change of the preview and the plan it returned; the server checks the plan again under the
 // writer, in an operation of the maintenance gate, and answers with the new schema revision. This
-// route takes the changes of a column (add, rename, remove, required); a change of type with its copy
-// and the deletion of a registry join it in D29 and D30.
+// route takes the changes of a column (add, rename, remove, required) and a change of type, which first
+// takes its copy `pre_type_change` (D29.2); the deletion of a registry joins it in D30.
 
 export const REGISTRY_STRUCTURE_PATH = `${REGISTRIES_PATH}/:symbol/structure` as const;
 export const structurePath = (symbol: string): string => `${REGISTRIES_PATH}/${symbol}/structure`;
@@ -130,7 +130,7 @@ const PLAN_TOKEN_MAX = 1024;
 
 export const structureChangeExecuteRequestSchema = z
   .object({
-    change: z.discriminatedUnion("kind", [addColumnSchema, renameColumnSchema, removeColumnSchema, setRequiredSchema]),
+    change: z.discriminatedUnion("kind", [addColumnSchema, renameColumnSchema, removeColumnSchema, changeTypeSchema, setRequiredSchema]),
     planToken: z.string().min(1).max(PLAN_TOKEN_MAX),
   })
   .strict();
@@ -142,6 +142,10 @@ export const structureChangedSchema = z
     columnId: z.string(),
     /** The records whose values the change wrote. */
     affected: countSchema,
+    /** A change of type: the values that did not convert, as many as its preview reported. */
+    failed: countSchema.optional(),
+    /** A change of type: the copy `pre_type_change` taken before it. */
+    snapshotId: z.uuid().optional(),
   })
   .strict();
 export type StructureChangedDto = z.infer<typeof structureChangedSchema>;

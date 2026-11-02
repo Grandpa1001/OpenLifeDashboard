@@ -24,7 +24,7 @@ export type { Conversion, ConversionColumn, ConversionContext } from "./domain/c
 export { applyColumnChange, carryOutColumnChange } from "./application/column-change.js";
 export type { WriterAccessPorts } from "./application/planned-change.js";
 export type { ColumnChanged, ColumnChangeDependencies, ColumnChangeInput, ColumnChangePorts } from "./application/column-change.js";
-export { changeColumnType } from "./application/type-change.js";
+export { carryOutTypeChange, changeColumnType } from "./application/type-change.js";
 export type { TypeChangeDependencies, TypeChanged, TypeChangeInput, TypeChangePorts } from "./application/type-change.js";
 export { planTypeChange } from "./domain/type-change.js";
 export type { CellRewrite, TypeChangePlan } from "./domain/type-change.js";

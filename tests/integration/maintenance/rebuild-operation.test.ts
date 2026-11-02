@@ -11,11 +11,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { createStructurePlanSigner } from "../../../apps/server/dist/adapters/structure-plan-signer.js";
-import { createRebuildOperation } from "../../../apps/server/dist/workers/rebuild-operation.js";
 import { canonicalChange, DEFAULT_REGISTRY_LIMITS, STRUCTURE_PLAN_TTL_MS, type StoredRegistry, type TableRebuild } from "../../../packages/core/dist/modules/registries/public.js";
 import { execute, query, RESET_PASSWORD, serve, stopServer, stopServers, type Installation } from "../../support/auth-http.ts";
 import { databaseFile, sha256, stateFile } from "../../support/database-fixtures.ts";
-import { closeWriters, stopped, writerOf } from "../../support/rebuild-writer.ts";
+import { closeWriters, createRebuildOperation, stopped, writerOf } from "../../support/rebuild-writer.ts";
 import { outputEvent, runBuiltScript, runServerEntry } from "../../support/server-process.ts";
 
 afterEach(async () => {
@@ -56,7 +55,7 @@ describe("D27.2-AC1 the rebuild is an operation of the gate under the writer lea
     expect(sha256(databaseFile(setup.instance))).toBe(before);
 
     const result = await operation({ ownerId: registry.ownerId, symbol: "pomiary", change: change(registry.columnId), planToken, requestId: "req-d27-2" });
-    expect(result).toEqual({ ok: true, value: { value: { registryId: registry.id, schemaRevision: 2, rows: 2, failed: 1 }, snapshotId: expect.any(String) } });
+    expect(result).toEqual({ ok: true, value: { value: { registryId: registry.id, schemaRevision: 2, columnId: registry.columnId, rows: 2, affected: 2, failed: 1 }, snapshotId: expect.any(String) } });
     expect(during).toMatchObject({ generation: generation + 1, activeOperation: { reason: "rebuild", phase: "rebuilding", registryId: registry.id, fromSchemaRevision: 1 } });
     expect(readGate(setup)).toEqual({ formatVersion: 1, generation: generation + 1, activeOperation: null });
     expect(query(setup.instance, "SELECT wynik FROM reg_pomiary ORDER BY id")).toEqual([{ wynik: 12 }, { wynik: null }]);

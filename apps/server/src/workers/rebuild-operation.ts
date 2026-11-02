@@ -9,7 +9,7 @@
 // connection of this process, as the measurement of D27.1 allows for P0 (no worker thread, no
 // handoff of the writer).
 //
-// A change of type first takes a verified copy of the database (`pre_type_change`, §5.2, §11.3.1) in
+// A change of type (the route passes `pre_type_change`) first takes a verified copy of the database (`pre_type_change`, §5.2, §11.3.1) in
 // the phase `snapshot`; no copy, no change. The copy is asynchronous, so other requests run while it is
 // made: a change of the structure meets the active operation (MAINTENANCE), and a record written
 // meanwhile raises the data revision of the registry, so the plan checked under the writer is stale
@@ -17,7 +17,7 @@
 import type { MaintenanceOperation } from "@openlife/contracts/workers/maintenance-state";
 import type { Commit, ReadUnit, Result, UnitOfWork } from "@openlife/core/foundation";
 import type { DatabaseSnapshotPort, SnapshotRequest } from "@openlife/core/maintenance";
-import { changeColumnType, type RegistryStore, type TypeChanged, type TypeChangeDependencies, type TypeChangeInput, type TypeChangePorts } from "@openlife/core/registries";
+import type { RegistryStore } from "@openlife/core/registries";
 import type { MaintenanceGate } from "../adapters/filesystem/maintenance-gate.js";
 
 type OperationPorts = Readonly<{ registries: Pick<RegistryStore, "find"> }>;
@@ -70,12 +70,4 @@ export function createStructureOperation<P extends OperationPorts>(deps: Structu
       deps.gate.complete(base.operationId, generation);
     }
   };
-}
-
-export type RebuildOperationDependencies = StructureOperationDependencies<TypeChangePorts> & Readonly<{ change: Omit<TypeChangeDependencies, "nowMs"> }>;
-
-/** The rebuild of a table for a change of a column's type, after its copy `pre_type_change` (D27.2, D29.1). */
-export function createRebuildOperation(deps: RebuildOperationDependencies): (input: TypeChangeInput) => Promise<Result<StructureOutcome<TypeChanged>>> {
-  const operation = createStructureOperation(deps);
-  return (input) => operation(input, (ports, nowMs) => changeColumnType(ports, { ...deps.change, nowMs }, input), "pre_type_change");
 }
