@@ -61,6 +61,11 @@ export interface RegistryStore {
   renameColumn(registry: StoredRegistry, columnId: string, displayName: string, nowIso: string): void;
   /** Marks an active column removed; its row stays, so a binding to it is broken, and its symbol is free again. The same guard. */
   removeColumn(registry: StoredRegistry, columnId: string, nowIso: string): void;
+  /**
+   * Marks the registry deleted (D30.1): `deleted_at`, the schema revision raised, the same guard. Its
+   * rows and those of its columns stay, so its symbol stays taken and a binding to it is broken.
+   */
+  markDeleted(registry: StoredRegistry, nowIso: string): void;
 }
 
 /** A record as it is stored and returned: values by the symbols of the columns, in canonical form. */
@@ -171,6 +176,11 @@ export interface TableRebuild {
  * D28.1). The column comes from the catalog, never from a request; any failure throws and the unit
  * takes everything back.
  */
+/** The table of a registry as a whole (D30.1): what a deletion drops; its indexes go with it. */
+export interface RegistryTables {
+  drop(registry: StoredRegistry): void;
+}
+
 export interface TableColumns {
   /** Adds the column (and its index, for a date), and writes `fill` into every record there is when it is not null; the number of records written. */
   add(registry: StoredRegistry, column: StoredColumn, fill: CellValue): number;

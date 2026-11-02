@@ -4,8 +4,8 @@
 //      widget needs a new binding until the owner binds the column again (S8); a required column with
 //      a default fills the 25 records and `autor` added again is a new column; each change is one
 //      operation of the gate, closed after it, and audited.
-// AC2: a plan made stale by a record is 409 PLAN_STALE and writes nothing; the deletion of a registry is
-//      not taken by this route (a change of type is since D29.2); a foreign Origin and no session are refused;
+// AC2: a plan made stale by a record is 409 PLAN_STALE and writes nothing (a change of type and the
+//      deletion of a registry are taken since D29.2 and D30.1); a foreign Origin and no session are refused;
 //      a session that ends after the route read it and before the writer's unit writes nothing.
 import { readFileSync } from "node:fs";
 import { apiErrorSchema } from "@openlife/contracts/http/errors";
@@ -78,7 +78,7 @@ describe("D28.2-AC1 the changes of a column of F01 through the real API", () => 
 });
 
 describe("D28.2-AC2 what the route refuses", () => {
-  it("a plan made stale by a record is 409 PLAN_STALE and writes nothing; a deletion is not this route's; a foreign Origin and no session are refused", async () => {
+  it("a plan made stale by a record is 409 PLAN_STALE and writes nothing; a foreign Origin and no session are refused", async () => {
     const { setup, cookie, registry } = await booksOverApi("d28-2-refusals");
     const rename = { kind: "renameColumn", columnId: columnId(registry, "strony"), displayName: "Liczba stron książki" };
     const planToken = await planOf(setup, cookie, rename);
@@ -92,8 +92,6 @@ describe("D28.2-AC2 what the route refuses", () => {
     // The plan was checked under the writer, inside an operation of the gate that then closed.
     expect(gate(setup)).toEqual(expect.objectContaining({ generation: generation + 1, activeOperation: null }));
 
-    const deletion = await carryOut(setup, cookie, { kind: "deleteRegistry" }, planToken);
-    expect([deletion.status, code(deletion)]).toEqual([422, "VALIDATION_FAILED"]);
     const foreign = await carryOut(setup, cookie, rename, planToken, { origin: "https://elsewhere.example" });
     expect([foreign.status, code(foreign)]).toEqual([403, "ORIGIN_FORBIDDEN"]);
     const anonymous = await carryOut(setup, null, rename, planToken);

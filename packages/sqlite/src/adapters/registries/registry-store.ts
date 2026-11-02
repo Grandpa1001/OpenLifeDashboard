@@ -38,6 +38,7 @@ export function bindRegistryStore(tx: TransactionHandle): RegistryStore {
   const updateColumn = tx.prepare("UPDATE registry_column SET type = ?, type_options = ?, default_value = ?, required = ? WHERE id = ? AND registry_id = ? AND symbol = ? AND deleted_at IS NULL");
   const renameActive = tx.prepare("UPDATE registry_column SET display_name = ? WHERE id = ? AND registry_id = ? AND deleted_at IS NULL");
   const removeActive = tx.prepare("UPDATE registry_column SET deleted_at = ? WHERE id = ? AND registry_id = ? AND deleted_at IS NULL");
+  const markDeleted = tx.prepare("UPDATE registry SET deleted_at = ?, schema_revision = schema_revision + 1, updated_at = ? WHERE id = ? AND user_id = ? AND schema_revision = ? AND deleted_at IS NULL");
   const raiseSchema = tx.prepare("UPDATE registry SET schema_revision = schema_revision + 1, updated_at = ? WHERE id = ? AND user_id = ? AND schema_revision = ? AND deleted_at IS NULL");
   const columnsOf = tx.prepare("SELECT id, symbol, display_name, type, type_options, default_value, required, position FROM registry_column WHERE registry_id = ? AND deleted_at IS NULL ORDER BY position, id");
 
@@ -118,6 +119,9 @@ export function bindRegistryStore(tx: TransactionHandle): RegistryStore {
     removeColumn(registry, columnId, nowIso): void {
       if (removeActive.run(nowIso, columnId, registry.id).changes !== 1) throw new TypeError("the column is not an active column of the registry");
       raiseSchemaOf(registry, nowIso);
+    },
+    markDeleted(registry, nowIso): void {
+      if (markDeleted.run(nowIso, nowIso, registry.id, registry.ownerId, registry.schemaRevision).changes !== 1) throw new TypeError("the registry changed or was deleted since it was read");
     },
     changeColumn(registry, column, nowIso): void {
       // The symbol is part of the match: a column keeps its symbol, and a definition that says otherwise changes nothing.

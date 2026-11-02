@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -3113,6 +3113,51 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D29.1", "D29.2"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D30.1",
+    ready: true,
+    title: "Deleting a registry over HTTP after its copy pre_delete, with the session read again at the commit; the tombstone and its reconciliation; S10",
+    criteria: ["D30.1-AC1", "D30.1-AC2", "D30.1-regression"],
+    checks: [
+      {
+        // Runs first: the integration tests start the built server and hold the writer of a built installation.
+        id: "workspace-build",
+        criteria: ["D30.1-AC1", "D30.1-AC2"],
+        description: "pnpm -r build: deleteRegistry in the request of the route and a null column in its answer, the use case of a deletion, the drop of a table and the mark of the catalog, the reason pre_delete and the reconciliation of a committed deletion",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "packages/core/src/modules/registries/application/delete-registry.ts",
+          "packages/sqlite/src/adapters/registries/registry-tables.ts",
+          "packages/sqlite/src/adapters/registries/registry-store.ts",
+          "packages/sqlite/src/adapters/registries/rebuild-outcome.ts",
+          "apps/server/src/http/routes/structure.routes.ts",
+          "packages/contracts/src/http/registries.ts",
+        ],
+      },
+      {
+        id: "registry-deletion",
+        criteria: ["D30.1-AC1", "D30.1-AC2"],
+        description:
+          "Raw HTTP on the built server with Książki of F01 and its table widget: the preview counts 25 records and the widget, the deletion answers revision 2, no column, 25 and a published copy pre_delete that still holds the 25 records; the table and its indexes are gone, the catalog marks the registry deleted and keeps its columns, the list, the records and the preview have it no more, the symbol stays taken, the widget needs a binding (S10), the audit has no values and the gate is closed; a folder of copies that cannot stage is 503 with nothing changed, a stale plan is 409, a foreign Origin and no session are refused, a session ended after the copy deletes nothing; on a real installation a failure after the drop or after the catalog takes all back, and a start after a committed deletion closes the operation while a registry deleted at the revision it started from refuses the start; the changes of a column and of type, the copies, the rebuild, the inventory and the request authority as before",
+        command: [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "tests/integration/registries",
+          "tests/integration/maintenance",
+          "tests/integration/auth/route-inventory.test.ts",
+          "tests/integration/auth/request-authority.test.ts",
+          "tests/integration/access/data-routes.test.ts",
+          "tests/integration/dashboard",
+          "tests/integration/dictionaries",
+        ],
+        requires: ["tests/integration/registries/registry-deletion-http.test.ts", "tests/integration/maintenance/registry-deletion-operation.test.ts", "tests/support/rebuild-writer.ts", "tests/support/app-harness.ts"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      ...regressionChecks("D30.1-regression"),
+    ],
   },
   {
     id: "D19.1",

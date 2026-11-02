@@ -1,7 +1,7 @@
 // The writer of a stopped installation, held in the test process as the server holds it: its lease,
 // its gate, its database and its folder of copies, with `pomiary` (text 12 and abc) made through the
 // API of the built server first. The tests of the operation of a change of the structure run on it
-// (D27.2, D29.1).
+// (D27.2, D29.1, D30.1).
 import { randomUUID } from "node:crypto";
 import { IDEMPOTENCY_KEY_HEADER, registryRecordsPath } from "@openlife/contracts/http/records";
 import { REGISTRIES_PATH, registryListSchema } from "@openlife/contracts/http/registries";
@@ -12,10 +12,10 @@ import { openMaintenanceGate } from "../../apps/server/dist/adapters/filesystem/
 import { acquireWriterLease } from "../../apps/server/dist/adapters/filesystem/writer-lease.js";
 import { createStructureOperation, type StructureOperationDependencies } from "../../apps/server/dist/workers/rebuild-operation.js";
 import type { DatabaseSnapshotPort } from "../../packages/core/dist/modules/maintenance/public.js";
-import { changeColumnType, type TableRebuild, type TypeChangeDependencies, type TypeChangeInput, type TypeChangePorts } from "../../packages/core/dist/modules/registries/public.js";
+import { changeColumnType, deleteRegistry, type RegistryDeletionDependencies, type RegistryDeletionInput, type RegistryDeletionPorts, type RegistryStore, type RegistryTables, type TableRebuild, type TypeChangeDependencies, type TypeChangeInput, type TypeChangePorts } from "../../packages/core/dist/modules/registries/public.js";
 import { bindAppendAudit } from "../../packages/sqlite/dist/adapters/audit/append-audit.js";
 import { bindDictionaryLookup } from "../../packages/sqlite/dist/adapters/dictionaries/public.js";
-import { bindRecordStore, bindRegistryStore, bindTableRebuild } from "../../packages/sqlite/dist/adapters/registries/public.js";
+import { bindRecordStore, bindRegistryStore, bindRegistryTables, bindTableRebuild } from "../../packages/sqlite/dist/adapters/registries/public.js";
 import { bindOwnerPreferencesStore } from "../../packages/sqlite/dist/adapters/settings/owner-preferences.js";
 import { openDatabase, type SqliteConnection } from "../../packages/sqlite/dist/connection/open-database.js";
 import { createUnitOfWork } from "../../packages/sqlite/dist/transactions/unit-of-work.js";
@@ -46,6 +46,9 @@ export async function stopped(keyPrefix: string): Promise<{ setup: Installation;
 export type WriterOptions = Readonly<{
   /** Wraps the adapter of the rebuild, to fail it after its stages. */
   rebuild?: (inner: TableRebuild) => TableRebuild;
+  /** Wraps the drop of a table and the store of the catalog, to fail a deletion after a stage (D30.1). */
+  tables?: (inner: RegistryTables) => RegistryTables;
+  registries?: (inner: RegistryStore) => RegistryStore;
   /** Wraps the copies, to fail one or to act while it is made. */
   snapshots?: (inner: DatabaseSnapshotPort) => DatabaseSnapshotPort;
   /** backup.diskReserveMiB of the copies; 1 unless a test needs more than the disk has. */
@@ -63,8 +66,9 @@ export function writerOf(setup: Installation, options: WriterOptions = {}) {
   const connection = openDatabase(paths.database, { role: "writer", busyTimeoutMs: 5000 });
   connections.push(connection);
   const unit = createUnitOfWork(connection, (tx) => ({
-    registries: bindRegistryStore(tx),
+    registries: (options.registries ?? ((inner) => inner))(bindRegistryStore(tx)),
     records: bindRecordStore(tx),
+    tables: (options.tables ?? ((inner) => inner))(bindRegistryTables(tx)),
     dictionaryLookup: bindDictionaryLookup(tx),
     preferences: bindOwnerPreferencesStore(tx),
     rebuild: (options.rebuild ?? ((inner) => inner))(bindTableRebuild(tx)),
@@ -85,4 +89,10 @@ export function writerOf(setup: Installation, options: WriterOptions = {}) {
 export function createRebuildOperation(deps: StructureOperationDependencies<TypeChangePorts> & Readonly<{ change: Omit<TypeChangeDependencies, "nowMs"> }>) {
   const operation = createStructureOperation(deps);
   return (input: TypeChangeInput) => operation(input, (ports, nowMs) => changeColumnType(ports, { ...deps.change, nowMs }, input), "pre_type_change");
+}
+
+/** The deletion of a registry as the route runs it, without its session: the copy pre_delete, then the unit (D30.1). */
+export function createDeletionOperation(deps: StructureOperationDependencies<RegistryDeletionPorts> & Readonly<{ change: Omit<RegistryDeletionDependencies, "nowMs"> }>) {
+  const operation = createStructureOperation(deps);
+  return (input: RegistryDeletionInput) => operation(input, (ports, nowMs) => deleteRegistry(ports, { ...deps.change, nowMs }, input), "pre_delete");
 }

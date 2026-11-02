@@ -119,8 +119,9 @@ export type StructurePreviewDto = z.infer<typeof structurePreviewSchema>;
 // Carrying out a change of the structure on its plan (Architektura §4.5, §4.6, §5.2; D28.2). The body
 // is the change of the preview and the plan it returned; the server checks the plan again under the
 // writer, in an operation of the maintenance gate, and answers with the new schema revision. This
-// route takes the changes of a column (add, rename, remove, required) and a change of type, which first
-// takes its copy `pre_type_change` (D29.2); the deletion of a registry joins it in D30.
+// route takes the changes of a column (add, rename, remove, required), a change of type, which first
+// takes its copy `pre_type_change` (D29.2), and the deletion of the registry, after its copy
+// `pre_delete` (D30.1).
 
 export const REGISTRY_STRUCTURE_PATH = `${REGISTRIES_PATH}/:symbol/structure` as const;
 export const structurePath = (symbol: string): string => `${REGISTRIES_PATH}/${symbol}/structure`;
@@ -130,7 +131,7 @@ const PLAN_TOKEN_MAX = 1024;
 
 export const structureChangeExecuteRequestSchema = z
   .object({
-    change: z.discriminatedUnion("kind", [addColumnSchema, renameColumnSchema, removeColumnSchema, changeTypeSchema, setRequiredSchema]),
+    change: z.discriminatedUnion("kind", [addColumnSchema, renameColumnSchema, removeColumnSchema, changeTypeSchema, setRequiredSchema, deleteRegistrySchema]),
     planToken: z.string().min(1).max(PLAN_TOKEN_MAX),
   })
   .strict();
@@ -139,12 +140,13 @@ export type StructureChangeExecuteRequest = z.infer<typeof structureChangeExecut
 export const structureChangedSchema = z
   .object({
     registry: z.object({ symbol: z.string(), schemaRevision: z.number().int().min(1) }).strict(),
-    columnId: z.string(),
-    /** The records whose values the change wrote. */
+    /** The column the change named; null for the deletion of the registry. */
+    columnId: z.string().nullable(),
+    /** The records whose values the change wrote; for a deletion, the records it took away. */
     affected: countSchema,
     /** A change of type: the values that did not convert, as many as its preview reported. */
     failed: countSchema.optional(),
-    /** A change of type: the copy `pre_type_change` taken before it. */
+    /** A change of type or a deletion: the copy `pre_type_change` or `pre_delete` taken before it. */
     snapshotId: z.uuid().optional(),
   })
   .strict();

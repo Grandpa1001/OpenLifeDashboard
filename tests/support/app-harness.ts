@@ -28,7 +28,7 @@ import { DEFAULT_DICTIONARY_LIMITS } from "../../packages/core/dist/modules/dict
 import { DEFAULT_CONFIG_LIMITS } from "../../packages/core/dist/modules/configuration/public.js";
 import { bindDictionaryLookup, bindDictionaryStore } from "../../packages/sqlite/dist/adapters/dictionaries/public.js";
 import { bindConfigStore } from "../../packages/sqlite/dist/adapters/configuration/public.js";
-import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore, bindTableColumns, bindTableRebuild } from "../../packages/sqlite/dist/adapters/registries/public.js";
+import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore, bindTableColumns, bindTableRebuild, bindRegistryTables } from "../../packages/sqlite/dist/adapters/registries/public.js";
 import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "../../packages/core/dist/modules/registries/public.js";
 import { createWidgetCatalog } from "../../apps/server/dist/adapters/widget-catalog.js";
 import { createStructurePlanSigner } from "../../apps/server/dist/adapters/structure-plan-signer.js";
@@ -84,6 +84,7 @@ export async function createAppHarness() {
     registries: bindRegistryStore(tx),
     records: bindRecordStore(tx),
     columns: bindTableColumns(tx),
+    tables: bindRegistryTables(tx),
     rebuild: bindTableRebuild(tx),
     dictionaries: bindDictionaryStore(tx),
     dictionaryLookup: bindDictionaryLookup(tx),

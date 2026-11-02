@@ -5,7 +5,8 @@
 // `POST /api/v1/registries/:symbol/structure`, takes the change and its plan: the session is read
 // first, the change then runs in an operation of the maintenance gate, and inside its unit the session
 // is read again and the plan checked under the writer. A change of type (D29.2) first takes the copy
-// `pre_type_change` in the same operation; no copy, no change. Nothing is cached.
+// `pre_type_change` in the same operation, and the deletion of the registry (D30.1) its copy `pre_delete`;
+// no copy, no change. Nothing is cached.
 import {
   REGISTRY_STRUCTURE_PATH,
   REGISTRY_STRUCTURE_PREVIEW_PATH,
@@ -18,6 +19,7 @@ import type { ReadUnit, UnitOfWork } from "@openlife/core/foundation";
 import type { DatabaseSnapshotPort } from "@openlife/core/maintenance";
 import {
   carryOutColumnChange,
+  carryOutRegistryDeletion,
   carryOutTypeChange,
   previewStructureChange,
   structureOwner,
@@ -25,6 +27,7 @@ import {
   type PlanSigner,
   type RegistryLimits,
   type StructurePorts,
+  type RegistryDeletionPorts,
   type StructurePreview,
   type TypeChangePorts,
   type WriterAccessPorts,
@@ -38,7 +41,7 @@ import type { AppEnv } from "../app-env.js";
 import { JSON_BODY_MAX_BYTES } from "../security-limits.js";
 import { createSessionOperationKit } from "../session-operation.js";
 
-type StructureRoutePorts = StructurePorts & ColumnChangePorts & TypeChangePorts & WriterAccessPorts;
+type StructureRoutePorts = StructurePorts & ColumnChangePorts & TypeChangePorts & RegistryDeletionPorts & WriterAccessPorts;
 
 export type StructureRouteDependencies = Readonly<{
   unit: UnitOfWork<StructureRoutePorts> & ReadUnit<StructureRoutePorts>;
@@ -99,6 +102,14 @@ export function registerStructureRoutes(app: Hono<AppEnv>, deps: StructureRouteD
         if (!result.ok) return refused(c, result.error);
         const { value: changed, snapshotId } = result.value;
         const dto: StructureChangedDto = { registry: { ...registry, schemaRevision: changed.schemaRevision }, columnId: changed.columnId, affected: changed.affected, failed: changed.failed, ...(snapshotId === null ? {} : { snapshotId }) };
+        return c.json(dto);
+      }
+      if (body.change.kind === "deleteRegistry") {
+        // The copy pre_delete first (D30); the registry can be restored from it under the same identifiers.
+        const result = await inGate(input, (ports, nowMs) => carryOutRegistryDeletion(ports, { signer: deps.signer, limits: deps.limits, nowMs }, token, input), "pre_delete");
+        if (!result.ok) return refused(c, result.error);
+        const { value: deleted, snapshotId } = result.value;
+        const dto: StructureChangedDto = { registry: { ...registry, schemaRevision: deleted.schemaRevision }, columnId: null, affected: deleted.affected, ...(snapshotId === null ? {} : { snapshotId }) };
         return c.json(dto);
       }
       const result = await inGate(input, (ports, nowMs) => carryOutColumnChange(ports, { signer: deps.signer, limits: deps.limits, nowMs, newId: deps.newId }, token, input));

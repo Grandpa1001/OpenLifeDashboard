@@ -14,7 +14,8 @@ name: CI
 # The full tier is split by topic into jobs that run side by side, each with its own report
 # artifact: platform (D01-D08, Docker, images, the G0 inputs), access (D09-D13), registries
 # (D14-D17), data (the parents from D22 on), screens (D18) and installer (D19). The fast tier is
-# split the same way: core (D01-D20.2), data (the steps of the code from D22.1 on) and browser. A
+# split the same way: core (D01-D20.2), data (D22.1-D26.2), structure (the steps from D27.1 on) and
+# browser. A
 # new task joins the job of its topic, so no single job grows past its time limit.
 
 on:
@@ -168,9 +169,9 @@ jobs:
           if-no-files-found: error
 
   fast-data:
-    # The fast tier of the code is two jobs side by side, as the full tier is: the platform, the
-    # access and the first data steps here above, the data and the structure of the registries here,
-    # so a growing list of steps never meets one job's time limit.
+    # The fast tier of the code is three jobs side by side, as the full tier is: the platform and
+    # the access above, the data of the registries here (D22.1-D26.2) and their structure below, so a
+    # growing list of steps never meets one job's time limit.
     name: fast tier (code of the data, SQLite, HTTP)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -217,6 +218,39 @@ jobs:
       - name: Verify D26.2 (the preview of a change of the structure over SQLite and HTTP)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D26.2
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-fast-data
+          path: .artifacts/
+          # The report directory is a dot-directory, which upload-artifact skips by default.
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+
+  fast-structure:
+    # The changes of a registry's structure (D27.1 on): the rebuild, the operation of the gate and its
+    # copies. Split from the job of the data after run 41434432642 (19 of its 30 minutes).
+    name: fast tier (structure of the registries, SQLite, HTTP)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
       - name: Verify D27.1 (the PoC of the rebuild of a table for a change of a column's type)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D27.1
@@ -235,11 +269,14 @@ jobs:
       - name: Verify D29.2 (carrying out a change of type over HTTP after its copy, S9)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D29.2
+      - name: Verify D30.1 (deleting a registry over HTTP after its copy pre_delete, S10)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D30.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: verification-fast-data
+          name: verification-fast-structure
           path: .artifacts/
           # The report directory is a dot-directory, which upload-artifact skips by default.
           include-hidden-files: true

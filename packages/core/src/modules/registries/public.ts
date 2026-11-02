@@ -13,7 +13,7 @@ export { REGISTRY_TABLE_PREFIX, SYMBOL_MAX_LENGTH, SYMBOL_PATTERN, checkSymbol, 
 export type { SymbolIssue, SymbolSpace } from "./domain/symbols.js";
 export { createRegistry, listRegistries } from "./application/create-registry.js";
 export type { RegistryDependencies, RegistryPorts } from "./application/create-registry.js";
-export type { DependentWidget, DependentWidgets, DictionaryLookup, IdempotencyEntry, IdempotencyStore, NewRegistryRecord, RecordPage, RecordPageQuery, PlanSigner, RebuiltColumn, RecordStore, RegistryStore, TableColumns, TableRebuild, StoredColumn, StoredRecord, StoredRegistry } from "./ports.js";
+export type { DependentWidget, DependentWidgets, DictionaryLookup, IdempotencyEntry, IdempotencyStore, NewRegistryRecord, RecordPage, RecordPageQuery, PlanSigner, RebuiltColumn, RecordStore, RegistryStore, RegistryTables, TableColumns, TableRebuild, StoredColumn, StoredRecord, StoredRegistry } from "./ports.js";
 export { pageLabels } from "./application/page-labels.js";
 export type { LabelledColumn, PageLabels } from "./application/page-labels.js";
 export { createRecord, DEFAULT_RECORD_MAX_BYTES, deleteRecord, getRecord, IDEMPOTENCY_RETENTION_MS, LIST_DEFAULTS, listRecords, updateRecord } from "./application/records.js";
@@ -25,6 +25,8 @@ export { applyColumnChange, carryOutColumnChange } from "./application/column-ch
 export type { WriterAccessPorts } from "./application/planned-change.js";
 export type { ColumnChanged, ColumnChangeDependencies, ColumnChangeInput, ColumnChangePorts } from "./application/column-change.js";
 export { carryOutTypeChange, changeColumnType } from "./application/type-change.js";
+export { carryOutRegistryDeletion, deleteRegistry } from "./application/delete-registry.js";
+export type { RegistryDeleted, RegistryDeletionDependencies, RegistryDeletionInput, RegistryDeletionPorts } from "./application/delete-registry.js";
 export type { TypeChangeDependencies, TypeChanged, TypeChangeInput, TypeChangePorts } from "./application/type-change.js";
 export { planTypeChange } from "./domain/type-change.js";
 export type { CellRewrite, TypeChangePlan } from "./domain/type-change.js";

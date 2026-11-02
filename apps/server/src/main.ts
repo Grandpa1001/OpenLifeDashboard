@@ -16,7 +16,7 @@ import { bindIdentityAccessReader, bindMfaStore, bindOwnerWriters, bindRecoveryC
 import { bindCatalogReader, bindConfigBindingCounts, bindDashboardStore, bindDependentWidgets } from "@openlife/sqlite/adapters/dashboard";
 import { bindDictionaryLookup, bindDictionaryStore } from "@openlife/sqlite/adapters/dictionaries";
 import { bindConfigStore } from "@openlife/sqlite/adapters/configuration";
-import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore, bindTableColumns, bindTableRebuild } from "@openlife/sqlite/adapters/registries";
+import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore, bindTableColumns, bindTableRebuild, bindRegistryTables } from "@openlife/sqlite/adapters/registries";
 import { bindOwnerPreferencesStore } from "@openlife/sqlite/adapters/settings";
 import { DEFAULT_DICTIONARY_LIMITS } from "@openlife/core/dictionaries";
 import { DEFAULT_CONFIG_LIMITS } from "@openlife/core/configuration";
@@ -187,6 +187,7 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   registries: bindRegistryStore(tx),
   records: bindRecordStore(tx),
   columns: bindTableColumns(tx),
+  tables: bindRegistryTables(tx),
   rebuild: bindTableRebuild(tx),
   dictionaries: bindDictionaryStore(tx),
   dictionaryLookup: bindDictionaryLookup(tx),
