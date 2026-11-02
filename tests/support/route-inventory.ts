@@ -70,6 +70,7 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "PUT", path: screens.SCREEN_DESIGN_PATH, access: "data", note: "replaces the whole design of a screen atomically" },
   { method: "GET", path: screens.WIDGET_TYPES_PATH, access: "data", note: "the manifests of the widget types of this build" },
   { method: "GET", path: screens.WIDGET_DATA_PATH, access: "data", note: "a page of the data of a widget from its saved bindings" },
+  { method: "GET", path: registries.REGISTRY_SUMMARIES_PATH, access: "data", note: "the records of each active registry and the widgets bound to it, for its card" },
   { method: "GET", path: systemTables.SYSTEM_TABLES_PATH, access: "data", note: "the tables of the system preview with their columns and the owner's rows in each; read only" },
   { method: "GET", path: systemTables.SYSTEM_TABLE_PATH, access: "data", note: "one page of one table of the system preview; a name outside its list is 404" },
 ];

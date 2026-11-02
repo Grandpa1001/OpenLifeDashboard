@@ -3400,6 +3400,62 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D32.2",
+    ready: true,
+    title: "The cards of the registries with their records and widgets, and the section System with the tables of the preview in pages, read only, in the browser",
+    criteria: ["D32.2-AC1", "D32.2-AC2", "D32.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D32.2-AC1", "D32.2-AC2"],
+        description: "pnpm -r build: the summaries of the registries in core, SQLite and the server, the cards and the section System, the page of a table of the preview",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "packages/core/src/modules/registries/application/registry-summaries.ts",
+          "packages/sqlite/src/adapters/dashboard/catalog-reader.ts",
+          "apps/server/src/http/routes/registries.routes.ts",
+          "apps/web/src/features/registers/pages/registers-page.tsx",
+          "apps/web/src/features/registers/pages/system-table-page.tsx",
+          "apps/web/src/app/router/router.tsx",
+        ],
+      },
+      {
+        id: "registry-summaries-http",
+        criteria: ["D32.2-AC1"],
+        description: "Over real HTTP: Książki of F01 counts 25 records and 1 widget, a registry without them 0 and 0, a deleted registry is gone; the route in the inventory and the tables of the access tests",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries/registry-summaries-http.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts"],
+        requires: ["tests/integration/registries/registry-summaries-http.test.ts", "tests/support/route-inventory.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D32.2-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/registers.json", "apps/web/src/locales/en/registers.json"],
+      },
+      {
+        id: "system-tables-e2e",
+        criteria: ["D32.2-AC1", "D32.2-AC2"],
+        description:
+          "Playwright on a fresh installation with F01 and its widget: the card counts 25 records and 1 widget, System lists the six tables, the audit opens newest first in pages of 25 kept in the address and after a reload, the catalog shows Książki, no field and no button but the pages; an unknown table is said so with no request; a 320 px phone without sideways scroll; the region of the table takes the focus; axe; the list of registries, the kreator and the records as before",
+        command: ["node", "tests/verification/e2e.ts", "system-tables", "registers.spec", "new-registry", "records.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/system-tables.spec.ts", "tests/e2e/registers.spec.ts", "tests/e2e/new-registry.spec.ts", "tests/e2e/records.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D32.2-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the API of the preview and its screens.
+  {
+    id: "D32",
+    ready: true,
+    title: "The system preview: a fixed list of tables and columns, read only, in pages, and the cards of the registries with their records and widgets",
+    steps: ["D32.1", "D32.2"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",

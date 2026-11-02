@@ -7,7 +7,8 @@ import type { ApiFailure } from "../../../lib/api-client/request.js";
 import { describeFailure } from "../../../lib/failures/error-message.js";
 import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
-import { fetchRegistries } from "../api/registries.js";
+import { fetchRegistries, fetchRegistrySummaries } from "../api/registries.js";
+import { fetchSystemTables } from "../api/system-tables.js";
 import { useDictionaries } from "../api/use-dictionaries.js";
 import { useConfigEntries } from "../api/use-config.js";
 import { NewRegistryForm } from "../components/new-registry-form.js";
@@ -25,7 +26,8 @@ class RegistersFailure extends Error {
 
 const leavesTheGate = (failure: ApiFailure): boolean => failure.kind === "api" && (failure.status === 401 || failure.status === 403);
 
-function RegistryCard({ registry }: Readonly<{ registry: RegistryDto }>) {
+/** A card of the list (makieta 06): the name, the symbol, the columns, and the records and widgets once the server has counted them (D32.2). */
+function RegistryCard({ registry, summary }: Readonly<{ registry: RegistryDto; summary: Readonly<{ records: number; widgets: number }> | undefined }>) {
   const { t } = useTranslation("registers");
   return (
     <li className="card registry-card">
@@ -37,6 +39,11 @@ function RegistryCard({ registry }: Readonly<{ registry: RegistryDto }>) {
       <p>
         <span className="registry-symbol">{registry.symbol}</span> · {t("list.columns", { count: registry.columns.length })}
       </p>
+      {summary === undefined ? null : (
+        <p className="registry-counts">
+          {t("list.records", { count: summary.records })} · {t("list.widgets", { count: summary.widgets })}
+        </p>
+      )}
     </li>
   );
 }
@@ -56,6 +63,30 @@ export function RegistersPage() {
         throw new RegistersFailure(result.failure);
       }
       return result.value.registries;
+    },
+  });
+
+  // The counts of the cards are their own read: the list shows as soon as it is there, the counts when they come.
+  const summaries = useQuery({
+    queryKey: queryKeys.registries.summaries,
+    queryFn: async ({ signal }) => {
+      const result = await fetchRegistrySummaries(signal);
+      if (!result.ok) {
+        if (result.failure.kind === "aborted") throw new DOMException("aborted", "AbortError");
+        throw new RegistersFailure(result.failure);
+      }
+      return new Map(result.value.summaries.map((summary) => [summary.registryId, summary]));
+    },
+  });
+  const systemTables = useQuery({
+    queryKey: queryKeys.systemTables.list,
+    queryFn: async ({ signal }) => {
+      const result = await fetchSystemTables(signal);
+      if (!result.ok) {
+        if (result.failure.kind === "aborted") throw new DOMException("aborted", "AbortError");
+        throw new RegistersFailure(result.failure);
+      }
+      return result.value.tables;
     },
   });
 
@@ -108,6 +139,8 @@ export function RegistersPage() {
           onCreated={(registry) => {
             setCreated(registry.displayName);
             void queryClient.invalidateQueries({ queryKey: queryKeys.registries.list });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.registries.summaries });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.systemTables.list });
             closeForm();
           }}
         />
@@ -139,7 +172,7 @@ export function RegistersPage() {
         {registries.data !== undefined && registries.data.length > 0 ? (
           <ul className="registry-list">
             {registries.data.map((registry) => (
-              <RegistryCard key={registry.id} registry={registry} />
+              <RegistryCard key={registry.id} registry={registry} summary={summaries.data?.get(registry.id)} />
             ))}
           </ul>
         ) : null}
@@ -159,6 +192,36 @@ export function RegistersPage() {
           </p>
           <p>{config.data === undefined ? t("config.loading") : t("config.count", { count: config.data.length })}</p>
         </div>
+      </section>
+      <section aria-labelledby="system-heading">
+        <h2 id="system-heading">{t("system.heading")}</h2>
+        <p className="field-hint">{t("system.lead")}</p>
+        {systemTables.isPending ? <p role="status">{t("system.loading")}</p> : null}
+        {systemTables.error instanceof RegistersFailure ? (
+          <>
+            <FailureAlert message={describeFailure(systemTables.error.failure)} />
+            <button type="button" onClick={() => void systemTables.refetch()}>
+              {t("list.retry")}
+            </button>
+          </>
+        ) : null}
+        {systemTables.data === undefined ? null : (
+          // Entries under the heading of the section, as in Dictionaries and configuration: cards, not registries of the list.
+          <div className="system-tables">
+            {systemTables.data.map((table) => (
+              <div key={table.name} className="card system-table-card">
+                <p className="config-entry">
+                  <Link to="/system-tables/$name" params={{ name: table.name }}>
+                    {t(`system.tables.${table.name}`)}
+                  </Link>
+                </p>
+                <p>
+                  <span className="registry-symbol">{table.name}</span> · {t("system.rows", { count: table.rows })}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );

@@ -149,7 +149,7 @@ export async function createAppHarness() {
     mfaEnrollment: { ...common, unit, crypto: mfaCrypto },
     mfaVerification: { ...common, unit, crypto: mfaCrypto, trustedDeviceCookies },
     setup: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
-    registries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
+    registries: { unit, summaries: unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
     records: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
     structure: { ...structure, gate: gate.gate, snapshots, newId: createUuidV7(), newOperationId: randomUUID, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
     dictionaries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },

@@ -263,7 +263,7 @@ const app = createApp({
     logger,
   },
   setup: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
-  registries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
+  registries: { unit: identityUnit, summaries: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
   records: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
   structure: { unit: identityUnit, gate: gate.gate, snapshots: createDatabaseSnapshots(database.connection, snapshotOptions), cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), newOperationId: randomUUID, signer: planSigner, limits: DEFAULT_REGISTRY_LIMITS, logger },
   dictionaries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },

@@ -149,6 +149,8 @@ export type DependentWidget = Readonly<{ screenId: string; screenName: string; w
 export interface DependentWidgets {
   /** Widgets bound to the column, or to anything of the registry when `columnId` is null; in the order of their screens and positions. */
   of(ownerId: string, registryId: string, columnId: string | null): readonly DependentWidget[];
+  /** How many widgets of the owner each registry has bound to anything of it, in one read; a registry with none is absent (D32.2). */
+  countByRegistry(ownerId: string): ReadonlyMap<string, number>;
 }
 
 /**

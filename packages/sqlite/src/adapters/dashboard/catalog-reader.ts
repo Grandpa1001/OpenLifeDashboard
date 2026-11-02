@@ -51,7 +51,16 @@ export function bindDependentWidgets(tx: TransactionHandle): DependentWidgets {
         AND (? IS NULL OR (json_extract(binding.target, '$.kind') = 'column' AND json_extract(binding.target, '$.columnId') = ?))
       ORDER BY screen.created_at, screen.id, widget.position, widget.id, binding.position, binding.slot`,
   );
+  const perRegistry = tx.prepare(
+    `SELECT json_extract(binding.target, '$.registryId') AS registry_id, count(DISTINCT widget.id) AS n
+       FROM binding JOIN widget ON widget.id = binding.widget_id JOIN screen ON screen.id = widget.screen_id
+      WHERE screen.user_id = ? GROUP BY registry_id`,
+  );
   return {
+    countByRegistry(ownerId): ReadonlyMap<string, number> {
+      const rows = perRegistry.all(ownerId) as { registry_id: unknown; n: number }[];
+      return new Map(rows.flatMap((row) => (typeof row.registry_id === "string" ? [[row.registry_id, row.n] as const] : [])));
+    },
     of(ownerId, registryId, columnId): readonly DependentWidget[] {
       const rows = bound.all(ownerId, registryId, columnId, columnId) as { screen_id: string; screen_name: string; widget_id: string; title: unknown; slot: string }[];
       const widgets = new Map<string, { screenId: string; screenName: string; widgetId: string; title: string | null; slots: string[] }>();

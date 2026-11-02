@@ -8,7 +8,11 @@
     "columns_one": "{{count}} column",
     "columns_other": "{{count}} columns",
     "new": "New registry",
-    "config": "Dictionaries and configuration"
+    "config": "Dictionaries and configuration",
+    "records_one": "{{count}} record",
+    "records_other": "{{count}} records",
+    "widgets_one": "{{count}} widget",
+    "widgets_other": "{{count}} widgets"
   },
   "types": {
     "text": "Text",
@@ -383,5 +387,24 @@
     },
     "newDictionary": "New dictionary",
     "newDictionaryOf": "New dictionary for the column {{name}}"
+  },
+  "system": {
+    "heading": "System",
+    "lead": "The tables of the application, read only. Sign-in data, sessions and settings are not shown here.",
+    "loading": "Loading the system tables…",
+    "rows_one": "{{count}} row",
+    "rows_other": "{{count}} rows",
+    "readOnly": "read only",
+    "unknown": "There is no such system table.",
+    "empty": "This table has no rows yet.",
+    "pager": "Pages of the table",
+    "tables": {
+      "registry": "Catalog of registries",
+      "registry_column": "Columns of registries",
+      "screen": "Screens",
+      "widget": "Widgets",
+      "binding": "Bindings",
+      "audit_log": "Audit log"
+    }
   }
 }

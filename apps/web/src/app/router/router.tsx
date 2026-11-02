@@ -9,6 +9,7 @@ import { AddRecordForRegistry } from "../../features/registers/components/add-re
 import { MainPage } from "../../features/dashboard/pages/main-page.js";
 import { RegistryPage } from "../../features/registers/pages/registry-page.js";
 import { StructurePage } from "../../features/registers/pages/structure-page.js";
+import { SystemTablePage } from "../../features/registers/pages/system-table-page.js";
 import { RegistersPage } from "../../features/registers/pages/registers-page.js";
 import { DictionariesPage } from "../../features/registers/pages/dictionaries-page.js";
 import { ConfigPage } from "../../features/registers/pages/config-page.js";
@@ -172,9 +173,26 @@ const structureRoute = createRoute({
   },
 });
 
+// One table of the system preview, read only, its page in the address (D32.2).
+const systemTableRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/system-tables/$name",
+  validateSearch: (raw: Record<string, unknown>): { page?: number } => {
+    const page = Number(raw["page"]);
+    return Number.isInteger(page) && page > 1 ? { page } : {};
+  },
+  beforeLoad: ({ context }) => admitPrivate(context),
+  component: function SystemTableRoute() {
+    const navigate = systemTableRoute.useNavigate();
+    const { page } = systemTableRoute.useSearch();
+    const onPage = useCallback((next: number, options?: Readonly<{ replace?: boolean }>) => void navigate({ search: next > 1 ? { page: next } : {}, replace: options?.replace ?? false }), [navigate]);
+    return <SystemTablePage name={systemTableRoute.useParams().name} page={page ?? 1} onPage={onPage} />;
+  },
+});
+
 export function createAppRouter(queryClient: QueryClient) {
   return createRouter({
-    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute, registersRoute, registryRoute, structureRoute, dictionariesRoute, configRoute, designerRoute]),
+    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute, registersRoute, registryRoute, structureRoute, systemTableRoute, dictionariesRoute, configRoute, designerRoute]),
     context: { queryClient },
     defaultPreload: false,
   });

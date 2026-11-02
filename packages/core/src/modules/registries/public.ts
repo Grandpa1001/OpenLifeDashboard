@@ -41,3 +41,5 @@ export type { SystemRow, SystemTableName, SystemValue } from "./domain/system-ta
 export { listSystemTables, readSystemTable } from "./application/system-tables.js";
 export type { SystemTableDependencies, SystemTableOverview, SystemTablePage, SystemTablePorts, SystemTableQuery } from "./application/system-tables.js";
 export type { SystemTableReader, SystemTableSource } from "./ports.js";
+export { listRegistrySummaries } from "./application/registry-summaries.js";
+export type { RegistrySummary, RegistrySummaryPorts } from "./application/registry-summaries.js";

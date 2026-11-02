@@ -137,6 +137,7 @@ describe("D20.2 the table is the inventory", () => {
       "GET /api/v1/registries",
       "GET /api/v1/registries/:symbol/records",
       "GET /api/v1/registries/:symbol/records/:recordId",
+      "GET /api/v1/registry-summaries",
       "GET /api/v1/screens",
       "GET /api/v1/screens/:id",
       "GET /api/v1/system-tables",
@@ -229,6 +230,7 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     expect((await run(route("PUT", "/design"), ids, designOf(registry, ids.widget))).status).toBe(200);
     await run(route("GET", "/widget-types"), ids);
     await run(route("GET", "/data"), ids);
+    await run(route("GET", "/registry-summaries"), ids);
     await run(route("GET", "/system-tables"), ids);
     await run(route("GET", "/system-tables/:name"), ids);
     // Last, because it raises the schema revision the requests above are built on: a rename of the column

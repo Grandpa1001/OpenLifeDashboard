@@ -6,11 +6,13 @@
 import {
   createRegistryRequestSchema,
   REGISTRIES_PATH,
+  REGISTRY_SUMMARIES_PATH,
+  type RegistrySummaryListDto,
   type RegistryDto,
   type RegistryListDto,
 } from "@openlife/contracts/http/registries";
 import type { ReadUnit, UnitOfWork } from "@openlife/core/foundation";
-import { createRegistry, listRegistries, type RegistryLimits, type RegistryPorts, type StoredRegistry } from "@openlife/core/registries";
+import { createRegistry, listRegistries, listRegistrySummaries, type RegistryLimits, type RegistryPorts, type RegistrySummaryPorts, type StoredRegistry } from "@openlife/core/registries";
 import type { Hono } from "hono";
 import type { SignedCookie } from "../../adapters/auth/session-cookie.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
@@ -20,6 +22,8 @@ import { createSessionOperationKit } from "../session-operation.js";
 
 export type RegistryRouteDependencies = Readonly<{
   unit: UnitOfWork<RegistryPorts> & ReadUnit<RegistryPorts>;
+  /** The cards of the registries read their records and the widgets bound to them (D32.2). */
+  summaries: ReadUnit<RegistrySummaryPorts>;
   cookies: SignedCookie;
   allowedOrigin: string;
   /** Wall clock in milliseconds. */
@@ -72,6 +76,16 @@ export function registerRegistryRoutes(app: Hono<AppEnv>, deps: RegistryRouteDep
         return refused(c, result.error);
       }
       const dto: RegistryListDto = { registries: result.value.map(toDto) };
+      return c.json(dto);
+    }),
+  );
+
+  app.get(
+    REGISTRY_SUMMARIES_PATH,
+    read((c, token) => {
+      const result = listRegistrySummaries({ unit: deps.summaries, nowMs: deps.nowMs }, token, c.get("requestId"));
+      if (!result.ok) return refused(c, result.error);
+      const dto: RegistrySummaryListDto = { summaries: result.value.map((each) => ({ registryId: each.registry.id, symbol: each.registry.symbol, records: each.records, widgets: each.widgets })) };
       return c.json(dto);
     }),
   );

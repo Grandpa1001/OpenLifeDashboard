@@ -130,6 +130,13 @@ main.page-wide {
   list-style: none;
 }
 
+/* The tables of the system preview on /registers (D32.2): read-only entries, two to a row where there is room. */
+.system-tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-4);
+}
+
 .registry-card h3 {
   margin: 0;
   font-size: var(--text-lg);

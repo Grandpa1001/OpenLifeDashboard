@@ -65,6 +65,15 @@ export type RegistryDto = z.infer<typeof registrySchema>;
 export const registryListSchema = z.object({ registries: z.array(registrySchema) }).strict();
 export type RegistryListDto = z.infer<typeof registryListSchema>;
 
+// The cards of the registries (Scope §5.5, makieta 06; D32.2): the records of each active registry and
+// the widgets bound to it. A path of its own, so the list above keeps its shape and its cost for the
+// many screens that read only the definitions.
+export const REGISTRY_SUMMARIES_PATH = "/api/v1/registry-summaries";
+export const registrySummaryListSchema = z
+  .object({ summaries: z.array(z.object({ registryId: z.string(), symbol: z.string(), records: z.number().int().min(0), widgets: z.number().int().min(0) }).strict()) })
+  .strict();
+export type RegistrySummaryListDto = z.infer<typeof registrySummaryListSchema>;
+
 /** The issues a rejected definition lists in `details.issues`: where, and why as a stable code. */
 export const registryIssueSchema = z.object({ path: z.string(), code: z.string() }).strict();
 export const registryRejectionDetailsSchema = z.object({ issues: z.array(registryIssueSchema) }).strict();

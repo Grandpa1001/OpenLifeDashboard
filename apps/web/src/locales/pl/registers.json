@@ -10,7 +10,15 @@
     "columns_many": "{{count}} kolumn",
     "columns_other": "{{count}} kolumny",
     "new": "Nowy rejestr",
-    "config": "Słowniki i konfiguracja"
+    "config": "Słowniki i konfiguracja",
+    "records_one": "{{count}} rekord",
+    "records_few": "{{count}} rekordy",
+    "records_many": "{{count}} rekordów",
+    "records_other": "{{count}} rekordu",
+    "widgets_one": "{{count}} widget",
+    "widgets_few": "{{count}} widgety",
+    "widgets_many": "{{count}} widgetów",
+    "widgets_other": "{{count}} widgetu"
   },
   "types": {
     "text": "Tekst",
@@ -411,5 +419,26 @@
     },
     "newDictionary": "Nowy słownik",
     "newDictionaryOf": "Nowy słownik dla kolumny {{name}}"
+  },
+  "system": {
+    "heading": "Systemowe",
+    "lead": "Tabele aplikacji tylko do odczytu. Dane logowania, sesje i ustawienia nie są tu pokazywane.",
+    "loading": "Wczytywanie tabel systemowych…",
+    "rows_one": "{{count}} wiersz",
+    "rows_few": "{{count}} wiersze",
+    "rows_many": "{{count}} wierszy",
+    "rows_other": "{{count}} wiersza",
+    "readOnly": "tylko do odczytu",
+    "unknown": "Nie ma takiej tabeli systemowej.",
+    "empty": "Ta tabela nie ma jeszcze wierszy.",
+    "pager": "Strony tabeli",
+    "tables": {
+      "registry": "Katalog rejestrów",
+      "registry_column": "Kolumny rejestrów",
+      "screen": "Ekrany",
+      "widget": "Widgety",
+      "binding": "Powiązania",
+      "audit_log": "Audit log"
+    }
   }
 }

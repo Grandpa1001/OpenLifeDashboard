@@ -415,6 +415,9 @@ jobs:
       - name: Verify D31.3 (a dictionary from the window of columns and the repair of a broken binding in a browser, S8, S10)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D31.3
+      - name: Verify D32.2 (the cards of the registries and the section System in a browser)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D32.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -774,6 +777,9 @@ jobs:
       - name: Verify D31 (the parent, D31.1–D31.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D31
+      - name: Verify D32 (the parent, D32.1–D32.2 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D32
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
