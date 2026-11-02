@@ -525,15 +525,9 @@ main.page-wide {
   gap: var(--space-3);
 }
 
-.structure-row .structure-symbol,
-.structure-row .structure-type {
+.structure-row .structure-symbol {
   align-self: center;
   overflow-wrap: anywhere;
-}
-
-.structure-row .structure-type {
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
 }
 
 /* A note under a row (the value for empty cells, why a removal) spans the whole row. */

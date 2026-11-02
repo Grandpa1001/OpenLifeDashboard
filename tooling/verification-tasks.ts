@@ -3257,6 +3257,53 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D31.2",
+    ready: true,
+    title: "A change of a column's type in the browser (makieta 20): the report of the conversion, the copy pre_type_change and the three ways out of a required column (S9)",
+    criteria: ["D31.2-AC1", "D31.2-AC2", "D31.2-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA, the unit tests read core from its build.
+        id: "workspace-build",
+        criteria: ["D31.2-AC1", "D31.2-AC2"],
+        description: "pnpm -r build: the type of a column in the rows of Manage columns, the report of the conversion and its ways out in the window of effects",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "apps/web/src/features/registers/components/conversion-report.tsx",
+          "apps/web/src/features/registers/components/structure-effects-dialog.tsx",
+          "apps/web/src/features/registers/components/new-registry-form.tsx",
+          "apps/web/src/features/registers/lib/structure-draft.ts",
+          "apps/web/src/features/registers/pages/structure-page.tsx",
+        ],
+      },
+      {
+        id: "structure-draft-web",
+        criteria: ["D31.2-AC1", "D31.2-AC2"],
+        description:
+          "The draft as pure functions: a change of type with its options is one edit core accepts and back to the stored type no change; a replacement of the new type is typed as in a record and a bad or empty one refused, making the column optional drops the replacement; the issues of the type land at the type",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/structure-draft.test.ts"],
+        requires: ["tests/unit/web/structure-draft.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D31.2-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/registers.json", "apps/web/src/locales/en/registers.json"],
+      },
+      {
+        id: "structure-type-e2e",
+        criteria: ["D31.2-AC1", "D31.2-AC2"],
+        description:
+          "Playwright on a fresh installation: S9 on an optional column, 12 and abc text to number, reports 1 converted and abc that cannot be converted, is saved after its copy pre_type_change and the records hold 12 and nothing; F01 strony number to text; a required column is blocked with nothing to save, correct the data opens the records searched for abc, a bad replacement is told at its field without a request, a good one and making the column optional are new previews that save; an unsupported pair is told at the type; a copy that cannot be made leaves the window with SNAPSHOT_FAILED and changes nothing; axe; Manage columns of D31.1, the kreator and the dictionaries as before",
+        command: ["node", "tests/verification/e2e.ts", "structure-type", "structure.spec", "new-registry", "dictionaries"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/structure-type.spec.ts", "tests/e2e/structure.spec.ts", "tests/e2e/new-registry.spec.ts", "tests/e2e/dictionaries.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D31.2-regression"),
+    ],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",

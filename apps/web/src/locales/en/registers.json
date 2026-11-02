@@ -353,6 +353,33 @@
       "registry": "registry",
       "columns": "columns",
       "sortColumn": "sort"
+    },
+    "typeOf": "Type of the column {{name}}",
+    "placesOf": "Decimal places of the column {{name}}",
+    "dictionaryOf": "Dictionary of the column {{name}}",
+    "report": {
+      "heading": "Conversion report",
+      "converted": "Converted",
+      "unchanged": "Unchanged",
+      "empty": "Empty",
+      "failed": "Cannot be converted",
+      "samples": "Values that cannot be converted",
+      "sample_one": "“{{value}}” — {{count}} record",
+      "sample_other": "“{{value}}” — {{count}} records",
+      "emptied_one": "{{count}} value that cannot be converted will be left empty.",
+      "emptied_other": "{{count}} values that cannot be converted will be left empty.",
+      "exits": "Choose one of three ways out",
+      "fix": "Correct the data in the records",
+      "fixHint": "Opens the list of records searched for the value. After the correction come back here and show the effects again.",
+      "fixLink": "Show the records with “{{value}}”",
+      "replacement": "Replacement value",
+      "replacementHint_one": "{{count}} record gets this value; the others keep theirs.",
+      "replacementHint_other": "{{count}} records get this value; the others keep theirs.",
+      "useReplacement": "Use the replacement",
+      "optional": "Make the column optional",
+      "optionalHint_one": "{{count}} record is left without a value in this column.",
+      "optionalHint_other": "{{count}} records are left without a value in this column.",
+      "makeOptional": "Make it optional"
     }
   }
 }

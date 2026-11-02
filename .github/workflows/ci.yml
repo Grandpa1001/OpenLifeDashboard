@@ -406,6 +406,9 @@ jobs:
       - name: Verify D31.1 (manage columns, the effects of a change and the deletion of a registry in a browser, S8, S10)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D31.1
+      - name: Verify D31.2 (a change of type with its report and the ways out of a required column in a browser, S9)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D31.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

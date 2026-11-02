@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { describeFailure, type ErrorMessage } from "../../../lib/failures/error-message.js";
 import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { carryOutStructureChange } from "../api/structure.js";
+import { ConversionReport } from "./conversion-report.js";
 
 /** Refusals after which a new preview may succeed: the registry or the time moved on since this one. */
 const PLAN_CODES: ReadonlySet<string> = new Set(["PLAN_STALE", "PLAN_EXPIRED", "PLAN_INVALID"]);
@@ -34,7 +35,8 @@ export function StructureEffectsDialog({
   description: string;
   preview: StructurePreviewDto;
   reviewing: boolean;
-  onReview: () => void;
+  /** A new preview of this change, or of `next` (the same change with a way out of a block). */
+  onReview: (next?: StructureChangeRequest) => void;
   onDone: (changed: StructureChangedDto) => void;
   onClose: () => void;
   onGateLost: () => void;
@@ -85,7 +87,8 @@ export function StructureEffectsDialog({
   return (
     <dialog
       ref={dialog}
-      className="dialog dialog-narrow"
+      // A change of type has its report and its ways out beside the effects: the wider window.
+      className={change.kind === "changeType" ? "dialog" : "dialog dialog-narrow"}
       aria-labelledby="structure-effects-heading"
       onCancel={(event) => {
         event.preventDefault();
@@ -111,6 +114,7 @@ export function StructureEffectsDialog({
             <dd>{preview.affected}</dd>
           </div>
         </dl>
+        {change.kind === "changeType" ? <ConversionReport symbol={symbol} change={change} preview={preview} reviewing={reviewing} onReview={onReview} /> : null}
         {preview.widgets.length === 0 ? (
           <p>{t("structure.effects.noWidgets")}</p>
         ) : (
@@ -144,7 +148,7 @@ export function StructureEffectsDialog({
             {t("record.cancel")}
           </button>
           {planOutgrown ? (
-            <button type="button" onClick={onReview} disabled={reviewing}>
+            <button type="button" onClick={() => onReview()} disabled={reviewing}>
               {reviewing ? t("structure.reviewing") : t("structure.effects.review")}
             </button>
           ) : preview.blocked === null ? (

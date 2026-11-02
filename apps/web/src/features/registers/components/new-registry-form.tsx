@@ -284,34 +284,17 @@ export function ColumnRow({
       <legend className="visually-hidden">{t("form.column", { position })}</legend>
       <Field label={t("form.columnName")} labelHidden value={column.displayName} onChange={(event) => onName(event.target.value)} error={errorFor(paths.name)} autoComplete="off" required />
       <Field label={t("form.columnSymbol")} labelHidden value={column.symbol} onChange={(event) => onSymbol(event.target.value)} error={errorFor(paths.symbol)} autoComplete="off" autoCapitalize="none" spellCheck={false} required />
-      <div className="column-type">
-        <SelectField label={t("form.type")} labelHidden value={column.type} onChange={(event) => onType(event.target.value as ColumnTypeCode)} error={errorFor(paths.type)}>
-          {COLUMN_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {t(`types.${type}`)}
-            </option>
-          ))}
-        </SelectField>
-        {column.type === "number" ? (
-          <SelectField label={t("form.decimalPlaces")} labelHidden value={String(column.decimalPlaces)} onChange={(event) => onDecimals(Number(event.target.value))} error={errorFor(paths.options)}>
-            {Array.from({ length: DECIMAL_PLACES_MAX + 1 }, (_, places) => (
-              <option key={places} value={places}>
-                {places}
-              </option>
-            ))}
-          </SelectField>
-        ) : null}
-        {column.type === "choice" ? (
-          <SelectField label={t("form.dictionaryOf", { position })} labelHidden value={column.dictionaryId} onChange={(event) => onDictionary(event.target.value)} error={errorFor(paths.dictionary)}>
-            <option value="">{t("form.noDictionary")}</option>
-            {dictionaries.map((dictionary) => (
-              <option key={dictionary.id} value={dictionary.id}>
-                {dictionary.displayName}
-              </option>
-            ))}
-          </SelectField>
-        ) : null}
-      </div>
+      <ColumnTypeFields
+        type={column.type}
+        decimalPlaces={column.decimalPlaces}
+        dictionaryId={column.dictionaryId}
+        dictionaries={dictionaries}
+        labels={{ type: t("form.type"), decimalPlaces: t("form.decimalPlaces"), dictionary: t("form.dictionaryOf", { position }) }}
+        errors={{ type: errorFor(paths.type), options: errorFor(paths.options), dictionary: errorFor(paths.dictionary) }}
+        onType={onType}
+        onDecimals={onDecimals}
+        onDictionary={onDictionary}
+      />
       <label className="check column-required">
         <input type="checkbox" checked={column.required} onChange={(event) => onRequired(event.target.checked)} />
         <span className="visually-hidden">{t("form.required")}</span>
@@ -324,5 +307,62 @@ export function ColumnRow({
         <span />
       )}
     </fieldset>
+  );
+}
+
+/** The type of a column with its options beside it (makieta 07, 19): the places of a number, the dictionary of a choice. */
+export function ColumnTypeFields({
+  type,
+  decimalPlaces,
+  dictionaryId,
+  dictionaries,
+  labels,
+  errors,
+  disabled = false,
+  onType,
+  onDecimals,
+  onDictionary,
+}: Readonly<{
+  type: ColumnTypeCode;
+  decimalPlaces: number;
+  dictionaryId: string;
+  dictionaries: readonly DictionaryDto[];
+  labels: Readonly<{ type: string; decimalPlaces: string; dictionary: string }>;
+  errors: Readonly<{ type: string | null; options: string | null; dictionary: string | null }>;
+  disabled?: boolean;
+  onType: (value: ColumnTypeCode) => void;
+  onDecimals: (value: number) => void;
+  onDictionary: (dictionaryId: string) => void;
+}>) {
+  const { t } = useTranslation("registers");
+  return (
+    <div className="column-type">
+      <SelectField label={labels.type} labelHidden value={type} disabled={disabled} onChange={(event) => onType(event.target.value as ColumnTypeCode)} error={errors.type}>
+        {COLUMN_TYPES.map((each) => (
+          <option key={each} value={each}>
+            {t(`types.${each}`)}
+          </option>
+        ))}
+      </SelectField>
+      {type === "number" ? (
+        <SelectField label={labels.decimalPlaces} labelHidden value={String(decimalPlaces)} disabled={disabled} onChange={(event) => onDecimals(Number(event.target.value))} error={errors.options}>
+          {Array.from({ length: DECIMAL_PLACES_MAX + 1 }, (_, places) => (
+            <option key={places} value={places}>
+              {places}
+            </option>
+          ))}
+        </SelectField>
+      ) : null}
+      {type === "choice" ? (
+        <SelectField label={labels.dictionary} labelHidden value={dictionaryId} disabled={disabled} onChange={(event) => onDictionary(event.target.value)} error={errors.dictionary}>
+          <option value="">{t("form.noDictionary")}</option>
+          {dictionaries.map((dictionary) => (
+            <option key={dictionary.id} value={dictionary.id}>
+              {dictionary.displayName}
+            </option>
+          ))}
+        </SelectField>
+      ) : null}
+    </div>
   );
 }

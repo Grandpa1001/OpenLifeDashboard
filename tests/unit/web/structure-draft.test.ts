@@ -1,10 +1,10 @@
-// D31.1 — the draft of the window "Manage columns" (Scope §5.6, makieta 19) as pure functions: one
+// D31.1, D31.2 — the draft of the window "Manage columns" (Scope §5.6, makieta 19, 20) as pure functions: one
 // change at a time, its request as core reads it, the values for empty cells and the default
 // converted as the window of a record converts them, and the issues of a refusal at their field.
 import { describe, expect, it } from "vitest";
 import type { RegistryDto } from "@openlife/contracts/http/registries";
 import { DEFAULT_REGISTRY_LIMITS, validateStructureChange, type StructureSchema } from "../../../packages/core/dist/modules/registries/public.js";
-import { ADDED, changeOf, columnKeys, columnPaths, draftOf, editsOf, fieldOfIssue, newAddedColumn, waits, type StructureDraft } from "../../../apps/web/src/features/registers/lib/structure-draft.js";
+import { ADDED, changeOf, columnKeys, columnPaths, draftOf, editsOf, fieldOfIssue, newAddedColumn, waits, withExit, type StructureDraft } from "../../../apps/web/src/features/registers/lib/structure-draft.js";
 
 const TZ = "Europe/Warsaw";
 const column = (id: string, symbol: string, displayName: string, type: RegistryDto["columns"][number]["type"], position: number, extra: Partial<RegistryDto["columns"][number]> = {}) => ({ id, symbol, displayName, type, typeOptions: {}, defaultValue: null, required: false, position, ...extra });
@@ -87,5 +87,33 @@ describe("D31.1 the draft of the structure", () => {
     expect([fieldOfIssue(required, "replacement"), fieldOfIssue(required, "columnId"), fieldOfIssue(required, "kind")]).toEqual([columnPaths(DATA).replacement, columnPaths(DATA).column, columnPaths(DATA).column]);
     expect(fieldOfIssue({ kind: "renameColumn", columnId: AUTOR, displayName: "" }, "displayName")).toBe(columnPaths(AUTOR).displayName);
     expect(fieldOfIssue({ kind: "deleteRegistry" }, "kind")).toBe("registry");
+  });
+});
+
+describe("D31.2 a change of type in the draft", () => {
+  it("is one edit of the column with its options; back to the stored type and options it is no change; core accepts it", () => {
+    const draft = draftOf(BOOKS);
+    const toText = edit(draft, STRONY, { type: "text", decimalPlaces: 0 });
+    const edits = editsOf(toText, BOOKS);
+    expect(edits).toEqual([{ kind: "type", columnId: STRONY }]);
+    expect([waits(edits, columnKeys(STRONY).type), waits(edits, columnKeys(STRONY).rename)]).toEqual([false, true]);
+    const change = changeOf(edits[0]!, toText, BOOKS, TZ);
+    expect(change).toEqual({ ok: true, change: { kind: "changeType", columnId: STRONY, type: "text", typeOptions: {} } });
+    expect(change.ok && accepted(change.change)).toBe(true);
+    // Other places are a change of the same type; the stored places are none.
+    expect(editsOf(edit(draft, STRONY, { decimalPlaces: 2 }), BOOKS)).toEqual([{ kind: "type", columnId: STRONY }]);
+    expect(editsOf(edit(draft, STRONY, { type: "number", decimalPlaces: 0 }), BOOKS)).toEqual([]);
+  });
+
+  it("takes one way out at a time: a replacement of the new type typed as in a record, or the column made optional", () => {
+    const change = { kind: "changeType", columnId: AUTOR, type: "number", typeOptions: { decimalPlaces: 1 } } as const;
+    expect(withExit(change, { kind: "replacement", text: "0,5" }, TZ)).toEqual({ ok: true, change: { ...change, replacement: 0.5 } });
+    expect(withExit(change, { kind: "replacement", text: "abc" }, TZ)).toEqual({ ok: false, problem: "REPLACEMENT_INVALID" });
+    expect(withExit(change, { kind: "replacement", text: "" }, TZ)).toEqual({ ok: false, problem: "REPLACEMENT_INVALID" });
+    expect(withExit(change, { kind: "replacement", text: "0,55" }, TZ)).toEqual({ ok: false, problem: "REPLACEMENT_INVALID" });
+    const replaced = withExit(change, { kind: "replacement", text: "1" }, TZ);
+    expect(replaced.ok && replaced.change.kind === "changeType" && withExit(replaced.change, { kind: "optional" }, TZ)).toEqual({ ok: true, change: { ...change, required: false } });
+    expect(fieldOfIssue(change, "type")).toBe(columnPaths(AUTOR).type);
+    expect(fieldOfIssue(change, "typeOptions.dictionaryId")).toBe(columnPaths(AUTOR).type);
   });
 });

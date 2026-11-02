@@ -14,7 +14,7 @@ import { useOwnerDisplay } from "../../../lib/session/use-owner-display.js";
 import { previewStructureChange } from "../api/structure.js";
 import { useDictionaries } from "../api/use-dictionaries.js";
 import { registriesFailureOf, useRegistries } from "../api/use-registries.js";
-import { ColumnRow } from "../components/new-registry-form.js";
+import { ColumnRow, ColumnTypeFields } from "../components/new-registry-form.js";
 import { StructureEffectsDialog } from "../components/structure-effects-dialog.js";
 import { ValueField } from "../components/value-field.js";
 import { COLUMN_TYPES, withSuggestedSymbol, type ColumnTypeCode } from "../lib/registry-draft.js";
@@ -306,10 +306,18 @@ function StructureEditor({
                 autoComplete="off"
               />
               <code className="structure-symbol">{stored.symbol}</code>
-              <span className="structure-type">
-                {t(`types.${stored.type}`)}
-                {stored.type === "number" ? ` (${t("registry.places", { count: stored.typeOptions.decimalPlaces ?? 0 })})` : null}
-              </span>
+              <ColumnTypeFields
+                type={column.type}
+                decimalPlaces={column.decimalPlaces}
+                dictionaryId={column.dictionaryId}
+                dictionaries={dictionaries}
+                labels={{ type: t("structure.typeOf", { name: stored.displayName }), decimalPlaces: t("structure.placesOf", { name: stored.displayName }), dictionary: t("structure.dictionaryOf", { name: stored.displayName }) }}
+                errors={{ type: errorFor(paths.type), options: null, dictionary: null }}
+                disabled={column.removed || waits(edits, keys.type)}
+                onType={(type) => editColumn(column.id, (current) => ({ ...current, type, decimalPlaces: type === stored.type ? (stored.typeOptions.decimalPlaces ?? 0) : 0, dictionaryId: type === stored.type ? (stored.typeOptions.dictionaryId ?? "") : "" }))}
+                onDecimals={(decimalPlaces) => editColumn(column.id, (current) => ({ ...current, decimalPlaces }))}
+                onDictionary={(dictionaryId) => editColumn(column.id, (current) => ({ ...current, dictionaryId }))}
+              />
               <label className="check column-required">
                 <input
                   type="checkbox"
@@ -407,7 +415,7 @@ function StructureEditor({
           description={shown.description}
           preview={shown.preview}
           reviewing={previewing}
-          onReview={() => void preview(shown.change, null)}
+          onReview={(next) => void preview(next ?? shown.change, null)}
           onDone={() => finished(shown.change, shown.description)}
           onClose={closeEffects}
           onGateLost={onGateLost}

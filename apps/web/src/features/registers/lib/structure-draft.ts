@@ -6,7 +6,7 @@
 // that caused them.
 import type { RegistryDto, StructureChangeRequest } from "@openlife/contracts/http/registries";
 import { parseInput, type FormColumn } from "./record-input.js";
-import { emptyColumn, symbolProblem, typeOptionsOf, type ColumnDraft, type FieldPath, type FieldProblem } from "./registry-draft.js";
+import { COLUMN_TYPES, emptyColumn, symbolProblem, typeOptionsOf, type ColumnDraft, type ColumnTypeCode, type FieldPath, type FieldProblem } from "./registry-draft.js";
 
 /** A column of the registry as the window edits it. */
 export type ExistingColumn = Readonly<{
@@ -16,6 +16,10 @@ export type ExistingColumn = Readonly<{
   removed: boolean;
   /** The value typed for the empty cells when the column becomes required. */
   emptiesText: string;
+  /** The type and its options as the owner chose them (D31.2): a number's places, a choice's dictionary. */
+  type: ColumnTypeCode;
+  decimalPlaces: number;
+  dictionaryId: string;
 }>;
 
 /** The new column: the row of the kreator with the value its records get. */
@@ -24,14 +28,23 @@ export type AddedColumn = ColumnDraft & Readonly<{ defaultText: string }>;
 export type StructureDraft = Readonly<{ columns: readonly ExistingColumn[]; added: AddedColumn | null }>;
 
 export const draftOf = (registry: RegistryDto): StructureDraft => ({
-  columns: registry.columns.map((column) => ({ id: column.id, displayName: column.displayName, required: column.required, removed: false, emptiesText: "" })),
+  columns: registry.columns.map((column) => ({
+    id: column.id,
+    displayName: column.displayName,
+    required: column.required,
+    removed: false,
+    emptiesText: "",
+    type: column.type,
+    decimalPlaces: column.typeOptions.decimalPlaces ?? 0,
+    dictionaryId: column.typeOptions.dictionaryId ?? "",
+  })),
   added: null,
 });
 
 export const newAddedColumn = (): AddedColumn => ({ ...emptyColumn(0), defaultText: "" });
 
 /** The one thing the draft changes: a field of a column, or the new column. */
-export type Edit = Readonly<{ kind: "rename" | "required" | "remove"; columnId: string }> | Readonly<{ kind: "add" }>;
+export type Edit = Readonly<{ kind: "rename" | "required" | "remove" | "type"; columnId: string }> | Readonly<{ kind: "add" }>;
 
 /** The control an edit belongs to; every other control waits while it is in the draft. */
 export const editKey = (edit: Edit): string => (edit.kind === "add" ? "add" : `${edit.kind}:${edit.columnId}`);
@@ -45,21 +58,30 @@ export function editsOf(draft: StructureDraft, registry: RegistryDto): Edit[] {
     if (column.removed) edits.push({ kind: "remove", columnId: column.id });
     if (column.displayName.trim() !== stored.displayName) edits.push({ kind: "rename", columnId: column.id });
     if (column.required !== stored.required) edits.push({ kind: "required", columnId: column.id });
+    if (column.type !== stored.type || canonicalOptions(typeOptionsOf(column)) !== canonicalOptions(stored.typeOptions)) edits.push({ kind: "type", columnId: column.id });
   }
   if (draft.added !== null) edits.push({ kind: "add" });
   return edits;
 }
 
+/** Options compared whatever the order of their fields. */
+const canonicalOptions = (options: Readonly<Record<string, unknown>>): string => JSON.stringify(Object.keys(options).sort().map((key) => [key, options[key]]));
+
 /** The controls of one column, by the key of the edit each makes. */
-export const columnKeys = (columnId: string) => ({ rename: editKey({ kind: "rename", columnId }), required: editKey({ kind: "required", columnId }), remove: editKey({ kind: "remove", columnId }) });
+export const columnKeys = (columnId: string) => ({
+  rename: editKey({ kind: "rename", columnId }),
+  required: editKey({ kind: "required", columnId }),
+  remove: editKey({ kind: "remove", columnId }),
+  type: editKey({ kind: "type", columnId }),
+});
 
 /** True when the control `key` must wait: another edit is in the draft. */
 export const waits = (edits: readonly Edit[], key: string): boolean => edits.length > 0 && !edits.some((edit) => editKey(edit) === key);
 
 /** The paths of the fields of the window: a column's by its identifier, the new column's under `added`. */
-export const columnField = (columnId: string, field: "displayName" | "required" | "replacement" | "column"): FieldPath => (field === "column" ? `columns.${columnId}` : `columns.${columnId}.${field}`);
+export const columnField = (columnId: string, field: "displayName" | "required" | "replacement" | "type" | "column"): FieldPath => (field === "column" ? `columns.${columnId}` : `columns.${columnId}.${field}`);
 /** The paths of the fields of one column, by name. */
-export const columnPaths = (columnId: string) => ({ column: columnField(columnId, "column"), displayName: columnField(columnId, "displayName"), replacement: columnField(columnId, "replacement") });
+export const columnPaths = (columnId: string) => ({ column: columnField(columnId, "column"), displayName: columnField(columnId, "displayName"), replacement: columnField(columnId, "replacement"), type: columnField(columnId, "type") });
 export const ADDED = { column: "added", displayName: "added.displayName", symbol: "added.symbol", type: "added.type", typeOptions: "added.typeOptions", dictionary: "added.typeOptions.dictionaryId", defaultValue: "added.defaultValue", required: "added.required" } as const;
 
 export type DraftProblem = FieldProblem | "DEFAULT_INVALID" | "REPLACEMENT_INVALID";
@@ -109,14 +131,41 @@ export function changeOf(edit: Edit, draft: StructureDraft, registry: RegistryDt
       if (!parsed.ok) return { ok: false, problems: new Map([[columnField(column.id, "replacement"), "REPLACEMENT_INVALID"]]) };
       return { ok: true, change: { kind: "setRequired", columnId: column.id, required: true, ...(parsed.value === null ? {} : { replacement: parsed.value }) } };
     }
+    case "type":
+      // The column keeps whether it is required; the way out of a blocked plan is chosen in the window of effects.
+      return { ok: true, change: { kind: "changeType", columnId: column.id, type: column.type, typeOptions: typeOptionsOf(column) } };
   }
 }
+
+/** The way out of a change of type that would leave a required column without values (makieta 20). */
+export type TypeChangeExit = Readonly<{ kind: "replacement"; text: string }> | Readonly<{ kind: "optional" }>;
+export type ExitResult = Readonly<{ ok: true; change: StructureChangeRequest }> | Readonly<{ ok: false; problem: "REPLACEMENT_INVALID" }>;
+
+/**
+ * The change of type again with one way out: a replacement of the new type for the values that do
+ * not convert (typed as in the window of a record; nothing typed is no value), or the column made
+ * optional in the same change.
+ */
+export function withExit(change: Extract<StructureChangeRequest, { kind: "changeType" }>, exit: TypeChangeExit, timeZone: string): ExitResult {
+  // One way out at a time: the other one of an earlier preview is not carried over.
+  const rest = { kind: change.kind, columnId: change.columnId, type: change.type, ...(change.typeOptions === undefined ? {} : { typeOptions: change.typeOptions }) };
+  if (exit.kind === "optional") return { ok: true, change: { ...rest, required: false } };
+  const target: FormColumn = { symbol: "", displayName: "", type: changeTypeCode(change.type), typeOptions: change.typeOptions ?? {}, defaultValue: null, required: true };
+  const parsed = parseInput(target, exit.text, timeZone);
+  if (!parsed.ok || parsed.value === null) return { ok: false, problem: "REPLACEMENT_INVALID" };
+  return { ok: true, change: { ...rest, replacement: parsed.value } };
+}
+
+const isColumnType = (type: string): type is ColumnTypeCode => (COLUMN_TYPES as readonly string[]).includes(type);
+/** The type a change names; one the web app does not know is read as text, which the server then refuses. */
+const changeTypeCode = (type: string): ColumnTypeCode => (isColumnType(type) ? type : "text");
 
 /** The field of the window an issue of a refused change names (`details.issues[].path`). */
 export function fieldOfIssue(change: StructureChangeRequest, path: string): FieldPath {
   if (change.kind === "addColumn") return path === "column" ? ADDED.column : path.startsWith("column.") ? `${ADDED.column}.${path.slice("column.".length)}` : ADDED.column;
   if (change.kind === "deleteRegistry") return "registry";
   if (path === "columnId") return columnField(change.columnId, "column");
+  if (change.kind === "changeType") return path === "type" || path.startsWith("typeOptions") ? columnField(change.columnId, "type") : columnField(change.columnId, "column");
   if (path === "displayName" || path === "required" || path === "replacement") return columnField(change.columnId, path);
   return columnField(change.columnId, "column");
 }
