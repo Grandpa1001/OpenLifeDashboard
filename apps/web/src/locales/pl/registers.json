@@ -74,7 +74,12 @@
     "LIMIT_COLUMNS": "Za dużo kolumn.",
     "LIMIT_REGISTRIES": "Osiągnięto limit rejestrów.",
     "UNKNOWN": "Ta wartość nie jest prawidłowa.",
-    "DICTIONARY_UNKNOWN": "Nie ma takiego słownika. Wybierz inny."
+    "DICTIONARY_UNKNOWN": "Nie ma takiego słownika. Wybierz inny.",
+    "REPLACEMENT_INVALID": "Ta wartość nie pasuje do typu kolumny.",
+    "COLUMN_LAST": "Nie można usunąć ostatniej kolumny rejestru.",
+    "COLUMN_UNKNOWN": "Tej kolumny już nie ma. Odśwież stronę.",
+    "CHANGE_EMPTY": "Ta zmiana niczego nie zmienia.",
+    "TYPE_CHANGE_UNSUPPORTED": "Tej zmiany typu nie da się wykonać."
   },
   "registry": {
     "loading": "Wczytywanie rejestru…",
@@ -306,6 +311,68 @@
       "DESCRIPTION_TOO_LONG": "Opis jest za długi (do 500 znaków).",
       "DESCRIPTION_INVALID": "Opis zawiera niedozwolone znaki (np. tabulator).",
       "LIMIT_ENTRIES": "Osiągnięto limit wpisów konfiguracji."
+    }
+  },
+  "structure": {
+    "manage": "Zarządzaj kolumnami",
+    "heading": "{{name}} — kolumny",
+    "lead": "Każda zmiana struktury dotyka rekordów i podpiętych widgetów. Przed zapisem zobaczysz skutki. Zmiany zapisuje się po jednej.",
+    "columnName": "Nazwa kolumny {{name}}",
+    "requiredOf": "Kolumna {{name}} wymagana",
+    "removeColumn": "Usuń kolumnę {{name}}",
+    "keepColumn": "Zostaw kolumnę {{name}}",
+    "keep": "Zostaw",
+    "removedNote": "Kolumna zostanie usunięta razem z jej wartościami.",
+    "empties": "Wartość dla pustych",
+    "emptiesHint": "Rekordy bez wartości w tej kolumnie dostaną tę wartość. Bez niej zmiana jest możliwa tylko, gdy żaden rekord nie jest pusty.",
+    "default": "Wartość domyślna",
+    "defaultHint": "Nieobowiązkowa. Dostaną ją istniejące rekordy i nowe, w których jej nie wpiszesz.",
+    "defaultRequired": "Wartość domyślna · obowiązkowa",
+    "defaultRequiredHint": "Kolumna jest wymagana, więc istniejące rekordy dostaną tę wartość.",
+    "noChange": "Brak zmian do zapisania.",
+    "fixFields": "Popraw zaznaczone pola.",
+    "showEffects": "Pokaż skutki i zapisz",
+    "reviewing": "Sprawdzanie skutków…",
+    "saving": "Zapisywanie…",
+    "done": "Zapisano: {{change}}.",
+    "deleteHeading": "Usunięcie rejestru",
+    "deleteHint": "Przed usunięciem powstanie kopia w backup/. Rejestr można odtworzyć z tej kopii według README.",
+    "deleteRegistry": "Usuń rejestr",
+    "change": {
+      "addColumn": "Dodanie kolumny „{{name}}”",
+      "renameColumn": "Zmiana nazwy kolumny „{{name}}” na „{{to}}”",
+      "removeColumn": "Usunięcie kolumny „{{name}}”",
+      "requiredOn": "Kolumna „{{name}}” staje się wymagana",
+      "requiredOff": "Kolumna „{{name}}” przestaje być wymagana",
+      "changeType": "Zmiana typu kolumny „{{name}}” na {{type}}",
+      "deleteRegistry": "Usunięcie rejestru „{{name}}”"
+    },
+    "effects": {
+      "heading": "Skutki zmiany",
+      "records": "Rekordy w rejestrze",
+      "affected": "Rekordy, które zmiana zmieni",
+      "noWidgets": "Żaden widget nie korzysta z tego rejestru.",
+      "widgets_one": "{{count}} widget korzysta z tego rejestru. Może wymagać aktualizacji podpięcia.",
+      "widgets_few": "{{count}} widgety korzystają z tego rejestru. Mogą wymagać aktualizacji podpięcia.",
+      "widgets_many": "{{count}} widgetów korzysta z tego rejestru. Mogą wymagać aktualizacji podpięcia.",
+      "widgets_other": "{{count}} widgetu korzysta z tego rejestru. Mogą wymagać aktualizacji podpięcia.",
+      "widgetList": "Powiązane widgety",
+      "untitled": "bez tytułu",
+      "copy": "Przed zmianą powstanie kopia w backup/. Odtworzenie z niej opisuje README; nie da się go wykonać z interfejsu.",
+      "aware": "Jestem świadomy skutków tej zmiany",
+      "nothingYet": "Nic nie zostało jeszcze zmienione.",
+      "save": "Zapisz zmianę",
+      "delete": "Usuń rejestr",
+      "review": "Pokaż skutki ponownie"
+    },
+    "blocked": {
+      "REQUIRED_EMPTY": "Zmiana zablokowana: kolumna wymagana nie może zostawić pustych rekordów. Podaj wartość dla nich i pokaż skutki ponownie.",
+      "REQUIRED_VALUES_LOST": "Zmiana zablokowana: kolumna jest wymagana, a części wartości nie da się przekształcić."
+    },
+    "slots": {
+      "registry": "rejestr",
+      "columns": "kolumny",
+      "sortColumn": "sortowanie"
     }
   }
 }

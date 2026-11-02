@@ -68,7 +68,8 @@ export function withSuggestedSymbol<T extends { displayName: string; symbol: str
   return draft.symbolEdited || draft.displayName.trim() === "" ? { ...draft, symbol: draft.symbolEdited ? draft.symbol : "" } : { ...draft, symbol: suggestSymbol(draft.displayName, taken) };
 }
 
-function symbolProblem(symbol: string, taken: ReadonlySet<string>): FieldProblem | null {
+/** What is plainly wrong with a symbol before the server sees it: empty, out of pattern, too long or already in `taken`. */
+export function symbolProblem(symbol: string, taken: ReadonlySet<string>): FieldProblem | null {
   if (symbol === "") return "SYMBOL_EMPTY";
   if (!SYMBOL_PATTERN.test(symbol)) return "SYMBOL_PATTERN";
   if (symbol.length > SYMBOL_MAX_LENGTH) return "SYMBOL_TOO_LONG";
@@ -94,6 +95,10 @@ export function liveProblems(draft: RegistryDraft, takenRegistrySymbols: Readonl
   return problems;
 }
 
+/** The options of a column's type as the request states them: the places of a number, the dictionary of a choice. */
+export const typeOptionsOf = (column: Pick<ColumnDraft, "type" | "decimalPlaces" | "dictionaryId">): Record<string, unknown> =>
+  column.type === "number" ? { decimalPlaces: column.decimalPlaces } : column.type === "choice" && column.dictionaryId !== "" ? { dictionaryId: column.dictionaryId } : {};
+
 /** The request for a draft that has no live problem; a column carries no default. */
 export function requestOf(draft: RegistryDraft): CreateRegistryRequest {
   return {
@@ -103,7 +108,7 @@ export function requestOf(draft: RegistryDraft): CreateRegistryRequest {
       symbol: column.symbol,
       displayName: column.displayName.trim(),
       type: column.type,
-      typeOptions: column.type === "number" ? { decimalPlaces: column.decimalPlaces } : column.type === "choice" && column.dictionaryId !== "" ? { dictionaryId: column.dictionaryId } : {},
+      typeOptions: typeOptionsOf(column),
       required: column.required,
     })),
   };

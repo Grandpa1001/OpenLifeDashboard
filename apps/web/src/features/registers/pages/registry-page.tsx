@@ -11,8 +11,8 @@ import { Field } from "../../../lib/forms/field.js";
 import { SelectField } from "../../../lib/forms/select-field.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
 import { useOwnerDisplay } from "../../../lib/session/use-owner-display.js";
-import { fetchRegistries } from "../api/registries.js";
 import { fetchRecordPage } from "../api/records.js";
+import { registriesFailureOf, useRegistries } from "../api/use-registries.js";
 import { DeleteRecordDialog } from "../components/delete-record-dialog.js";
 import { RecordDialog } from "../components/record-dialog.js";
 import { RecordsTable } from "../components/records-table.js";
@@ -65,17 +65,7 @@ export function RegistryPage({ symbol, view, onView }: Readonly<{ symbol: string
   const opener = useRef<HTMLElement | null>(null);
   const returnFocus = useRef(false);
 
-  const registries = useQuery({
-    queryKey: queryKeys.registries.list,
-    queryFn: async ({ signal }) => {
-      const result = await fetchRegistries(signal);
-      if (!result.ok) {
-        if (result.failure.kind === "aborted") throw new DOMException("aborted", "AbortError");
-        throw new CallFailure(result.failure);
-      }
-      return result.value.registries;
-    },
-  });
+  const registries = useRegistries();
   const registry = registries.data?.find((candidate) => candidate.symbol === symbol) ?? null;
 
   const { locale, timeZone } = useOwnerDisplay();
@@ -103,7 +93,7 @@ export function RegistryPage({ symbol, view, onView }: Readonly<{ symbol: string
     },
   });
 
-  const registriesFailure = failureOf(registries.error);
+  const registriesFailure = registriesFailureOf(registries.error);
   const recordsFailure = failureOf(records.error);
   const gone = leavesTheGate(registriesFailure) || leavesTheGate(recordsFailure);
   const askGuard = useCallback((): void => {
@@ -164,7 +154,14 @@ export function RegistryPage({ symbol, view, onView }: Readonly<{ symbol: string
           </>
         )}
       </div>
-      {registry === null ? null : <ColumnChips columns={columns} />}
+      {registry === null ? null : (
+        <>
+          <ColumnChips columns={columns} />
+          <Link to="/registers/$symbol/columns" params={{ symbol: registry.symbol }} className="structure-manage">
+            {t("structure.manage")}
+          </Link>
+        </>
+      )}
       {done === null ? null : <p role="status">{t(`record.done.${done}`)}</p>}
 
       {registries.isPending ? <p role="status">{t("registry.loading")}</p> : null}

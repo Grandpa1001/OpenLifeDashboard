@@ -248,8 +248,8 @@ export function NewRegistryForm({
   );
 }
 
-/** One column of the new registry as one row (makieta 07): name, symbol, type with its options (a dictionary for a choice), required, remove. */
-function ColumnRow({
+/** One new column as one row (makieta 07, also the new column of makieta 19): name, symbol, type with its options (a dictionary for a choice), required, remove. */
+export function ColumnRow({
   index,
   column,
   dictionaries,

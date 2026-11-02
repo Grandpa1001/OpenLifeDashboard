@@ -47,7 +47,8 @@ export function applyColumnChange(ports: ColumnChangePorts, deps: ColumnChangeDe
       const assessed = assessChange(change, { records });
       // The plan is current, so the records are those of the preview: a blocked change here is a bug, not a state.
       if (assessed.blocked !== null) throw new TypeError("a plan was issued for a blocked change");
-      const column = { ...change.column, id: deps.newId() };
+      // After the last active column: a removed column keeps its position, so the count of columns could repeat one.
+      const column = { ...change.column, id: deps.newId(), position: registry.columns.reduce((last, each) => Math.max(last, each.position), -1) + 1 };
       affected = ports.columns.add(registry, column, column.required ? column.defaultValue : null);
       if (affected !== assessed.affected) throw new TypeError("the default was written into other records than the registry has");
       ports.registries.addColumn(registry, column, nowIso);

@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -3200,6 +3200,61 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D30.1", "D30.2"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D31.1",
+    ready: true,
+    title: "Manage columns in the browser (makieta 19): one change of a column at a time, its effects and \"I am aware\" before it is saved, and the deletion of the registry after the same warning (S8, S10)",
+    criteria: ["D31.1-AC1", "D31.1-AC2", "D31.1-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA, the unit tests read core from its build.
+        id: "workspace-build",
+        criteria: ["D31.1-AC1", "D31.1-AC2"],
+        description: "pnpm -r build: the SPA with /registers/:symbol/columns, the draft of the structure, the window of effects, and the position of a column added after a removed one in core",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "apps/web/src/features/registers/pages/structure-page.tsx",
+          "apps/web/src/features/registers/components/structure-effects-dialog.tsx",
+          "apps/web/src/features/registers/lib/structure-draft.ts",
+          "apps/web/src/features/registers/api/structure.ts",
+          "apps/web/src/app/router/router.tsx",
+          "packages/core/src/modules/registries/application/column-change.ts",
+        ],
+      },
+      {
+        id: "structure-draft-web",
+        criteria: ["D31.1-AC1", "D31.1-AC2"],
+        description:
+          "The draft as pure functions: an untouched draft is no change, one edit makes every other control wait, its request is one core accepts, the value for empty cells and the default are converted as the window of a record converts them, a bad name, symbol, default and value are told at their field, and the issues of a refusal land at the field of the change",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/structure-draft.test.ts", "tests/unit/web/record-input.test.ts"],
+        requires: ["tests/unit/web/structure-draft.test.ts", "tests/unit/web/record-input.test.ts"],
+      },
+      {
+        id: "column-position",
+        criteria: ["D31.1-AC1"],
+        description: "A column added after two removed ones comes after the last active column and shares no position with another (found by the browser test of S8); the column changes of D28.1 as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries/column-change.test.ts"],
+        requires: ["tests/integration/registries/column-change.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D31.1-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/registers.json", "apps/web/src/locales/en/registers.json"],
+      },
+      {
+        id: "structure-e2e",
+        criteria: ["D31.1-AC1", "D31.1-AC2"],
+        description:
+          "Playwright on a fresh installation with F01 and its register table: removing Autor shows 25 records, 22 affected and the widget with its slot before it is saved and the widget then needs its binding updated (S8); a rename, a required new column with its default and a column made required with a value for its empty cells are saved; deleting Książki after the warning and its copy leads to the list without it (S10); a second change waits, saving waits for I am aware, a bad symbol and default are told without a request, a reserved symbol comes back to its field, a required column without a value is blocked, a record added after the preview makes the plan stale and a new preview saves it; Escape and the focus, a phone without sideways scroll, axe; the kreator and the records as before",
+        command: ["node", "tests/verification/e2e.ts", "structure.spec", "new-registry", "records.spec", "record-types"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/structure.spec.ts", "tests/e2e/new-registry.spec.ts", "tests/e2e/records.spec.ts", "tests/e2e/record-types.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D31.1-regression"),
+    ],
   },
   {
     id: "D19.1",

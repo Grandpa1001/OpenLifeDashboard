@@ -300,6 +300,16 @@ main.page-wide {
   border: 0;
 }
 
+/* The hidden legend of a row is placed at its corner: left to the grid, it sits past the right edge of a phone and the page scrolls sideways. */
+.column-row {
+  position: relative;
+}
+
+.column-row > legend.visually-hidden {
+  top: 0;
+  left: 0;
+}
+
 .column-head {
   color: var(--color-text-muted);
   font-size: var(--text-xs);
@@ -502,6 +512,81 @@ main.page-wide {
 
 .chip-required {
   color: var(--color-danger);
+}
+
+/* Manage columns (makieta 19; D31.1): the rows of the registry, one change at a time, the effects before saving. */
+.structure-manage {
+  align-self: flex-start;
+}
+
+.structure-columns {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.structure-row .structure-symbol,
+.structure-row .structure-type {
+  align-self: center;
+  overflow-wrap: anywhere;
+}
+
+.structure-row .structure-type {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* A note under a row (the value for empty cells, why a removal) spans the whole row. */
+.structure-note {
+  grid-column: 1 / -1;
+}
+
+.structure-removed .field input {
+  text-decoration: line-through;
+}
+
+.structure-added {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.structure-summary {
+  margin-right: auto;
+  font-size: var(--text-sm);
+}
+
+.structure-danger {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.structure-change {
+  font-weight: 600;
+}
+
+.structure-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.structure-counts dd {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.structure-warning {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-surface);
 }
 
 .records-section {

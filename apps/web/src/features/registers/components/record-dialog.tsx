@@ -14,6 +14,7 @@ import { newIdempotencyKey } from "../lib/idempotency-key.js";
 import { changedValues, conflictRows, rebaseTyped, sameRecord, type ConflictRow } from "../lib/record-edit.js";
 import { BOOLEAN_TEXT, initialText, parseInput, valueText, type CellValue, type FormColumn } from "../lib/record-input.js";
 import { cellText } from "./records-table.js";
+import { inputTypeOf } from "./value-field.js";
 
 /** The codes of a refusal that the dialog has a text for; any other code gets the general one. */
 const KNOWN_ISSUES = ["VALUE_REQUIRED", "VALUE_INVALID", "FIELD_UNKNOWN", "FIELD_SYSTEM", "RECORD_TOO_LARGE", "VALUES_NOT_OBJECT", "VALUES_EMPTY"] as const;
@@ -261,7 +262,7 @@ export function RecordDialog({
               <Field
                 key={column.symbol}
                 label={label}
-                type={column.type === "date" ? "date" : column.type === "time" ? "time" : column.type === "datetime" ? "datetime-local" : "text"}
+                type={inputTypeOf(column.type)}
                 inputMode={column.type === "number" || column.type === "money" ? "decimal" : undefined}
                 hint={column.type === "money" ? t("record.moneyHint") : undefined}
                 value={textOf(column)}

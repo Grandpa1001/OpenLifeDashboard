@@ -121,6 +121,10 @@ describe("D28.1-AC1 the columns of F01 change on their plans", () => {
     const added = again.ok ? again.value.value.columnId : "";
     expect(added).not.toBe(idOf("autor"));
     expect(rig.rows("SELECT id, deleted_at IS NOT NULL AS removed FROM registry_column WHERE symbol = 'autor' ORDER BY removed")).toEqual([{ id: added, removed: 0 }, { id: idOf("autor"), removed: 1 }]);
+    // Two columns are gone, yet the new one comes after the last of the others, never at a position one of them holds (D31.1).
+    const positions = registryOf(rig).columns.map((column) => column.position);
+    expect(registryOf(rig).columns.at(-1)?.symbol).toBe("autor");
+    expect(new Set(positions).size).toBe(positions.length);
     expect(rig.rows("SELECT count(*) AS n FROM reg_ksiazki WHERE autor IS NOT NULL")).toEqual([{ n: 0 }]);
     expect(rig.rows("SELECT * FROM binding")).toEqual(binding);
     expect(rig.rows("PRAGMA integrity_check")).toEqual([{ integrity_check: "ok" }]);

@@ -70,7 +70,12 @@
     "LIMIT_COLUMNS": "Too many columns.",
     "LIMIT_REGISTRIES": "The limit of registries is reached.",
     "UNKNOWN": "This value is not valid.",
-    "DICTIONARY_UNKNOWN": "There is no such dictionary. Choose another one."
+    "DICTIONARY_UNKNOWN": "There is no such dictionary. Choose another one.",
+    "REPLACEMENT_INVALID": "This value does not fit the type of the column.",
+    "COLUMN_LAST": "The last column of a registry cannot be removed.",
+    "COLUMN_UNKNOWN": "This column is gone. Reload the page.",
+    "CHANGE_EMPTY": "This change changes nothing.",
+    "TYPE_CHANGE_UNSUPPORTED": "This change of type is not possible."
   },
   "registry": {
     "loading": "Loading the registry…",
@@ -288,6 +293,66 @@
       "DESCRIPTION_TOO_LONG": "The description is too long (up to 500 characters).",
       "DESCRIPTION_INVALID": "The description has characters that are not allowed (a tab, for example).",
       "LIMIT_ENTRIES": "The limit of configuration entries is reached."
+    }
+  },
+  "structure": {
+    "manage": "Manage columns",
+    "heading": "{{name}} — columns",
+    "lead": "Every change of the structure touches the records and the bound widgets. You will see the effects before saving. Changes are saved one at a time.",
+    "columnName": "Name of the column {{name}}",
+    "requiredOf": "Column {{name}} required",
+    "removeColumn": "Remove the column {{name}}",
+    "keepColumn": "Keep the column {{name}}",
+    "keep": "Keep",
+    "removedNote": "The column will be removed with its values.",
+    "empties": "Value for empty cells",
+    "emptiesHint": "Records without a value in this column get this value. Without it the change is possible only when no record is empty.",
+    "default": "Default value",
+    "defaultHint": "Optional. Existing records get it, and new ones where you do not type it.",
+    "defaultRequired": "Default value · mandatory",
+    "defaultRequiredHint": "The column is required, so the existing records get this value.",
+    "noChange": "No changes to save.",
+    "fixFields": "Fix the marked fields.",
+    "showEffects": "Show effects and save",
+    "reviewing": "Checking the effects…",
+    "saving": "Saving…",
+    "done": "Saved: {{change}}.",
+    "deleteHeading": "Deleting the registry",
+    "deleteHint": "A copy is made in backup/ before the deletion. The registry can be restored from it as the README describes.",
+    "deleteRegistry": "Delete registry",
+    "change": {
+      "addColumn": "Adding the column “{{name}}”",
+      "renameColumn": "Renaming the column “{{name}}” to “{{to}}”",
+      "removeColumn": "Removing the column “{{name}}”",
+      "requiredOn": "The column “{{name}}” becomes required",
+      "requiredOff": "The column “{{name}}” is no longer required",
+      "changeType": "Changing the type of the column “{{name}}” to {{type}}",
+      "deleteRegistry": "Deleting the registry “{{name}}”"
+    },
+    "effects": {
+      "heading": "Effects of the change",
+      "records": "Records in the registry",
+      "affected": "Records the change alters",
+      "noWidgets": "No widget uses this registry.",
+      "widgets_one": "{{count}} widget uses this registry. It may need its binding updated.",
+      "widgets_other": "{{count}} widgets use this registry. They may need their bindings updated.",
+      "widgetList": "Bound widgets",
+      "untitled": "untitled",
+      "copy": "A copy is made in backup/ before the change. Restoring from it is described in the README; it cannot be done from the interface.",
+      "aware": "I am aware of the effects of this change",
+      "nothingYet": "Nothing has been changed yet.",
+      "save": "Save the change",
+      "delete": "Delete registry",
+      "review": "Show effects again"
+    },
+    "blocked": {
+      "REQUIRED_EMPTY": "Change blocked: a required column cannot leave records empty. Give a value for them and show the effects again.",
+      "REQUIRED_VALUES_LOST": "Change blocked: the column is required and some values cannot be converted."
+    },
+    "slots": {
+      "registry": "registry",
+      "columns": "columns",
+      "sortColumn": "sort"
     }
   }
 }

@@ -8,6 +8,7 @@ import { DesignerPage } from "../../features/dashboard/pages/designer-page.js";
 import { AddRecordForRegistry } from "../../features/registers/components/add-record-for-registry.js";
 import { MainPage } from "../../features/dashboard/pages/main-page.js";
 import { RegistryPage } from "../../features/registers/pages/registry-page.js";
+import { StructurePage } from "../../features/registers/pages/structure-page.js";
 import { RegistersPage } from "../../features/registers/pages/registers-page.js";
 import { DictionariesPage } from "../../features/registers/pages/dictionaries-page.js";
 import { ConfigPage } from "../../features/registers/pages/config-page.js";
@@ -161,9 +162,19 @@ const registryRoute = createRoute({
   },
 });
 
+// The columns of one registry and the deletion of the registry (makieta 19; D31.1).
+const structureRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/registers/$symbol/columns",
+  beforeLoad: ({ context }) => admitPrivate(context),
+  component: function StructureRoute() {
+    return <StructurePage symbol={structureRoute.useParams().symbol} />;
+  },
+});
+
 export function createAppRouter(queryClient: QueryClient) {
   return createRouter({
-    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute, registersRoute, registryRoute, dictionariesRoute, configRoute, designerRoute]),
+    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute, registersRoute, registryRoute, structureRoute, dictionariesRoute, configRoute, designerRoute]),
     context: { queryClient },
     defaultPreload: false,
   });
