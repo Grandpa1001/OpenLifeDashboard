@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -3356,6 +3356,48 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D31.1", "D31.2", "D31.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    id: "D32.1",
+    ready: true,
+    title: "The system preview over HTTP: six tables and their columns from a fixed list, the owner's rows in pages, read only, nothing of identity, settings or user tables",
+    criteria: ["D32.1-AC1", "D32.1-AC2", "D32.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and read core from its build.
+        id: "workspace-build",
+        criteria: ["D32.1-AC1", "D32.1-AC2"],
+        description: "pnpm -r build: the list of the preview and its use cases in core, the sources of the owning modules in SQLite, the routes and the composition of the server",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "packages/core/src/modules/registries/domain/system-tables.ts",
+          "packages/core/src/modules/registries/application/system-tables.ts",
+          "packages/sqlite/src/adapters/system-table-source.ts",
+          "packages/sqlite/src/adapters/registries/system-tables.ts",
+          "packages/sqlite/src/adapters/dashboard/system-tables.ts",
+          "packages/sqlite/src/adapters/audit/system-tables.ts",
+          "packages/contracts/src/http/system-tables.ts",
+          "apps/server/src/http/routes/system-tables.routes.ts",
+          "apps/server/src/adapters/system-tables.ts",
+        ],
+      },
+      {
+        id: "system-tables-http",
+        criteria: ["D32.1-AC1", "D32.1-AC2"],
+        description:
+          "On F01 with its table widget over real HTTP: the six tables with the columns of core and the owner's counts, the catalog without the owner or the physical table, the bindings with the paths of the widget, the audit newest first without address and browser, pages of 25 and 1 to 100, another owner's registry and screen not shown; identity, sessions, settings, idempotency, ConfigTable, a user table, SQL and inherited names 404; no answer holds a password hash, a session token, the secret of the second factor, a recovery code hash or a secret of the installation; a bad page 422; no other method writes; no session 401 and a password session 403",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/registries/system-tables-http.test.ts"],
+        requires: ["tests/integration/registries/system-tables-http.test.ts"],
+      },
+      {
+        id: "route-inventory",
+        criteria: ["D32.1-AC2"],
+        description: "The two routes are in the inventory with the access data, every state before the gate is refused on them, the owner past it is answered and forged identifiers decide nothing (D13.1, D20.2)",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts"],
+        requires: ["tests/support/route-inventory.ts", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts"],
+      },
+      ...regressionChecks("D32.1-regression"),
+    ],
   },
   {
     id: "D19.1",

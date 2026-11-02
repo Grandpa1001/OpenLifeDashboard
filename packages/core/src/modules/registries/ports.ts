@@ -6,6 +6,7 @@ import type { NewColumn, NewRegistry } from "./domain/definition.js";
 import type { SortColumn, SortDirection } from "./domain/record-rules.js";
 import type { PlanClaims } from "./domain/structure-change.js";
 import type { CellRewrite } from "./domain/type-change.js";
+import type { SystemRow, SystemTableName } from "./domain/system-tables.js";
 
 /** What the engine needs to create a registry: the validated definition and the identifiers it was given. */
 export type NewRegistryRecord = Readonly<{
@@ -196,3 +197,19 @@ export interface TableColumns {
   /** Writes `value` into every cell of the column that `isEmpty` says is empty; the number of cells written. */
   fillEmpty(registry: StoredRegistry, column: StoredColumn, value: CellValue, isEmpty: (value: CellValue) => boolean): number;
 }
+
+/**
+ * The tables of the system preview (D32.1), each read by the adapter of the module that owns it
+ * (Architektura §13.4) and put together by the composition. The rows of `ownerId` only, where a table
+ * belongs to an owner; in a fixed order, with the columns of `SYSTEM_TABLES` in their order.
+ */
+export interface SystemTableReader {
+  count(ownerId: string, table: SystemTableName): number;
+  page(ownerId: string, table: SystemTableName, offset: number, limit: number): readonly SystemRow[];
+}
+
+/** One table of the preview as the adapter of its owning module reads it; the composition puts six of them together. */
+export type SystemTableSource = Readonly<{
+  count(ownerId: string): number;
+  page(ownerId: string, offset: number, limit: number): readonly SystemRow[];
+}>;

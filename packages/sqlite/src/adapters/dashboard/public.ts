@@ -2,3 +2,4 @@
 // the catalog the rules of a design ask.
 export { bindDashboardStore } from "./dashboard-store.js";
 export { bindCatalogReader, bindConfigBindingCounts, bindDependentWidgets } from "./catalog-reader.js";
+export { bindDashboardSystemTables } from "./system-tables.js";

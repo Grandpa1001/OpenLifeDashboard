@@ -42,6 +42,7 @@ import { stdoutSink } from "./adapters/logging/stdout-sink.js";
 import { createTechnicalLogger } from "./adapters/logging/technical-logger.js";
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
+import { bindSystemTableReader } from "./adapters/system-tables.js";
 import { loadBootstrapConfig } from "./bootstrap/bootstrap-config.js";
 import { createApp } from "./bootstrap/create-app.js";
 import type { AppEnv } from "./http/app-env.js";
@@ -200,6 +201,7 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   idempotency: bindIdempotencyStore(tx),
   access: bindIdentityAccessReader(tx, Date.now),
   audit: bindAppendAudit(tx),
+  systemTables: bindSystemTableReader(tx),
 }));
 const attemptKeys = createAttemptKeys(secret);
 const clientIp = (c: Context<AppEnv>): string => getConnInfo(c).remote.address ?? "unknown";
@@ -266,6 +268,7 @@ const app = createApp({
   structure: { unit: identityUnit, gate: gate.gate, snapshots: createDatabaseSnapshots(database.connection, snapshotOptions), cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), newOperationId: randomUUID, signer: planSigner, limits: DEFAULT_REGISTRY_LIMITS, logger },
   dictionaries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },
   config: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
+  systemTables: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
   screens: { dashboard: { unit: identityUnit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: environment.baseUrl, logger },
 });
 try {

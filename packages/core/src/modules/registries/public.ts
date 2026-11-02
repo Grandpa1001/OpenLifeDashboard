@@ -36,3 +36,8 @@ export { checkStructurePlan, planFailure, previewStructureChange, structureOwner
 export type { StructureDependencies, StructurePlanInput, StructurePorts, StructurePreview, StructurePreviewInput } from "./application/structure-preview.js";
 export { assessChange, canonicalChange, CONVERSION_SAMPLES_MAX, conversionOf, planState, reportConversion, STRUCTURE_CHANGE_KINDS, STRUCTURE_PLAN_TTL_MS, validateStructureChange } from "./domain/structure-change.js";
 export type { ConversionReport, PlanClaims, PlanState, StructureBlock, StructureChange, StructureChangeKind, StructureChangeResult, StructureColumn, StructureContext, StructureFacts, StructureIssue, StructureIssueCode, StructureSchema } from "./domain/structure-change.js";
+export { isSystemTableName, SYSTEM_TABLE_NAMES, SYSTEM_TABLES } from "./domain/system-tables.js";
+export type { SystemRow, SystemTableName, SystemValue } from "./domain/system-tables.js";
+export { listSystemTables, readSystemTable } from "./application/system-tables.js";
+export type { SystemTableDependencies, SystemTableOverview, SystemTablePage, SystemTablePorts, SystemTableQuery } from "./application/system-tables.js";
+export type { SystemTableReader, SystemTableSource } from "./ports.js";

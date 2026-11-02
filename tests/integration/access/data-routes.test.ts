@@ -28,6 +28,8 @@ const OTHER_TASKS = new Set(["GET /api/v1/setup/preferences", "PUT /api/v1/setup
 const keyOf = (route: Pick<RouteEntry, "method" | "path">): string => `${route.method} ${route.path}`;
 const DATA_ROUTES = ROUTE_INVENTORY.filter((route) => route.access === "data" && !OTHER_TASKS.has(keyOf(route)));
 
+/** A table of the system preview (D32.1); the route reads it the same way for every name of its list. */
+const SYSTEM_TABLE = "audit_log";
 const PLACEHOLDER = { symbol: "waga", screen: "019a0000-0000-7000-8000-0000000000a1", widget: "019a0000-0000-7000-8000-0000000000a2", record: "019a0000-0000-7000-8000-0000000000a3" };
 const LAYOUT = { phone: { x: 0, y: 0, w: 1, h: 8 }, tablet: { x: 0, y: 0, w: 8, h: 8 }, desktop: { x: 0, y: 0, w: 8, h: 8 } };
 const WAGA = { symbol: "waga", displayName: "Waga", columns: [{ symbol: "kg", displayName: "Kg", type: "number", typeOptions: { decimalPlaces: 1 } }] };
@@ -39,7 +41,7 @@ type Ids = Readonly<{ symbol: string; screen: string; widget: string; record: st
 
 const fill = (route: RouteEntry, ids: Ids): string => {
   const widgetPath = route.path.includes("/widgets/:id");
-  return route.path.replace(":symbol", ids.symbol).replace(":recordId", ids.record).replace(":id", widgetPath ? ids.widget : ids.screen);
+  return route.path.replace(":symbol", ids.symbol).replace(":recordId", ids.record).replace(":id", widgetPath ? ids.widget : ids.screen).replace(":name", SYSTEM_TABLE);
 };
 
 /** A well-formed request for the route, so that only the access can be the reason of a refusal. */
@@ -137,6 +139,8 @@ describe("D20.2 the table is the inventory", () => {
       "GET /api/v1/registries/:symbol/records/:recordId",
       "GET /api/v1/screens",
       "GET /api/v1/screens/:id",
+      "GET /api/v1/system-tables",
+      "GET /api/v1/system-tables/:name",
       "GET /api/v1/widget-types",
       "GET /api/v1/widgets/:id/data",
       "PATCH /api/v1/registries/:symbol/records/:recordId",
@@ -225,6 +229,8 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     expect((await run(route("PUT", "/design"), ids, designOf(registry, ids.widget))).status).toBe(200);
     await run(route("GET", "/widget-types"), ids);
     await run(route("GET", "/data"), ids);
+    await run(route("GET", "/system-tables"), ids);
+    await run(route("GET", "/system-tables/:name"), ids);
     // Last, because it raises the schema revision the requests above are built on: a rename of the column
     // of waga on the plan of its own preview; the column is the server's, so its identifier is read first.
     const kg = { ...RENAME_KG, columnId: registry.columns.find((column) => column.symbol === "kg")?.id ?? "" };

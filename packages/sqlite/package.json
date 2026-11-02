@@ -10,9 +10,9 @@
   ],
   "exports": {
     "./adapters/audit": {
-      "@openlife/source": "./src/adapters/audit/append-audit.ts",
-      "types": "./dist/adapters/audit/append-audit.d.ts",
-      "default": "./dist/adapters/audit/append-audit.js"
+      "@openlife/source": "./src/adapters/audit/public.ts",
+      "types": "./dist/adapters/audit/public.d.ts",
+      "default": "./dist/adapters/audit/public.js"
     },
     "./adapters/dashboard": {
       "@openlife/source": "./src/adapters/dashboard/public.ts",

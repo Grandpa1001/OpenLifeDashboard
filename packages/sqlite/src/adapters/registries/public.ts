@@ -13,3 +13,4 @@ export { bindRegistryTables } from "./registry-tables.js";
 export { openRegistryCopy } from "./registry-copy.js";
 export type { RegistryCopyReader } from "./registry-copy.js";
 export type { RebuildOutcome } from "./rebuild-outcome.js";
+export { bindRegistrySystemTables } from "./system-tables.js";

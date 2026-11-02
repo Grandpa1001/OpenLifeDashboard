@@ -17,13 +17,14 @@ import * as records from "@openlife/contracts/http/records";
 import * as screens from "@openlife/contracts/http/screens";
 import * as registries from "@openlife/contracts/http/registries";
 import * as setup from "@openlife/contracts/http/setup";
+import * as systemTables from "@openlife/contracts/http/system-tables";
 
 export type RouteAccess = "public" | "identity" | "gate" | "data" | "setup";
 export type RouteEntry = Readonly<{ method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; path: string; access: RouteAccess; note: string }>;
 
 /** Every exported path constant of the contracts, by name. */
 export const PATH_CONSTANTS: Readonly<Record<string, string>> = Object.fromEntries(
-  [bootstrap, config, dictionaries, healthStatus, identity, mfa, records, registries, screens, setup].flatMap((module) =>
+  [bootstrap, config, dictionaries, healthStatus, identity, mfa, records, registries, screens, setup, systemTables].flatMap((module) =>
     Object.entries(module).filter((entry): entry is [string, string] => entry[0].endsWith("_PATH") && typeof entry[1] === "string"),
   ),
 );
@@ -69,6 +70,8 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "PUT", path: screens.SCREEN_DESIGN_PATH, access: "data", note: "replaces the whole design of a screen atomically" },
   { method: "GET", path: screens.WIDGET_TYPES_PATH, access: "data", note: "the manifests of the widget types of this build" },
   { method: "GET", path: screens.WIDGET_DATA_PATH, access: "data", note: "a page of the data of a widget from its saved bindings" },
+  { method: "GET", path: systemTables.SYSTEM_TABLES_PATH, access: "data", note: "the tables of the system preview with their columns and the owner's rows in each; read only" },
+  { method: "GET", path: systemTables.SYSTEM_TABLE_PATH, access: "data", note: "one page of one table of the system preview; a name outside its list is 404" },
 ];
 
 /**

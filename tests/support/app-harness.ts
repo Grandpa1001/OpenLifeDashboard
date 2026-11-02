@@ -38,6 +38,7 @@ import { acquireWriterLease } from "../../apps/server/dist/adapters/filesystem/w
 import { DESIGN_POLICY } from "../../apps/server/dist/bootstrap/design-policy.js";
 import { sha256Hex } from "../../apps/server/dist/adapters/crypto/sha256-hex.js";
 import { createUuidV7 } from "../../apps/server/dist/adapters/ids/uuid-v7.js";
+import { bindSystemTableReader } from "../../apps/server/dist/adapters/system-tables.js";
 import { bindOwnerPreferencesStore } from "../../packages/sqlite/dist/adapters/settings/owner-preferences.js";
 import { openDatabase, type SqliteConnection } from "../../packages/sqlite/dist/connection/open-database.js";
 import { initializeDatabase, PRODUCT_MIGRATION_PLAN } from "../../packages/sqlite/dist/migrations/public.js";
@@ -97,6 +98,7 @@ export async function createAppHarness() {
     idempotency: bindIdempotencyStore(tx),
     access: bindIdentityAccessReader(tx, Date.now),
     audit: bindAppendAudit(tx),
+    systemTables: bindSystemTableReader(tx),
   }));
   const hasher = createPasswordHasher();
 
@@ -152,6 +154,7 @@ export async function createAppHarness() {
     structure: { ...structure, gate: gate.gate, snapshots, newId: createUuidV7(), newOperationId: randomUUID, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
     dictionaries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },
     config: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
+    systemTables: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
   });
 
