@@ -15,6 +15,7 @@ import { previewStructureChange } from "../api/structure.js";
 import { useDictionaries } from "../api/use-dictionaries.js";
 import { registriesFailureOf, useRegistries } from "../api/use-registries.js";
 import { ColumnRow, ColumnTypeFields } from "../components/new-registry-form.js";
+import { NewDictionaryDialog } from "../components/new-dictionary-dialog.js";
 import { StructureEffectsDialog } from "../components/structure-effects-dialog.js";
 import { ValueField } from "../components/value-field.js";
 import { COLUMN_TYPES, withSuggestedSymbol, type ColumnTypeCode } from "../lib/registry-draft.js";
@@ -50,6 +51,11 @@ const IMMEDIATE: ReadonlySet<string> = new Set(["SYMBOL_PATTERN", "SYMBOL_TOO_LO
 
 type Failure = Exclude<ApiFailure, { kind: "aborted" }>;
 const leavesTheGate = (failure: ApiFailure | null): boolean => failure !== null && failure.kind === "api" && (failure.status === 401 || failure.status === 403);
+
+/** The column a new dictionary is being made for: the new column or one of the registry's. */
+type DictionaryFor = Readonly<{ target: "added" }> | Readonly<{ target: "column"; columnId: string }>;
+const FOR_ADDED: DictionaryFor = { target: "added" };
+const forColumn = (columnId: string): DictionaryFor => ({ target: "column", columnId });
 
 /** The change whose effects are on screen, the words for it and its preview. */
 type Shown = Readonly<{ change: StructureChangeRequest; description: string; preview: StructurePreviewDto }>;
@@ -152,6 +158,10 @@ function StructureEditor({
   const inFlight = useRef<AbortController | null>(null);
   const opener = useRef<HTMLElement | null>(null);
   const returnFocus = useRef(false);
+  const queryClient = useQueryClient();
+  const [dictionaryFor, setDictionaryFor] = useState<DictionaryFor | null>(null);
+  const dictionaryOpener = useRef<HTMLElement | null>(null);
+  const dictionaryFocus = useRef(false);
 
   useEffect(() => () => inFlight.current?.abort(), []);
   // The focus goes back to the button that opened the window once the window is gone (a modal leaves the page inert until then).
@@ -161,6 +171,12 @@ function StructureEditor({
       opener.current?.focus();
     }
   }, [shown]);
+  useEffect(() => {
+    if (dictionaryFor === null && dictionaryFocus.current) {
+      dictionaryFocus.current = false;
+      dictionaryOpener.current?.focus();
+    }
+  }, [dictionaryFor]);
 
   const edits = useMemo(() => editsOf(draft, registry), [draft, registry]);
   const edit: Edit | null = edits[0] ?? null;
@@ -262,6 +278,24 @@ function StructureEditor({
     onSaved(change, description);
   }
 
+  function openNewDictionary(target: DictionaryFor, from: HTMLElement): void {
+    dictionaryOpener.current = from;
+    setDictionaryFor(target);
+  }
+  function closeNewDictionary(): void {
+    dictionaryFocus.current = true;
+    setDictionaryFor(null);
+  }
+  /** The new dictionary is in the list at once and the column it was made for shows it. */
+  function dictionaryMade(dictionary: DictionaryDto): void {
+    queryClient.setQueryData<readonly DictionaryDto[]>(queryKeys.dictionaries.list, (current) => [...(current ?? []), dictionary]);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.dictionaries.list });
+    if (dictionaryFor?.target === "added") editAdded((current) => ({ ...current, dictionaryId: dictionary.id }));
+    else if (dictionaryFor?.target === "column") editColumn(dictionaryFor.columnId, (current) => ({ ...current, dictionaryId: dictionary.id }));
+    closeNewDictionary();
+  }
+  const dictionarySymbols = useMemo(() => new Set(dictionaries.map((dictionary) => dictionary.symbol)), [dictionaries]);
+
   const takenSymbols = useMemo(() => new Set(registry.columns.map((column) => column.symbol)), [registry]);
   const fieldOfAdded = (path: string): string => path.replace(/^columns\.\d+\./, `${ADDED.column}.`);
   const summary = edit === null ? t("structure.noChange") : checked !== null && checked.ok ? describe(checked.change) : t("structure.fixFields");
@@ -311,12 +345,13 @@ function StructureEditor({
                 decimalPlaces={column.decimalPlaces}
                 dictionaryId={column.dictionaryId}
                 dictionaries={dictionaries}
-                labels={{ type: t("structure.typeOf", { name: stored.displayName }), decimalPlaces: t("structure.placesOf", { name: stored.displayName }), dictionary: t("structure.dictionaryOf", { name: stored.displayName }) }}
+                labels={{ type: t("structure.typeOf", { name: stored.displayName }), decimalPlaces: t("structure.placesOf", { name: stored.displayName }), dictionary: t("structure.dictionaryOf", { name: stored.displayName }), newDictionary: t("structure.newDictionaryOf", { name: stored.displayName }) }}
                 errors={{ type: errorFor(paths.type), options: null, dictionary: null }}
                 disabled={column.removed || waits(edits, keys.type)}
                 onType={(type) => editColumn(column.id, (current) => ({ ...current, type, decimalPlaces: type === stored.type ? (stored.typeOptions.decimalPlaces ?? 0) : 0, dictionaryId: type === stored.type ? (stored.typeOptions.dictionaryId ?? "") : "" }))}
                 onDecimals={(decimalPlaces) => editColumn(column.id, (current) => ({ ...current, decimalPlaces }))}
                 onDictionary={(dictionaryId) => editColumn(column.id, (current) => ({ ...current, dictionaryId }))}
+                onNewDictionary={(from) => openNewDictionary(forColumn(column.id), from)}
               />
               <label className="check column-required">
                 <input
@@ -375,6 +410,7 @@ function StructureEditor({
               onDictionary={(dictionaryId) => editAdded((current) => ({ ...current, dictionaryId }))}
               onRequired={(required) => editAdded((current) => ({ ...current, required }))}
               onRemove={cancel}
+              onNewDictionary={(from) => openNewDictionary(FOR_ADDED, from)}
             />
             <ValueField
               type={draft.added.type}
@@ -408,6 +444,7 @@ function StructureEditor({
           {t("structure.deleteRegistry")}
         </button>
       </section>
+      {dictionaryFor === null ? null : <NewDictionaryDialog takenSymbols={dictionarySymbols} onCreated={dictionaryMade} onClose={closeNewDictionary} onGateLost={onGateLost} />}
       {shown === null ? null : (
         <StructureEffectsDialog
           symbol={registry.symbol}

@@ -2,7 +2,7 @@ import type { RegistryDto } from "@openlife/contracts/http/registries";
 import type { WidgetDesignDto } from "@openlife/contracts/http/screens";
 import { useTranslation } from "react-i18next";
 import { SelectField } from "../../../lib/forms/select-field.js";
-import { bindingsOf, choiceOf, pickableColumns, type Pickable } from "../lib/register-table-bindings.js";
+import { bindingsOf, choiceOf, missingPaths, pickableColumns, type Pickable } from "../lib/register-table-bindings.js";
 
 const NONE = "";
 const DIRECTIONS = ["desc", "asc"] as const;
@@ -14,7 +14,8 @@ export type Reconfigured = Readonly<{ config: WidgetDesignDto["config"]; binding
 /**
  * The minimal bindings of the register table (Scope §5.4, D18.2): which registry, which of its
  * columns, and what it is sorted by. Each change is written whole, so the bindings always agree
- * with the registry the owner chose; the full panels come with D34.
+ * with the registry the owner chose; the full panels come with D34. A binding to a registry or a
+ * column that is gone is shown by its path; choosing again writes bindings without it (D31.3).
  */
 export function BindingsPanel({
   widget,
@@ -39,6 +40,8 @@ export function BindingsPanel({
   const registry = registries.find((candidate) => candidate.id === choice.registryId) ?? null;
   const direction = isDirection(String(widget.config["sortDirection"])) ? String(widget.config["sortDirection"]) : "desc";
   const offer: readonly Pickable[] = registry === null ? [] : pickableColumns(registry);
+  // What the bindings name and the registries no longer have (Scope §5.4, S8, S10): a deleted registry, a removed column.
+  const missing = missingPaths(widget.bindings, registry, choice.registryId);
   const nameOf = (pick: Pickable): string => pick.label ?? tw(`registerTable.system.${pick.system ?? "id"}`);
 
   const rebind = (nextRegistry: RegistryDto | null, columnKeys: readonly string[], sortKey: string | null, nextDirection: string = direction): void =>
@@ -49,6 +52,16 @@ export function BindingsPanel({
       {heading}
       {registriesFailed ? <p role="alert">{t("panel.registriesFailed")}</p> : null}
       {!registriesFailed && registries.length === 0 ? <p>{t("panel.noRegistries")}</p> : null}
+      {registriesFailed || missing.length === 0 ? null : (
+        <div className="bindings-missing" role="alert">
+          <ul aria-label={t("panel.missing")}>
+            {missing.map((path) => (
+              <li key={path}>{t("panel.missingPath", { path })}</li>
+            ))}
+          </ul>
+          <p>{t(registry === null ? "panel.missingRegistryHint" : "panel.missingColumnHint")}</p>
+        </div>
+      )}
       <SelectField
         label={t("panel.registry")}
         value={registry?.id ?? NONE}

@@ -380,6 +380,8 @@
       "optionalHint_one": "{{count}} record is left without a value in this column.",
       "optionalHint_other": "{{count}} records are left without a value in this column.",
       "makeOptional": "Make it optional"
-    }
+    },
+    "newDictionary": "New dictionary",
+    "newDictionaryOf": "New dictionary for the column {{name}}"
   }
 }

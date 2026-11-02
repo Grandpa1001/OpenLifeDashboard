@@ -47,7 +47,11 @@
     "sortDefault": "Data utworzenia (domyślnie)",
     "direction": "Kierunek sortowania",
     "desc": "Malejąco",
-    "asc": "Rosnąco"
+    "asc": "Rosnąco",
+    "missing": "Brakujące powiązania",
+    "missingPath": "brak: {{path}}",
+    "missingRegistryHint": "Rejestr został usunięty. Wybierz inny rejestr, aby widget znów pokazywał dane.",
+    "missingColumnHint": "Kolumny już nie ma. Wybierz kolumny ponownie; zapis usunie brakujące powiązanie."
   },
   "leave": {
     "heading": "Niezapisane zmiany",

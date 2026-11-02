@@ -47,7 +47,11 @@
     "sortDefault": "Creation time (default)",
     "direction": "Sort direction",
     "desc": "Descending",
-    "asc": "Ascending"
+    "asc": "Ascending",
+    "missing": "Missing bindings",
+    "missingPath": "missing: {{path}}",
+    "missingRegistryHint": "The registry was deleted. Choose another registry for the widget to show data again.",
+    "missingColumnHint": "The column is gone. Choose the columns again; saving drops the missing binding."
   },
   "leave": {
     "heading": "Unsaved changes",

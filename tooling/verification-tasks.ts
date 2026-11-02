@@ -3277,7 +3277,7 @@ const definedLater: readonly TaskDefinition[] = [
         ],
       },
       {
-        id: "structure-draft-web",
+        id: "type-change-draft-web",
         criteria: ["D31.2-AC1", "D31.2-AC2"],
         description:
           "The draft as pure functions: a change of type with its options is one edit core accepts and back to the stored type no change; a replacement of the new type is typed as in a record and a bad or empty one refused, making the column optional drops the replacement; the issues of the type land at the type",
@@ -3302,6 +3302,60 @@ const definedLater: readonly TaskDefinition[] = [
       },
       ...regressionChecks("D31.2-regression"),
     ],
+  },
+  {
+    id: "D31.3",
+    ready: true,
+    title: "A dictionary made from the row of a choice column, and the repair of a broken binding in the panel of the Designer (S8, S10)",
+    criteria: ["D31.3-AC1", "D31.3-AC2", "D31.3-regression"],
+    checks: [
+      {
+        // Runs first: the browser tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D31.3-AC1", "D31.3-AC2"],
+        description: "pnpm -r build: the new dictionary in a window of Manage columns, and the missing paths in the panel of bindings",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "apps/web/src/features/registers/components/new-dictionary-dialog.tsx",
+          "apps/web/src/features/registers/pages/structure-page.tsx",
+          "apps/web/src/features/dashboard/components/bindings-panel.tsx",
+          "apps/web/src/features/dashboard/lib/register-table-bindings.ts",
+        ],
+      },
+      {
+        id: "missing-bindings-web",
+        criteria: ["D31.3-AC1"],
+        description: "The broken bindings as pure functions: a removed column named once whatever slots bind it, a deleted registry named by its path, nothing for a whole or an unbound widget, and a choice made again writes bindings without the missing one; the bindings of D18.2 as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/designer-state.test.ts"],
+        requires: ["tests/unit/web/designer-state.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D31.3-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/registers.json", "apps/web/src/locales/en/registers.json", "apps/web/src/locales/pl/designer.json", "apps/web/src/locales/en/designer.json"],
+      },
+      {
+        id: "structure-repair-e2e",
+        criteria: ["D31.3-AC1", "D31.3-AC2"],
+        description:
+          "Playwright on a fresh installation: a dictionary made from the row of a new choice column is chosen at once, saved with the column and listed in /dictionaries, one made for Status is a change of its options; Escape, a bad and a taken symbol at the field keep the row; after S8 the panel shows missing Field.Register.ksiazki.autor, the columns chosen again save and the widget on /main is ok; after S10 the panel shows the missing registry and another one chosen brings the widget back; axe; the Designer, the screen and the dictionaries as before",
+        command: ["node", "tests/verification/e2e.ts", "structure-repair", "designer", "dashboard.spec", "dictionaries"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/structure-repair.spec.ts", "tests/e2e/designer.spec.ts", "tests/e2e/dashboard.spec.ts", "tests/e2e/dictionaries.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D31.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the window of columns, the change of type, the dictionary and the repair.
+  {
+    id: "D31",
+    ready: true,
+    title: "The full screens of the structure and dictionaries: the effects before a change, the report of a conversion, a dictionary from the window of a column and the repair of bindings",
+    steps: ["D31.1", "D31.2", "D31.3"],
+    criteria: [],
+    checks: [],
   },
   {
     id: "D19.1",

@@ -262,6 +262,7 @@ export function ColumnRow({
   onDictionary,
   onRequired,
   onRemove,
+  onNewDictionary,
 }: Readonly<{
   index: number;
   column: ColumnDraft;
@@ -275,6 +276,8 @@ export function ColumnRow({
   onDictionary: (dictionaryId: string) => void;
   onRequired: (value: boolean) => void;
   onRemove: () => void;
+  /** Making a dictionary for the column from its row (Manage columns, D31.3); the kreator offers none. */
+  onNewDictionary?: (opener: HTMLElement) => void;
 }>) {
   const { t } = useTranslation("registers");
   const position = index + 1;
@@ -289,11 +292,12 @@ export function ColumnRow({
         decimalPlaces={column.decimalPlaces}
         dictionaryId={column.dictionaryId}
         dictionaries={dictionaries}
-        labels={{ type: t("form.type"), decimalPlaces: t("form.decimalPlaces"), dictionary: t("form.dictionaryOf", { position }) }}
+        labels={{ type: t("form.type"), decimalPlaces: t("form.decimalPlaces"), dictionary: t("form.dictionaryOf", { position }), newDictionary: t("structure.newDictionaryOf", { name: t("form.column", { position }) }) }}
         errors={{ type: errorFor(paths.type), options: errorFor(paths.options), dictionary: errorFor(paths.dictionary) }}
         onType={onType}
         onDecimals={onDecimals}
         onDictionary={onDictionary}
+        {...(onNewDictionary === undefined ? {} : { onNewDictionary })}
       />
       <label className="check column-required">
         <input type="checkbox" checked={column.required} onChange={(event) => onRequired(event.target.checked)} />
@@ -322,17 +326,20 @@ export function ColumnTypeFields({
   onType,
   onDecimals,
   onDictionary,
+  onNewDictionary,
 }: Readonly<{
   type: ColumnTypeCode;
   decimalPlaces: number;
   dictionaryId: string;
   dictionaries: readonly DictionaryDto[];
-  labels: Readonly<{ type: string; decimalPlaces: string; dictionary: string }>;
+  labels: Readonly<{ type: string; decimalPlaces: string; dictionary: string; newDictionary?: string }>;
   errors: Readonly<{ type: string | null; options: string | null; dictionary: string | null }>;
   disabled?: boolean;
   onType: (value: ColumnTypeCode) => void;
   onDecimals: (value: number) => void;
   onDictionary: (dictionaryId: string) => void;
+  /** Where a new dictionary can be made for the column (D31.3); without it the row offers none. */
+  onNewDictionary?: (opener: HTMLElement) => void;
 }>) {
   const { t } = useTranslation("registers");
   return (
@@ -362,6 +369,11 @@ export function ColumnTypeFields({
             </option>
           ))}
         </SelectField>
+      ) : null}
+      {type === "choice" && onNewDictionary !== undefined ? (
+        <button type="button" className="link-button" aria-label={labels.newDictionary} disabled={disabled} onClick={(event) => onNewDictionary(event.currentTarget)}>
+          {t("structure.newDictionary")}
+        </button>
       ) : null}
     </div>
   );

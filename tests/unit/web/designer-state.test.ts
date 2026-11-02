@@ -4,7 +4,7 @@ import type { RegistryDto } from "@openlife/contracts/http/registries";
 import type { DesignSnapshotDto, LayoutDto, ScreenDto, WidgetDesignDto } from "@openlife/contracts/http/screens";
 import { describe, expect, it } from "vitest";
 import { canonicalJson, designerReducer, isDirty, newWidget, startState, toSnapshot } from "../../../apps/web/src/features/dashboard/lib/designer-state.js";
-import { bindingsOf, choiceOf, pickableColumns } from "../../../apps/web/src/features/dashboard/lib/register-table-bindings.js";
+import { bindingsOf, choiceOf, missingPaths, pickableColumns } from "../../../apps/web/src/features/dashboard/lib/register-table-bindings.js";
 
 const rect = (x: number, y: number, w: number, h: number) => ({ x, y, w, h });
 const layout: LayoutDto = { phone: rect(0, 0, 1, 4), tablet: rect(0, 0, 4, 4), desktop: rect(0, 0, 6, 4) };
@@ -125,5 +125,24 @@ describe("D18.2 the bindings of the register table", () => {
     const offer = pickableColumns(registry);
     expect(offer.map((pick) => pick.key)).toEqual([amount?.id, note?.id, "created_at", "updated_at"]);
     expect(offer.filter((pick) => pick.system !== null).map((pick) => pick.label)).toEqual([null, null]);
+  });
+});
+
+describe("D31.3 the broken bindings of the register table", () => {
+  const [amount, note] = registry.columns;
+  const bound = bindingsOf(registry, [amount?.id ?? "", note?.id ?? "", "created_at"], note?.id ?? null);
+
+  it("name the removed column once, whatever slots bind it, and nothing while the registry has every column", () => {
+    expect(missingPaths(bound, registry, registry.id)).toEqual([]);
+    const withoutNote: RegistryDto = { ...registry, columns: registry.columns.filter((column) => column.id !== note?.id) };
+    expect(missingPaths(bound, withoutNote, registry.id)).toEqual(["Field.Register.F01.note"]);
+    // A choice made again writes bindings without it.
+    const again = choiceOf(bound);
+    expect(missingPaths(bindingsOf(withoutNote, again.columnKeys, again.sortKey), withoutNote, registry.id)).toEqual([]);
+  });
+
+  it("name the registry when it is not among the active ones, and nothing for a widget not bound yet", () => {
+    expect(missingPaths(bound, null, registry.id)).toEqual(["Field.Register.F01"]);
+    expect(missingPaths([], null, null)).toEqual([]);
   });
 });

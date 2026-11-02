@@ -54,3 +54,15 @@ export function choiceOf(bindings: readonly SlotBindingDto[]): TableChoice {
   }
   return { registryId, columnKeys, sortKey };
 }
+
+/**
+ * The paths the bindings name that are gone (Scope §5.4): the registry when it is not among the
+ * active ones, otherwise every column of it the bindings name and the registry no longer has. System
+ * columns are always there.
+ */
+export function missingPaths(bindings: readonly SlotBindingDto[], registry: RegistryDto | null, registryId: string | null): readonly string[] {
+  if (registryId === null) return [];
+  if (registry === null) return bindings.filter((binding) => binding.slot === REGISTRY_SLOT).map((binding) => binding.path);
+  const columnIds = new Set(registry.columns.map((column) => column.id));
+  return [...new Set(bindings.filter((binding) => binding.target.kind === "column" && !columnIds.has(binding.target.columnId)).map((binding) => binding.path))];
+}

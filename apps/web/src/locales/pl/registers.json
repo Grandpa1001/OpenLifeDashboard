@@ -408,6 +408,8 @@
       "optionalHint_many": "{{count}} rekordów zostanie bez wartości w tej kolumnie.",
       "optionalHint_other": "{{count}} rekordu zostanie bez wartości w tej kolumnie.",
       "makeOptional": "Zmień na nieobowiązkową"
-    }
+    },
+    "newDictionary": "Nowy słownik",
+    "newDictionaryOf": "Nowy słownik dla kolumny {{name}}"
   }
 }
