@@ -13,10 +13,10 @@ name: CI
 #
 # The full tier is split by topic into jobs that run side by side, each with its own report
 # artifact: platform (D01-D08, Docker, images, the G0 inputs), access (D09-D13), registries
-# (D14-D17), data (the parents from D22 on), screens (D18) and installer (D19). The fast tier is
-# split the same way: core (D01-D20.2), data (D22.1-D26.2), structure (the steps from D27.1 on) and
-# browser. A
-# new task joins the job of its topic, so no single job grows past its time limit.
+# (D14-D17), data (the parents D22-D26), structure (the parents from D27 on), screens (D18) and
+# installer (D19). The fast tier is split the same way: core (D01-D20.2), data (D22.1-D26.2),
+# structure (the steps from D27.1 on) and browser. A new task joins the job of its topic, so no
+# single job grows past its time limit.
 
 on:
   pull_request:
@@ -272,6 +272,9 @@ jobs:
       - name: Verify D30.1 (deleting a registry over HTTP after its copy pre_delete, S10)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D30.1
+      - name: Verify D30.2 (restoring a deleted registry from its copy with restore-registry)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D30.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -601,10 +604,10 @@ jobs:
           if-no-files-found: error
 
   full-data:
-    # The data of the registries: column types, record changes and search, dictionaries and
-    # ConfigTable, every parent over its work orders. Its own job, as in the fast tier, so neither
-    # job runs out of its 30 minutes as the parents are added.
-    name: verify:task (full tier, data D22-D32)
+    # The data of the registries: column types, record changes and search, dictionaries,
+    # ConfigTable and the preview of a change, every parent over its work orders. Its own job, as in
+    # the fast tier, so no job runs out of its 30 minutes as the parents are added.
+    name: verify:task (full tier, data D22-D26)
     needs: changes
     if: ${{ needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
@@ -652,6 +655,53 @@ jobs:
       - name: Verify D26 (the parent, D26.1–D26.2 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D26
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-data
+          path: .artifacts/
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error
+
+  full-structure:
+    # The structure of the registries: the rebuild, the changes of a column and of type, the deletion
+    # and the restore, every parent over its work orders. Split from the job of the data after run
+    # 41439199272 (22 of its 30 minutes).
+    name: verify:task (full tier, structure D27-D32)
+    needs: changes
+    if: ${{ needs.changes.outputs.full == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
+      - name: Cache the Playwright browser
+        id: browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install the Playwright browser
+        if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install the system libraries of the cached browser
+        if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
+        run: pnpm exec playwright install-deps chromium
       - name: Verify D27 (the parent, D27.1–D27.2 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D27
@@ -661,11 +711,14 @@ jobs:
       - name: Verify D29 (the parent, D29.1–D29.2 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D29
+      - name: Verify D30 (the parent, D30.1–D30.2 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D30
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: verification-data
+          name: verification-structure
           path: .artifacts/
           include-hidden-files: true
           retention-days: 14

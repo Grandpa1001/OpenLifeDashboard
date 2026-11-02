@@ -34,6 +34,7 @@ export type FailureCode =
   | "PLAN_STALE"
   | "SNAPSHOT_LOW_SPACE"
   | "SNAPSHOT_FAILED"
+  | "RESTORE_CONFLICT"
   | "MAINTENANCE";
 
 /** One reason a request was not valid: where (a field path) and why (a stable code), never the value. */

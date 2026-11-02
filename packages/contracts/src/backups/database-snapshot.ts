@@ -44,3 +44,16 @@ export const databaseSnapshotChecksumsSchema = z
 export type DatabaseSnapshotMeta = z.infer<typeof databaseSnapshotMetaSchema>;
 export type DatabaseSnapshotChecksums = z.infer<typeof databaseSnapshotChecksumsSchema>;
 export type SnapshotReason = (typeof SNAPSHOT_REASONS)[number];
+
+/**
+ * Input of `restore-registry` (D30.2) on stdin: the name of a published package directory in the
+ * backup folder (UTC start, reason and snapshot ID, as the store names it) and the symbol of the
+ * registry to restore from it. A name, never a path: the command finds the package in its own folder.
+ */
+export const restoreRegistryInputSchema = z
+  .object({
+    snapshot: z.string().regex(/^\d{8}T\d{6}Z-[a-z_]+-[0-9a-f-]{36}$/),
+    symbol: z.string().min(1).max(64),
+  })
+  .strict();
+export type RestoreRegistryInput = z.infer<typeof restoreRegistryInputSchema>;

@@ -42,7 +42,7 @@ describe("D30.1-AC2 a deletion fails as a whole", () => {
     const before = state(setup);
     const generation = readGate(setup).generation;
 
-    const afterDrop = deletion(setup, registry, { tables: (inner) => ({ drop: (target) => (inner.drop(target), (() => { throw new Error("failed after the drop"); })()) }) });
+    const afterDrop = deletion(setup, registry, { tables: (inner) => ({ ...inner, drop: (target) => (inner.drop(target), (() => { throw new Error("failed after the drop"); })()) }) });
     await expect(afterDrop("req-after-drop")).rejects.toThrow(/after the drop/);
     closeWriters();
     expect(state(setup)).toBe(before);

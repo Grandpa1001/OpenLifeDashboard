@@ -110,6 +110,22 @@ printf '%s' '{"password":"a new long passphrase"}' | node apps/server/dist/cli/r
 
 The container sequence (stop the app, one-off container, start again) is what `install/install.sh` does.
 
+### Restoring a deleted registry
+
+Deleting a registry first takes a verified copy of the whole database into `data/backup/<UTC time>-pre_delete-<snapshot id>/` (`app.db`, `meta.json`, `checksums.json`). Restoring one registry from it is a command, there is no button yet:
+
+1. Stop the app.
+2. Find the package: the newest directory named `…-pre_delete-…` taken right after the deletion.
+3. Run `restore-registry` with the directory's name and the registry's symbol on stdin:
+
+```sh
+printf '%s' '{"snapshot":"20261102T120000Z-pre_delete-<snapshot id>","symbol":"ksiazki"}' | node apps/server/dist/cli/restore-registry.js --installation <installation-folder>
+```
+
+4. Start the app again. Widgets bound to the registry show as bound again.
+
+The command takes the writer lease like the other commands and verifies the package as a full restore would: the files, their checksums, the meta, the integrity of the copy, this installation, the reason `pre_delete` and the schema version of the database. It reads only that registry from the copy and puts back its catalog, its table, its indexes and its records under the same identifiers, with their times and revisions, in one transaction; nothing else (other registries, screens, sign-in data) changes. It restores only over that registry's own deletion: a registry that is not deleted, a symbol the copy does not have, or a catalog that changed since is `RESTORE_CONFLICT` and nothing is written. On failure it exits 1 with a stable code and field names, never values.
+
 ### Verified runtime
 
 Versions exercised by the verification reports; `tests/verification/readme-versions.ts` fails when a pinned version below no longer matches `package.json`, the pnpm catalog or the Dockerfile. The release matrix (KM7) extends this list.

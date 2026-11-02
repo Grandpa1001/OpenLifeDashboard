@@ -30,6 +30,10 @@ export type CommandSessionCode =
 
 export type CommandSession = Readonly<{
   connection: SqliteConnection;
+  /** The installation's identity, the schema version of its database and its folder of copies (restore-registry, D30.2). */
+  instanceId: string;
+  schemaVersion: number;
+  backupsDir: string;
   /** Closes the connection and releases the lease. */
   close: () => void;
 }>;
@@ -96,6 +100,9 @@ export function openCommandSession(inputs: CommandSessionInputs): CommandSession
       ok: true,
       session: {
         connection: opened,
+        instanceId: paths.instanceId,
+        schemaVersion: inspection.schemaVersion,
+        backupsDir: workingPaths.backups,
         close: () => {
           opened.close();
           writer.lease.release();

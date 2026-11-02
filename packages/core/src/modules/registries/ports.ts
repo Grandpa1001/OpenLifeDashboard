@@ -66,6 +66,8 @@ export interface RegistryStore {
    * rows and those of its columns stay, so its symbol stays taken and a binding to it is broken.
    */
   markDeleted(registry: StoredRegistry, nowIso: string): void;
+  /** Takes the deletion back (D30.2): `deleted_at` cleared, the schema and data revisions raised, only while it is deleted at the revision it was read with. */
+  markRestored(registry: StoredRegistry, nowIso: string): void;
 }
 
 /** A record as it is stored and returned: values by the symbols of the columns, in canonical form. */
@@ -176,9 +178,14 @@ export interface TableRebuild {
  * D28.1). The column comes from the catalog, never from a request; any failure throws and the unit
  * takes everything back.
  */
-/** The table of a registry as a whole (D30.1): what a deletion drops; its indexes go with it. */
+/** One stored row of a registry's table as SQLite holds it: the engine columns and the cells, already encoded. */
+export type StoredRow = Readonly<Record<string, string | number | null>>;
+
+/** The table of a registry as a whole: what a deletion drops (D30.1) and a restore creates again (D30.2). */
 export interface RegistryTables {
   drop(registry: StoredRegistry): void;
+  /** Creates the table and its indexes from the definition and inserts the rows page by page, as stored; the count of rows. */
+  restore(registry: StoredRegistry, pages: Iterable<readonly StoredRow[]>): number;
 }
 
 export interface TableColumns {

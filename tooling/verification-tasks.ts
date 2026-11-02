@@ -3160,6 +3160,48 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    id: "D30.2",
+    ready: true,
+    title: "Restoring one deleted registry from its copy pre_delete with the command restore-registry, under the same identifiers",
+    criteria: ["D30.2-AC1", "D30.2-AC2", "D30.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built command and the built server.
+        id: "workspace-build",
+        criteria: ["D30.2-AC1", "D30.2-AC2"],
+        description: "pnpm -r build: the command restore-registry and its input, the use case of a restore, the read of a registry from a copy, the restore of a table and of the catalog",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "apps/server/src/cli/restore-registry.ts",
+          "packages/core/src/modules/registries/application/restore-registry.ts",
+          "packages/sqlite/src/adapters/registries/registry-copy.ts",
+          "packages/sqlite/src/adapters/registries/registry-tables.ts",
+          "packages/contracts/src/backups/database-snapshot.ts",
+          "README.md",
+        ],
+      },
+      {
+        id: "restore-registry",
+        criteria: ["D30.2-AC1", "D30.2-AC2"],
+        description:
+          "On a real installation after S10 through the API: restore-registry brings Książki back with the same identifiers of the registry, its columns and its 25 records, their times and revisions, the table and indexes as created, revision 3, other registries, screens and sign-in data untouched, an audit without values; started again the server lists it, serves its records and the table widget is ok; a running server is INSTANCE_BUSY; a bad or unknown name, a damaged package, a consistent package of another installation or of another reason are refused; a registry not deleted or restored already, a symbol the copy lacks and a failure after the table or the catalog change nothing; the deletion, the copies, the commands and the gate as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance", "tests/integration/registries/registry-deletion-http.test.ts", "tests/integration/auth/create-owner.test.ts", "tests/integration/auth/reset-password.test.ts", "tests/integration/auth/reset-mfa.test.ts"],
+        requires: ["tests/integration/maintenance/restore-registry.test.ts", "tests/support/rebuild-writer.ts"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      ...regressionChecks("D30.2-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the deletion over HTTP and the restore from its copy.
+  {
+    id: "D30",
+    ready: true,
+    title: "Deleting a registry with its copy pre_delete, its tombstone and reserved symbol, and restoring it from the copy; S10",
+    steps: ["D30.1", "D30.2"],
+    criteria: [],
+    checks: [],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",
