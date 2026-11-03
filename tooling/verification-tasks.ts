@@ -3551,6 +3551,42 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.30: S12 at the real widths of a phone, a tablet, a laptop and a large display, with touch.
+    id: "D33.3",
+    ready: true,
+    title: "S12 in a browser at 390, 1024, 1440 and 1920 px with touch: a widget added on the desktop is on the phone and the tablet, a resize on the phone and a touch on the tablet keep the other layouts over a reload and a restart, the large display in 20 px",
+    criteria: ["D33.3-AC1", "D33.3-AC2", "D33.3-regression"],
+    checks: [
+      {
+        // Runs first: the test runs the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D33.3-AC1", "D33.3-AC2"],
+        description: "pnpm -r build: the Designer, the screen and Pulpity the scenario runs on",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/dashboard/components/designer-editor.tsx", "apps/web/src/features/dashboard/pages/main-page.tsx", "apps/web/src/features/dashboard/pages/screens-page.tsx"],
+      },
+      {
+        id: "s12-e2e",
+        criteria: ["D33.3-AC1", "D33.3-AC2"],
+        description:
+          "Playwright with touch: a widget added on the desktop layout of an empty screen at 1440 px is on the phone and the tablet; at 390 px the Designer arranges the phone only and a touch makes it taller without moving the desktop or the tablet; at 1024 px a touch resizes and moves it in the tablet layout; after a reload and a restart of the server the three layouts are the same on the server and on the screen at 390, 1024 and 1440 px; 1920 px is the desktop in a 20 px font and Pulpity keep 16 px; axe on the Designer, the screen and Pulpity",
+        command: ["node", "tests/verification/e2e.ts", "layouts-s12"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/layouts-s12.spec.ts", "tests/e2e/owner-session.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D33.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the screen under /, the grid of the Designer and S12.
+  {
+    id: "D33",
+    ready: true,
+    title: "Three independent layouts with collisions and the minimum for the mouse, the touch and the keyboard, the screen under / and Pulpity",
+    steps: ["D33.1", "D33.2", "D33.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
     // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
     id: "G2",

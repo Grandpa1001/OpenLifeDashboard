@@ -14,8 +14,8 @@ name: CI
 #
 # The full tier is split by topic into jobs that run side by side, each with its own report
 # artifact: platform (D01-D08, Docker, images, the G0 inputs), access (D09-D13), registries
-# (D14-D17), data (the parents D22-D26), structure (the parents from D27 on), screens (D18) and
-# installer (D19). The fast tier is split the same way: core (D01-D20.2), data (D22.1-D26.2),
+# (D14-D17), data (the parents D22-D26), structure (the parents D27-D32), screens (D18 and the parents
+# from D33 on) and installer (D19). The fast tier is split the same way: core (D01-D20.2), data (D22.1-D26.2),
 # structure (the steps from D27.1 on), browser, the structure in a browser (D31.1-D32.2) and the
 # screens and the Designer in a browser (from D33.1 on). A new task joins the job of its topic, so no
 # single job grows past its time limit.
@@ -471,6 +471,9 @@ jobs:
       - name: Verify D33.2 (collisions, the minimum, the keyboard and the touch on the grid of the Designer, the phone and a failed load)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D33.2
+      - name: Verify D33.3 (S12 at the widths of a phone, a tablet, a laptop and a large display, with touch)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D33.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -845,7 +848,7 @@ jobs:
 
   full-screens:
     # Screens: the private screen and the Designer in a browser.
-    name: verify:task (full tier, screens D18)
+    name: verify:task (full tier, screens D18 and D33)
     needs: changes
     if: ${{ needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
@@ -890,6 +893,9 @@ jobs:
       - name: Verify D18 (the parent, D18.1–D18.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D18
+      - name: Verify D33 (the parent, D33.1–D33.3 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D33
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
