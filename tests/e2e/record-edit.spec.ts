@@ -184,7 +184,7 @@ test.describe("D23.3-AC2 a delete, a record gone elsewhere, a lost answer and th
     const owner = await ownerServer("ready");
     await books(page, owner);
     await createScreenWith(page, owner, [{ id: "019a0000-0000-7000-8000-0000000d2303", title: "Moje książki", layout: { phone: { x: 0, y: 0, w: 1, h: 8 }, tablet: { x: 0, y: 0, w: 8, h: 8 }, desktop: { x: 0, y: 0, w: 12, h: 8 } } }]);
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page.getByRole("cell", { name: "Diuna" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: text(registers, "table.actions") })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Edit the record|Delete the record/ })).toHaveCount(0);

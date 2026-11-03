@@ -30,7 +30,7 @@ async function openRegisters(page: Page, owner: BrowserOwner): Promise<void> {
   await page.getByLabel(text(auth, "login.password"), { exact: true }).fill(owner.password);
   await page.getByRole("button", { name: text(auth, "login.submit") }).click();
   await page.getByLabel(text(auth, "mfa.codeLabel")).fill(await owner.code(1));
-  await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+  await expect(page).toHaveURL(`${owner.baseUrl}/`);
   await page.goto(`${owner.baseUrl}/registers`);
   await page.getByRole("button", { name: text(registers, "list.new") }).click();
 }

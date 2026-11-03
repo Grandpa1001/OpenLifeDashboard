@@ -111,13 +111,13 @@ test.describe("D18.3-AC1 registry, Designer, three layouts, restart, record", ()
     await expect(page.getByRole("status")).toHaveText(text(designer, "toolbar.saved"));
     await expect(save).toBeDisabled();
     await page.getByRole("button", { name: text(designer, "toolbar.finish"), exact: true }).click();
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
     await page.waitForLoadState("networkidle");
 
     // The server stops and starts again on the same data.
     await owner.restart();
     await page.setViewportSize({ width: 1600, height: 1000 });
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page.locator("section.widget")).toHaveCount(1);
     await expect(page.getByText(text(widgets, "registerTable.empty"))).toBeVisible();
     expect(await cellOf(page)).toEqual({ x: 2, y: 1, w: 8 });

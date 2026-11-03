@@ -80,7 +80,7 @@ test.describe("G2 the full F01 on one installation", () => {
     await expectNoViolations(page);
 
     // The widget: the ten newest records, each status as the dictionary shows it.
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     const widget = page.locator("section.widget").filter({ hasText: "Moje książki" });
     await expect(widget.getByRole("row")).toHaveCount(11);
     for (const record of BOOKS.records.slice(-10)) await expect(widget.getByRole("row").filter({ hasText: record.values["tytul"] as string })).toContainText(shown(record.values["status"]));
@@ -116,7 +116,7 @@ test.describe("G2 the full F01 on one installation", () => {
     await effects.getByRole("checkbox", { name: text(registers, "structure.effects.aware") }).check();
     await effects.getByRole("button", { name: text(registers, "structure.effects.save") }).click();
     await expect(effects).toBeHidden();
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(widget.getByText(text(widgets, "registerTable.brokenBinding"))).toBeVisible();
     expect(query<{ n: number }>(owner.instance, "SELECT count(*) AS n FROM reg_ksiazki")).toEqual([{ n: 25 }]);
   });

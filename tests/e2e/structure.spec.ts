@@ -59,7 +59,7 @@ async function confirmAndSave(page: Page, description: string): Promise<void> {
 }
 
 async function expectBrokenOnScreen(page: Page, owner: BrowserOwner): Promise<void> {
-  await page.goto(`${owner.baseUrl}/main`);
+  await page.goto(`${owner.baseUrl}/`);
   await expect(page.locator("section.widget").filter({ hasText: "Moje książki" }).getByText(text(widgets, "registerTable.brokenBinding"))).toBeVisible();
 }
 

@@ -58,5 +58,28 @@
     "text": "Masz niezapisane zmiany ekranu. Wyjście je odrzuci.",
     "stay": "Zostań",
     "discard": "Odrzuć i wyjdź"
+  },
+  "screens": {
+    "title": "Pulpity",
+    "loading": "Wczytywanie pulpitów…",
+    "emptyHeading": "Nie masz jeszcze pulpitu",
+    "empty": "Pulpit tworzy się w Designerze.",
+    "openDesigner": "Otwórz Designer",
+    "name": "Nazwa",
+    "updatedAt": "Ostatnia zmiana",
+    "actions": "Akcje",
+    "view": "Podgląd",
+    "edit": "Edycja",
+    "properties": {
+      "open": "Właściwości",
+      "heading": "Właściwości pulpitu",
+      "name": "Nazwa pulpitu",
+      "hint": "Do {{max}} znaków.",
+      "required": "Podaj nazwę pulpitu.",
+      "tooLong": "Nazwa może mieć najwyżej {{max}} znaków.",
+      "cancel": "Anuluj",
+      "save": "Zapisz",
+      "saving": "Zapisywanie…"
+    }
   }
 }

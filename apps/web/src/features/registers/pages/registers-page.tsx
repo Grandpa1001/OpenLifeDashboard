@@ -126,7 +126,7 @@ export function RegistersPage() {
     // The width of the window, as the registry screens are drawn (makiety 06, 07); the form of a registry is a row per column.
     <main className="page page-wide">
       <nav aria-label={common.t("main.navigation")}>
-        <Link to="/main">{common.t("main.title")}</Link>
+        <Link to="/">{common.t("main.title")}</Link>
       </nav>
       <h1>{t("title")}</h1>
       {created === null ? null : <p role="status">{t("form.created", { name: created })}</p>}

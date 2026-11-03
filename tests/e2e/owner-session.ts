@@ -24,7 +24,20 @@ export async function signInFully(page: Page, owner: BrowserOwner): Promise<void
   await page.getByLabel(text(auth, "login.password"), { exact: true }).fill(owner.password);
   await page.getByRole("button", { name: text(auth, "login.submit") }).click();
   await page.getByLabel(text(auth, "mfa.codeLabel")).fill(await owner.code(1));
-  await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+  await expect(page).toHaveURL(`${owner.baseUrl}/`);
+}
+
+/** From the screen of the owner into the part of the application, by the one icon of the screen (D33.1). */
+export async function openApp(page: Page, common = locale("en")): Promise<void> {
+  await page.getByRole("link", { name: text(common, "main.openApp") }).click();
+  await expect(page.getByRole("navigation", { name: text(common, "appBar.navigation") })).toBeVisible();
+}
+
+/** Wyloguj from the account of the bar of the application; from the screen of the owner the icon opens the bar first. */
+export async function signOutFromApp(page: Page, common = locale("en")): Promise<void> {
+  if ((await page.getByRole("navigation", { name: text(common, "appBar.navigation") }).count()) === 0) await openApp(page, common);
+  await page.getByRole("button", { name: text(common, "appBar.account") }).click();
+  await page.getByRole("button", { name: text(common, "appBar.signOut") }).click();
 }
 
 export async function createRegistry(page: Page, owner: BrowserOwner, definition: { symbol: string; displayName: string; columns: unknown[] }): Promise<void> {

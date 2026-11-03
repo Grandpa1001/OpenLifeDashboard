@@ -40,7 +40,7 @@ test.describe("D18.1-AC1 the register table on the screen", () => {
     const owner = await ownerServer("ready");
     await books(page, owner, 25);
     await createScreenWith(page, owner, [{ id: A, title: "Moje książki", layout: HALVES.a.layout }]);
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
 
     const card = widgetOf(page, "Moje książki");
     await expect(card.getByRole("columnheader")).toHaveText(["Tytuł", "Autor"]);
@@ -77,7 +77,7 @@ test.describe("D18.1-AC1 the register table on the screen", () => {
     const owner = await ownerServer("ready");
     await books(page, owner, 0);
     await createScreenWith(page, owner, [{ id: A, title: "Pusta", allowAdd: false, layout: HALVES.a.layout }, { id: B, title: "Z dodawaniem", layout: HALVES.b.layout }]);
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(widgetOf(page, "Pusta").getByText(table("empty"))).toBeVisible();
     await expect(widgetOf(page, "Pusta").getByRole("button", { name: table("add"), exact: true })).toHaveCount(0);
     await expect(widgetOf(page, "Z dodawaniem").getByText(table("empty"))).toBeVisible();
@@ -99,7 +99,7 @@ test.describe("D18.1-AC1 the register table on the screen", () => {
 
     // Phone: one column, the second widget under the first, both as wide as the grid.
     await page.setViewportSize({ width: 375, height: 800 });
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page.locator(".screen-grid")).toHaveAttribute("data-layout", "phone");
     let { first, second, grid } = await boxes();
     near(first.x, grid.x);
@@ -133,7 +133,7 @@ test.describe("D18.1-AC1 the register table on the screen", () => {
     const hostile = `<img src=x onerror="globalThis.__ran=1"><b>bold</b>`;
     await addRecordByApi(page, owner, "ksiazki", { tytul: hostile }, "seed-key-001");
     await createScreenWith(page, owner, [{ id: A, title: hostile.slice(0, 60), layout: HALVES.a.layout }]);
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page.getByRole("cell", { name: hostile })).toBeVisible();
     expect(await page.locator("main img, main b").count()).toBe(0);
     expect(await page.evaluate(() => Reflect.get(globalThis, "__ran"))).toBeUndefined();
@@ -162,7 +162,7 @@ test.describe("D18.1-AC2 what a widget says when it cannot show data", () => {
       { id: A, title: "Szkic", draft: true, layout: HALVES.a.layout },
       { id: B, title: "Dane", layout: HALVES.b.layout },
     ]);
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(widgetOf(page, "Szkic").getByText(table("configure"))).toBeVisible();
     await expect(widgetOf(page, "Szkic").getByRole("link", { name: table("openDesigner") })).toBeVisible();
     await expect(widgetOf(page, "Dane").getByRole("cell", { name: "Książka 02" })).toBeVisible();
@@ -202,7 +202,7 @@ test.describe("D18.1-AC2 what a widget says when it cannot show data", () => {
       for (const row of body.rows) row.values["strony"] = 12;
       await route.fulfill({ response, json: body });
     });
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(widgetOf(page, "Wadliwy").getByRole("alert")).toHaveText(text(widgets, "crashed"));
     await expect(widgetOf(page, "Sprawny").getByRole("cell", { name: "Książka 02" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(text(common, "main.title"));
@@ -216,7 +216,7 @@ test.describe("D18.1-AC2 what a widget says when it cannot show data", () => {
     await books(page, owner, 2);
     await createScreenWith(page, owner, [{ id: A, title: "Dane", layout: HALVES.a.layout }]);
     await page.route("**/api/v1/widgets/*/data*", (route) => route.abort("connectionreset"));
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(widgetOf(page, "Dane").getByRole("alert")).toHaveText(table("loadFailed"));
     await expectNoViolations(page);
     await page.unroute("**/api/v1/widgets/*/data*");

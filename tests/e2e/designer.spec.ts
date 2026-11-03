@@ -63,7 +63,7 @@ test.describe("D18.2-AC1 the Designer arranges and saves", () => {
     await ready(page, owner);
     await addRecordByApi(page, owner, "ksiazki", { tytul: "Solaris", autor: "Lem" }, "seed-key-001");
 
-    await page.getByRole("link", { name: text(locale("en"), "main.designer"), exact: true }).click();
+    await page.getByRole("link", { name: text(locale("en"), "main.openDesigner"), exact: true }).click();
     await expect(page.getByRole("heading", { name: text(designer, "create.heading") })).toBeVisible();
     await expectNoViolations(page);
     await page.getByRole("button", { name: text(designer, "create.submit") }).click();
@@ -94,7 +94,7 @@ test.describe("D18.2-AC1 the Designer arranges and saves", () => {
     expect(saved.widgets[0]?.layout).toEqual({ phone: { x: 0, y: 0, w: 1, h: 8 }, tablet: { x: 0, y: 0, w: 8, h: 8 }, desktop: { x: 0, y: 0, w: 8, h: 8 } });
 
     await toolbarButton(page, "toolbar.finish").click();
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
     const card = page.locator("section.widget").first();
     await expect(card.getByRole("columnheader")).toHaveText(["Tytuł", "Autor"]);
     await expect(card.getByRole("cell", { name: "Solaris" })).toBeVisible();
@@ -247,7 +247,7 @@ test.describe("D18.2-AC2 a save that fails, and leaving with unsaved changes", (
 
     await toolbarButton(page, "toolbar.finish").click();
     await page.getByRole("alertdialog").getByRole("button", { name: text(designer, "leave.discard") }).click();
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
     await expect(savedScreenWidgets(page, owner)).resolves.toBe(1);
   });
 

@@ -11,6 +11,7 @@ import type { Page } from "@playwright/test";
 import { REGISTRIES_PATH } from "@openlife/contracts/http/registries";
 import type { BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
+import { openApp } from "./owner-session.ts";
 
 const auth = locale("en", "auth");
 const common = locale("en");
@@ -31,7 +32,7 @@ async function signInFully(page: Page, owner: BrowserOwner): Promise<void> {
   await page.getByLabel(text(auth, "login.password"), { exact: true }).fill(owner.password);
   await page.getByRole("button", { name: text(auth, "login.submit") }).click();
   await page.getByLabel(text(auth, "mfa.codeLabel")).fill(await owner.code(1));
-  await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+  await expect(page).toHaveURL(`${owner.baseUrl}/`);
 }
 
 /** A registry made with the session of the page, exactly as a client would. */
@@ -46,7 +47,8 @@ test.describe("D16.1-AC1 the list of registries", () => {
   test("from the private screen to an empty list, then a card with the name, the symbol and the number of columns", async ({ page, ownerServer }) => {
     const owner = await ownerServer("ready");
     await signInFully(page, owner);
-    await page.getByRole("link", { name: text(common, "main.registers") }).click();
+    await openApp(page, common);
+    await page.getByRole("link", { name: text(common, "appBar.registers") }).click();
     await expect(page).toHaveURL(`${owner.baseUrl}/registers`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(text(registers, "title"));
     await expect(page.getByText(text(registers, "list.empty"))).toBeVisible();
@@ -67,8 +69,8 @@ test.describe("D16.1-AC1 the list of registries", () => {
     await expect(page.getByRole("listitem")).toHaveCount(2);
     await expect(page.getByRole("listitem").nth(1)).toContainText("1 column");
     // Back to the private screen by the link of the page.
-    await page.getByRole("link", { name: text(common, "main.title") }).click();
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await page.getByRole("link", { name: text(common, "main.title"), exact: true }).click();
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
   });
 
   test("a name is text: markup in it is shown as it is and runs nothing", async ({ page, ownerServer }) => {

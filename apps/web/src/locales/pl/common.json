@@ -18,21 +18,27 @@
     "backHome": "Wróć na stronę główną"
   },
   "main": {
-    "title": "Ekran główny",
-    "signOut": "Wyloguj",
+    "title": "Pulpit",
     "empty": "Dodaj widgety w Designerze, aby zobaczyć tu swoje dane.",
     "navigation": "Nawigacja",
-    "registers": "Rejestry",
-    "designer": "Designer",
     "loading": "Wczytywanie ekranu…",
     "retry": "Spróbuj ponownie",
     "emptyHeading": "Ekran jest pusty",
-    "openDesigner": "Otwórz Designer"
+    "openDesigner": "Otwórz Designer",
+    "openApp": "Otwórz aplikację"
   },
   "gate": {
     "unavailable": {
       "heading": "Nie można sprawdzić stanu konta",
       "retry": "Spróbuj ponownie"
     }
+  },
+  "appBar": {
+    "navigation": "Część aplikacji",
+    "screens": "Pulpity",
+    "registers": "Rejestry",
+    "account": "Konto",
+    "role": "Właściciel",
+    "signOut": "Wyloguj"
   }
 }

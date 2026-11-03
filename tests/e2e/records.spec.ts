@@ -10,7 +10,7 @@ import { recordPageSchema, registryRecordsPath } from "@openlife/contracts/http/
 import type { Page } from "@playwright/test";
 import { query, type BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { addRecordByApi, BOOKS_DEFINITION, createRegistry, expectNoViolations, signInFully } from "./owner-session.ts";
+import { addRecordByApi, BOOKS_DEFINITION, createRegistry, expectNoViolations, signInFully, openApp } from "./owner-session.ts";
 
 const registers = locale("en", "registers");
 const errors = locale("en", "errors");
@@ -122,7 +122,8 @@ test.describe("D16 the parent: from nothing to a record, in the browser alone", 
   test("a registry from the form, its card, its first record in the window, and the record in the table after a reload", async ({ page, ownerServer }) => {
     const owner = await ownerServer("ready");
     await signInFully(page, owner);
-    await page.getByRole("link", { name: text(locale("en"), "main.registers") }).click();
+    await openApp(page);
+    await page.getByRole("link", { name: text(locale("en"), "appBar.registers") }).click();
     await page.getByRole("button", { name: text(registers, "list.new") }).click();
     await page.getByLabel(text(registers, "form.name"), { exact: true }).fill("Książki");
     const first = page.getByRole("group", { name: text(registers, "form.column").replace("{{position}}", "1") });

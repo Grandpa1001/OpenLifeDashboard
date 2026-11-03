@@ -119,7 +119,7 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
         <p role="status" className="designer-status" data-dirty={dirty}>
           {status}
         </p>
-        <button type="button" onClick={() => void navigate({ to: "/main" })}>
+        <button type="button" onClick={() => void navigate({ to: "/" })}>
           {t("toolbar.finish")}
         </button>
       </header>

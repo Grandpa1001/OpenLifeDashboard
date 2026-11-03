@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -3454,6 +3454,54 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D32.1", "D32.2"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.30: the screen of the owner under `/`, Pulpity with Właściwości and the bar of the part of the application.
+    id: "D33.1",
+    ready: true,
+    title: "The screen of the owner under / without a bar and with the one icon, /main leading there, Pulpity with Właściwości, the bar of the part of the application and the large-screen font",
+    criteria: ["D33.1-AC1", "D33.1-AC2", "D33.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D33.1-AC1", "D33.1-AC2"],
+        description: "pnpm -r build: the routes of / and /main, the screen, Pulpity, Właściwości, the bar and the font token",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "apps/web/src/app/router/router.tsx",
+          "apps/web/src/app/layout/app-bar.tsx",
+          "apps/web/src/features/dashboard/pages/main-page.tsx",
+          "apps/web/src/features/dashboard/pages/screens-page.tsx",
+          "apps/web/src/features/dashboard/components/screen-properties-dialog.tsx",
+          "packages/ui/src/tokens/dark-theme.json",
+        ],
+      },
+      {
+        id: "home-routes-web",
+        criteria: ["D33.1-AC1", "D33.1-AC2"],
+        description: "Unit: ready leads to /, every next action has its route; the name of Właściwości is refused empty and above 80 characters as the contract refuses it",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/error-message.test.ts", "tests/unit/web/screen-name.test.ts"],
+        requires: ["tests/unit/web/error-message.test.ts", "tests/unit/web/screen-name.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D33.1-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/common.json", "apps/web/src/locales/en/designer.json"],
+      },
+      {
+        id: "screens-e2e",
+        criteria: ["D33.1-AC1", "D33.1-AC2"],
+        description:
+          "Playwright on a fresh installation with Książki and its widget: the sign-in leads to /, /main to / without an entry in the history, the icon is the one link of the screen and opens Pulpity; the row names the screen and its last change, Podgląd and Edycja open / and the Designer, Właściwości rename it on the list and in the Designer; 1920 px is the desktop in a 20 px font; a session on its way goes to its step; an empty and an 81-character name refused without a request, a refused save keeps the window; the bar on Pulpity and Rejestry, not on /; 390 px without sideways scroll, the keyboard, 44 px on the tablet; axe; the gate, the sign-in, the start screen, the setup, the screen and the Designer under the new address",
+        command: ["node", "tests/verification/e2e.ts", "screens.spec", "gate.spec", "sign-in.spec", "status-screen", "setup.spec", "dashboard.spec", "designer.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/screens.spec.ts", "tests/e2e/gate.spec.ts", "tests/e2e/sign-in.spec.ts", "tests/e2e/status-screen.spec.ts", "tests/e2e/setup.spec.ts", "tests/e2e/dashboard.spec.ts", "tests/e2e/designer.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D33.1-regression"),
+    ],
   },
   {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of

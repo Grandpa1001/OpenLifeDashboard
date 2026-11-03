@@ -6,6 +6,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { expect, locale, test, text } from "./fixtures.ts";
+import { signOutFromApp } from "./owner-session.ts";
 
 const pl = locale("pl", "auth");
 const en = locale("en", "auth");
@@ -115,9 +116,10 @@ test.describe("Polish", () => {
     });
     await signInWith(page, polish, owner.email, owner.password);
     await expect(submitButton(page, polish).or(page.getByRole("button", { name: text(pl, "login.submitting") }))).toBeVisible();
-    await page.goto(`${owner.baseUrl}/`);
+    // A page a visitor without a session may stay on (the address of the installation now leads to the sign-in).
+    await page.goto(`${owner.baseUrl}/does-not-exist`);
     await page.waitForTimeout(2200);
-    expect(new URL(page.url()).pathname).toBe("/");
+    expect(new URL(page.url()).pathname).toBe("/does-not-exist");
   });
 
   test("the password is sent exactly as typed, spaces included, and is nowhere afterwards", async ({ page, ownerServer }) => {
@@ -155,7 +157,7 @@ test.describe("English", () => {
 
     // The next time step's code is a fresh proof; typing the last digit is enough.
     await codeField(page, english).fill(await owner.code(1));
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(text(enCommon, "main.title"));
     expect(await storageHolds(page, owner.password)).toBe(false);
   });
@@ -168,7 +170,7 @@ test.describe("English", () => {
     const recovery = page.getByLabel(text(en, "mfa.recoveryLabel"), { exact: true });
     await recovery.fill((owner.recoveryCodes[0] ?? "").toLowerCase());
     await page.getByRole("button", { name: text(en, "mfa.submit") }).click();
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
   });
 
   test("remembering the device leaves a trusted-device cookie that the page cannot read; the next sign-in needs no code", async ({ page, context, ownerServer }) => {
@@ -177,18 +179,18 @@ test.describe("English", () => {
     await signInWith(page, english, owner.email, owner.password);
     await page.getByLabel(text(en, "mfa.remember")).check();
     await codeField(page, english).fill(await owner.code(1));
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
     const cookies = await context.cookies(owner.baseUrl);
     const trusted = cookies.find((cookie) => cookie.name.endsWith(".trusted_device"));
     expect(trusted).toMatchObject({ httpOnly: true, sameSite: "Lax" });
     expect(cookies.find((cookie) => cookie.name.endsWith(".session_token"))).toMatchObject({ httpOnly: true });
     expect((JSON.parse(await readablePageState(page)) as { cookie: string }).cookie).toBe("");
 
-    await page.getByRole("button", { name: text(enCommon, "main.signOut") }).click();
+    await signOutFromApp(page, enCommon);
     await expect(page).toHaveURL(`${owner.baseUrl}/login`);
     await expect(passwordField(page, english)).toHaveValue("");
     await signInWith(page, english, owner.email, owner.password);
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
   });
 
   test("signing out ends the session: the password field is empty, and the private screen is closed", async ({ page, ownerServer }) => {
@@ -196,11 +198,11 @@ test.describe("English", () => {
     await page.goto(`${owner.baseUrl}/login`);
     await signInWith(page, english, owner.email, owner.password);
     await codeField(page, english).fill(await owner.code(1));
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
-    await page.getByRole("button", { name: text(enCommon, "main.signOut") }).click();
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
+    await signOutFromApp(page, enCommon);
     await expect(page).toHaveURL(`${owner.baseUrl}/login`);
     await expect(passwordField(page, english)).toHaveValue("");
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page).toHaveURL(`${owner.baseUrl}/login`);
     expect(await storageHolds(page, owner.password)).toBe(false);
   });

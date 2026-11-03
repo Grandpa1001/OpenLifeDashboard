@@ -30,7 +30,8 @@
     "base": "1rem",
     "lg": "1.125rem",
     "xl": "1.25rem",
-    "2xl": "1.5rem"
+    "2xl": "1.5rem",
+    "root-large": "20px"
   },
   "space": {
     "1": "4px",

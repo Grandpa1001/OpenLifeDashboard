@@ -1,15 +1,13 @@
 import type { ScreenDto, WidgetViewDto } from "@openlife/contracts/http/screens";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { WidgetBoundary } from "../../../lib/boundary/widget-boundary.js";
-import { describeFailure, type ErrorMessage } from "../../../lib/failures/error-message.js";
+import { describeFailure } from "../../../lib/failures/error-message.js";
 import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { gridStyle, placementStyle, readingOrder } from "../../../lib/layout/grid.js";
 import { useBreakpoint } from "../../../lib/layout/use-breakpoint.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
-import { endSession } from "../../../lib/session/end-session.js";
 import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
 import { leavesTheGate, readFirstScreen, ScreenFailure } from "../api/first-screen.js";
 import { typeLabelKey } from "../lib/type-label.js";
@@ -42,42 +40,36 @@ function WidgetCell({ widget, layout, renderAddRecord }: Readonly<{ widget: Widg
   );
 }
 
-/** The private screen (Scope §5.3): the widgets of the screen on the grid of the layout the window calls for. */
+/** The way into the part of the application: a grid of four squares, its name for the reader and the hover. */
+function OpenAppIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+      <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" fill="none" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+/**
+ * The screen of the owner under `/` (Scope §5.3; D33.1): only the widgets of the screen on the grid of
+ * the layout the window calls for. It has no bar; its one control is the icon that opens the part of
+ * the application.
+ */
 export function MainPage({ renderAddRecord }: Readonly<{ renderAddRecord: AddRecordRenderer }>) {
   const { t } = useTranslation("common");
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const layout = useBreakpoint();
-  const [problem, setProblem] = useState<ErrorMessage | null>(null);
 
   const screen = useQuery<ScreenDto | null>({ queryKey: queryKeys.screens.list, queryFn: ({ signal }) => readFirstScreen(signal) });
   const failure = screen.error instanceof ScreenFailure ? screen.error.failure : null;
   const gone = leavesTheGate(failure);
   useGuardRecheck(gone);
 
-  async function leave(): Promise<void> {
-    setProblem(null);
-    const result = await endSession(queryClient);
-    if (!result.ok && result.failure.kind !== "aborted") {
-      setProblem(describeFailure(result.failure));
-      return;
-    }
-    await navigate({ to: "/login" });
-  }
-
   const widgets = screen.data === undefined || screen.data === null ? [] : readingOrder(screen.data.widgets, layout);
   return (
-    <main className="page page-wide">
-      <h1>{t("main.title")}</h1>
-      {screen.data === undefined || screen.data === null ? null : <p className="screen-name">{screen.data.name}</p>}
-      <nav aria-label={t("main.navigation")} className="topbar">
-        <Link to="/designer">{t("main.designer")}</Link>
-        <Link to="/registers">{t("main.registers")}</Link>
-        <button type="button" onClick={() => void leave()}>
-          {t("main.signOut")}
-        </button>
-      </nav>
-      {problem === null ? null : <FailureAlert message={problem} />}
+    <main className="page page-wide pulpit">
+      <h1 className="visually-hidden">{t("main.title")}</h1>
+      <Link to="/screens" className="open-app" aria-label={t("main.openApp")} title={t("main.openApp")}>
+        <OpenAppIcon />
+      </Link>
       {screen.isPending ? <p role="status">{t("main.loading")}</p> : null}
       {failure === null ? null : (
         <>

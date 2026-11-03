@@ -58,5 +58,28 @@
     "text": "You have unsaved changes to the screen. Leaving discards them.",
     "stay": "Stay",
     "discard": "Discard and leave"
+  },
+  "screens": {
+    "title": "Dashboards",
+    "loading": "Loading the dashboards…",
+    "emptyHeading": "You have no dashboard yet",
+    "empty": "A dashboard is made in the Designer.",
+    "openDesigner": "Open the Designer",
+    "name": "Name",
+    "updatedAt": "Last change",
+    "actions": "Actions",
+    "view": "Preview",
+    "edit": "Edit",
+    "properties": {
+      "open": "Properties",
+      "heading": "Dashboard properties",
+      "name": "Dashboard name",
+      "hint": "Up to {{max}} characters.",
+      "required": "Enter the name of the dashboard.",
+      "tooLong": "The name can have at most {{max}} characters.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving…"
+    }
   }
 }

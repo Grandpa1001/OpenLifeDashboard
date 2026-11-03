@@ -27,7 +27,7 @@ class DataFailure extends Error {
 }
 
 /**
- * The register table on `/main`: it reads the data of the widget (the server selects registry,
+ * The register table on the screen (`/`): it reads the data of the widget (the server selects registry,
  * columns, sort and page size from what was saved), gives them to the view with the texts of the
  * language, and opens the window that adds a record, which the composition root of the application
  * supplies. A record added is shown after the server's answer, on the first page.

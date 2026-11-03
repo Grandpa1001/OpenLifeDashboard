@@ -56,7 +56,7 @@ test.describe("D20.1 the owner's vertical path on a file SQLite", () => {
     await page.getByLabel(text(auth, "login.password"), { exact: true }).fill(owner.password);
     await page.getByRole("button", { name: text(auth, "login.submit") }).click();
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
-    for (const path of ["/main", "/registers", "/designer"]) {
+    for (const path of ["/", "/main", "/registers", "/designer"]) {
       await page.goto(`${owner.baseUrl}${path}`);
       await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
     }
@@ -75,7 +75,7 @@ test.describe("D20.1 the owner's vertical path on a file SQLite", () => {
     await page.getByRole("button", { name: text(setup, "data.chooseEmpty") }).click();
     await page.getByLabel(text(setup, "preferences.timezoneLabel")).fill("Europe/Warsaw");
     await page.getByRole("button", { name: text(setup, "preferences.save") }).click();
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
 
     // The registry Książki from its form.
     await page.goto(`${owner.baseUrl}/registers`);
@@ -106,7 +106,7 @@ test.describe("D20.1 the owner's vertical path on a file SQLite", () => {
     // The whole text: "Unsaved changes" holds "saved" too, and a Finish pressed while the save is in flight asks to discard.
     await expect(page.getByRole("status")).toHaveText(text(designer, "toolbar.saved"));
     await page.getByRole("button", { name: text(designer, "toolbar.finish"), exact: true }).click();
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
 
     // The pages of 10, 10 and 5.
     const card = page.locator("section.widget").first();
@@ -151,7 +151,7 @@ test.describe("D20.1 the owner's vertical path on a file SQLite", () => {
       expect(await allRecords(page, owner), `records after restart ${restart}`).toEqual(stored);
       expect(await screen(), `screen after restart ${restart}`).toEqual(screenBefore);
     }
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     const reopened = page.locator("section.widget").first();
     await expect(reopened.getByText("26 records in total")).toBeVisible();
     await expect(reopened.getByRole("cell", { name: "Solaris" })).toBeVisible();

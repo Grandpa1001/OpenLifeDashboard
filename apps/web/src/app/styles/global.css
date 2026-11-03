@@ -657,11 +657,93 @@ main.page-wide {
   gap: var(--space-4);
 }
 
-.topbar {
+/* The bar of the part of the application (Scope §4; D33.1): the pages on the left, the account on the right. */
+.app-bar {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4);
   align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.app-bar nav {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.app-bar nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.app-bar nav a[aria-current="page"] {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.app-bar-account {
+  position: relative;
+}
+
+.app-bar-panel {
+  position: absolute;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 12rem;
+  margin-top: var(--space-1);
+}
+
+/* The screen of the owner: the whole window, its one control the icon in the top right corner. */
+main.pulpit {
+  position: relative;
+  padding-top: var(--space-4);
+}
+
+.open-app {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-end;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+
+.open-app:hover {
+  color: var(--color-text);
+}
+
+/* A large display (from 1800 px, where grid.ts keeps the desktop layout) reads the screen in a larger base font. */
+@media (min-width: 1800px) {
+  html:has(main.pulpit) {
+    font-size: var(--text-root-large);
+  }
+}
+
+.screens-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+}
+
+.screens-actions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
 }
 
 .screen-name {

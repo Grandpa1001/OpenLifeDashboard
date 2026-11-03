@@ -54,11 +54,11 @@ describe("D12.1 failure texts", () => {
 describe("D12.1 routes of the next steps", () => {
   it("every next action of the server has a route, and the sign-in states lead where they belong", () => {
     for (const action of NEXT_ACTIONS) {
-      expect(["/login", "/mfa", "/setup", "/main"]).toContain(routeForNextAction(action));
+      expect(["/login", "/mfa", "/setup", "/"]).toContain(routeForNextAction(action));
     }
     expect(routeForNextAction("login")).toBe("/login");
     expect(routeForNextAction("mfa_challenge")).toBe("/mfa");
-    expect(routeForNextAction("ready")).toBe("/main");
+    expect(routeForNextAction("ready")).toBe("/");
     expect(routeForNextAction("create_owner")).toBe("/setup");
     expect(routeForNextAction("mfa_enrollment")).toBe("/setup");
     expect(routeForNextAction("recovery_ack")).toBe("/setup");

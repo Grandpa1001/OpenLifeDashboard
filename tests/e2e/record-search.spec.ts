@@ -176,7 +176,7 @@ test.describe("D23.4-AC2 no match, a late answer, the first page and the widget"
     const owner = await ownerServer("ready");
     await books(page, owner);
     await createScreenWith(page, owner, [{ id: "019a0000-0000-7000-8000-0000000d2304", title: "Moje książki", layout: { phone: { x: 0, y: 0, w: 1, h: 8 }, tablet: { x: 0, y: 0, w: 8, h: 8 }, desktop: { x: 0, y: 0, w: 12, h: 8 } } }]);
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page.getByRole("cell", { name: /^Książka testowa / }).first()).toBeVisible();
     await expect(page.getByRole("searchbox")).toHaveCount(0);
     await expect(page.getByRole("combobox", { name: text(registers, "table.sort") })).toHaveCount(0);

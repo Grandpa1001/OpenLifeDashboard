@@ -7,6 +7,7 @@ import { MfaPage } from "../../features/auth/pages/mfa-page.js";
 import { DesignerPage } from "../../features/dashboard/pages/designer-page.js";
 import { AddRecordForRegistry } from "../../features/registers/components/add-record-for-registry.js";
 import { MainPage } from "../../features/dashboard/pages/main-page.js";
+import { ScreensPage } from "../../features/dashboard/pages/screens-page.js";
 import { RegistryPage } from "../../features/registers/pages/registry-page.js";
 import { StructurePage } from "../../features/registers/pages/structure-page.js";
 import { SystemTablePage } from "../../features/registers/pages/system-table-page.js";
@@ -19,6 +20,7 @@ import { setInterfaceLanguage } from "../../lib/language.js";
 import { currentIdentityStatus } from "../../lib/session/identity-status.js";
 import { currentOwnerSetup } from "../../lib/session/owner-setup.js";
 import { routeForNextAction } from "../../lib/session/route-for-next-action.js";
+import { AppBar } from "../layout/app-bar.js";
 import { GateErrorPage } from "../pages/gate-error-page.js";
 import { NotFoundPage } from "../pages/not-found-page.js";
 import { StatusPage } from "../pages/status-page.js";
@@ -51,7 +53,6 @@ async function admit(context: RouterContext, own: NextAction): Promise<NextActio
   return status.nextAction;
 }
 
-const statusRoute = createRoute({ getParentRoute: () => rootRoute, path: "/", component: StatusPage });
 
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -70,7 +71,11 @@ const mfaRoute = createRoute({
 /** The guard of every private screen: the gate passed and the setup complete; the saved language follows the owner to every browser. */
 async function admitPrivate(context: RouterContext): Promise<void> {
   await admit(context, "ready");
-  // The private screen opens when the setup is complete; until then the setup is where the owner belongs.
+  await admitCompleteSetup(context);
+}
+
+/** The private screen opens when the setup is complete; until then the setup is where the owner belongs. */
+async function admitCompleteSetup(context: RouterContext): Promise<void> {
   const setup = await currentOwnerSetup(context.queryClient);
   if (setup.stage !== "complete") {
     throw redirect({ to: "/setup" });
@@ -78,14 +83,59 @@ async function admitPrivate(context: RouterContext): Promise<void> {
   if (setup.preferences !== null) setInterfaceLanguage(setup.preferences.locale);
 }
 
+/**
+ * `/` (Scope §4, §5.3; D33.1): the screen of the owner once the gate is passed; a session still on its
+ * way through the gate goes on to its step. Before the owner exists the address is the start screen:
+ * the status of the server and the way in (D08.2).
+ */
+async function admitHome(context: RouterContext): Promise<{ view: "status" | "screen" }> {
+  const status = await currentIdentityStatus(context.queryClient);
+  if (status.nextAction === "ready") {
+    await admitCompleteSetup(context);
+    return { view: "screen" };
+  }
+  if (status.nextAction === "create_owner") return { view: "status" };
+  throw redirect({ to: routeForNextAction(status.nextAction) });
+}
+
+const homeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
+  beforeLoad: ({ context }) => admitHome(context),
+  // The window that adds a record belongs to the registers; the screen gets it from here and imports nothing of them.
+  component: function HomeRoute() {
+    return homeRoute.useRouteContext().view === "status" ? <StatusPage /> : <MainPage renderAddRecord={(props) => <AddRecordForRegistry {...props} />} />;
+  },
+});
+
+// The old address of the screen; the entry it leaves in the history is replaced.
 const mainRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/main",
-  beforeLoad: ({ context }) => admitPrivate(context),
-  // The window that adds a record belongs to the registers; the screen gets it from here and imports nothing of them.
-  component: function MainRoute() {
-    return <MainPage renderAddRecord={(props) => <AddRecordForRegistry {...props} />} />;
+  beforeLoad: () => {
+    throw redirect({ to: "/", replace: true });
   },
+});
+
+/** The part of the application (Scope §4): its pages share the bar of Pulpity · Rejestry and the account; the screen and the Designer have none. */
+const appRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "app",
+  beforeLoad: ({ context }) => admitPrivate(context),
+  component: function AppPart() {
+    return (
+      <>
+        <AppBar />
+        <Outlet />
+      </>
+    );
+  },
+});
+
+const screensRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/screens",
+  component: ScreensPage,
 });
 
 const designerRoute = createRoute({
@@ -96,18 +146,16 @@ const designerRoute = createRoute({
 });
 
 const registersRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appRoute,
   path: "/registers",
-  beforeLoad: ({ context }) => admitPrivate(context),
   component: RegistersPage,
 });
 
 const dictionariesRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appRoute,
   path: "/dictionaries",
   // The dictionary open in the editor (D24.3); a reload keeps it.
   validateSearch: (raw: Record<string, unknown>): { symbol?: string } => (typeof raw["symbol"] === "string" && raw["symbol"] !== "" ? { symbol: raw["symbol"] } : {}),
-  beforeLoad: ({ context }) => admitPrivate(context),
   component: function DictionariesRoute() {
     const navigate = dictionariesRoute.useNavigate();
     const { symbol } = dictionariesRoute.useSearch();
@@ -117,9 +165,8 @@ const dictionariesRoute = createRoute({
 });
 
 const configRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appRoute,
   path: "/config",
-  beforeLoad: ({ context }) => admitPrivate(context),
   component: ConfigPage,
 });
 
@@ -132,7 +179,7 @@ const setupRoute = createRoute({
       // The gate and the starting data are done; only the preferences can still be missing.
       const setup = await currentOwnerSetup(context.queryClient);
       if (setup.stage === "complete") {
-        throw redirect({ to: "/main" });
+        throw redirect({ to: "/" });
       }
       return { step: "preferences" as const };
     }
@@ -148,11 +195,10 @@ const setupRoute = createRoute({
 });
 
 const registryRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appRoute,
   path: "/registers/$symbol",
   // The search, sort and page of the records (D23.4); only what differs from the default stays in the address.
   validateSearch: (raw: Record<string, unknown>) => viewSearch(parseRecordsView(raw)),
-  beforeLoad: ({ context }) => admitPrivate(context),
   component: function RegistryRoute() {
     const navigate = registryRoute.useNavigate();
     const search = registryRoute.useSearch();
@@ -165,9 +211,8 @@ const registryRoute = createRoute({
 
 // The columns of one registry and the deletion of the registry (makieta 19; D31.1).
 const structureRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appRoute,
   path: "/registers/$symbol/columns",
-  beforeLoad: ({ context }) => admitPrivate(context),
   component: function StructureRoute() {
     return <StructurePage symbol={structureRoute.useParams().symbol} />;
   },
@@ -175,13 +220,12 @@ const structureRoute = createRoute({
 
 // One table of the system preview, read only, its page in the address (D32.2).
 const systemTableRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appRoute,
   path: "/system-tables/$name",
   validateSearch: (raw: Record<string, unknown>): { page?: number } => {
     const page = Number(raw["page"]);
     return Number.isInteger(page) && page > 1 ? { page } : {};
   },
-  beforeLoad: ({ context }) => admitPrivate(context),
   component: function SystemTableRoute() {
     const navigate = systemTableRoute.useNavigate();
     const { page } = systemTableRoute.useSearch();
@@ -192,7 +236,15 @@ const systemTableRoute = createRoute({
 
 export function createAppRouter(queryClient: QueryClient) {
   return createRouter({
-    routeTree: rootRoute.addChildren([statusRoute, loginRoute, mfaRoute, setupRoute, mainRoute, registersRoute, registryRoute, structureRoute, systemTableRoute, dictionariesRoute, configRoute, designerRoute]),
+    routeTree: rootRoute.addChildren([
+      homeRoute,
+      mainRoute,
+      loginRoute,
+      mfaRoute,
+      setupRoute,
+      designerRoute,
+      appRoute.addChildren([screensRoute, registersRoute, registryRoute, structureRoute, systemTableRoute, dictionariesRoute, configRoute]),
+    ]),
     context: { queryClient },
     defaultPreload: false,
   });

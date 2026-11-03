@@ -7,6 +7,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { codeOf, execute, secretOf } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
+import { signOutFromApp } from "./owner-session.ts";
 
 const enAuth = locale("en", "auth");
 const auth = enAuth;
@@ -48,7 +49,7 @@ test.describe("the first setup from an empty installation", () => {
     await expect(page.getByRole("button")).toHaveCount(2); // the choice and the sign-out
     expect((await page.locator("main").innerText()).toLowerCase()).not.toMatch(/import|designer|wizard|guide/);
     await expectNoViolations(page);
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
     await page.getByRole("button", { name: text(setup, "data.chooseEmpty") }).click();
 
@@ -61,20 +62,20 @@ test.describe("the first setup from an empty installation", () => {
     await page.getByRole("button", { name: text(setup, "preferences.save") }).click();
     await expect(page.getByRole("alert")).toContainText(text(errors, "VALIDATION_FAILED"));
     await expect(zone).toHaveValue("Mars/Olympus_Mons");
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
     await zone.fill("Europe/Warsaw");
     await page.getByLabel("Polski").check();
     await page.getByRole("button", { name: text(setup, "preferences.save") }).click();
 
     // Done: the private screen is open, in the saved language, and honest about being empty.
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(text(plCommon, "main.title"));
     await expect(page.getByText(text(plCommon, "main.empty"))).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", "pl");
     await expectNoViolations(page);
     await page.goto(`${owner.baseUrl}/setup`);
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
   });
 
   test("F09 minimal-setup-resumes-after-restart: a restart resumes the stage: no second enrollment, the choice and the preferences are kept", async ({ page, ownerServer }) => {
@@ -106,18 +107,18 @@ test.describe("the first setup from an empty installation", () => {
     await page.getByLabel(text(setup, "preferences.timezoneLabel")).fill("America/New_York");
     await page.getByLabel("Polski").check();
     await page.getByRole("button", { name: text(setup, "preferences.save") }).click();
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
 
     // Restart 3: a new sign-in goes straight to the private screen in the saved language. The
     // page first settles (the guards re-ask after a save), so the restart does not cut a request.
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(text(plCommon, "main.title"));
     await page.waitForLoadState("networkidle");
     await owner.restart(() => execute(owner.instance, "UPDATE mfa_state SET last_used_step = last_used_step - 10"));
-    await page.getByRole("button", { name: text(plCommon, "main.signOut") }).click();
+    await signOutFromApp(page, plCommon);
     await page.getByRole("button", { name: text(locale("pl", "auth"), "language.en") }).click();
     await signIn(page, owner);
     await page.getByLabel(text(auth, "mfa.codeLabel")).fill(await codeOf(secret));
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(text(plCommon, "main.title"));
     const saved = await page.request.get(`${owner.baseUrl}/api/v1/setup/preferences`);
     expect(await saved.json()).toEqual({ preferences: { timezone: "America/New_York", locale: "pl" }, stage: "complete" });
@@ -131,7 +132,7 @@ test.describe("the first setup from an empty installation", () => {
     await page.getByLabel(text(auth, "mfa.codeLabel")).fill(await owner.code(1));
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
     await expect(heading(page)).toHaveText(text(setup, "preferences.heading"));
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
   });
 
@@ -154,13 +155,13 @@ test.describe("signing out", () => {
     const owner = await ownerServer("ready");
     await signIn(page, owner);
     await page.getByLabel(text(auth, "mfa.codeLabel")).fill(await owner.code(1));
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
     const other = await context.newPage();
-    await other.goto(`${owner.baseUrl}/main`);
+    await other.goto(`${owner.baseUrl}/`);
     await expect(other.getByRole("heading", { level: 1 })).toHaveText(text(common, "main.title"));
     const oldCookies = (await context.cookies()).map((cookie) => `${cookie.name}=${cookie.value}`).join("; ");
 
-    await page.getByRole("button", { name: text(common, "main.signOut") }).click();
+    await signOutFromApp(page, common);
     await expect(page).toHaveURL(`${owner.baseUrl}/login`);
     // The other tab was never reloaded or touched, and still it leaves the private screen.
     await expect(other).toHaveURL(`${owner.baseUrl}/login`);
@@ -181,7 +182,7 @@ test.describe("signing out", () => {
     const owner = await ownerServer("ready");
     await signIn(page, owner);
     await page.getByLabel(text(auth, "mfa.codeLabel")).fill(await owner.code(1));
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
     await page.evaluate("window.BroadcastChannel = undefined");
     execute(owner.instance, "DELETE FROM session");
     await page.reload();

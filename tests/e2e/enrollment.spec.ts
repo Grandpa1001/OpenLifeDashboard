@@ -73,7 +73,7 @@ test.describe("the authenticator step", () => {
     await expect(page.locator(".manual-key")).toHaveText(/^[A-Z2-7]{1,4}( [A-Z2-7]{1,4})+$/);
     await expect(page.getByLabel(text(setup, "enrollment.codeLabel"))).toHaveAttribute("autocomplete", "one-time-code");
     await expectNoViolations(page);
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
   });
 
@@ -129,7 +129,7 @@ test.describe("the recovery codes", () => {
     await expect(proceed).toBeDisabled();
     await expectNoViolations(page);
     // The setup moves on only through the server: /main stays closed while the batch is open.
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
     // The reload loses the codes: they are not kept anywhere.
     await expect(page.getByRole("heading", { level: 2 })).toHaveText(text(setup, "recovery.lostHeading"));

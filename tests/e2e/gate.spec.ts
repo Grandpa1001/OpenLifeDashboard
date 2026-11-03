@@ -28,7 +28,7 @@ const path = (page: Page): string => new URL(page.url()).pathname;
 test.describe("a screen is open only to its own state", () => {
   test("without a session: the private screens lead to the sign-in, the second factor too", async ({ page, ownerServer }) => {
     const owner = await ownerServer("ready");
-    for (const route of ["/main", "/mfa", "/login"]) {
+    for (const route of ["/", "/registers", "/mfa", "/login"]) {
       await page.goto(`${owner.baseUrl}${route}`);
       await expect(page).toHaveURL(`${owner.baseUrl}/login`);
     }
@@ -41,7 +41,7 @@ test.describe("a screen is open only to its own state", () => {
       { name: "openlife-000000000000.session_token", value: "forged.value", url: owner.baseUrl },
       { name: `openlife-${owner.instance.instanceId.replaceAll("-", "").slice(0, 12)}.session_token`, value: "forged.AAAA", url: owner.baseUrl },
     ]);
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page).toHaveURL(`${owner.baseUrl}/login`);
   });
 
@@ -50,17 +50,17 @@ test.describe("a screen is open only to its own state", () => {
     await page.goto(`${owner.baseUrl}/login`);
     await signIn(page, owner.email, owner.password);
     await expect(page).toHaveURL(`${owner.baseUrl}/mfa`);
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page).toHaveURL(`${owner.baseUrl}/mfa`);
     await page.goto(`${owner.baseUrl}/login`);
     await expect(page).toHaveURL(`${owner.baseUrl}/mfa`);
     await page.getByLabel(text(auth, "mfa.codeLabel")).fill(await owner.code(1));
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
     // Once fully signed in, the sign-in and the second factor are not for this state any more.
     await page.goto(`${owner.baseUrl}/login`);
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
     await page.goto(`${owner.baseUrl}/mfa`);
-    await expect(page).toHaveURL(`${owner.baseUrl}/main`);
+    await expect(page).toHaveURL(`${owner.baseUrl}/`);
   });
 
   test("an owner who has no authenticator yet: the sign-in leads to the setup, and /main stays closed", async ({ page, ownerServer }) => {
@@ -69,7 +69,7 @@ test.describe("a screen is open only to its own state", () => {
     await signIn(page, owner.email, owner.password);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
     await expect(page.getByRole("heading", { level: 2 })).toHaveText(text(setup, "enrollment.heading"));
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
     await expectNoViolations(page);
   });
@@ -80,7 +80,7 @@ test.describe("a screen is open only to its own state", () => {
     await signIn(page, owner.email, owner.password);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
     await expect(page.getByRole("heading", { level: 2 })).toHaveText(text(setup, "recovery.lostHeading"));
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
   });
 
@@ -97,7 +97,7 @@ test.describe("a screen is open only to its own state", () => {
   });
 
   test("no owner yet: every screen leads to the setup, which says how to create one and offers no form", async ({ page, server }) => {
-    for (const route of ["/login", "/mfa", "/main", "/setup"]) {
+    for (const route of ["/login", "/mfa", "/registers", "/setup"]) {
       await page.goto(route);
       await expect(page).toHaveURL(`${server.baseUrl}/setup`);
     }
@@ -112,7 +112,7 @@ test.describe("when the server cannot be asked or answers badly", () => {
   test("the private screen stays closed with the reason, and asking again goes on", async ({ page, ownerServer }) => {
     const owner = await ownerServer("ready");
     await page.route("**/api/v1/identity/status", (route) => route.abort("connectionreset"));
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(text(common, "gate.unavailable.heading"));
     await expect(page.getByRole("alert")).toContainText(text(errors, "NETWORK"));
     await expect(page.getByRole("heading", { name: text(common, "main.title") })).toHaveCount(0);
@@ -125,7 +125,7 @@ test.describe("when the server cannot be asked or answers badly", () => {
   test("an answer that does not match the contract is not believed", async ({ page, ownerServer }) => {
     const owner = await ownerServer("ready");
     await page.route("**/api/v1/identity/status", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: true, nextAction: "admin" }) }));
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(page.getByRole("alert")).toContainText(text(errors, "INVALID_RESPONSE"));
     await expect(page.getByRole("heading", { name: text(common, "main.title") })).toHaveCount(0);
   });

@@ -2,7 +2,7 @@
 // `nextAction` is the only authority; the client never infers a step from its own state.
 import type { NextAction } from "@openlife/contracts/http/identity";
 
-export type AppPath = "/login" | "/mfa" | "/setup" | "/main";
+export type AppPath = "/login" | "/mfa" | "/setup" | "/";
 
 const PATHS: Readonly<Record<NextAction, AppPath>> = {
   create_owner: "/setup",
@@ -11,7 +11,8 @@ const PATHS: Readonly<Record<NextAction, AppPath>> = {
   mfa_enrollment: "/setup",
   recovery_ack: "/setup",
   setup_data: "/setup",
-  ready: "/main",
+  // The address of the installation is the screen of the owner (Scope §4; D33.1).
+  ready: "/",
 };
 
 export const routeForNextAction = (action: NextAction): AppPath => PATHS[action];

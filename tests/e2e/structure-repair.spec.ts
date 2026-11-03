@@ -119,7 +119,7 @@ test.describe("D31.3-AC1 the repair of a broken binding in the Designer", () => 
     const owner = await ownerServer("ready");
     await booksOnScreen(page, owner);
     await changeByApi(page, owner, "ksiazki", { kind: "removeColumn", columnId: columnIdOf(owner, "autor") });
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(widgetOnMain(page).getByText(text(widgets, "registerTable.brokenBinding"))).toBeVisible();
 
     const panel = await openPanel(page, owner);
@@ -130,7 +130,7 @@ test.describe("D31.3-AC1 the repair of a broken binding in the Designer", () => 
     await expect(panel.getByRole("list", { name: text(designer, "panel.missing") })).toHaveCount(0);
     await saveDesign(page);
 
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(widgetOnMain(page).getByRole("columnheader")).toHaveText(["Tytuł", "Liczba stron"]);
     await expect(widgetOnMain(page).getByRole("cell", { name: "Solaris" })).toBeVisible();
   });
@@ -150,7 +150,7 @@ test.describe("D31.3-AC1 the repair of a broken binding in the Designer", () => 
     await expect(panel.getByRole("list", { name: text(designer, "panel.missing") })).toHaveCount(0);
     await saveDesign(page);
 
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(widgetOnMain(page).getByRole("columnheader")).toHaveText(["Tytuł filmu"]);
     await expect(widgetOnMain(page).getByRole("cell", { name: "Stalker" })).toBeVisible();
   });

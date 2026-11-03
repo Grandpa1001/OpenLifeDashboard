@@ -18,21 +18,27 @@
     "backHome": "Back to the start page"
   },
   "main": {
-    "title": "Main screen",
-    "signOut": "Sign out",
+    "title": "Dashboard",
     "empty": "Add widgets in the Designer to see your data here.",
     "navigation": "Navigation",
-    "registers": "Registries",
-    "designer": "Designer",
     "loading": "Loading the screen…",
     "retry": "Try again",
     "emptyHeading": "The screen is empty",
-    "openDesigner": "Open the Designer"
+    "openDesigner": "Open the Designer",
+    "openApp": "Open the application"
   },
   "gate": {
     "unavailable": {
       "heading": "The account state cannot be checked",
       "retry": "Try again"
     }
+  },
+  "appBar": {
+    "navigation": "Application",
+    "screens": "Dashboards",
+    "registers": "Registries",
+    "account": "Account",
+    "role": "Owner",
+    "signOut": "Sign out"
   }
 }

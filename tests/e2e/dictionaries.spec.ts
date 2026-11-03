@@ -130,7 +130,7 @@ test.describe("D24.3-AC1 S7 in the browser without SQL", () => {
     await page.reload();
     await expect(row(page, "Solaris")).toContainText("Archiwalne");
     await createScreenWith(page, owner, [{ id: "019a0000-0000-7000-8000-0000000d2431", title: "Moje książki", columns: ["tytul", "status"], layout: WIDGET_LAYOUT }]);
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(row(page, "Diuna")).toContainText("Planowane");
     await expect(row(page, "Solaris")).toContainText("Archiwalne");
     const before = stored(owner);
@@ -151,7 +151,7 @@ test.describe("D24.3-AC1 S7 in the browser without SQL", () => {
     await expect(row(page, "Diuna")).toContainText("planowane");
     await expect(row(page, "Diuna")).not.toContainText("Planowane");
     await expect(row(page, "Solaris")).toContainText("archiwalne");
-    await page.goto(`${owner.baseUrl}/main`);
+    await page.goto(`${owner.baseUrl}/`);
     await expect(row(page, "Diuna")).toContainText("planowane");
     await expect(row(page, "Diuna")).not.toContainText("Planowane");
     expect(stored(owner)).toEqual(before);
