@@ -2,18 +2,21 @@ import type { RegistryDto } from "@openlife/contracts/http/registries";
 import { LAYOUT_NAMES, type DesignSnapshotDto, type LayoutName, type ScreenDto, type WidgetTypesDto } from "@openlife/contracts/http/screens";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBlocker, useNavigate } from "@tanstack/react-router";
-import { useReducer, useRef, useState } from "react";
+import { useReducer, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { ApiFailure } from "../../../lib/api-client/request.js";
 import { describeFailure } from "../../../lib/failures/error-message.js";
 import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { newUuid7 } from "../../../lib/ids/uuid7.js";
+import { useBreakpoint } from "../../../lib/layout/use-breakpoint.js";
+import { useWindowWidth } from "../../../lib/layout/use-window-width.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
 import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
 import { fetchRegistries } from "../api/registries.js";
 import { fetchWidgetTypes, saveDesign } from "../api/screens.js";
 import { designerReducer, isDirty, newWidget, startState } from "../lib/designer-state.js";
 import { placeInEveryLayout } from "../lib/layout-edit.js";
+import { previewWidth } from "../lib/preview-width.js";
 import { typeLabelKey } from "../lib/type-label.js";
 import { BindingsPanel } from "./bindings-panel.js";
 import { DesignCanvas } from "./design-canvas.js";
@@ -42,7 +45,12 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [state, dispatch] = useReducer(designerReducer, screen, startState);
-  const [layout, setLayout] = useState<LayoutName>("desktop");
+  const [chosen, setChosen] = useState<LayoutName>("desktop");
+  // On a phone the Designer arranges the layout of the phone only (Scope §5.4): the window cannot show another.
+  const onPhone = useBreakpoint() === "phone";
+  const layout: LayoutName = onPhone ? "phone" : chosen;
+  const width = previewWidth(layout, useWindowWidth());
+  const layoutButtons = useRef<Partial<Record<LayoutName, HTMLButtonElement | null>>>({});
   const [justSaved, setJustSaved] = useState(false);
   const dirty = isDirty(state);
   const dirtyNow = useRef(dirty);
@@ -88,6 +96,16 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
   const typeOf = (type: string): WidgetType | undefined => types.data?.find((candidate) => candidate.type === type);
   const selected = state.design.widgets.find((widget) => widget.id === state.selectedId) ?? null;
 
+  /** The switch of the layout is one stop of Tab; the arrows go to the next layout and choose it (Scope §5.4). */
+  function onLayoutKey(event: KeyboardEvent<HTMLButtonElement>): void {
+    const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+    if (step === 0) return;
+    event.preventDefault();
+    const next = LAYOUT_NAMES[(LAYOUT_NAMES.indexOf(layout) + step + LAYOUT_NAMES.length) % LAYOUT_NAMES.length]!;
+    setChosen(next);
+    layoutButtons.current[next]?.focus();
+  }
+
   function add(type: WidgetType): void {
     setJustSaved(false);
     dispatch({ kind: "add", widget: newWidget(newUuid7(), type.type, type.configVersion, placeInEveryLayout(state.design.widgets, type.defaultSize)) });
@@ -99,13 +117,28 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
       <header className="designer-toolbar">
         <h1>{t("title")}</h1>
         <p className="screen-name">{state.design.name}</p>
-        <div role="group" aria-label={t("toolbar.layouts")} className="designer-layouts">
-          {LAYOUT_NAMES.map((name) => (
-            <button key={name} type="button" className="link-button" aria-pressed={layout === name} onClick={() => setLayout(name)}>
-              {t(`toolbar.${name}`)}
-            </button>
-          ))}
-        </div>
+        {onPhone ? (
+          <p className="designer-badge">{t("toolbar.phoneOnly")}</p>
+        ) : (
+          <div role="group" aria-label={t("toolbar.layouts")} className="designer-layouts">
+            {LAYOUT_NAMES.map((name) => (
+              <button
+                key={name}
+                ref={(element) => {
+                  layoutButtons.current[name] = element;
+                }}
+                type="button"
+                className="link-button"
+                aria-pressed={layout === name}
+                tabIndex={layout === name ? 0 : -1}
+                onClick={() => setChosen(name)}
+                onKeyDown={onLayoutKey}
+              >
+                {t(`toolbar.${name}`)}
+              </button>
+            ))}
+          </div>
+        )}
         <button
           type="button"
           disabled={!dirty || save.isPending}
@@ -156,14 +189,17 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
         </section>
         <DesignCanvas
           layout={layout}
+          width={width}
           widgets={state.design.widgets}
           registries={registries}
           selectedId={state.selectedId}
           minimumOf={(type) => typeOf(type)?.minSize ?? { w: 1, h: 1 }}
           onSelect={(id) => dispatch({ kind: "select", id })}
-          onArranged={(items) => {
+          onPlace={(id, rect) => {
+            const widget = state.design.widgets.find((each) => each.id === id);
+            if (widget === undefined) return;
             setJustSaved(false);
-            dispatch({ kind: "arranged", layout, items });
+            dispatch({ kind: "placed", layout, id, rect, minimum: typeOf(widget.type)?.minSize ?? { w: 1, h: 1 } });
           }}
         />
         <BindingsPanel

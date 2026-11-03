@@ -904,10 +904,66 @@ main.pulpit {
   font-size: var(--text-sm);
 }
 
-/* The corner of the library's resize handle is always visible: a hover is not available on a phone. */
+/* The corner of the library's resize handle is always visible: a hover is not available on a phone.
+   Its touch area is 44 × 44 px (Scope §5.4; D33.2), the mark stays in the corner. */
 .designer-widget > .react-resizable-handle {
   opacity: 1;
   touch-action: none;
+}
+
+.designer-widget > .react-resizable-handle-se {
+  width: var(--touch-target);
+  height: var(--touch-target);
+  background: none;
+}
+
+.designer-widget > .react-resizable-handle-se::after {
+  right: 4px;
+  bottom: 4px;
+  width: 10px;
+  height: 10px;
+}
+
+.designer-badge {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+}
+
+/* The shapes of the bar and the grid while the screen loads; no motion of their own. */
+.designer-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.designer-skeleton-bar,
+.designer-skeleton-grid {
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.designer-skeleton-bar {
+  height: var(--touch-target);
+}
+
+.designer-skeleton-grid {
+  height: 20rem;
+}
+
+.designer-failed,
+.designer-failed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.designer-failed {
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .designer-widget > .react-resizable-handle::after {

@@ -3504,6 +3504,53 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.30: one rule of collisions and the minimum for the mouse, the touch and the keyboard, the phone and the load of the Designer.
+    id: "D33.2",
+    ready: true,
+    title: "The grid of the Designer: collisions that push down and the minimum of the manifest for the mouse, the touch and Alt + arrow, Escape, the layout switch by the arrows, the phone layout on a phone, the load and its failure",
+    criteria: ["D33.2-AC1", "D33.2-AC2", "D33.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D33.2-AC1", "D33.2-AC2"],
+        description: "pnpm -r build: the rules of the grid, the canvas, the editor and the page of the Designer",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "apps/web/src/features/dashboard/lib/layout-edit.ts",
+          "apps/web/src/features/dashboard/lib/designer-state.ts",
+          "apps/web/src/features/dashboard/components/design-canvas.tsx",
+          "apps/web/src/features/dashboard/components/designer-editor.tsx",
+          "apps/web/src/features/dashboard/pages/designer-page.tsx",
+        ],
+      },
+      {
+        id: "grid-rules-web",
+        criteria: ["D33.2-AC1", "D33.2-AC2"],
+        description: "Unit: a collision pushes the neighbour down in the desktop, the tablet and the phone, a chain in turn and no gap closed, never two overlapping; the minimum and the columns hold; Alt + arrow and Alt + Shift + arrow by one unit; one layout at a time; the reducer of the Designer",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/layout-collisions.test.ts", "tests/unit/web/layout-edit.test.ts", "tests/unit/web/designer-state.test.ts"],
+        requires: ["tests/unit/web/layout-collisions.test.ts", "tests/unit/web/layout-edit.test.ts", "tests/unit/web/designer-state.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D33.2-AC2"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/designer.json", "apps/web/src/locales/en/designer.json"],
+      },
+      {
+        id: "designer-grid-e2e",
+        criteria: ["D33.2-AC1", "D33.2-AC2"],
+        description:
+          "Playwright with Książki and two register tables: the mouse on the desktop, a touch on the tablet and Alt + arrow push the neighbour down in that layout only, Alt + Shift + arrow stops at the minimum 3 × 4, a new widget has a place in all three layouts; past the columns nothing moves, Escape during a drag takes the widget back, the switch of the layout by the arrows keeps the selection, the handles are 44 px; a 390 px phone arranges the phone layout only without sideways scroll; a failed load shows the code, the reference, Try again and the way back; axe; the Designer, the restarts of the layouts and the vertical path as before",
+        command: ["node", "tests/verification/e2e.ts", "designer-grid", "designer.spec", "vertical.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/designer-grid.spec.ts", "tests/e2e/designer.spec.ts", "tests/e2e/vertical.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D33.2-regression"),
+    ],
+  },
+  {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
     // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
     id: "G2",

@@ -20,7 +20,8 @@
     "saving": "Saving…",
     "clean": "No changes to save",
     "dirty": "Unsaved changes",
-    "saved": "Saved"
+    "saved": "Saved",
+    "phoneOnly": "Layout: Phone"
   },
   "palette": {
     "heading": "Add a widget",
@@ -33,7 +34,8 @@
     "empty": "The screen is empty. Add the first widget from the list.",
     "select": "Select widget: {{name}}",
     "unbound": "Not configured",
-    "bound": "Registry {{registry}}, columns: {{columns}}"
+    "bound": "Registry {{registry}}, columns: {{columns}}",
+    "keys": "Alt and an arrow move the widget, Alt, Shift and an arrow resize it, Escape deselects it."
   },
   "panel": {
     "heading": "Bindings",
@@ -81,5 +83,6 @@
       "save": "Save",
       "saving": "Saving…"
     }
-  }
+  },
+  "backHome": "Back to the dashboard"
 }

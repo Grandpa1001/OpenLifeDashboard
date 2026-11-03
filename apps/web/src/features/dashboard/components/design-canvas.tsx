@@ -1,60 +1,111 @@
 import type { RegistryDto } from "@openlife/contracts/http/registries";
-import { GRID_COLUMNS, type LayoutName, type WidgetDesignDto } from "@openlife/contracts/http/screens";
-import ReactGridLayout, { type ResizeHandleAxis } from "react-grid-layout";
+import { GRID_COLUMNS, type LayoutName, type LayoutRectDto, type WidgetDesignDto } from "@openlife/contracts/http/screens";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import ReactGridLayout, { type LayoutItem, type ResizeHandleAxis } from "react-grid-layout";
 import { noCompactor } from "react-grid-layout/core";
 import "react-grid-layout/css/styles.css";
 import { useTranslation } from "react-i18next";
 import { GRID } from "../../../lib/layout/grid.js";
-import { toGridItems, type Size } from "../lib/layout-edit.js";
+import { nudged, toGridItems, type Nudge, type Size } from "../lib/layout-edit.js";
 import { choiceOf } from "../lib/register-table-bindings.js";
-import { PREVIEW_WIDTH_PX } from "../lib/preview-width.js";
 import { typeLabelKey } from "../lib/type-label.js";
 
 /** Only the title of a card moves it, so a click inside never drags; the corner resizes. */
 const HANDLE_SELECTOR = ".designer-handle";
 const RESIZE_HANDLES: ResizeHandleAxis[] = ["se"];
 
-export type ArrangedItems = readonly Readonly<{ i: string; x: number; y: number; w: number; h: number }>[];
+const ARROWS: Readonly<Record<string, Nudge>> = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" };
+
+const rectOf = (item: LayoutItem): LayoutRectDto => ({ x: item.x, y: item.y, w: item.w, h: item.h });
 
 /**
- * One layout of the screen drawn on its grid (Scope §5.4). The grid library moves and resizes the
- * cards; what it reports when the owner lets go is written into this layout only. The cards show
- * what the widget is bound to, not its data (the preview with sample data is D39).
+ * One layout of the screen drawn on its grid (Scope §5.4; D18.2, D33.2). The grid library draws the
+ * drag and the resize of a card; where the card lands is decided by `placeWithCollisions` (through
+ * `onPlace`), the same rule as Alt + arrow on the keyboard, so neighbours are pushed down and nothing
+ * goes below the minimum or out of the columns. The title bar is the handle; Escape during a drag
+ * takes the card back, otherwise it lets go of the selection. The cards show what the widget is bound
+ * to, not its data (the preview with sample data is D39).
  */
 export function DesignCanvas({
   layout,
+  width,
   widgets,
   registries,
   selectedId,
   minimumOf,
   onSelect,
-  onArranged,
+  onPlace,
 }: Readonly<{
   layout: LayoutName;
+  /** The width the layout is drawn at, in pixels. */
+  width: number;
   widgets: readonly WidgetDesignDto[];
   registries: readonly RegistryDto[];
   selectedId: string | null;
   minimumOf: (type: string) => Size;
-  onSelect: (id: string) => void;
-  onArranged: (items: ArrangedItems) => void;
+  onSelect: (id: string | null) => void;
+  onPlace: (id: string, rect: LayoutRectDto) => void;
 }>) {
   const { t } = useTranslation("designer");
   const { t: tw } = useTranslation("widgets");
   const label = t(`toolbar.${layout}`);
+  // A drag or a resize in progress; Escape draws the grid anew, which drops it, and its end is not a place.
+  const moving = useRef(false);
+  const [generation, setGeneration] = useState(0);
+
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent): void => {
+      if (event.key !== "Escape" || !moving.current) return;
+      moving.current = false;
+      setGeneration((each) => each + 1);
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, []);
+
+  function landed(item: LayoutItem | null): void {
+    if (!moving.current || item === null) return;
+    moving.current = false;
+    onPlace(item.i, rectOf(item));
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, widget: WidgetDesignDto): void {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onSelect(null);
+      return;
+    }
+    const direction = ARROWS[event.key];
+    if (!event.altKey || direction === undefined) return;
+    event.preventDefault();
+    if (widget.id !== selectedId) onSelect(widget.id);
+    onPlace(widget.id, nudged(widget.layout[layout], direction, event.shiftKey));
+  }
 
   return (
     <div className="designer-stage">
-      <div className="designer-frame" style={{ width: PREVIEW_WIDTH_PX[layout] }} role="group" aria-label={t("canvas.label", { layout: label })} data-layout={layout}>
+      <div className="designer-frame" style={{ width }} role="group" aria-label={t("canvas.label", { layout: label })} data-layout={layout}>
         {widgets.length === 0 ? <p className="designer-empty">{t("canvas.empty")}</p> : null}
+        <p id="designer-keys" className="visually-hidden">
+          {t("canvas.keys")}
+        </p>
         <ReactGridLayout
+          key={generation}
           layout={toGridItems(widgets, layout, minimumOf)}
-          width={PREVIEW_WIDTH_PX[layout]}
+          width={width}
           gridConfig={{ cols: GRID_COLUMNS[layout], rowHeight: GRID.rowHeightPx, margin: [GRID.gapPx, GRID.gapPx], containerPadding: [0, 0] }}
           dragConfig={{ handle: HANDLE_SELECTOR }}
           resizeConfig={{ handles: RESIZE_HANDLES }}
           compactor={noCompactor}
-          onDragStop={(items) => onArranged(items)}
-          onResizeStop={(items) => onArranged(items)}
+          onDragStart={(_layout, _old, item) => {
+            moving.current = true;
+            if (item !== null && item.i !== selectedId) onSelect(item.i);
+          }}
+          onResizeStart={() => {
+            moving.current = true;
+          }}
+          onDragStop={(_layout, _old, item) => landed(item)}
+          onResizeStop={(_layout, _old, item) => landed(item)}
         >
           {widgets.map((widget) => {
             const config = widget.config;
@@ -64,7 +115,17 @@ export function DesignCanvas({
             const selected = widget.id === selectedId;
             return (
               <div key={widget.id} className={selected ? "designer-widget selected" : "designer-widget"} data-widget-id={widget.id}>
-                <button type="button" className="designer-handle" aria-pressed={selected} aria-label={t("canvas.select", { name: title })} onClick={() => onSelect(widget.id)}>
+                <button
+                  type="button"
+                  className="designer-handle"
+                  aria-pressed={selected}
+                  aria-label={t("canvas.select", { name: title })}
+                  aria-describedby="designer-keys"
+                  // A touch on the bar starts a drag, which keeps the click from coming: the press selects.
+                  onPointerDown={() => onSelect(widget.id)}
+                  onClick={() => onSelect(widget.id)}
+                  onKeyDown={(event) => onKeyDown(event, widget)}
+                >
                   {title}
                 </button>
                 <p className="designer-summary">{registry === undefined ? t("canvas.unbound") : t("canvas.bound", { registry: registry.symbol, columns: choice.columnKeys.length })}</p>

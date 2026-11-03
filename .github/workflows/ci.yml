@@ -468,6 +468,9 @@ jobs:
       - name: Verify D33.1 (the screen under /, Pulpity with Właściwości and the bar of the application in a browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D33.1
+      - name: Verify D33.2 (collisions, the minimum, the keyboard and the touch on the grid of the Designer, the phone and a failed load)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D33.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

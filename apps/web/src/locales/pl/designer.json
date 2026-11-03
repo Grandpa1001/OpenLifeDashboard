@@ -20,7 +20,8 @@
     "saving": "Zapisywanie…",
     "clean": "Brak zmian do zapisania",
     "dirty": "Niezapisane zmiany",
-    "saved": "Zapisano"
+    "saved": "Zapisano",
+    "phoneOnly": "Układ: Telefon"
   },
   "palette": {
     "heading": "Dodaj widget",
@@ -33,7 +34,8 @@
     "empty": "Ekran jest pusty. Dodaj pierwszy widget z listy.",
     "select": "Zaznacz widget: {{name}}",
     "unbound": "Nie skonfigurowano",
-    "bound": "Rejestr {{registry}}, kolumny: {{columns}}"
+    "bound": "Rejestr {{registry}}, kolumny: {{columns}}",
+    "keys": "Alt i strzałka przesuwa widget, Alt, Shift i strzałka zmienia jego rozmiar, Escape odznacza."
   },
   "panel": {
     "heading": "Powiązania",
@@ -81,5 +83,6 @@
       "save": "Zapisz",
       "saving": "Zapisywanie…"
     }
-  }
+  },
+  "backHome": "Wróć na pulpit"
 }

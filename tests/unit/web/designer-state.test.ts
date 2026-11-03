@@ -53,18 +53,18 @@ describe("D18.2 the state of the Designer", () => {
 
   it("an arrangement of one layout changes that layout only, and moving back is clean again", () => {
     const start = startState(screen);
-    const moved = designerReducer(start, { kind: "arranged", layout: "desktop", items: [{ i: A, x: 6, y: 2, w: 6, h: 4 }] });
+    const moved = designerReducer(start, { kind: "placed", layout: "desktop", id: A, rect: rect(6, 2, 6, 4), minimum: { w: 1, h: 1 } });
     expect(moved.design.widgets[0]?.layout.desktop).toEqual(rect(6, 2, 6, 4));
     expect(moved.design.widgets[0]?.layout.phone).toEqual(layout.phone);
     expect(moved.design.widgets[0]?.layout.tablet).toEqual(layout.tablet);
     expect(isDirty(moved)).toBe(true);
-    const back = designerReducer(moved, { kind: "arranged", layout: "desktop", items: [{ i: A, x: 0, y: 0, w: 6, h: 4 }] });
+    const back = designerReducer(moved, { kind: "placed", layout: "desktop", id: A, rect: rect(0, 0, 6, 4), minimum: { w: 1, h: 1 } });
     expect(isDirty(back)).toBe(false);
   });
 
   it("a report of the grid that changes nothing is the very same state", () => {
     const start = startState(screen);
-    expect(designerReducer(start, { kind: "arranged", layout: "tablet", items: [{ i: A, x: 0, y: 0, w: 4, h: 4 }] })).toBe(start);
+    expect(designerReducer(start, { kind: "placed", layout: "tablet", id: A, rect: rect(0, 0, 4, 4), minimum: { w: 1, h: 1 } })).toBe(start);
   });
 
   it("configuring a widget replaces its configuration and bindings", () => {
@@ -83,7 +83,7 @@ describe("D18.2 the state of the Designer", () => {
     const clean = designerReducer(edited, { kind: "saved", sent, received });
     expect(isDirty(clean)).toBe(false);
 
-    const later = designerReducer(edited, { kind: "arranged", layout: "phone", items: [{ i: B, x: 0, y: 9, w: 1, h: 4 }] });
+    const later = designerReducer(edited, { kind: "placed", layout: "phone", id: B, rect: rect(0, 9, 1, 4), minimum: { w: 1, h: 1 } });
     const kept = designerReducer(later, { kind: "saved", sent, received });
     expect(kept.baseline).toBe(received);
     expect(kept.design).toBe(later.design);

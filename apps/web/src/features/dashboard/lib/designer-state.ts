@@ -1,14 +1,15 @@
 // The state of the Designer (Architektura §7.2, §18.5; D18.2): the design the owner is arranging, the
 // design last saved, and the widget that is selected. The owner saves explicitly in this step, so
 // "unsaved" is the difference between the two designs.
-import type { DesignSnapshotDto, LayoutName, ScreenDto, WidgetDesignDto } from "@openlife/contracts/http/screens";
-import { applyGridItems } from "./layout-edit.js";
+import type { DesignSnapshotDto, LayoutName, LayoutRectDto, ScreenDto, WidgetDesignDto } from "@openlife/contracts/http/screens";
+import { placeInLayout, type Size } from "./layout-edit.js";
 
 export type DesignerState = Readonly<{ baseline: DesignSnapshotDto; design: DesignSnapshotDto; selectedId: string | null }>;
 
 export type DesignerAction =
   | Readonly<{ kind: "add"; widget: WidgetDesignDto }>
-  | Readonly<{ kind: "arranged"; layout: LayoutName; items: readonly Readonly<{ i: string; x: number; y: number; w: number; h: number }>[] }>
+  /** One widget moved or resized in one layout, by the mouse, the touch or the keyboard: the collisions and the minimum of `placeInLayout` apply. */
+  | Readonly<{ kind: "placed"; layout: LayoutName; id: string; rect: LayoutRectDto; minimum: Size }>
   | Readonly<{ kind: "configured"; id: string; config: WidgetDesignDto["config"]; bindings: WidgetDesignDto["bindings"] }>
   | Readonly<{ kind: "select"; id: string | null }>
   | Readonly<{ kind: "saved"; sent: DesignSnapshotDto; received: DesignSnapshotDto }>;
@@ -42,8 +43,8 @@ export function designerReducer(state: DesignerState, action: DesignerAction): D
   switch (action.kind) {
     case "add":
       return { ...state, design: { ...state.design, widgets: [...state.design.widgets, action.widget] }, selectedId: action.widget.id };
-    case "arranged": {
-      const widgets = applyGridItems(state.design.widgets, action.layout, action.items);
+    case "placed": {
+      const widgets = placeInLayout(state.design.widgets, action.layout, action.id, action.rect, action.minimum);
       return widgets === state.design.widgets ? state : { ...state, design: { ...state.design, widgets: [...widgets] } };
     }
     case "configured":

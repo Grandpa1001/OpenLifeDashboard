@@ -66,3 +66,63 @@ export function applyGridItems<W extends Placed>(widgets: readonly W[], name: La
   });
   return changed ? next : widgets;
 }
+
+/** A rectangle of one widget in one layout. */
+export type Placement = Readonly<{ id: string; rect: LayoutRectDto }>;
+
+/** The rectangle kept inside the columns of the layout and at least the minimum of its type there (Scope §5.4). */
+export function withinGrid(rect: LayoutRectDto, columns: number, minimum: Size): LayoutRectDto {
+  const least = fitToColumns(minimum, columns);
+  const w = Math.min(Math.max(rect.w, least.w), columns);
+  const h = Math.max(rect.h, least.h);
+  return { x: Math.min(Math.max(rect.x, 0), columns - w), y: Math.max(rect.y, 0), w, h };
+}
+
+/**
+ * One widget put at `target` in one layout (D33.2): the target kept within the grid and the minimum,
+ * then every widget it would overlap moved down just below it, and every widget those would overlap
+ * in turn. Nothing moves up and no gap is closed, so the rest of the layout stays where the owner put
+ * it. The one rule of the mouse, the touch and the keyboard.
+ */
+export function placeWithCollisions(placements: readonly Placement[], id: string, target: LayoutRectDto, columns: number, minimum: Size): Placement[] {
+  const rects = new Map(placements.map((each) => [each.id, each.rect]));
+  if (!rects.has(id)) return [...placements];
+  rects.set(id, withinGrid(target, columns, minimum));
+  const pending = [id];
+  while (pending.length > 0) {
+    const mover = pending.shift()!;
+    const above = rects.get(mover)!;
+    // The widgets hit, from the top, so a chain is pushed in the order it is stacked.
+    const hit = [...rects.entries()].filter(([other, rect]) => other !== mover && other !== id && overlaps(above, rect)).sort(([, a], [, b]) => a.y - b.y || a.x - b.x);
+    for (const [other, rect] of hit) {
+      rects.set(other, { ...rect, y: above.y + above.h });
+      pending.push(other);
+    }
+  }
+  return placements.map((each) => ({ id: each.id, rect: rects.get(each.id)! }));
+}
+
+export type Nudge = "left" | "right" | "up" | "down";
+
+/** Alt + arrow moves by one unit of the grid; Alt + Shift + arrow makes it one unit wider, narrower, taller or shorter. */
+export function nudged(rect: LayoutRectDto, direction: Nudge, resize: boolean): LayoutRectDto {
+  const dx = direction === "left" ? -1 : direction === "right" ? 1 : 0;
+  const dy = direction === "up" ? -1 : direction === "down" ? 1 : 0;
+  return resize ? { ...rect, w: rect.w + dx, h: rect.h + dy } : { ...rect, x: rect.x + dx, y: rect.y + dy };
+}
+
+/** The widgets with one layout placed by `placeWithCollisions`; the other two layouts are the very same rectangles. */
+export function placeInLayout<W extends Placed>(widgets: readonly W[], name: LayoutName, id: string, target: LayoutRectDto, minimum: Size): readonly W[] {
+  const placed = placeWithCollisions(
+    widgets.map((widget) => ({ id: widget.id, rect: widget.layout[name] })),
+    id,
+    target,
+    GRID_COLUMNS[name],
+    minimum,
+  );
+  return applyGridItems(
+    widgets,
+    name,
+    placed.map(({ id: each, rect }) => ({ i: each, ...rect })),
+  );
+}
