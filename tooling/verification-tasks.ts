@@ -3682,6 +3682,49 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.31: the bar as a sheet on a phone, the bar at three widths, a register table set up in the bar only.
+    id: "D34.3",
+    ready: true,
+    title: "The context bar at 390, 1024 and 1440 px: a sheet from the bottom on a phone, above the grid on a tablet and a laptop, and a register table set up in the bar only on the screen",
+    criteria: ["D34.3-AC1", "D34.3-AC2", "D34.3-regression"],
+    checks: [
+      {
+        // Runs first: the test runs the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D34.3-AC1", "D34.3-AC2"],
+        description: "pnpm -r build: the context bar with its sheet and the editor",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/dashboard/components/context-bar.tsx", "apps/web/src/features/dashboard/components/designer-editor.tsx", "apps/web/src/app/styles/global.css"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D34.3-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/designer.json"],
+      },
+      {
+        id: "designer-bar-widths-e2e",
+        criteria: ["D34.3-AC1", "D34.3-AC2"],
+        description:
+          "Playwright: at 390 px a selection opens the settings as a sheet at the bottom of the window with the groups, Done and Escape close it with the focus on the tile, no sideways scroll; at 1024 and 1440 px the bar ends above the grid; a register table set up only in the bar (Książki, Autor and Tytuł in that order, sorted by Tytuł ascending, a page of 2, Adding, the title) is that table on the screen with its pages and Add; axe; the bar and its columns as before",
+        command: ["node", "tests/verification/e2e.ts", "designer-bar-widths", "designer-bar", "designer-columns"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/designer-bar-widths.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D34.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the bar, its columns and the widths.
+  {
+    id: "D34",
+    ready: true,
+    title: "The context bar of the Designer with the options of the register table: bindings, columns in their order, size, appearance and behaviour, Duplicate and Delete, at the widths of a phone, a tablet and a laptop",
+    steps: ["D34.1", "D34.2", "D34.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
     // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
     id: "G2",

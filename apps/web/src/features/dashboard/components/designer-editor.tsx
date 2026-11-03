@@ -195,6 +195,7 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
         </div>
       ) : null}
       <ContextBar
+        sheet={onPhone}
         widget={selected}
         layout={layout}
         minimum={selected === null ? { w: 1, h: 1 } : (typeOf(selected.type)?.minSize ?? { w: 1, h: 1 })}

@@ -106,9 +106,11 @@ function OptionsGroups({ widget, disabled, onConfigure }: Readonly<{ widget: Wid
  * settings of the selected widget in the groups Powiązania → Rozmiar → Wygląd → Zachowanie, with
  * Duplikuj and Usuń; without a selection it says how to see them and offers "Dodaj widget". Until
  * the widget has a registry only Powiązania can be used. Escape anywhere in the bar lets go of the
- * selection and gives the focus back to the tile.
+ * selection and gives the focus back to the tile. On a phone the settings of the selected widget open
+ * as a sheet from the bottom with the same groups one under another, closed by Done or Escape (D34.3).
  */
 export function ContextBar({
+  sheet,
   widget,
   layout,
   minimum,
@@ -123,6 +125,8 @@ export function ContextBar({
   onDelete,
   onDeselect,
 }: Readonly<{
+  /** The window is a phone: the settings of a selected widget are a sheet from the bottom. */
+  sheet: boolean;
   widget: WidgetDesignDto | null;
   layout: LayoutName;
   minimum: Size;
@@ -160,7 +164,15 @@ export function ContextBar({
     onDeselect();
   };
   return (
-    <section className="context-bar" aria-label={t("bar.label")} onKeyDown={onKeyDown}>
+    <section className={sheet ? "context-bar context-sheet" : "context-bar"} aria-label={t("bar.label")} onKeyDown={onKeyDown}>
+      {sheet ? (
+        <header className="context-sheet-header">
+          <h2 className="bar-group-title">{t("bar.label")}</h2>
+          <button type="button" onClick={onDeselect}>
+            {t("bar.done")}
+          </button>
+        </header>
+      ) : null}
       <BindingsPanel widget={widget} registries={registries} registriesFailed={registriesFailed} registryRef={registryRef} onChange={onBind} />
       {unbound ? <p className="field-hint bar-unbound">{t("bar.startWithRegistry")}</p> : null}
       <SizeGroup key={`${widget.id}-${layout}`} rect={widget.layout[layout]} columns={GRID_COLUMNS[layout]} minimum={minimum} disabled={unbound} onPlace={onPlace} />

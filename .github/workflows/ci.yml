@@ -480,6 +480,9 @@ jobs:
       - name: Verify D34.2 (the columns of the register table in their order, All, the last kept, a broken binding removed, the refusals of the API)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D34.2
+      - name: Verify D34.3 (the context bar at the widths of a phone, a tablet and a laptop, and a table set up in the bar only)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D34.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -854,7 +857,7 @@ jobs:
 
   full-screens:
     # Screens: the private screen and the Designer in a browser.
-    name: verify:task (full tier, screens D18 and D33)
+    name: verify:task (full tier, screens D18, D33 and D34)
     needs: changes
     if: ${{ needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
@@ -902,6 +905,9 @@ jobs:
       - name: Verify D33 (the parent, D33.1–D33.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D33
+      - name: Verify D34 (the parent, D34.1–D34.3 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D34
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

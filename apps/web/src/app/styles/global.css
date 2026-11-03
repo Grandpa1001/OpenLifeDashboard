@@ -844,6 +844,40 @@ main.pulpit {
   align-self: center;
 }
 
+/* On a phone the settings of the selected widget are a sheet from the bottom (D34.3): the groups one
+   under another, scrolled inside the sheet; the page below can still be scrolled to every widget. */
+.context-sheet {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  max-height: 60vh;
+  overflow-y: auto;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  box-shadow: 0 -4px 16px rgb(0 0 0 / 40%);
+}
+
+.context-sheet .bar-actions {
+  margin-left: 0;
+}
+
+.context-sheet-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: var(--color-surface);
+}
+
+.designer-page:has(.context-sheet) {
+  padding-bottom: 60vh;
+}
+
 /* The bar keeps the height of the settings of a register table, selected or not, so a selection never
    moves the grid under the pointer (a drag that started by selecting landed elsewhere). Two rows from
    1280 px (210 px measured on macOS and with the DejaVu font of Linux), three below (308 px with DejaVu). */
