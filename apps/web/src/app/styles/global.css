@@ -909,6 +909,31 @@ main.pulpit {
   max-width: 14rem;
 }
 
+.bar-column-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bar-column-list li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.column-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  min-height: var(--touch-target);
+  color: var(--color-text-muted);
+  cursor: grab;
+}
+
 .select-like {
   min-width: 8rem;
   border-color: var(--color-border-control);

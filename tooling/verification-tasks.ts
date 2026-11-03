@@ -3634,6 +3634,54 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.31: the columns of the register table in their order, All, the last kept, a broken binding removed, the refusals of the API.
+    id: "D34.2",
+    ready: true,
+    title: "The columns of the register table: their order by Alt + arrow and the handle, All, the last kept, the sort, a broken binding removed in the bar, and the refusals of the API",
+    criteria: ["D34.2-AC1", "D34.2-AC2", "D34.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D34.2-AC1", "D34.2-AC2"],
+        description: "pnpm -r build: the bindings of the register table and the group Powiązania of the bar",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/dashboard/lib/register-table-bindings.ts", "apps/web/src/features/dashboard/components/bindings-panel.tsx"],
+      },
+      {
+        id: "column-order-web",
+        criteria: ["D34.2-AC1", "D34.2-AC2"],
+        description: "Unit: the bindings follow the order of the choice, the list puts the chosen columns first, Alt + arrow and a drop move one, All chooses every column then leaves one, Remove the binding keeps the rest; the bindings of D18.2 in the order of the choice",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/column-order.test.ts", "tests/unit/web/designer-state.test.ts"],
+        requires: ["tests/unit/web/column-order.test.ts", "tests/unit/web/designer-state.test.ts"],
+      },
+      {
+        id: "widget-bindings-http",
+        criteria: ["D34.2-AC1", "D34.2-AC2"],
+        description: "Over real HTTP on Książki of F01: columns saved as Status, Autor, Tytuł sorted by Tytuł come back and read in that order; an unknown slot, a kind the slot does not take, a registry of nobody and an unknown type are 422 at their paths with the screen as it was",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/dashboard/widget-bindings-http.test.ts"],
+        requires: ["tests/integration/dashboard/widget-bindings-http.test.ts", "tests/support/books-http.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D34.2-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/designer.json", "apps/web/src/locales/en/designer.json"],
+      },
+      {
+        id: "designer-columns-e2e",
+        criteria: ["D34.2-AC1", "D34.2-AC2"],
+        description:
+          "Playwright with Książki and a table of Tytuł and Autor: Alt + ↓ and a drag of the handle order the columns, the save gives the ordinals and the screen the columns in that order; All chooses 11 of 11 then leaves 1; the sort by Tytuł ascending is the order on the screen; the last column cannot be let go; Escape closes the list on its field and keeps the widget selected; a removed Autor is shown by its path, the other groups stay usable, Remove the binding leaves Tytuł and the widget is ok; axe; the bar, the Designer and the repair of bindings as before",
+        command: ["node", "tests/verification/e2e.ts", "designer-columns", "designer-bar", "designer.spec", "structure-repair"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/designer-columns.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D34.2-regression"),
+    ],
+  },
+  {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
     // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
     id: "G2",

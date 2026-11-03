@@ -109,6 +109,10 @@
     "cancel": "Cancel",
     "columnsCount": "{{count}} of {{total}}",
     "sizeWithMinimum": "Size · min {{w}} × {{h}}",
-    "pageSizeWithRange": "Page size ({{min}}–{{max}})"
+    "pageSizeWithRange": "Page size ({{min}}–{{max}})",
+    "allColumns": "All",
+    "moveColumn": "Move the column {{name}}",
+    "columnsHint": "The order of the list is the order of the columns in the table. Drag by the handle or move with Alt + arrow. The last chosen column cannot be cleared.",
+    "removeBinding": "Remove the binding"
   }
 }

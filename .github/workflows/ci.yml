@@ -477,6 +477,9 @@ jobs:
       - name: Verify D34.1 (the context bar of the Designer, the window Add widget, the size, the options, Duplicate and Delete)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D34.1
+      - name: Verify D34.2 (the columns of the register table in their order, All, the last kept, a broken binding removed, the refusals of the API)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D34.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

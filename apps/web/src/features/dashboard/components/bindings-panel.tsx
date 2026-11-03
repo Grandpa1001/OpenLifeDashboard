@@ -1,11 +1,13 @@
 import type { RegistryDto } from "@openlife/contracts/http/registries";
 import type { WidgetDesignDto } from "@openlife/contracts/http/screens";
-import { useEffect, useId, useRef, useState, type ReactNode, type Ref } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { SelectField } from "../../../lib/forms/select-field.js";
-import { allColumnsOf, bindingsOf, choiceOf, missingPaths, pickableColumns, type Pickable } from "../lib/register-table-bindings.js";
+import { allColumnsOf, bindingsOf, choiceOf, droppedColumn, missingPaths, movedColumn, orderedOffer, pickableColumns, toggledAll, withoutMissing, type Pickable } from "../lib/register-table-bindings.js";
 
 const NONE = "";
+/** The grip of a row of the list of columns; its name is the label of the handle. */
+const HANDLE_MARK = "\u283F";
 const DIRECTIONS = ["desc", "asc"] as const;
 type Direction = (typeof DIRECTIONS)[number];
 const isDirection = (value: string): value is Direction => (DIRECTIONS as readonly string[]).includes(value);
@@ -106,6 +108,9 @@ export function BindingsPanel({
             ))}
           </ul>
           <p>{t(registry === null ? "panel.missingRegistryHint" : "panel.missingColumnHint")}</p>
+          <button type="button" className="link-button" onClick={() => onChange({ config: widget.config, bindings: withoutMissing(widget.bindings, missing, registry === null) })}>
+            {t("bar.removeBinding")}
+          </button>
         </div>
       )}
       <SelectField
@@ -140,16 +145,64 @@ export function BindingsPanel({
       {registry === null ? null : (
         <>
           <ColumnsField count={choice.columnKeys.length} total={offer.length}>
-            {offer.map((pick) => (
-              <label key={pick.key} className="check">
-                <input
-                  type="checkbox"
-                  checked={choice.columnKeys.includes(pick.key)}
-                  onChange={(event) => rebind(registry, event.target.checked ? [...choice.columnKeys, pick.key] : choice.columnKeys.filter((key) => key !== pick.key), choice.sortKey)}
-                />
-                {nameOf(pick)}
-              </label>
-            ))}
+            <label className="check bar-columns-all">
+              <input type="checkbox" checked={choice.columnKeys.length === offer.length} onChange={() => rebind(registry, toggledAll(offer, choice.columnKeys), choice.sortKey)} />
+              {t("bar.allColumns")}
+            </label>
+            <ol className="bar-column-list" aria-label={t("panel.columns")}>
+              {orderedOffer(offer, choice.columnKeys).map((pick) => {
+                const chosen = choice.columnKeys.includes(pick.key);
+                // The table keeps at least one column: the last one chosen cannot be let go (Scope §5.4).
+                const last = chosen && choice.columnKeys.length === 1;
+                const move = (step: -1 | 1): void => rebind(registry, movedColumn(choice.columnKeys, pick.key, step), choice.sortKey);
+                const onKey = (event: KeyboardEvent<HTMLElement>): void => {
+                  if (!event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
+                  event.preventDefault();
+                  move(event.key === "ArrowUp" ? -1 : 1);
+                };
+                return (
+                  <li
+                    key={pick.key}
+                    data-column={pick.key}
+                    onDragOver={(event) => {
+                      if (chosen) event.preventDefault();
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      rebind(registry, droppedColumn(choice.columnKeys, event.dataTransfer.getData("text/plain"), pick.key), choice.sortKey);
+                    }}
+                  >
+                    {chosen ? (
+                      <span
+                        className="column-handle"
+                        draggable
+                        role="img"
+                        aria-label={t("bar.moveColumn", { name: nameOf(pick) })}
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData("text/plain", pick.key);
+                          event.dataTransfer.effectAllowed = "move";
+                        }}
+                      >
+                        {HANDLE_MARK}
+                      </span>
+                    ) : (
+                      <span className="column-handle" aria-hidden="true" />
+                    )}
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={chosen}
+                        disabled={last}
+                        onKeyDown={onKey}
+                        onChange={(event) => rebind(registry, event.target.checked ? [...choice.columnKeys, pick.key] : choice.columnKeys.filter((key) => key !== pick.key), choice.sortKey)}
+                      />
+                      {nameOf(pick)}
+                    </label>
+                  </li>
+                );
+              })}
+            </ol>
+            <p className="field-hint">{t("bar.columnsHint")}</p>
           </ColumnsField>
           <SelectField label={t("panel.sort")} value={choice.sortKey ?? NONE} onChange={(event) => rebind(registry, choice.columnKeys, event.target.value === NONE ? null : event.target.value)}>
             <option value={NONE}>{t("panel.sortDefault")}</option>

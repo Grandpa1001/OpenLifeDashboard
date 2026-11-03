@@ -28,7 +28,7 @@ export const allColumnsOf = (registry: RegistryDto): readonly string[] => regist
 
 export type TableChoice = Readonly<{ registryId: string | null; columnKeys: readonly string[]; sortKey: string | null }>;
 
-/** The bindings of a choice. Columns keep the order of the offer and the ordinals count from 0. */
+/** The bindings of a choice. Columns keep the order of the choice, which is the order of the table, and the ordinals count from 0 (D34.2). */
 export function bindingsOf(registry: RegistryDto | null, columnKeys: readonly string[], sortKey: string | null): SlotBindingDto[] {
   if (registry === null) return [];
   const offer = pickableColumns(registry);
@@ -36,7 +36,10 @@ export function bindingsOf(registry: RegistryDto | null, columnKeys: readonly st
   const sort = offer.find((pick) => pick.key === sortKey);
   return [
     { slot: REGISTRY_SLOT, ordinal: 0, path: `${REGISTER_PATH}.${registry.symbol}`, target: { kind: "registry", registryId: registry.id } },
-    ...offer.filter((pick) => columnKeys.includes(pick.key)).map((pick, ordinal): SlotBindingDto => ({ slot: COLUMNS_SLOT, ordinal, path: pathOf(pick), target: pick.target })),
+    ...columnKeys
+      .map((key) => offer.find((pick) => pick.key === key))
+      .filter((pick): pick is Pickable => pick !== undefined)
+      .map((pick, ordinal): SlotBindingDto => ({ slot: COLUMNS_SLOT, ordinal, path: pathOf(pick), target: pick.target })),
     ...(sort === undefined ? [] : [{ slot: SORT_SLOT, ordinal: 0, path: pathOf(sort), target: sort.target } satisfies SlotBindingDto]),
   ];
 }
@@ -68,4 +71,43 @@ export function missingPaths(bindings: readonly SlotBindingDto[], registry: Regi
   if (registry === null) return bindings.filter((binding) => binding.slot === REGISTRY_SLOT).map((binding) => binding.path);
   const columnIds = new Set(registry.columns.map((column) => column.id));
   return [...new Set(bindings.filter((binding) => binding.target.kind === "column" && !columnIds.has(binding.target.columnId)).map((binding) => binding.path))];
+}
+
+/** The list of the columns as the owner orders it: the chosen ones in the order of the table, then the others in the order of the registry. */
+export function orderedOffer(offer: readonly Pickable[], columnKeys: readonly string[]): readonly Pickable[] {
+  const chosen = columnKeys.map((key) => offer.find((pick) => pick.key === key)).filter((pick): pick is Pickable => pick !== undefined);
+  return [...chosen, ...offer.filter((pick) => !columnKeys.includes(pick.key))];
+}
+
+/** One chosen column moved one place up or down among the chosen ones; at an end, or for one not chosen, the order stays. */
+export function movedColumn(columnKeys: readonly string[], key: string, step: -1 | 1): readonly string[] {
+  const at = columnKeys.indexOf(key);
+  const to = at + step;
+  if (at < 0 || to < 0 || to >= columnKeys.length) return columnKeys;
+  const next = [...columnKeys];
+  next.splice(at, 1);
+  next.splice(to, 0, key);
+  return next;
+}
+
+/** A chosen column put where another chosen column is (a drop of the handle); the others keep their order. */
+export function droppedColumn(columnKeys: readonly string[], key: string, onto: string): readonly string[] {
+  if (key === onto || !columnKeys.includes(key) || !columnKeys.includes(onto)) return columnKeys;
+  const rest = columnKeys.filter((each) => each !== key);
+  rest.splice(columnKeys.indexOf(onto), 0, key);
+  return rest;
+}
+
+/** "All": every column of the offer when not all are chosen, otherwise only the first chosen one (the table keeps at least one). */
+export function toggledAll(offer: readonly Pickable[], columnKeys: readonly string[]): readonly string[] {
+  if (columnKeys.length < offer.length) return [...columnKeys, ...offer.filter((pick) => !columnKeys.includes(pick.key)).map((pick) => pick.key)];
+  return columnKeys.slice(0, 1);
+}
+
+/** The bindings without what is missing (Scope §5.4 "Usuń podpięcie"): a gone registry leaves the table unbound; gone columns leave the others. */
+export function withoutMissing(bindings: readonly SlotBindingDto[], missing: readonly string[], registryGone: boolean): SlotBindingDto[] {
+  if (registryGone) return [];
+  const kept = bindings.filter((binding) => !missing.includes(binding.path));
+  let ordinal = 0;
+  return kept.map((binding) => (binding.slot === COLUMNS_SLOT ? { ...binding, ordinal: ordinal++ } : binding));
 }

@@ -99,12 +99,13 @@ describe("D18.2 the state of the Designer", () => {
 describe("D18.2 the bindings of the register table", () => {
   const [amount, note] = registry.columns;
 
-  it("write the registry, the columns in the order of the registry and the sort column, each with the path the server checks", () => {
+  // D34.2: the order of the columns is the order the owner chose, which is the order of the table.
+  it("write the registry, the columns in the order of the choice and the sort column, each with the path the server checks", () => {
     const bindings = bindingsOf(registry, [note?.id ?? "", amount?.id ?? "", "created_at"], note?.id ?? null);
     expect(bindings).toEqual([
       { slot: "registry", ordinal: 0, path: "Field.Register.F01", target: { kind: "registry", registryId: registry.id } },
-      { slot: "columns", ordinal: 0, path: "Field.Register.F01.amount", target: { kind: "column", registryId: registry.id, columnId: amount?.id } },
-      { slot: "columns", ordinal: 1, path: "Field.Register.F01.note", target: { kind: "column", registryId: registry.id, columnId: note?.id } },
+      { slot: "columns", ordinal: 0, path: "Field.Register.F01.note", target: { kind: "column", registryId: registry.id, columnId: note?.id } },
+      { slot: "columns", ordinal: 1, path: "Field.Register.F01.amount", target: { kind: "column", registryId: registry.id, columnId: amount?.id } },
       { slot: "columns", ordinal: 2, path: "Field.Register.F01.created_at", target: { kind: "systemColumn", registryId: registry.id, symbol: "created_at" } },
       { slot: "sortColumn", ordinal: 0, path: "Field.Register.F01.note", target: { kind: "column", registryId: registry.id, columnId: note?.id } },
     ]);

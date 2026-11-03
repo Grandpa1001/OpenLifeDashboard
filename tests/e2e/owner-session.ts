@@ -43,14 +43,13 @@ export async function openColumns(page: Page): Promise<Locator> {
   return bar.getByRole("group", { name: text(designer, "panel.columns"), exact: true });
 }
 
-/** Exactly these columns of the registry of the selected table, then the list closed: the wanted ones are checked first, so one always stays. */
+/** Exactly these columns of the registry of the selected table, then the list closed: the wanted ones are checked first, so one always stays; the rows are found by name, as the list reorders itself. */
 export async function chooseColumns(page: Page, names: readonly string[]): Promise<void> {
-  const list = await openColumns(page);
+  const designer = locale("en", "designer");
+  const list = (await openColumns(page)).getByRole("list", { name: text(designer, "panel.columns") });
   for (const name of names) await list.getByRole("checkbox", { name, exact: true }).check();
-  for (const box of await list.getByRole("checkbox").all()) {
-    const name = (await box.evaluate((element) => (element as unknown as { parentElement: { textContent: string | null } | null }).parentElement?.textContent ?? "")).trim();
-    if (!names.includes(name)) await box.uncheck();
-  }
+  const all = (await list.getByRole("listitem").allInnerTexts()).map((each) => each.replace("\u283F", "").trim());
+  for (const name of all) if (!names.includes(name)) await list.getByRole("checkbox", { name, exact: true }).uncheck();
   await page.keyboard.press("Escape");
 }
 
