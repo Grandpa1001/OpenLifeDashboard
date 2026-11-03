@@ -8,7 +8,7 @@
 import type { CDPSession, Locator, Page } from "@playwright/test";
 import type { BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { BOOKS_DEFINITION, createRegistry, expectNoViolations, openApp, signInFully } from "./owner-session.ts";
+import { BOOKS_DEFINITION, createRegistry, expectNoViolations, openApp, signInFully, addRegisterTable } from "./owner-session.ts";
 
 const designer = locale("en", "designer");
 test.use({ locale: "en-US" });
@@ -77,7 +77,7 @@ test.describe("D33.3 S12 the three layouts at real widths", () => {
     await page.goto(`${owner.baseUrl}/designer`);
     await page.getByRole("button", { name: text(designer, "create.submit") }).click();
     await expect(toolbarButton(page, "toolbar.desktop")).toHaveAttribute("aria-pressed", "true");
-    await page.getByRole("button", { name: "Add: Register table" }).click();
+    await addRegisterTable(page);
     await save(page);
     const added = await layoutOnServer(page, owner);
     expect(added).toEqual({ phone: r(0, 0, 1, 8), tablet: r(0, 0, 8, 8), desktop: r(0, 0, 8, 8) });

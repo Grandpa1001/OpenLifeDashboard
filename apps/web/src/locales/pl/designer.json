@@ -27,7 +27,9 @@
     "heading": "Dodaj widget",
     "add": "Dodaj: {{type}}",
     "loading": "Wczytywanie typów widgetów…",
-    "failed": "Nie udało się wczytać typów widgetów."
+    "failed": "Nie udało się wczytać typów widgetów.",
+    "available": "Dostępne {{count}} z {{total}}",
+    "updates": "Nowe typy widgetów przychodzą razem z aktualizacją aplikacji."
   },
   "canvas": {
     "label": "Układ ekranu: {{layout}}",
@@ -84,5 +86,29 @@
       "saving": "Zapisywanie…"
     }
   },
-  "backHome": "Wróć na pulpit"
+  "backHome": "Wróć na pulpit",
+  "bar": {
+    "label": "Ustawienia widgetu",
+    "none": "Zaznacz widget, aby zobaczyć jego ustawienia",
+    "addWidget": "Dodaj widget",
+    "actions": "Akcje widgetu",
+    "duplicate": "Duplikuj",
+    "delete": "Usuń",
+    "copySuffix": "(kopia)",
+    "width": "Szerokość",
+    "height": "Wysokość",
+    "appearance": "Wygląd",
+    "title": "Tytuł",
+    "titleTooLong": "Tytuł może mieć najwyżej {{max}} znaków.",
+    "pageSizeInvalid": "Podaj liczbę całkowitą od {{min}} do {{max}}.",
+    "behaviour": "Zachowanie",
+    "allowAdd": "Dodawanie",
+    "startWithRegistry": "Zacznij od rejestru — reszta opcji odblokuje się po wyborze.",
+    "registryChange": "Zmienić rejestr? Wybór kolumn zostanie wyczyszczony.",
+    "registryChangeConfirm": "Zmień rejestr",
+    "cancel": "Anuluj",
+    "columnsCount": "{{count}} z {{total}}",
+    "sizeWithMinimum": "Rozmiar · min {{w}} × {{h}}",
+    "pageSizeWithRange": "Rozmiar strony ({{min}}–{{max}})"
+  }
 }

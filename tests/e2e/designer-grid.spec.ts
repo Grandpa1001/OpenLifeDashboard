@@ -10,7 +10,7 @@
 import type { CDPSession, Locator, Page } from "@playwright/test";
 import type { BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully } from "./owner-session.ts";
+import { BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully, addRegisterTable } from "./owner-session.ts";
 
 const designer = locale("en", "designer");
 const errors = locale("en", "errors");
@@ -124,7 +124,7 @@ test.describe("D33.2-AC1 one rule for the mouse, the touch and the keyboard", ()
     // The corner of Druga, now at the top left: one column wider by touch, which pushes nothing (Pierwsza is below).
     const corner = page.locator(`[data-widget-id="${B}"] .react-resizable-handle-se`);
     await touchDrag(session, await centre(corner), Math.round(COLUMN_PX.tablet), 0);
-    await page.getByRole("button", { name: "Add: Register table" }).click();
+    await addRegisterTable(page);
     const layouts = await saved(page, owner);
     expect(layouts[B]!.tablet).toEqual(r(0, 0, 5, 6));
     expect(layouts[A]!.tablet).toEqual(r(0, 6, 4, 6));

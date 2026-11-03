@@ -1,7 +1,7 @@
 // What the browser tests of the private screens share: the owner past the password and the second
 // factor, a registry made with the session of the page, and the accessibility check.
 import AxeBuilder from "@axe-core/playwright";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { REGISTRIES_PATH } from "@openlife/contracts/http/registries";
 import { registryRecordsPath } from "@openlife/contracts/http/records";
 import type { BrowserOwner } from "../support/auth-http.ts";
@@ -25,6 +25,33 @@ export async function signInFully(page: Page, owner: BrowserOwner): Promise<void
   await page.getByRole("button", { name: text(auth, "login.submit") }).click();
   await page.getByLabel(text(auth, "mfa.codeLabel")).fill(await owner.code(1));
   await expect(page).toHaveURL(`${owner.baseUrl}/`);
+}
+
+/** A register table from the window "Add widget" of the context bar of the Designer (D34.1). */
+export async function addRegisterTable(page: Page): Promise<void> {
+  const designer = locale("en", "designer");
+  await page.getByRole("region", { name: text(designer, "bar.label") }).getByRole("button", { name: text(designer, "bar.addWidget"), exact: true }).click();
+  await page.getByRole("dialog", { name: text(designer, "palette.heading") }).getByRole("button", { name: "Add: Register table" }).click();
+}
+
+/** Opens "Columns N of M" in the context bar of the Designer and gives the list of the columns (D34.1). */
+export async function openColumns(page: Page): Promise<Locator> {
+  const designer = locale("en", "designer");
+  const bar = page.getByRole("region", { name: text(designer, "bar.label") });
+  const field = bar.getByRole("button", { name: new RegExp(`^${text(designer, "panel.columns")} `) });
+  if ((await field.getAttribute("aria-expanded")) !== "true") await field.click();
+  return bar.getByRole("group", { name: text(designer, "panel.columns"), exact: true });
+}
+
+/** Exactly these columns of the registry of the selected table, then the list closed: the wanted ones are checked first, so one always stays. */
+export async function chooseColumns(page: Page, names: readonly string[]): Promise<void> {
+  const list = await openColumns(page);
+  for (const name of names) await list.getByRole("checkbox", { name, exact: true }).check();
+  for (const box of await list.getByRole("checkbox").all()) {
+    const name = (await box.evaluate((element) => (element as unknown as { parentElement: { textContent: string | null } | null }).parentElement?.textContent ?? "")).trim();
+    if (!names.includes(name)) await box.uncheck();
+  }
+  await page.keyboard.press("Escape");
 }
 
 /** From the screen of the owner into the part of the application, by the one icon of the screen (D33.1). */

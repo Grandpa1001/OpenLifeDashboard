@@ -1,8 +1,9 @@
 import type { RegistryDto } from "@openlife/contracts/http/registries";
 import type { WidgetDesignDto } from "@openlife/contracts/http/screens";
+import { useEffect, useId, useRef, useState, type ReactNode, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { SelectField } from "../../../lib/forms/select-field.js";
-import { bindingsOf, choiceOf, missingPaths, pickableColumns, type Pickable } from "../lib/register-table-bindings.js";
+import { allColumnsOf, bindingsOf, choiceOf, missingPaths, pickableColumns, type Pickable } from "../lib/register-table-bindings.js";
 
 const NONE = "";
 const DIRECTIONS = ["desc", "asc"] as const;
@@ -12,29 +13,70 @@ const isDirection = (value: string): value is Direction => (DIRECTIONS as readon
 export type Reconfigured = Readonly<{ config: WidgetDesignDto["config"]; bindings: WidgetDesignDto["bindings"] }>;
 
 /**
- * The minimal bindings of the register table (Scope §5.4, D18.2): which registry, which of its
- * columns, and what it is sorted by. Each change is written whole, so the bindings always agree
- * with the registry the owner chose; the full panels come with D34. A binding to a registry or a
- * column that is gone is shown by its path; choosing again writes bindings without it (D31.3).
+ * "Kolumny N z M" (makieta 37): a field that opens the list of the columns over the grid, so the bar
+ * keeps its height. Escape or a press outside closes it and gives the focus back to the field.
+ */
+function ColumnsField({ count, total, children }: Readonly<{ count: number; total: number; children: ReactNode }>) {
+  const { t } = useTranslation("designer");
+  const [open, setOpen] = useState(false);
+  const holder = useRef<HTMLDivElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const listId = useId();
+  const labelId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: PointerEvent): void => {
+      if (event.target instanceof Node && holder.current?.contains(event.target) !== true) setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    return () => document.removeEventListener("pointerdown", onPointer);
+  }, [open]);
+  return (
+    <div
+      className="field bar-columns"
+      ref={holder}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || !open) return;
+        // The list takes this Escape; the next one lets go of the widget.
+        event.preventDefault();
+        setOpen(false);
+        toggle.current?.focus();
+      }}
+    >
+      <span id={labelId} className="bar-field-label">
+        {t("panel.columns")}
+      </span>
+      <button ref={toggle} type="button" className="select-like" aria-labelledby={`${labelId} ${listId}-count`} aria-expanded={open} aria-controls={listId} onClick={() => setOpen((was) => !was)}>
+        <span id={`${listId}-count`}>{t("bar.columnsCount", { count, total })}</span>
+      </button>
+      {open ? (
+        <fieldset id={listId} className="card bar-popover designer-columns">
+          <legend>{t("panel.columns")}</legend>
+          {children}
+        </fieldset>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The group Powiązania of the context bar for the register table (Scope §5.4, D18.2, D34.1): which
+ * registry, which of its columns, and what it is sorted by. Each change is written whole, so the
+ * bindings always agree with the registry the owner chose. A chosen registry gives all its columns;
+ * another registry after a choice of columns asks first, since the choice is cleared. A binding to a
+ * registry or a column that is gone is shown by its path; choosing again writes bindings without it (D31.3).
  */
 export function BindingsPanel({
   widget,
   registries,
   registriesFailed,
+  registryRef,
   onChange,
-}: Readonly<{ widget: WidgetDesignDto | null; registries: readonly RegistryDto[]; registriesFailed: boolean; onChange: (change: Reconfigured) => void }>) {
+}: Readonly<{ widget: WidgetDesignDto; registries: readonly RegistryDto[]; registriesFailed: boolean; registryRef?: Ref<HTMLSelectElement> | undefined; onChange: (change: Reconfigured) => void }>) {
   const { t } = useTranslation("designer");
   const { t: tw } = useTranslation("widgets");
-
-  const heading = <h2>{t("panel.heading")}</h2>;
-  if (widget === null) {
-    return (
-      <section className="designer-panel" aria-label={t("panel.heading")}>
-        {heading}
-        <p>{t("panel.none")}</p>
-      </section>
-    );
-  }
+  // Another registry (or none) waiting for the owner to agree that the choice of columns is cleared.
+  const [pending, setPending] = useState<Readonly<{ next: RegistryDto | null }> | null>(null);
 
   const choice = choiceOf(widget.bindings);
   const registry = registries.find((candidate) => candidate.id === choice.registryId) ?? null;
@@ -46,10 +88,14 @@ export function BindingsPanel({
 
   const rebind = (nextRegistry: RegistryDto | null, columnKeys: readonly string[], sortKey: string | null, nextDirection: string = direction): void =>
     onChange({ config: { ...widget.config, sortDirection: nextDirection }, bindings: bindingsOf(nextRegistry, columnKeys, sortKey) });
+  const choose = (next: RegistryDto | null): void => {
+    setPending(null);
+    rebind(next, next === null ? [] : allColumnsOf(next), null);
+  };
 
   return (
-    <section className="designer-panel" aria-label={t("panel.heading")}>
-      {heading}
+    <section className="bar-group" aria-label={t("panel.heading")}>
+      <h2 className="bar-group-title">{t("panel.heading")}</h2>
       {registriesFailed ? <p role="alert">{t("panel.registriesFailed")}</p> : null}
       {!registriesFailed && registries.length === 0 ? <p>{t("panel.noRegistries")}</p> : null}
       {registriesFailed || missing.length === 0 ? null : (
@@ -63,9 +109,15 @@ export function BindingsPanel({
         </div>
       )}
       <SelectField
+        ref={registryRef}
         label={t("panel.registry")}
-        value={registry?.id ?? NONE}
-        onChange={(event) => rebind(registries.find((candidate) => candidate.id === event.target.value) ?? null, [], null)}
+        value={pending === null ? (registry?.id ?? NONE) : (pending.next?.id ?? NONE)}
+        onChange={(event) => {
+          const next = registries.find((candidate) => candidate.id === event.target.value) ?? null;
+          // Another registry after a choice of columns clears that choice: asked first (Scope §5.4).
+          if (registry !== null && choice.columnKeys.length > 0 && next?.id !== registry.id) setPending({ next });
+          else choose(next);
+        }}
       >
         <option value={NONE}>{t("panel.noRegistry")}</option>
         {registries.map((candidate) => (
@@ -74,10 +126,20 @@ export function BindingsPanel({
           </option>
         ))}
       </SelectField>
+      {pending === null ? null : (
+        <div className="bar-confirm" role="alertdialog" aria-labelledby="bar-registry-change" aria-modal="false">
+          <p id="bar-registry-change">{t("bar.registryChange")}</p>
+          <button type="button" onClick={() => choose(pending.next)}>
+            {t("bar.registryChangeConfirm")}
+          </button>
+          <button type="button" className="link-button" onClick={() => setPending(null)}>
+            {t("bar.cancel")}
+          </button>
+        </div>
+      )}
       {registry === null ? null : (
         <>
-          <fieldset className="designer-columns">
-            <legend>{t("panel.columns")}</legend>
+          <ColumnsField count={choice.columnKeys.length} total={offer.length}>
             {offer.map((pick) => (
               <label key={pick.key} className="check">
                 <input
@@ -88,7 +150,7 @@ export function BindingsPanel({
                 {nameOf(pick)}
               </label>
             ))}
-          </fieldset>
+          </ColumnsField>
           <SelectField label={t("panel.sort")} value={choice.sortKey ?? NONE} onChange={(event) => rebind(registry, choice.columnKeys, event.target.value === NONE ? null : event.target.value)}>
             <option value={NONE}>{t("panel.sortDefault")}</option>
             {offer.map((pick) => (

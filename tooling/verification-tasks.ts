@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -3585,6 +3585,53 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D33.1", "D33.2", "D33.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.31: the context bar of the Designer in place of the palette and the side panel.
+    id: "D34.1",
+    ready: true,
+    title: "The context bar of the Designer: the window Add widget, a new widget with Powiązania only, all the columns and a page of 10, the size by number, the title, the page size and Adding by the schema of the server, Duplicate and Delete",
+    criteria: ["D34.1-AC1", "D34.1-AC2", "D34.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D34.1-AC1", "D34.1-AC2"],
+        description: "pnpm -r build: the schema of the register table for the browser, the context bar, the window Add widget and the editor",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "packages/widgets/src/views.ts",
+          "apps/web/src/features/dashboard/components/context-bar.tsx",
+          "apps/web/src/features/dashboard/components/add-widget-dialog.tsx",
+          "apps/web/src/features/dashboard/components/bindings-panel.tsx",
+          "apps/web/src/features/dashboard/components/designer-editor.tsx",
+        ],
+      },
+      {
+        id: "bar-rules-web",
+        criteria: ["D34.1-AC1", "D34.1-AC2"],
+        description: "Unit: Delete takes the widget and its selection, a copy keeps its size at the first free place of each layout, a chosen registry gives all its columns in its order, the bar accepts what the schema of the server accepts; the reducer and the grid as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/designer-bar.test.ts", "tests/unit/web/designer-state.test.ts", "tests/unit/web/layout-collisions.test.ts"],
+        requires: ["tests/unit/web/designer-bar.test.ts", "tests/unit/web/designer-state.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D34.1-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/designer.json", "apps/web/src/locales/en/widgets.json"],
+      },
+      {
+        id: "designer-bar-e2e",
+        criteria: ["D34.1-AC1", "D34.1-AC2"],
+        description:
+          "Playwright with Książki: the window Add widget lists the register table of the catalog with its description; the new widget is selected with the focus on Registry and only Powiązania usable; Książki gives its 9 columns and a page of 10, saved and on the screen; 6 × 5 changes the desktop only, 1 × 1 gives the minimum 3 × 4; the title, a page of 25 and Adding off are saved and shown; Duplicate makes a selected copy with a new id, the same bindings and (copy), Delete removes it; a page size of 0 and 101 is told at the field; another registry asks and Cancel keeps it; the order of Tab, Escape back to the tile, a selection that does not move the grid; axe; the Designer, the grid, S12, the repair of bindings, ConfigTable and the vertical paths as before",
+        command: ["node", "tests/verification/e2e.ts", "designer-bar", "designer.spec", "designer-grid", "layouts-s12", "structure-repair", "config.spec", "vertical.spec", "g1-path"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/designer-bar.spec.ts", "tests/e2e/designer.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D34.1-regression"),
+    ],
   },
   {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of

@@ -29,5 +29,9 @@
       "updated_at": "Changed",
       "id": "Identifier"
     }
+  },
+  "typeDescriptions": {
+    "register-table": "A table of the records of a chosen registry, in pages.",
+    "unknown": "A widget of this version of the application."
   }
 }

@@ -23,6 +23,9 @@ export function pickableColumns(registry: RegistryDto): readonly Pickable[] {
   ];
 }
 
+/** All the columns of a registry, in its order and without the system ones: what a table shows once its registry is chosen (Scope §5.4; D34.1). */
+export const allColumnsOf = (registry: RegistryDto): readonly string[] => registry.columns.map((column) => column.id);
+
 export type TableChoice = Readonly<{ registryId: string | null; columnKeys: readonly string[]; sortKey: string | null }>;
 
 /** The bindings of a choice. Columns keep the order of the offer and the ordinals count from 0. */

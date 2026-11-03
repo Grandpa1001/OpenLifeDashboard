@@ -13,7 +13,7 @@ import { codeOf, secretOf, type BrowserOwner } from "../support/auth-http.ts";
 import { IDEMPOTENCY_KEY_HEADER, registryRecordsPath, type RecordDto } from "@openlife/contracts/http/records";
 import { REGISTRIES_PATH } from "@openlife/contracts/http/registries";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { expectNoViolations } from "./owner-session.ts";
+import { expectNoViolations, addRegisterTable, chooseColumns } from "./owner-session.ts";
 
 const auth = locale("en", "auth");
 const setup = locale("en", "setup");
@@ -98,10 +98,9 @@ test.describe("D20.1 the owner's vertical path on a file SQLite", () => {
     // The widget in the Designer, bound to the registry and its two columns.
     await page.goto(`${owner.baseUrl}/designer`);
     await page.getByRole("button", { name: text(designer, "create.submit") }).click();
-    await page.getByRole("button", { name: "Add: Register table" }).click();
+    await addRegisterTable(page);
     await page.getByLabel(text(designer, "panel.registry"), { exact: true }).selectOption({ label: "Książki (ksiazki)" });
-    await page.getByRole("checkbox", { name: "Tytuł" }).check();
-    await page.getByRole("checkbox", { name: "Autor" }).check();
+    await chooseColumns(page, ["Tytuł", "Autor"]);
     await page.getByRole("button", { name: text(designer, "toolbar.save"), exact: true }).click();
     // The whole text: "Unsaved changes" holds "saved" too, and a Finish pressed while the save is in flight asks to discard.
     await expect(page.getByRole("status")).toHaveText(text(designer, "toolbar.saved"));

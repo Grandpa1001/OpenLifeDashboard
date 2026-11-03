@@ -7,7 +7,7 @@
 import type { Locator, Page } from "@playwright/test";
 import type { BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully } from "./owner-session.ts";
+import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully, addRegisterTable, chooseColumns } from "./owner-session.ts";
 
 const designer = locale("en", "designer");
 const widgets = locale("en", "widgets");
@@ -71,15 +71,14 @@ test.describe("D18.2-AC1 the Designer arranges and saves", () => {
     await expect(status(page)).toHaveText(text(designer, "toolbar.clean"));
     await expect(toolbarButton(page, "toolbar.save")).toBeDisabled();
 
-    await page.getByRole("button", { name: "Add: Register table" }).click();
+    await addRegisterTable(page);
     const handle = page.getByRole("button", { name: "Select widget: Register table" });
     await expect(handle).toHaveAttribute("aria-pressed", "true");
     await expect(status(page)).toHaveText(text(designer, "toolbar.dirty"));
     await expect(page.getByText(text(designer, "canvas.unbound"))).toBeVisible();
 
     await page.getByLabel(text(designer, "panel.registry"), { exact: true }).selectOption({ label: "Książki (ksiazki)" });
-    await page.getByRole("checkbox", { name: "Tytuł" }).check();
-    await page.getByRole("checkbox", { name: "Autor" }).check();
+    await chooseColumns(page, ["Tytuł", "Autor"]);
     await expect(page.getByText("Registry ksiazki, columns: 2")).toBeVisible();
     await expectNoViolations(page);
 
@@ -105,7 +104,7 @@ test.describe("D18.2-AC1 the Designer arranges and saves", () => {
     await ready(page, owner);
     await createScreenWith(page, owner, [{ id: A, title: "Pierwsza", layout: { phone: { x: 0, y: 0, w: 1, h: 8 }, tablet: { x: 0, y: 0, w: 4, h: 8 }, desktop: { x: 0, y: 0, w: 4, h: 8 } } }]);
     await page.goto(`${owner.baseUrl}/designer`);
-    await page.getByRole("button", { name: "Add: Register table" }).click();
+    await addRegisterTable(page);
     await toolbarButton(page, "toolbar.save").click();
     await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
     const added = (await savedScreen(page, owner)).widgets.find((widget) => widget.id !== A);
@@ -192,7 +191,7 @@ test.describe("D18.2-AC2 a save that fails, and leaving with unsaved changes", (
     await ready(page, owner);
     await createScreenWith(page, owner, [{ id: A, title: "Moja tabela", layout: LAYOUT }]);
     await page.goto(`${owner.baseUrl}/designer`);
-    await page.getByRole("button", { name: "Add: Register table" }).click();
+    await addRegisterTable(page);
 
     await page.route(SCREEN_PATH, (route) => route.fulfill({ status: 422, contentType: "application/json", body: JSON.stringify({ code: "VALIDATION_FAILED", message: "refused", details: null, requestId: "req-refused-1" }) }));
     await toolbarButton(page, "toolbar.save").click();
@@ -234,7 +233,7 @@ test.describe("D18.2-AC2 a save that fails, and leaving with unsaved changes", (
     await ready(page, owner);
     await createScreenWith(page, owner, [{ id: A, title: "Moja tabela", layout: LAYOUT }]);
     await page.goto(`${owner.baseUrl}/designer`);
-    await page.getByRole("button", { name: "Add: Register table" }).click();
+    await addRegisterTable(page);
 
     await toolbarButton(page, "toolbar.finish").click();
     const ask = page.getByRole("alertdialog", { name: text(designer, "leave.heading") });
@@ -264,7 +263,7 @@ test.describe("D18.2-AC2 a save that fails, and leaving with unsaved changes", (
 
     await page.reload();
     expect(kinds).toEqual([]);
-    await page.getByRole("button", { name: "Add: Register table" }).click();
+    await addRegisterTable(page);
     await page.reload();
     expect(kinds).toEqual(["beforeunload"]);
     // The reload dropped what was not saved.
@@ -278,10 +277,13 @@ test.describe("D18.2-AC2 a save that fails, and leaving with unsaved changes", (
     await createScreenWith(page, owner, [{ id: A, title: "Moja tabela", layout: LAYOUT }]);
     await page.route("**/api/v1/widget-types", (route) => route.abort("connectionfailed"));
     await page.goto(`${owner.baseUrl}/designer`);
-    await expect(page.getByText(text(designer, "palette.failed"))).toBeVisible();
+    // The types are asked for with the Designer; their failure is said in the window "Add widget".
+    await page.getByRole("button", { name: text(designer, "bar.addWidget"), exact: true }).click();
+    const catalog = page.getByRole("dialog", { name: text(designer, "palette.heading") });
+    await expect(catalog.getByText(text(designer, "palette.failed"))).toBeVisible();
     await page.unroute("**/api/v1/widget-types");
-    await page.getByRole("button", { name: text(designer, "retry") }).click();
-    await expect(page.getByRole("button", { name: "Add: Register table" })).toBeVisible();
+    await catalog.getByRole("button", { name: text(designer, "retry") }).click();
+    await expect(catalog.getByRole("button", { name: "Add: Register table" })).toBeVisible();
     await expect(page.getByText(text(widgets, "types.register-table")).first()).toBeVisible();
   });
 });

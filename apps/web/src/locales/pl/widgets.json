@@ -31,5 +31,9 @@
       "updated_at": "Zmieniono",
       "id": "Identyfikator"
     }
+  },
+  "typeDescriptions": {
+    "register-table": "Tabela rekordów wybranego rejestru, ze stronicowaniem.",
+    "unknown": "Widget tej wersji aplikacji."
   }
 }

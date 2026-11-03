@@ -27,7 +27,9 @@
     "heading": "Add a widget",
     "add": "Add: {{type}}",
     "loading": "Loading widget types…",
-    "failed": "The widget types could not be loaded."
+    "failed": "The widget types could not be loaded.",
+    "available": "Available {{count}} of {{total}}",
+    "updates": "New widget types come with an update of the application."
   },
   "canvas": {
     "label": "Screen layout: {{layout}}",
@@ -84,5 +86,29 @@
       "saving": "Saving…"
     }
   },
-  "backHome": "Back to the dashboard"
+  "backHome": "Back to the dashboard",
+  "bar": {
+    "label": "Widget settings",
+    "none": "Select a widget to see its settings",
+    "addWidget": "Add widget",
+    "actions": "Widget actions",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "copySuffix": "(copy)",
+    "width": "Width",
+    "height": "Height",
+    "appearance": "Appearance",
+    "title": "Title",
+    "titleTooLong": "The title can have at most {{max}} characters.",
+    "pageSizeInvalid": "Enter a whole number from {{min}} to {{max}}.",
+    "behaviour": "Behaviour",
+    "allowAdd": "Adding",
+    "startWithRegistry": "Start with the registry — the other options open once it is chosen.",
+    "registryChange": "Change the registry? The choice of columns will be cleared.",
+    "registryChangeConfirm": "Change the registry",
+    "cancel": "Cancel",
+    "columnsCount": "{{count}} of {{total}}",
+    "sizeWithMinimum": "Size · min {{w}} × {{h}}",
+    "pageSizeWithRange": "Page size ({{min}}–{{max}})"
+  }
 }

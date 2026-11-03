@@ -11,7 +11,7 @@ import type { Page } from "@playwright/test";
 import { CONFIG_PATH } from "@openlife/contracts/http/config";
 import { execute, query, type BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { BOOKS_DEFINITION, createRegistry, expectNoViolations, signInFully } from "./owner-session.ts";
+import { BOOKS_DEFINITION, createRegistry, expectNoViolations, signInFully, addRegisterTable, openColumns } from "./owner-session.ts";
 
 const registers = locale("en", "registers");
 const designer = locale("en", "designer");
@@ -192,9 +192,9 @@ test.describe("D25.3-AC2 what the window refuses, a second tab and the bindings"
     execute(owner.instance, `DELETE FROM binding; DELETE FROM widget; DELETE FROM screen;`);
     await page.goto(`${owner.baseUrl}/designer`);
     await page.getByRole("button", { name: text(designer, "create.submit") }).click();
-    await page.getByRole("button", { name: "Add: Register table" }).click();
+    await addRegisterTable(page);
     await page.getByLabel(text(designer, "panel.registry"), { exact: true }).selectOption({ label: "Książki (ksiazki)" });
-    await expect(page.getByRole("checkbox", { name: "Tytuł" })).toBeVisible();
+    await expect((await openColumns(page)).getByRole("checkbox", { name: "Tytuł" })).toBeVisible();
     const body = await page.locator("main").innerText();
     expect(body).not.toContain("Field.Config");
     expect(body).not.toContain("Field.System");

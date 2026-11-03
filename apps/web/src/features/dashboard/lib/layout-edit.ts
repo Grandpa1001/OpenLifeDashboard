@@ -30,6 +30,12 @@ export function placeInEveryLayout(existing: readonly Readonly<{ layout: LayoutD
   return { phone: place("phone"), tablet: place("tablet"), desktop: place("desktop") };
 }
 
+/** A copy of a widget: in each layout its own size, at the first free place there among the others (D34.1). */
+export function placeCopy(existing: readonly Readonly<{ layout: LayoutDto }>[], original: LayoutDto): LayoutDto {
+  const place = (name: LayoutName): LayoutRectDto => firstFreePlace(existing.map((widget) => widget.layout[name]), original[name], GRID_COLUMNS[name]);
+  return { phone: place("phone"), tablet: place("tablet"), desktop: place("desktop") };
+}
+
 /** One layout of a widget replaced; the other two are the very same rectangles. */
 export const withLayout = (layout: LayoutDto, name: LayoutName, rect: LayoutRectDto): LayoutDto => ({ ...layout, [name]: rect });
 

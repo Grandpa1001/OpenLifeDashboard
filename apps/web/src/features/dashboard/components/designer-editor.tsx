@@ -1,8 +1,8 @@
 import type { RegistryDto } from "@openlife/contracts/http/registries";
-import { LAYOUT_NAMES, type DesignSnapshotDto, type LayoutName, type ScreenDto, type WidgetTypesDto } from "@openlife/contracts/http/screens";
+import { LAYOUT_NAMES, type DesignSnapshotDto, type LayoutName, type ScreenDto, type WidgetDesignDto, type WidgetTypesDto } from "@openlife/contracts/http/screens";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBlocker, useNavigate } from "@tanstack/react-router";
-import { useReducer, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { ApiFailure } from "../../../lib/api-client/request.js";
 import { describeFailure } from "../../../lib/failures/error-message.js";
@@ -15,10 +15,11 @@ import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
 import { fetchRegistries } from "../api/registries.js";
 import { fetchWidgetTypes, saveDesign } from "../api/screens.js";
 import { designerReducer, isDirty, newWidget, startState } from "../lib/designer-state.js";
-import { placeInEveryLayout } from "../lib/layout-edit.js";
+import { placeCopy, placeInEveryLayout } from "../lib/layout-edit.js";
 import { previewWidth } from "../lib/preview-width.js";
 import { typeLabelKey } from "../lib/type-label.js";
-import { BindingsPanel } from "./bindings-panel.js";
+import { AddWidgetDialog } from "./add-widget-dialog.js";
+import { ContextBar } from "./context-bar.js";
 import { DesignCanvas } from "./design-canvas.js";
 
 class SaveFailure extends Error {
@@ -106,9 +107,33 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
     layoutButtons.current[next]?.focus();
   }
 
+  const [adding, setAdding] = useState(false);
+  const registryField = useRef<HTMLSelectElement>(null);
+  // A widget just added: once it is drawn, the focus goes to the field of its registry (makieta 45).
+  const [focusRegistryOf, setFocusRegistryOf] = useState<string | null>(null);
+  useEffect(() => {
+    if (focusRegistryOf !== null && state.selectedId === focusRegistryOf) {
+      registryField.current?.focus();
+      setFocusRegistryOf(null);
+    }
+  }, [focusRegistryOf, state.selectedId]);
+
   function add(type: WidgetType): void {
     setJustSaved(false);
-    dispatch({ kind: "add", widget: newWidget(newUuid7(), type.type, type.configVersion, placeInEveryLayout(state.design.widgets, type.defaultSize)) });
+    setAdding(false);
+    const id = newUuid7();
+    dispatch({ kind: "add", widget: newWidget(id, type.type, type.configVersion, placeInEveryLayout(state.design.widgets, type.defaultSize)) });
+    setFocusRegistryOf(id);
+  }
+
+  /** The tile of a widget takes the focus back, as Escape and Gotowe leave the settings. */
+  const focusTile = (id: string): void => document.querySelector<HTMLButtonElement>(`[data-widget-id="${CSS.escape(id)}"] .designer-handle`)?.focus();
+
+  function duplicate(widget: WidgetDesignDto): void {
+    setJustSaved(false);
+    const title = typeof widget.config["title"] === "string" && widget.config["title"] !== "" ? widget.config["title"] : tw(typeLabelKey(widget.type));
+    const copy: WidgetDesignDto = { ...widget, id: newUuid7(), config: { ...widget.config, title: `${title} ${t("bar.copySuffix")}`.slice(0, 80) }, layout: placeCopy(state.design.widgets, widget.layout) };
+    dispatch({ kind: "add", widget: copy });
   }
 
   const status = save.isPending ? t("toolbar.saving") : dirty ? t("toolbar.dirty") : justSaved ? t("toolbar.saved") : t("toolbar.clean");
@@ -169,24 +194,45 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
           </button>
         </div>
       ) : null}
+      <ContextBar
+        widget={selected}
+        layout={layout}
+        minimum={selected === null ? { w: 1, h: 1 } : (typeOf(selected.type)?.minSize ?? { w: 1, h: 1 })}
+        registries={registries}
+        registriesFailed={registryList.isError}
+        registryRef={registryField}
+        onAdd={() => setAdding(true)}
+        onBind={(change) => {
+          if (selected === null) return;
+          setJustSaved(false);
+          dispatch({ kind: "configured", id: selected.id, ...change });
+        }}
+        onConfigure={(config) => {
+          if (selected === null) return;
+          setJustSaved(false);
+          dispatch({ kind: "configured", id: selected.id, config, bindings: selected.bindings });
+        }}
+        onPlace={(rect) => {
+          if (selected === null) return;
+          setJustSaved(false);
+          dispatch({ kind: "placed", layout, id: selected.id, rect, minimum: typeOf(selected.type)?.minSize ?? { w: 1, h: 1 } });
+        }}
+        onDuplicate={() => {
+          if (selected !== null) duplicate(selected);
+        }}
+        onDelete={() => {
+          if (selected === null) return;
+          setJustSaved(false);
+          dispatch({ kind: "remove", id: selected.id });
+        }}
+        onDeselect={() => {
+          const id = state.selectedId;
+          dispatch({ kind: "select", id: null });
+          if (id !== null) focusTile(id);
+        }}
+      />
+      {adding ? <AddWidgetDialog types={types.data ?? []} loading={types.isPending} failed={types.isError} onRetry={() => void types.refetch()} onPick={add} onClose={() => setAdding(false)} /> : null}
       <div className="designer-body">
-        <section className="designer-palette" aria-label={t("palette.heading")}>
-          <h2>{t("palette.heading")}</h2>
-          {types.isPending ? <p role="status">{t("palette.loading")}</p> : null}
-          {types.isError ? (
-            <>
-              <p role="alert">{t("palette.failed")}</p>
-              <button type="button" onClick={() => void types.refetch()}>
-                {t("retry")}
-              </button>
-            </>
-          ) : null}
-          {(types.data ?? []).map((type) => (
-            <button key={type.type} type="button" onClick={() => add(type)}>
-              {t("palette.add", { type: tw(typeLabelKey(type.type)) })}
-            </button>
-          ))}
-        </section>
         <DesignCanvas
           layout={layout}
           width={width}
@@ -200,16 +246,6 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
             if (widget === undefined) return;
             setJustSaved(false);
             dispatch({ kind: "placed", layout, id, rect, minimum: typeOf(widget.type)?.minSize ?? { w: 1, h: 1 } });
-          }}
-        />
-        <BindingsPanel
-          widget={selected}
-          registries={registries}
-          registriesFailed={registryList.isError}
-          onChange={(change) => {
-            if (selected === null) return;
-            setJustSaved(false);
-            dispatch({ kind: "configured", id: selected.id, ...change });
           }}
         />
       </div>

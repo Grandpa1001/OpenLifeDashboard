@@ -11,7 +11,7 @@ import type { Locator, Page } from "@playwright/test";
 import { structurePath, structurePreviewPath } from "@openlife/contracts/http/registries";
 import { query, type BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully } from "./owner-session.ts";
+import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully, openColumns } from "./owner-session.ts";
 
 const registers = locale("en", "registers");
 const designer = locale("en", "designer");
@@ -126,7 +126,7 @@ test.describe("D31.3-AC1 the repair of a broken binding in the Designer", () => 
     await expect(panel.getByRole("list", { name: text(designer, "panel.missing") })).toHaveText(say(designer, "panel.missingPath", { path: "Field.Register.ksiazki.autor" }));
     await expect(panel.getByText(text(designer, "panel.missingColumnHint"))).toBeVisible();
     await expectNoViolations(page);
-    await panel.getByRole("checkbox", { name: "Liczba stron" }).check();
+    await (await openColumns(page)).getByRole("checkbox", { name: "Liczba stron" }).check();
     await expect(panel.getByRole("list", { name: text(designer, "panel.missing") })).toHaveCount(0);
     await saveDesign(page);
 
@@ -146,7 +146,7 @@ test.describe("D31.3-AC1 the repair of a broken binding in the Designer", () => 
     await expect(panel.getByRole("list", { name: text(designer, "panel.missing") })).toHaveText(say(designer, "panel.missingPath", { path: "Field.Register.ksiazki" }));
     await expect(panel.getByText(text(designer, "panel.missingRegistryHint"))).toBeVisible();
     await panel.getByLabel(text(designer, "panel.registry"), { exact: true }).selectOption({ label: "Filmy (filmy)" });
-    await panel.getByRole("checkbox", { name: "Tytuł filmu" }).check();
+    await (await openColumns(page)).getByRole("checkbox", { name: "Tytuł filmu" }).check();
     await expect(panel.getByRole("list", { name: text(designer, "panel.missing") })).toHaveCount(0);
     await saveDesign(page);
 

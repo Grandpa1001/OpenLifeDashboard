@@ -6,7 +6,7 @@
 // AC1: after the restart the widget is where each layout put it, and a record added from /main works.
 import type { Locator, Page } from "@playwright/test";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { expectNoViolations, signInFully } from "./owner-session.ts";
+import { expectNoViolations, signInFully, addRegisterTable, chooseColumns } from "./owner-session.ts";
 
 const designer = locale("en", "designer");
 const registers = locale("en", "registers");
@@ -60,10 +60,9 @@ test.describe("D18.3-AC1 registry, Designer, three layouts, restart, record", ()
     // The widget in the Designer, bound to the registry and two columns.
     await page.goto(`${owner.baseUrl}/designer`);
     await page.getByRole("button", { name: text(designer, "create.submit") }).click();
-    await page.getByRole("button", { name: "Add: Register table" }).click();
+    await addRegisterTable(page);
     await page.getByLabel(text(designer, "panel.registry"), { exact: true }).selectOption({ label: "Książki (ksiazki)" });
-    await page.getByRole("checkbox", { name: "Tytuł" }).check();
-    await page.getByRole("checkbox", { name: "Autor" }).check();
+    await chooseColumns(page, ["Tytuł", "Autor"]);
 
     // A different arrangement in each layout, each made with the mouse.
     const layoutButton = (name: string) => page.getByRole("button", { name: text(designer, `toolbar.${name}`), exact: true });

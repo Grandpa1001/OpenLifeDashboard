@@ -826,14 +826,146 @@ main.pulpit {
   align-items: start;
 }
 
-@media (min-width: 1100px) {
-  .designer-body {
-    grid-template-columns: 12rem minmax(0, 1fr) 18rem;
+/* The context bar under the bar of the Designer (D34.1, makieta 36): the groups side by side in their
+   order, wrapping on a narrow window; nothing beside the grid, so it never covers a widget. */
+.context-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-6);
+  align-items: flex-start;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.context-bar > p {
+  align-self: center;
+}
+
+/* The bar keeps the height of the settings of a register table, selected or not, so a selection never
+   moves the grid under the pointer (a drag that started by selecting landed elsewhere). Two rows from
+   1280 px (210 px measured on macOS and with the DejaVu font of Linux), three below (308 px with DejaVu). */
+@media (min-width: 768px) {
+  .context-bar {
+    min-height: 20rem;
   }
 }
 
-.designer-palette,
-.designer-panel,
+@media (min-width: 1280px) {
+  .context-bar {
+    min-height: 13.5rem;
+  }
+}
+
+.bar-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: flex-end;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.bar-group:disabled,
+.bar-group[disabled] {
+  opacity: 0.5;
+}
+
+.bar-group-title {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bar-columns {
+  position: relative;
+}
+
+/* The fields of the bar: a small label over the control, no line of hint below it. */
+.context-bar .field {
+  gap: 2px;
+}
+
+.context-bar .field > label,
+.bar-field-label {
+  font-size: var(--text-xs);
+}
+
+.context-bar .bar-group {
+  row-gap: var(--space-1);
+}
+
+.context-bar select,
+.context-bar input:not([type="checkbox"]) {
+  max-width: 14rem;
+}
+
+.select-like {
+  min-width: 8rem;
+  border-color: var(--color-border-control);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-weight: 400;
+  text-align: left;
+}
+
+/* Over the grid, below the bar: the bar keeps its height while the list is open. */
+.bar-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 14rem;
+  max-height: 60vh;
+  margin-top: var(--space-1);
+  overflow-y: auto;
+}
+
+.bar-size input {
+  width: 5rem;
+}
+
+.bar-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.bar-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  flex-basis: 100%;
+}
+
+.widget-types {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.widget-type {
+  width: 100%;
+  text-align: left;
+}
+
+.designer-columns,
 .designer-create,
 .designer-leave {
   display: flex;

@@ -12,6 +12,7 @@ export type DesignerAction =
   | Readonly<{ kind: "placed"; layout: LayoutName; id: string; rect: LayoutRectDto; minimum: Size }>
   | Readonly<{ kind: "configured"; id: string; config: WidgetDesignDto["config"]; bindings: WidgetDesignDto["bindings"] }>
   | Readonly<{ kind: "select"; id: string | null }>
+  | Readonly<{ kind: "remove"; id: string }>
   | Readonly<{ kind: "saved"; sent: DesignSnapshotDto; received: DesignSnapshotDto }>;
 
 /** What the owner designs, without what the server works out (the state of a widget). */
@@ -52,6 +53,11 @@ export function designerReducer(state: DesignerState, action: DesignerAction): D
         ...state,
         design: { ...state.design, widgets: state.design.widgets.map((widget) => (widget.id === action.id ? { ...widget, config: action.config, bindings: action.bindings } : widget)) },
       };
+    case "remove": {
+      // Removed without a question; the selection goes with it (the bar "Undo" is D35).
+      const widgets = state.design.widgets.filter((widget) => widget.id !== action.id);
+      return widgets.length === state.design.widgets.length ? state : { ...state, design: { ...state.design, widgets }, selectedId: state.selectedId === action.id ? null : state.selectedId };
+    }
     case "select":
       return state.selectedId === action.id ? state : { ...state, selectedId: action.id };
     case "saved": {
