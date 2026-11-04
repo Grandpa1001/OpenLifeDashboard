@@ -128,5 +128,12 @@
     "seconds_few": "{{count}} s",
     "seconds_many": "{{count}} s",
     "seconds_other": "{{count}} s"
+  },
+  "elsewhere": {
+    "label": "Zmiana z innego urządzenia",
+    "changed": "Układ zmieniony na innym urządzeniu o {{time}}. Twoje zmiany zapisują się dalej i zastąpią tamten układ.",
+    "load": "Wczytaj nowszy układ",
+    "keep": "Zostaw mój",
+    "refreshed": "Układ zmieniony na innym urządzeniu — odświeżono"
   }
 }

@@ -489,6 +489,9 @@ jobs:
       - name: Verify D35.2 (undo and redo of the Designer and the bar Undo of a deletion)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D35.2
+      - name: Verify D35.3 (a layout saved in another tab and a save whose answer was lost)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D35.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -863,7 +866,7 @@ jobs:
 
   full-screens:
     # Screens: the private screen and the Designer in a browser.
-    name: verify:task (full tier, screens D18, D33 and D34)
+    name: verify:task (full tier, screens D18 and D33-D35)
     needs: changes
     if: ${{ needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
@@ -914,6 +917,9 @@ jobs:
       - name: Verify D34 (the parent, D34.1–D34.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D34
+      - name: Verify D35 (the parent, D35.1–D35.3 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D35
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

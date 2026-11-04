@@ -13,9 +13,9 @@ import { queryKeys } from "../../../lib/query-keys/index.js";
 import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
 import { useOwnerDisplay } from "../../../lib/session/use-owner-display.js";
 import { fetchRegistries } from "../api/registries.js";
-import { fetchWidgetTypes } from "../api/screens.js";
+import { fetchScreen, fetchWidgetTypes } from "../api/screens.js";
 import type { SaveState } from "../lib/autosave.js";
-import { canRedo, canUndo, designerReducer, HISTORY_LIMIT, isDirty, newWidget, startState } from "../lib/designer-state.js";
+import { canRedo, canUndo, changedElsewhere, designerReducer, HISTORY_LIMIT, isDirty, newWidget, startState, toSnapshot } from "../lib/designer-state.js";
 import { placeCopy, placeInEveryLayout } from "../lib/layout-edit.js";
 import { previewWidth } from "../lib/preview-width.js";
 import { typeLabelKey } from "../lib/type-label.js";
@@ -28,6 +28,8 @@ import { UndoBar } from "./undo-bar.js";
 type WidgetType = WidgetTypesDto["types"][number];
 /** The grid of the layout being arranged, which takes the focus when the bar of a deletion is closed. */
 const FRAME_SELECTOR = ".designer-frame";
+/** How long the word that the layout came from another device stays (it takes no focus). */
+const REFRESHED_NOTICE_MS = 6000;
 /** How many frames a tile that is to take the focus is waited for. */
 const TILE_FRAMES = 10;
 
@@ -84,6 +86,47 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
   );
   const autosave = useAutosave({ screenId: screen.id, design: state.design, dirty, onSaved, onGateLost: () => setGateLost(true) });
   const failure = autosave.state.kind === "refused" ? autosave.state.failure : null;
+
+  // Another tab saved this screen (D35.3; until the events of D38): asked when this tab comes back or takes the focus.
+  // A clean design takes the newer one with a passing word; a design with changes asks, and its changes still save.
+  const [elsewhere, setElsewhere] = useState<Readonly<{ design: DesignSnapshotDto; at: string }> | null>(null);
+  const [refreshed, setRefreshed] = useState(false);
+  const stateNow = useRef(state);
+  stateNow.current = state;
+  const saving = useRef(false);
+  saving.current = autosave.state.kind === "saving";
+  useEffect(() => {
+    let inFlight: AbortController | null = null;
+    const check = async (): Promise<void> => {
+      if (document.visibilityState !== "visible" || saving.current) return;
+      inFlight?.abort();
+      const controller = new AbortController();
+      inFlight = controller;
+      const read = await fetchScreen(screen.id, controller.signal);
+      if (!read.ok || controller.signal.aborted || saving.current) return;
+      const there = toSnapshot(read.value);
+      if (!changedElsewhere(there, stateNow.current)) return;
+      queryClient.setQueryData(queryKeys.screens.list, read.value);
+      if (!dirtyNow.current) {
+        dispatch({ kind: "loaded", design: there });
+        setElsewhere(null);
+        setRefreshed(true);
+      } else setElsewhere({ design: there, at: read.value.updatedAt });
+    };
+    const onFocus = (): void => void check();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      inFlight?.abort();
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [screen.id, queryClient]);
+  useEffect(() => {
+    if (!refreshed) return;
+    const timer = setTimeout(() => setRefreshed(false), REFRESHED_NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [refreshed]);
 
   // Leaving by any route first saves what is not saved; only a save that cannot be made asks (closing the tab warns, best effort).
   const blocker = useBlocker({ shouldBlockFn: async () => (dirtyNow.current ? !(await autosave.flush()) : false), enableBeforeUnload: () => dirtyNow.current, withResolver: true });
@@ -220,6 +263,28 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
           {t("toolbar.finish")}
         </button>
       </header>
+      {refreshed ? (
+        <p className="designer-notice" role="status">
+          {t("elsewhere.refreshed")}
+        </p>
+      ) : null}
+      {elsewhere === null ? null : (
+        <div className="designer-elsewhere" role="region" aria-label={t("elsewhere.label")}>
+          <p>{t("elsewhere.changed", { time: new Intl.DateTimeFormat(display.locale, { hour: "2-digit", minute: "2-digit", timeZone: display.timeZone }).format(Date.parse(elsewhere.at)) })}</p>
+          <button
+            type="button"
+            onClick={() => {
+              dispatch({ kind: "loaded", design: elsewhere.design });
+              setElsewhere(null);
+            }}
+          >
+            {t("elsewhere.load")}
+          </button>
+          <button type="button" className="link-button" onClick={() => setElsewhere(null)}>
+            {t("elsewhere.keep")}
+          </button>
+        </div>
+      )}
       {failure === null ? null : (
         <div className="designer-save-failed">
           <FailureAlert message={describeFailure(failure)} />

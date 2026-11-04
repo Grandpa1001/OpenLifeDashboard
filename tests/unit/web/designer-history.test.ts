@@ -1,9 +1,10 @@
 // D35.2 — the history of the Designer (Scope §5.4, Architektura §7.2, AR17): every change of the design
 // is a step, a typed field is one step until it is left, undo and redo bring the whole design back with
-// the same widget ids and bindings, and only the last 100 steps are kept.
+// the same widget ids and bindings, and only the last 100 steps are kept; a design saved in another tab
+// is told from this tab's own save (D35.3).
 import type { LayoutDto, ScreenDto, WidgetDesignDto } from "@openlife/contracts/http/screens";
 import { describe, expect, it } from "vitest";
-import { canRedo, canUndo, designerReducer, HISTORY_LIMIT, isDirty, startState, type DesignerAction, type DesignerState } from "../../../apps/web/src/features/dashboard/lib/designer-state.js";
+import { canRedo, canUndo, changedElsewhere, designerReducer, HISTORY_LIMIT, isDirty, startState, type DesignerAction, type DesignerState } from "../../../apps/web/src/features/dashboard/lib/designer-state.js";
 
 const r = (x: number, y: number, w: number, h: number) => ({ x, y, w, h });
 const A = "01900000-0000-7000-8000-0000000035a1";
@@ -62,5 +63,25 @@ describe("D35.2 the history of the Designer", () => {
     expect(canUndo(state)).toBe(false);
     // The first step stays done: its design before is the one that was dropped.
     expect(state.design.widgets[0]!.layout.desktop.x).toBe(2);
+  });
+});
+
+describe("D35.3 a layout saved in another tab", () => {
+  it("the server's design is another tab's only when it is neither the one last saved here nor the one held here", () => {
+    const start = startState(screen);
+    const moved = run(start, move(2));
+    expect(changedElsewhere(start.design, moved)).toBe(false);
+    expect(changedElsewhere(moved.design, moved)).toBe(false);
+    const theirs = { ...start.design, widgets: [{ ...bound, config: { v: 1, title: "Z karty A" } }] };
+    expect(changedElsewhere(theirs, moved)).toBe(true);
+  });
+
+  it("taking the other tab's design makes it the new start, with no history and nothing to save", () => {
+    const theirs = { ...startState(screen).design, widgets: [{ ...bound, config: { v: 1, title: "Z karty A" } }] };
+    const taken = run(startState(screen), move(2), { kind: "select", id: A }, { kind: "loaded", design: theirs });
+    expect(taken.design).toEqual(theirs);
+    expect(isDirty(taken)).toBe(false);
+    expect([canUndo(taken), canRedo(taken)]).toEqual([false, false]);
+    expect(taken.selectedId).toBe(A);
   });
 });

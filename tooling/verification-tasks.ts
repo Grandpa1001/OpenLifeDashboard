@@ -3807,6 +3807,56 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.32: a layout saved in another tab and a save whose answer was lost.
+    id: "D35.3",
+    ready: true,
+    title: "Two tabs of one screen: a clean tab takes the layout saved elsewhere with a passing word, a tab with changes asks to load it or keep its own, and a save whose answer was lost is tried again without a second effect",
+    criteria: ["D35.3-AC1", "D35.3-AC2", "D35.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D35.3-AC1", "D35.3-AC2"],
+        description: "pnpm -r build: the rule of a change from elsewhere, the reducer and the editor that asks the server when the tab comes back",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/dashboard/lib/designer-state.ts", "apps/web/src/features/dashboard/components/designer-editor.tsx"],
+      },
+      {
+        id: "designer-elsewhere-web",
+        criteria: ["D35.3-AC1", "D35.3-AC2"],
+        description: "Unit: the server's design is another tab's only when it is neither the one last saved nor the one held here; taken, it is the new start with no history and nothing to save; the history as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/designer-history.test.ts"],
+        requires: ["tests/unit/web/designer-history.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D35.3-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/designer.json"],
+      },
+      {
+        id: "designer-tabs-e2e",
+        criteria: ["D35.3-AC1", "D35.3-AC2"],
+        description:
+          "Playwright with two tabs of one owner: tab B, clean, takes the title tab A saved when it is in front again, with the passing word and nothing to save; with a change it cannot send it shows the bar, Load the newer layout gives A's title and nothing to save, Keep mine lets B's change save over A's; a save the server made whose answer was lost is sent once more, leaves one widget with the title, no alert, and is not a change from another device; axe; the autosave and the history as before",
+        command: ["node", "tests/verification/e2e.ts", "designer-tabs", "designer-autosave", "designer-history"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/designer-tabs.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D35.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the autosave, the history and two tabs.
+  {
+    id: "D35",
+    ready: true,
+    title: "The autosave of the Designer with its queue and retries, undo and redo with the bar of a deletion, and two tabs on one screen",
+    steps: ["D35.1", "D35.2", "D35.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
     // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
     id: "G2",

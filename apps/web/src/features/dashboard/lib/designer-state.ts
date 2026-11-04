@@ -29,6 +29,8 @@ export type DesignerAction =
   | Readonly<{ kind: "select"; id: string | null }>
   | Readonly<{ kind: "remove"; id: string }>
   | Readonly<{ kind: "saved"; sent: DesignSnapshotDto; received: DesignSnapshotDto }>
+  /** The design another tab saved, taken in place of this one (D35.3): it is the new start, with no history behind it. */
+  | Readonly<{ kind: "loaded"; design: DesignSnapshotDto }>
   | Readonly<{ kind: "undo" }>
   | Readonly<{ kind: "redo" }>
   /** The field being typed into was left: its next change is a step of its own. */
@@ -96,6 +98,8 @@ export function designerReducer(state: DesignerState, action: DesignerAction): D
       const widgets = state.design.widgets.filter((widget) => widget.id !== action.id);
       return widgets.length === state.design.widgets.length ? state : step(state, { ...state.design, widgets }, { selectedId: state.selectedId === action.id ? null : state.selectedId });
     }
+    case "loaded":
+      return { ...state, baseline: action.design, design: action.design, past: [], future: [], typing: null, selectedId: selectionIn(action.design, state.selectedId), restored: state.restored + 1 };
     case "undo": {
       const previous = state.past.at(-1);
       if (previous === undefined) return state;
@@ -121,4 +125,14 @@ export function designerReducer(state: DesignerState, action: DesignerAction): D
 /** A new widget of a type: its configuration at the version of this build, unbound, and a place in each layout. */
 export function newWidget(id: string, type: string, configVersion: number, layout: WidgetDesignDto["layout"]): WidgetDesignDto {
   return { id, type, config: { v: configVersion }, layout, bindings: [] };
+}
+
+/**
+ * Whether the screen on the server is another tab's work (D35.3): a design that is neither the one
+ * this tab last saved nor the one it holds now. A save of this tab whose answer was lost is its own,
+ * not a change from elsewhere.
+ */
+export function changedElsewhere(server: DesignSnapshotDto, state: DesignerState): boolean {
+  const there = canonicalJson(server);
+  return there !== canonicalJson(state.baseline) && there !== canonicalJson(state.design);
 }

@@ -126,5 +126,12 @@
     "undo": "Undo",
     "seconds_one": "{{count}} s",
     "seconds_other": "{{count}} s"
+  },
+  "elsewhere": {
+    "label": "A change from another device",
+    "changed": "The layout was changed on another device at {{time}}. Your changes keep saving and will replace that layout.",
+    "load": "Load the newer layout",
+    "keep": "Keep mine",
+    "refreshed": "The layout was changed on another device — refreshed"
   }
 }
