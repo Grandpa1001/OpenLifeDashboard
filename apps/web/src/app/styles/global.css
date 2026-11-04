@@ -822,6 +822,33 @@ main.pulpit {
   }
 }
 
+.designer-history {
+  display: flex;
+  gap: var(--space-1);
+}
+
+/* The bar of a deletion (makieta 44): at the bottom of the window, above the grid, never over the toolbar. */
+.undo-bar {
+  position: fixed;
+  bottom: var(--space-6);
+  left: 50%;
+  z-index: 40;
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  max-width: calc(100vw - 2 * var(--space-4));
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 40%);
+  transform: translateX(-50%);
+}
+
+.undo-bar p {
+  color: var(--color-text);
+}
+
 .designer-save-failed {
   display: flex;
   flex-wrap: wrap;

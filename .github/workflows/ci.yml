@@ -486,6 +486,9 @@ jobs:
       - name: Verify D35.1 (the autosave of the Designer, its queue, its retries and the states of the saving)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D35.1
+      - name: Verify D35.2 (undo and redo of the Designer and the bar Undo of a deletion)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D35.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -22,7 +22,10 @@
     "savedAt": "Saved {{time}}",
     "retrying": "Save failed — trying again",
     "offline": "No connection — will save when back",
-    "refused": "Save failed"
+    "refused": "Save failed",
+    "history": "History of changes",
+    "undo": "Undo",
+    "redo": "Redo"
   },
   "palette": {
     "heading": "Add a widget",
@@ -116,5 +119,12 @@
     "columnsHint": "The order of the list is the order of the columns in the table. Drag by the handle or move with Alt + arrow. The last chosen column cannot be cleared.",
     "removeBinding": "Remove the binding",
     "done": "Done"
+  },
+  "undoBar": {
+    "label": "Deleted widget",
+    "removed": "Widget “{{name}}” deleted",
+    "undo": "Undo",
+    "seconds_one": "{{count}} s",
+    "seconds_other": "{{count}} s"
   }
 }

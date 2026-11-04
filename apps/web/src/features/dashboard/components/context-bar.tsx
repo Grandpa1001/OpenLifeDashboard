@@ -8,6 +8,10 @@ import { fitToColumns, withinGrid, type Size } from "../lib/layout-edit.js";
 import { choiceOf } from "../lib/register-table-bindings.js";
 import { BindingsPanel, type Reconfigured } from "./bindings-panel.js";
 
+/** The fields of text whose typing is one step of the history until they are left (D35.2). */
+const TITLE_FIELD = "title";
+const PAGE_SIZE_FIELD = "pageSize";
+
 /** A whole number typed into a field, or null while it is not one. */
 const wholeNumber = (text: string): number | null => (/^\d{1,4}$/.test(text.trim()) ? Number(text.trim()) : null);
 
@@ -49,7 +53,7 @@ function SizeGroup({ rect, columns, minimum, disabled, onPlace }: Readonly<{ rec
 }
 
 /** Wygląd and Zachowanie of the register table: each field is checked by the schema the server applies, and only a valid value reaches the design. */
-function OptionsGroups({ widget, disabled, onConfigure }: Readonly<{ widget: WidgetDesignDto; disabled: boolean; onConfigure: (config: WidgetDesignDto["config"]) => void }>) {
+function OptionsGroups({ widget, disabled, onConfigure, onSettle }: Readonly<{ widget: WidgetDesignDto; disabled: boolean; onConfigure: (config: WidgetDesignDto["config"], field?: string) => void; onSettle: () => void }>) {
   const { t } = useTranslation("designer");
   const config = widget.config;
   const [title, setTitle] = useState(typeof config["title"] === "string" ? config["title"] : "");
@@ -73,8 +77,9 @@ function OptionsGroups({ widget, disabled, onConfigure }: Readonly<{ widget: Wid
             setTitle(event.target.value);
             const next = accepted({ title: event.target.value });
             setTitleError(next === null);
-            if (next !== null) onConfigure(next);
+            if (next !== null) onConfigure(next, TITLE_FIELD);
           }}
+          onBlur={onSettle}
         />
         <Field
           label={t("bar.pageSizeWithRange", { min: PAGE_SIZE_RANGE.min, max: PAGE_SIZE_RANGE.max })}
@@ -86,8 +91,9 @@ function OptionsGroups({ widget, disabled, onConfigure }: Readonly<{ widget: Wid
             const number = wholeNumber(event.target.value);
             const next = number === null ? null : accepted({ pageSize: number });
             setPageSizeError(next === null);
-            if (next !== null) onConfigure(next);
+            if (next !== null) onConfigure(next, PAGE_SIZE_FIELD);
           }}
+          onBlur={onSettle}
         />
       </fieldset>
       <fieldset className="bar-group" disabled={disabled}>
@@ -120,6 +126,8 @@ export function ContextBar({
   onAdd,
   onBind,
   onConfigure,
+  onSettle,
+  restored,
   onPlace,
   onDuplicate,
   onDelete,
@@ -135,7 +143,11 @@ export function ContextBar({
   registryRef?: Ref<HTMLSelectElement> | undefined;
   onAdd: () => void;
   onBind: (change: Reconfigured) => void;
-  onConfigure: (config: WidgetDesignDto["config"]) => void;
+  /** `field` names a text being typed, whose changes are one step of the history until it is left. */
+  onConfigure: (config: WidgetDesignDto["config"], field?: string) => void;
+  onSettle: () => void;
+  /** Changes when an undo or a redo brings another design, so the typed fields take it. */
+  restored: number;
   onPlace: (rect: LayoutRectDto) => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -185,7 +197,7 @@ export function ContextBar({
         </button>
         {addButton}
       </div>
-      <OptionsGroups key={widget.id} widget={widget} disabled={unbound} onConfigure={onConfigure} />
+      <OptionsGroups key={`${widget.id}-${restored}`} widget={widget} disabled={unbound} onConfigure={onConfigure} onSettle={onSettle} />
     </section>
   );
 }

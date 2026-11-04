@@ -3766,6 +3766,47 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.32: undo and redo of the design and the bar of a deletion.
+    id: "D35.2",
+    ready: true,
+    title: "Undo and redo of the Designer up to 100 steps by the buttons and Ctrl/⌘+Z, a typed field as one step, the bar Undo of a deletion for 10 s, the focus of a copy",
+    criteria: ["D35.2-AC1", "D35.2-AC2", "D35.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D35.2-AC1", "D35.2-AC2"],
+        description: "pnpm -r build: the history of the reducer, the buttons and keys of the editor and the bar of a deletion",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/dashboard/lib/designer-state.ts", "apps/web/src/features/dashboard/components/designer-editor.tsx", "apps/web/src/features/dashboard/components/undo-bar.tsx"],
+      },
+      {
+        id: "designer-history-web",
+        criteria: ["D35.2-AC1", "D35.2-AC2"],
+        description: "Unit: a change undone and redone, a deletion undone after the save is the same widget, a typed field is one step until it is left, a new step drops what was undone, the selection stays with its widget, 100 steps kept; the reducer of the Designer as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/designer-history.test.ts", "tests/unit/web/designer-state.test.ts", "tests/unit/web/designer-bar.test.ts"],
+        requires: ["tests/unit/web/designer-history.test.ts", "tests/unit/web/designer-state.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D35.2-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/designer.json"],
+      },
+      {
+        id: "designer-history-e2e",
+        criteria: ["D35.2-AC1", "D35.2-AC2"],
+        description:
+          "Playwright with Książki and one table: inactive Undo and Redo at the start; a move by the keyboard and a title typed letter by letter are two steps undone by the buttons and redone by Ctrl/⌘+Shift+Z, each saved; a new widget undone by Ctrl/⌘+Z; a deletion saved, then undone by the bar that took the focus, is the same widget with its configuration and bindings on the server and after a restart, with the focus on its tile; Ctrl+Z in a field undoes its text only; Duplicate gives the focus to the copy; Escape closes the bar on the grid; the bar goes by itself after 10 s and the history still undoes the deletion; axe; the autosave and the Designer as before",
+        command: ["node", "tests/verification/e2e.ts", "designer-history", "designer-autosave", "designer-bar", "designer.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/designer-history.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D35.2-regression"),
+    ],
+  },
+  {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
     // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
     id: "G2",

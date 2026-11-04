@@ -15,7 +15,7 @@ import { useOwnerDisplay } from "../../../lib/session/use-owner-display.js";
 import { fetchRegistries } from "../api/registries.js";
 import { fetchWidgetTypes } from "../api/screens.js";
 import type { SaveState } from "../lib/autosave.js";
-import { designerReducer, isDirty, newWidget, startState } from "../lib/designer-state.js";
+import { canRedo, canUndo, designerReducer, HISTORY_LIMIT, isDirty, newWidget, startState } from "../lib/designer-state.js";
 import { placeCopy, placeInEveryLayout } from "../lib/layout-edit.js";
 import { previewWidth } from "../lib/preview-width.js";
 import { typeLabelKey } from "../lib/type-label.js";
@@ -23,8 +23,13 @@ import { useAutosave } from "../lib/use-autosave.js";
 import { AddWidgetDialog } from "./add-widget-dialog.js";
 import { ContextBar } from "./context-bar.js";
 import { DesignCanvas } from "./design-canvas.js";
+import { UndoBar } from "./undo-bar.js";
 
 type WidgetType = WidgetTypesDto["types"][number];
+/** The grid of the layout being arranged, which takes the focus when the bar of a deletion is closed. */
+const FRAME_SELECTOR = ".designer-frame";
+/** How many frames a tile that is to take the focus is waited for. */
+const TILE_FRAMES = 10;
 
 /**
  * The Designer of the first screen (Scope §5.4, D18.2): the layout being arranged, the widgets of
@@ -116,12 +121,61 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
 
   /** The tile of a widget takes the focus back, as Escape and Gotowe leave the settings. */
   const focusTile = (id: string): void => document.querySelector<HTMLButtonElement>(`[data-widget-id="${CSS.escape(id)}"] .designer-handle`)?.focus();
+  // A tile that is to take the focus once it is drawn: the copy of Duplicate, a widget an undo brought back.
+  const [focusTileOf, setFocusTileOf] = useState<string | null>(null);
+  // The grid draws a widget that is new to it a frame later than the design has it, so the tile is looked for over a few frames.
+  useEffect(() => {
+    if (focusTileOf === null || !state.design.widgets.some((widget) => widget.id === focusTileOf)) return;
+    let frames = 0;
+    let frame = 0;
+    const attempt = (): void => {
+      const handle = document.querySelector<HTMLButtonElement>(`[data-widget-id="${CSS.escape(focusTileOf)}"] .designer-handle`);
+      if (handle !== null || frames >= TILE_FRAMES) {
+        handle?.focus();
+        setFocusTileOf(null);
+        return;
+      }
+      frames += 1;
+      frame = requestAnimationFrame(attempt);
+    };
+    attempt();
+    return () => cancelAnimationFrame(frame);
+  }, [focusTileOf, state.design.widgets]);
+
+  const titleOf = (widget: WidgetDesignDto): string => (typeof widget.config["title"] === "string" && widget.config["title"] !== "" ? widget.config["title"] : tw(typeLabelKey(widget.type)));
 
   function duplicate(widget: WidgetDesignDto): void {
-    const title = typeof widget.config["title"] === "string" && widget.config["title"] !== "" ? widget.config["title"] : tw(typeLabelKey(widget.type));
-    const copy: WidgetDesignDto = { ...widget, id: newUuid7(), config: { ...widget.config, title: `${title} ${t("bar.copySuffix")}`.slice(0, 80) }, layout: placeCopy(state.design.widgets, widget.layout) };
+    const copy: WidgetDesignDto = { ...widget, id: newUuid7(), config: { ...widget.config, title: `${titleOf(widget)} ${t("bar.copySuffix")}`.slice(0, 80) }, layout: placeCopy(state.design.widgets, widget.layout) };
     dispatch({ kind: "add", widget: copy });
+    setFocusTileOf(copy.id);
   }
+
+  // The bar "Undo" of the last deletion; any later step of the history closes it, since Undo would no longer take that deletion back.
+  const [removed, setRemoved] = useState<Readonly<{ id: string; name: string; steps: number }> | null>(null);
+  useEffect(() => {
+    if (removed !== null && state.past.length !== removed.steps) setRemoved(null);
+  }, [removed, state.past.length]);
+
+  function undo(): void {
+    dispatch({ kind: "undo" });
+  }
+  function redo(): void {
+    dispatch({ kind: "redo" });
+  }
+
+  // Ctrl/⌘+Z and Ctrl/⌘+Shift+Z, except in a field that takes text, where they belong to the field.
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== "z") return;
+      const target = event.target;
+      if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || (target instanceof HTMLElement && target.isContentEditable)) return;
+      if (target instanceof HTMLInputElement && !["checkbox", "radio", "button", "submit"].includes(target.type)) return;
+      event.preventDefault();
+      dispatch({ kind: event.shiftKey ? "redo" : "undo" });
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   const status = t(statusKey(autosave.state, dirty), { time: autosave.state.kind === "saved" ? new Intl.DateTimeFormat(display.locale, { hour: "2-digit", minute: "2-digit", timeZone: display.timeZone }).format(autosave.state.at) : "" });
   return (
@@ -151,6 +205,14 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
             ))}
           </div>
         )}
+        <div className="designer-history" role="group" aria-label={t("toolbar.history")}>
+          <button type="button" className="link-button" disabled={!canUndo(state)} onClick={undo} aria-keyshortcuts="Control+Z Meta+Z">
+            {t("toolbar.undo")}
+          </button>
+          <button type="button" className="link-button" disabled={!canRedo(state)} onClick={redo} aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">
+            {t("toolbar.redo")}
+          </button>
+        </div>
         <p role="status" className="designer-status" data-dirty={dirty} data-save={autosave.state.kind}>
           {status}
         </p>
@@ -191,10 +253,12 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
           if (selected === null) return;
           dispatch({ kind: "configured", id: selected.id, ...change });
         }}
-        onConfigure={(config) => {
+        onConfigure={(config, field) => {
           if (selected === null) return;
-          dispatch({ kind: "configured", id: selected.id, config, bindings: selected.bindings });
+          dispatch({ kind: "configured", id: selected.id, config, bindings: selected.bindings, ...(field === undefined ? {} : { field: `${selected.id}:${field}` }) });
         }}
+        onSettle={() => dispatch({ kind: "settle" })}
+        restored={state.restored}
         onPlace={(rect) => {
           if (selected === null) return;
           dispatch({ kind: "placed", layout, id: selected.id, rect, minimum: typeOf(selected.type)?.minSize ?? { w: 1, h: 1 } });
@@ -204,6 +268,7 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
         }}
         onDelete={() => {
           if (selected === null) return;
+          setRemoved({ id: selected.id, name: titleOf(selected), steps: Math.min(state.past.length + 1, HISTORY_LIMIT) });
           dispatch({ kind: "remove", id: selected.id });
         }}
         onDeselect={() => {
@@ -212,6 +277,21 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
           if (id !== null) focusTile(id);
         }}
       />
+      {removed === null ? null : (
+        <UndoBar
+          key={removed.id}
+          name={removed.name}
+          onUndo={() => {
+            setRemoved(null);
+            undo();
+            setFocusTileOf(removed.id);
+          }}
+          onClose={(byEscape) => {
+            setRemoved(null);
+            if (byEscape) document.querySelector<HTMLElement>(FRAME_SELECTOR)?.focus();
+          }}
+        />
+      )}
       {adding ? <AddWidgetDialog types={types.data ?? []} loading={types.isPending} failed={types.isError} onRetry={() => void types.refetch()} onPick={add} onClose={() => setAdding(false)} /> : null}
       <div className="designer-body">
         <DesignCanvas

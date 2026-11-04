@@ -84,7 +84,7 @@ export function DesignCanvas({
 
   return (
     <div className="designer-stage">
-      <div className="designer-frame" style={{ width }} role="group" aria-label={t("canvas.label", { layout: label })} data-layout={layout}>
+      <div className="designer-frame" style={{ width }} role="group" aria-label={t("canvas.label", { layout: label })} data-layout={layout} tabIndex={-1}>
         {widgets.length === 0 ? <p className="designer-empty">{t("canvas.empty")}</p> : null}
         <p id="designer-keys" className="visually-hidden">
           {t("canvas.keys")}

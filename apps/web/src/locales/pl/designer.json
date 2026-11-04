@@ -22,7 +22,10 @@
     "savedAt": "Zapisano {{time}}",
     "retrying": "Błąd zapisu — ponawiam",
     "offline": "Brak połączenia — zapiszę po powrocie",
-    "refused": "Błąd zapisu"
+    "refused": "Błąd zapisu",
+    "history": "Historia zmian",
+    "undo": "Cofnij",
+    "redo": "Ponów"
   },
   "palette": {
     "heading": "Dodaj widget",
@@ -116,5 +119,14 @@
     "columnsHint": "Kolejność na liście to kolejność kolumn w tabeli. Przeciągaj uchwytem albo przenoś Alt + strzałka. Ostatniej zaznaczonej kolumny nie da się odznaczyć.",
     "removeBinding": "Usuń podpięcie",
     "done": "Gotowe"
+  },
+  "undoBar": {
+    "label": "Usunięty widget",
+    "removed": "Usunięto widget „{{name}}”",
+    "undo": "Cofnij",
+    "seconds_one": "{{count}} s",
+    "seconds_few": "{{count}} s",
+    "seconds_many": "{{count}} s",
+    "seconds_other": "{{count}} s"
   }
 }
