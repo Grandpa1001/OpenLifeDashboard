@@ -3,7 +3,7 @@
 export type { SlotBinding, SlotDefinition, SlotKind, WidgetDefinition } from "./definition.js";
 export { checkBindingShape, findWidgetDefinition, missingRequiredSlots, normalizeWidgetConfig, WIDGET_DEFINITIONS } from "./catalog.js";
 export type { BindingShapeIssue, BindingShapeProblem, ConfigOutcome } from "./catalog.js";
-export { PAGE_SIZE_RANGE, registerTableConfigSchema } from "./register-table/config.schema.js";
+export { PAGE_SIZE_RANGE, REGISTER_TABLE_TITLE_MAX, registerTableConfigSchema } from "./register-table/config.schema.js";
 export type { RegisterTableConfig } from "./register-table/config.schema.js";
 export { registerTableDefinition } from "./register-table/manifest.js";
 export { CLOCK_LABEL_MAX, clockConfigSchema, isKnownTimeZone, OWNER_ZONE } from "./clock/config.schema.js";

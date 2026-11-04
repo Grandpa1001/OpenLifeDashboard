@@ -938,7 +938,14 @@ main.pulpit {
   box-shadow: 0 -4px 16px rgb(0 0 0 / 40%);
 }
 
-.context-sheet .bar-actions {
+.context-sheet .bar-choice {
+  display: flex;
+  gap: var(--space-3);
+  min-height: var(--touch-target);
+  align-items: center;
+}
+
+.bar-actions {
   margin-left: 0;
 }
 

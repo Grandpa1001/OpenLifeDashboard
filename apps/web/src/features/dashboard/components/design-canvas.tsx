@@ -7,6 +7,7 @@ import "react-grid-layout/css/styles.css";
 import { useTranslation } from "react-i18next";
 import { GRID } from "../../../lib/layout/grid.js";
 import { nudged, toGridItems, type Nudge, type Size } from "../lib/layout-edit.js";
+import { OWNER_ZONE } from "@openlife/widgets/views";
 import { choiceOf } from "../lib/register-table-bindings.js";
 import { typeLabelKey } from "../lib/type-label.js";
 
@@ -63,6 +64,17 @@ export function DesignCanvas({
     return () => document.removeEventListener("keydown", onKey, true);
   }, []);
 
+  /** What a tile says of its widget: the zone of a clock, the registry and the columns of a table. */
+  function summaryOf(widget: WidgetDesignDto): string {
+    if (widget.type === "clock") {
+      const zone = widget.config["timezone"];
+      return typeof zone === "string" && zone !== OWNER_ZONE ? zone : t("clock.ownerZone");
+    }
+    const choice = choiceOf(widget.bindings);
+    const registry = registries.find((candidate) => candidate.id === choice.registryId);
+    return registry === undefined ? t("canvas.unbound") : t("canvas.bound", { registry: registry.symbol, columns: choice.columnKeys.length });
+  }
+
   function landed(item: LayoutItem | null): void {
     if (!moving.current || item === null) return;
     moving.current = false;
@@ -109,9 +121,9 @@ export function DesignCanvas({
         >
           {widgets.map((widget) => {
             const config = widget.config;
-            const title = typeof config["title"] === "string" && config["title"] !== "" ? config["title"] : tw(typeLabelKey(widget.type));
-            const choice = choiceOf(widget.bindings);
-            const registry = registries.find((candidate) => candidate.id === choice.registryId);
+            // A table is named by its title, a clock by its caption, either by its type when it has none.
+            const named = [config["title"], config["label"]].find((each): each is string => typeof each === "string" && each !== "");
+            const title = named ?? tw(typeLabelKey(widget.type));
             const selected = widget.id === selectedId;
             return (
               <div key={widget.id} className={selected ? "designer-widget selected" : "designer-widget"} data-widget-id={widget.id}>
@@ -128,7 +140,7 @@ export function DesignCanvas({
                 >
                   {title}
                 </button>
-                <p className="designer-summary">{registry === undefined ? t("canvas.unbound") : t("canvas.bound", { registry: registry.symbol, columns: choice.columnKeys.length })}</p>
+                <p className="designer-summary">{summaryOf(widget)}</p>
               </div>
             );
           })}

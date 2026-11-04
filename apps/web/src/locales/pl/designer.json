@@ -135,5 +135,18 @@
     "load": "Wczytaj nowszy układ",
     "keep": "Zostaw mój",
     "refreshed": "Układ zmieniony na innym urządzeniu — odświeżono"
+  },
+  "clock": {
+    "time": "Czas",
+    "zone": "Strefa",
+    "ownerZone": "Strefa właściciela",
+    "zoneUnknown": "Nie ma takiej strefy. Wybierz nazwę z listy.",
+    "format": "Format",
+    "24h": "24 h",
+    "12h": "12 h",
+    "label": "Dopisek",
+    "labelTooLong": "Dopisek może mieć najwyżej {{max}} znaków.",
+    "seconds": "Sekundy",
+    "date": "Data"
   }
 }

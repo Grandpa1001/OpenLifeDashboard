@@ -133,5 +133,18 @@
     "load": "Load the newer layout",
     "keep": "Keep mine",
     "refreshed": "The layout was changed on another device — refreshed"
+  },
+  "clock": {
+    "time": "Time",
+    "zone": "Zone",
+    "ownerZone": "The owner's zone",
+    "zoneUnknown": "There is no such zone. Choose a name from the list.",
+    "format": "Format",
+    "24h": "24 h",
+    "12h": "12 h",
+    "label": "Caption",
+    "labelTooLong": "The caption can have at most {{max}} characters.",
+    "seconds": "Seconds",
+    "date": "Date"
   }
 }

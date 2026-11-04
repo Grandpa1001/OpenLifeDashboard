@@ -58,7 +58,7 @@ test.describe("D34.1-AC1 the window, a new widget and the groups of the bar", ()
 
     await bar(page).getByRole("button", { name: text(designer, "bar.addWidget"), exact: true }).click();
     const catalog = page.getByRole("dialog", { name: text(designer, "palette.heading") });
-    await expect(catalog).toContainText(say("palette.available", { count: 1, total: 1 }));
+    await expect(catalog).toContainText(say("palette.available", { count: 2, total: 2 }));
     const type = catalog.getByRole("button", { name: "Add: Register table" });
     await expect(type).toHaveAccessibleDescription(text(widgets, "typeDescriptions.register-table"));
     await expectNoViolations(page);

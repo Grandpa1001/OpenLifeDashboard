@@ -3913,6 +3913,40 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.33: the clock in the window Add widget and in its bar.
+    id: "D36.2",
+    ready: true,
+    title: "The clock in the Designer: in the window Add widget with its description and defaults, its bar in one row with the zone found among the IANA names and the owner's first, the format, the caption, the seconds and the date, and its copy",
+    criteria: ["D36.2-AC1", "D36.2-AC2", "D36.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D36.2-AC1", "D36.2-AC2"],
+        description: "pnpm -r build: the groups of the bar of a clock, the bar, the tiles and the editor",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/dashboard/components/clock-groups.tsx", "apps/web/src/features/dashboard/components/context-bar.tsx", "apps/web/src/features/dashboard/components/design-canvas.tsx", "apps/web/src/features/dashboard/components/designer-editor.tsx"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D36.2-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/designer.json"],
+      },
+      {
+        id: "designer-clock-e2e",
+        criteria: ["D36.2-AC1", "D36.2-AC2"],
+        description:
+          "Playwright: the clock from the window Add widget with its description, its defaults and a place of 4 × 3 in the three layouts, a bar without bindings; Europe/London, 12 h, Londyn, seconds and no date saved and on the screen as such; its copy saved with (copy) in its caption; an unknown zone told at the field and out of the design, the owner's zone first of the list; undo takes the format back; Escape back on the tile; axe; the bar of the register table and the history as before",
+        command: ["node", "tests/verification/e2e.ts", "designer-clock", "designer-bar", "designer-history"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/designer-clock.spec.ts", "tests/e2e/designer-bar.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D36.2-regression"),
+    ],
+  },
+  {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
     // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
     id: "G2",

@@ -16,9 +16,8 @@ name: CI
 # artifact: platform (D01-D08, Docker, images, the G0 inputs), access (D09-D13), registries
 # (D14-D17), data (the parents D22-D26), structure (the parents D27-D32), screens (D18 and the parents
 # from D33 on) and installer (D19). The fast tier is split the same way: core (D01-D20.2), data (D22.1-D26.2),
-# structure (the steps from D27.1 on), browser, the structure in a browser (D31.1-D32.2) and the
-# screens and the Designer in a browser (from D33.1 on). A new task joins the job of its topic, so no
-# single job grows past its time limit.
+# structure (the steps from D27.1 on), browser, the structure in a browser (D31.1-D32.2), the screens
+# browser (from D35.1 on). A new task joins the job of its topic, so no single job grows past its time limit.
 
 on:
   pull_request:
@@ -432,8 +431,8 @@ jobs:
           if-no-files-found: error
 
   fast-screens-browser:
-    # The screen of the owner, Pulpity and the Designer (D33.1 on, KM3) in the built app. Its own job
-    # so the steps of KM3 do not grow the browser job (22 of 30 minutes) or the structure job.
+    # The screen of the owner, Pulpity, the grid and the context bar of the Designer (D33.1-D34.3) in
+    # the built app. The saving of the Designer and the widgets from D35.1 on have a job of their own.
     name: fast tier (screens and the Designer in a browser)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -483,6 +482,51 @@ jobs:
       - name: Verify D34.3 (the context bar at the widths of a phone, a tablet and a laptop, and a table set up in the bar only)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D34.3
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-fast-screens-browser
+          path: .artifacts/
+          # The report directory is a dot-directory, which upload-artifact skips by default.
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+
+  fast-designer-browser:
+    # The saving of the Designer, its history and two tabs, and the widgets (D35.1 on, KM3) in the built
+    # app. Split from the job of the screens at 18 of its 30 minutes (run 41812920405).
+    name: fast tier (the saving of the Designer and the widgets in a browser)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
+      - name: Cache the Playwright browser
+        id: browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install the Playwright browser
+        if: steps.browser.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install the system libraries of the cached browser
+        if: steps.browser.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
       - name: Verify D35.1 (the autosave of the Designer, its queue, its retries and the states of the saving)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D35.1
@@ -495,11 +539,14 @@ jobs:
       - name: Verify D36.1 (the clock widget, its time in its zone and its ticker, on the screen)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D36.1
+      - name: Verify D36.2 (the clock in the window Add widget and in its bar)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D36.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: verification-fast-screens-browser
+          name: verification-fast-designer-browser
           path: .artifacts/
           # The report directory is a dot-directory, which upload-artifact skips by default.
           include-hidden-files: true

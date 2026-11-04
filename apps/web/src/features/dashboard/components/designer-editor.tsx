@@ -12,6 +12,7 @@ import { useWindowWidth } from "../../../lib/layout/use-window-width.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
 import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
 import { useOwnerDisplay } from "../../../lib/session/use-owner-display.js";
+import { CLOCK_LABEL_MAX, REGISTER_TABLE_TITLE_MAX } from "@openlife/widgets/views";
 import { fetchRegistries } from "../api/registries.js";
 import { fetchScreen, fetchWidgetTypes } from "../api/screens.js";
 import type { SaveState } from "../lib/autosave.js";
@@ -26,8 +27,8 @@ import { DesignCanvas } from "./design-canvas.js";
 import { UndoBar } from "./undo-bar.js";
 
 type WidgetType = WidgetTypesDto["types"][number];
-/** The types the context bar can set up; the clock joins with its bar (D36.2). */
-const CONFIGURABLE_TYPES: readonly string[] = ["register-table"];
+/** The types the context bar can set up (D34.1, D36.2); a type of a later release waits for its bar. */
+const CONFIGURABLE_TYPES: readonly string[] = ["register-table", "clock"];
 /** The grid of the layout being arranged, which takes the focus when the bar of a deletion is closed. */
 const FRAME_SELECTOR = ".designer-frame";
 /** How long the word that the layout came from another device stays (it takes no focus). */
@@ -187,10 +188,16 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
     return () => cancelAnimationFrame(frame);
   }, [focusTileOf, state.design.widgets]);
 
-  const titleOf = (widget: WidgetDesignDto): string => (typeof widget.config["title"] === "string" && widget.config["title"] !== "" ? widget.config["title"] : tw(typeLabelKey(widget.type)));
+  /** The name a widget goes by: a table its title, a clock its caption, either its type when it has none (D36.2). */
+  const nameField = (widget: WidgetDesignDto): Readonly<{ key: "title" | "label"; max: number }> => (widget.type === "clock" ? { key: "label", max: CLOCK_LABEL_MAX } : { key: "title", max: REGISTER_TABLE_TITLE_MAX });
+  const titleOf = (widget: WidgetDesignDto): string => {
+    const named = widget.config[nameField(widget).key];
+    return typeof named === "string" && named !== "" ? named : tw(typeLabelKey(widget.type));
+  };
 
   function duplicate(widget: WidgetDesignDto): void {
-    const copy: WidgetDesignDto = { ...widget, id: newUuid7(), config: { ...widget.config, title: `${titleOf(widget)} ${t("bar.copySuffix")}`.slice(0, 80) }, layout: placeCopy(state.design.widgets, widget.layout) };
+    const field = nameField(widget);
+    const copy: WidgetDesignDto = { ...widget, id: newUuid7(), config: { ...widget.config, [field.key]: `${titleOf(widget)} ${t("bar.copySuffix")}`.slice(0, field.max) }, layout: placeCopy(state.design.widgets, widget.layout) };
     dispatch({ kind: "add", widget: copy });
     setFocusTileOf(copy.id);
   }

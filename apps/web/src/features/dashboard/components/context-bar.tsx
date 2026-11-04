@@ -1,12 +1,16 @@
 import type { RegistryDto } from "@openlife/contracts/http/registries";
 import { GRID_COLUMNS, type LayoutName, type LayoutRectDto, type WidgetDesignDto } from "@openlife/contracts/http/screens";
-import { PAGE_SIZE_RANGE, registerTableConfigSchema } from "@openlife/widgets/views";
+import { PAGE_SIZE_RANGE, REGISTER_TABLE_TITLE_MAX, registerTableConfigSchema } from "@openlife/widgets/views";
 import { useEffect, useState, type KeyboardEvent, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { Field } from "../../../lib/forms/field.js";
 import { fitToColumns, withinGrid, type Size } from "../lib/layout-edit.js";
 import { choiceOf } from "../lib/register-table-bindings.js";
 import { BindingsPanel, type Reconfigured } from "./bindings-panel.js";
+import { ClockLookGroup, ClockTimeGroup } from "./clock-groups.js";
+
+/** The type whose bar has the groups of a clock instead of the bindings of a table (D36.2). */
+const CLOCK_TYPE = "clock";
 
 /** The fields of text whose typing is one step of the history until they are left (D35.2). */
 const TITLE_FIELD = "title";
@@ -72,7 +76,7 @@ function OptionsGroups({ widget, disabled, onConfigure, onSettle }: Readonly<{ w
         <Field
           label={t("bar.title")}
           value={title}
-          error={titleError ? t("bar.titleTooLong", { max: 80 }) : undefined}
+          error={titleError ? t("bar.titleTooLong", { max: REGISTER_TABLE_TITLE_MAX }) : undefined}
           onChange={(event) => {
             setTitle(event.target.value);
             const next = accepted({ title: event.target.value });
@@ -168,7 +172,9 @@ export function ContextBar({
     );
   }
 
-  const unbound = choiceOf(widget.bindings).registryId === null;
+  // A clock binds nothing: all its groups are usable at once (makieta 27).
+  const clock = widget.type === CLOCK_TYPE;
+  const unbound = !clock && choiceOf(widget.bindings).registryId === null;
   const onKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
     // A select or a field that uses Escape itself (a list that is open) keeps it.
     if (event.key !== "Escape" || event.defaultPrevented) return;
@@ -185,7 +191,11 @@ export function ContextBar({
           </button>
         </header>
       ) : null}
-      <BindingsPanel widget={widget} registries={registries} registriesFailed={registriesFailed} registryRef={registryRef} onChange={onBind} />
+      {clock ? (
+        <ClockTimeGroup key={`time-${widget.id}-${restored}`} widget={widget} onConfigure={onConfigure} />
+      ) : (
+        <BindingsPanel widget={widget} registries={registries} registriesFailed={registriesFailed} registryRef={registryRef} onChange={onBind} />
+      )}
       {unbound ? <p className="field-hint bar-unbound">{t("bar.startWithRegistry")}</p> : null}
       <SizeGroup key={`${widget.id}-${layout}`} rect={widget.layout[layout]} columns={GRID_COLUMNS[layout]} minimum={minimum} disabled={unbound} onPlace={onPlace} />
       <div className="bar-actions" role="group" aria-label={t("bar.actions")}>
@@ -197,7 +207,11 @@ export function ContextBar({
         </button>
         {addButton}
       </div>
-      <OptionsGroups key={`${widget.id}-${restored}`} widget={widget} disabled={unbound} onConfigure={onConfigure} onSettle={onSettle} />
+      {clock ? (
+        <ClockLookGroup key={`look-${widget.id}-${restored}`} widget={widget} onConfigure={onConfigure} onSettle={onSettle} />
+      ) : (
+        <OptionsGroups key={`${widget.id}-${restored}`} widget={widget} disabled={unbound} onConfigure={onConfigure} onSettle={onSettle} />
+      )}
     </section>
   );
 }
