@@ -79,8 +79,12 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
 
   const [gateLost, setGateLost] = useState(false);
   useGuardRecheck(gateLost);
+  // The newest time of the screen this tab knows: its loading and each of its saves. A read of the
+  // screen that is not newer was answered before this tab's own save and is not another tab's work.
+  const knownAt = useRef(Date.parse(screen.updatedAt));
   const onSaved = useCallback(
     (sent: DesignSnapshotDto, received: ScreenDto) => {
+      knownAt.current = Math.max(knownAt.current, Date.parse(received.updatedAt));
       dispatch({ kind: "saved", sent, received: { name: received.name, theme: received.theme, accent: received.accent, widgets: received.widgets.map(({ id, type, config, layout: placed, bindings }) => ({ id, type, config, layout: placed, bindings })) } });
       queryClient.setQueryData(queryKeys.screens.list, received);
       void queryClient.invalidateQueries({ queryKey: queryKeys.screens.allWidgetData });
@@ -107,8 +111,14 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
       inFlight = controller;
       const read = await fetchScreen(screen.id, controller.signal);
       if (!read.ok || controller.signal.aborted || saving.current) return;
+      const at = Date.parse(read.value.updatedAt);
+      if (!(at > knownAt.current)) return;
       const there = toSnapshot(read.value);
-      if (!changedElsewhere(there, stateNow.current)) return;
+      if (!changedElsewhere(there, stateNow.current)) {
+        knownAt.current = at;
+        return;
+      }
+      knownAt.current = at;
       queryClient.setQueryData(queryKeys.screens.list, read.value);
       if (!dirtyNow.current) {
         dispatch({ kind: "loaded", design: there });

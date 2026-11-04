@@ -31,6 +31,8 @@ async function retitle(page: Page, from: string, to: string): Promise<void> {
   const field = bar(page).getByLabel(text(designer, "bar.title"), { exact: true });
   await field.fill(to);
   await field.blur();
+  // The change is in the design of this tab before it is saved.
+  await expect(tile(page, to)).toBeVisible();
 }
 
 /** The tab is in front again: the browser tells it it is visible and has the focus. */

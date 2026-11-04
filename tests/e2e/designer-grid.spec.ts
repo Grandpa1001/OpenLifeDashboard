@@ -10,7 +10,7 @@
 import type { CDPSession, Locator, Page } from "@playwright/test";
 import type { BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully, addRegisterTable, designerSaved } from "./owner-session.ts";
+import { BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully, addRegisterTable, designerSaved, expectTouchTarget } from "./owner-session.ts";
 
 const designer = locale("en", "designer");
 const errors = locale("en", "errors");
@@ -170,7 +170,7 @@ test.describe("D33.2-AC2 the edges, Escape, the phone and a failed load", () => 
 
     for (const target of [second, page.locator(`[data-widget-id="${B}"] .react-resizable-handle-se`)]) {
       const box = await target.boundingBox();
-      expect(Math.min(box!.width, box!.height)).toBeGreaterThanOrEqual(44);
+      expectTouchTarget(Math.min(box!.width, box!.height));
     }
     await expectNoViolations(page);
   });

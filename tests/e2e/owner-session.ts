@@ -9,6 +9,17 @@ import { expect, locale, test, text } from "./fixtures.ts";
 
 const auth = locale("en", "auth");
 
+/** The least touch target (Architektura §7.4, `--touch-target`). */
+export const TOUCH_TARGET_PX = 44;
+
+/**
+ * A box at least as large as a touch target. A box measured inside a translated grid item comes back
+ * a fraction of a pixel short (43.99994 for 44 px, run 41821872633), so it is compared to a hundredth.
+ */
+export function expectTouchTarget(size: number, what = "touch target"): void {
+  expect(Math.round(size * 100) / 100, what).toBeGreaterThanOrEqual(TOUCH_TARGET_PX);
+}
+
 /** Axe has no limit of its own: the step bounds it so a stalled run fails here, not at the end of the test. */
 const AXE_TIMEOUT_MS = 30_000;
 

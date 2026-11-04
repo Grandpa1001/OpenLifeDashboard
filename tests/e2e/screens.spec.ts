@@ -12,7 +12,7 @@ import type { Page } from "@playwright/test";
 import { SCREENS_PATH } from "@openlife/contracts/http/screens";
 import type { BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, openApp, signInFully } from "./owner-session.ts";
+import { BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, openApp, signInFully, expectTouchTarget } from "./owner-session.ts";
 
 const common = locale("en");
 const designer = locale("en", "designer");
@@ -192,10 +192,10 @@ test.describe("D33.1-AC2 the gate, the name, the bar and the widths", () => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await expect(page.locator(".screen-grid")).toHaveAttribute("data-layout", "tablet");
     const icon = await page.getByRole("link", { name: text(common, "main.openApp") }).boundingBox();
-    expect(Math.min(icon!.width, icon!.height)).toBeGreaterThanOrEqual(44);
+    expectTouchTarget(Math.min(icon!.width, icon!.height), "the icon");
     await openApp(page);
     for (const target of [appBar(page).getByRole("link").first(), page.getByRole("link", { name: text(designer, "screens.edit") }), properties]) {
-      expect((await target.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expectTouchTarget((await target.boundingBox())!.height);
     }
   });
 });
