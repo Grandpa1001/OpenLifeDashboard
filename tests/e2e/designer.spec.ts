@@ -7,7 +7,7 @@
 import type { Locator, Page } from "@playwright/test";
 import type { BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully, addRegisterTable, chooseColumns } from "./owner-session.ts";
+import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully, addRegisterTable, chooseColumns, designerSaved } from "./owner-session.ts";
 
 const designer = locale("en", "designer");
 const widgets = locale("en", "widgets");
@@ -36,7 +36,7 @@ async function savedScreen(page: Page, owner: BrowserOwner): Promise<Saved> {
 }
 
 const toolbarButton = (page: Page, key: string): Locator => page.getByRole("button", { name: text(designer, key), exact: true });
-const status = (page: Page): Locator => page.getByRole("status").filter({ hasText: /changes|Saved|Saving/ });
+const status = (page: Page): Locator => page.locator(".designer-status");
 
 /** Press on a point, move there in steps and let go: what a hand does, so the library sees real mouse events. */
 async function dragBy(page: Page, from: { x: number; y: number }, dx: number, dy: number): Promise<void> {
@@ -69,12 +69,12 @@ test.describe("D18.2-AC1 the Designer arranges and saves", () => {
     await page.getByRole("button", { name: text(designer, "create.submit") }).click();
     await expect(page.getByRole("heading", { level: 1, name: text(designer, "title") })).toBeVisible();
     await expect(status(page)).toHaveText(text(designer, "toolbar.clean"));
-    await expect(toolbarButton(page, "toolbar.save")).toBeDisabled();
+    // No button saves: the Designer saves every change by itself (D35.1).
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
 
     await addRegisterTable(page);
     const handle = page.getByRole("button", { name: "Select widget: Register table" });
     await expect(handle).toHaveAttribute("aria-pressed", "true");
-    await expect(status(page)).toHaveText(text(designer, "toolbar.dirty"));
     await expect(page.getByText(text(designer, "canvas.unbound"))).toBeVisible();
 
     await page.getByLabel(text(designer, "panel.registry"), { exact: true }).selectOption({ label: "Książki (ksiazki)" });
@@ -82,9 +82,7 @@ test.describe("D18.2-AC1 the Designer arranges and saves", () => {
     await expect(page.getByText("Registry ksiazki, columns: 2")).toBeVisible();
     await expectNoViolations(page);
 
-    await toolbarButton(page, "toolbar.save").click();
-    await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
-    await expect(toolbarButton(page, "toolbar.save")).toBeDisabled();
+    await designerSaved(page);
 
     const saved = await savedScreen(page, owner);
     expect(saved.widgets).toHaveLength(1);
@@ -105,8 +103,7 @@ test.describe("D18.2-AC1 the Designer arranges and saves", () => {
     await createScreenWith(page, owner, [{ id: A, title: "Pierwsza", layout: { phone: { x: 0, y: 0, w: 1, h: 8 }, tablet: { x: 0, y: 0, w: 4, h: 8 }, desktop: { x: 0, y: 0, w: 4, h: 8 } } }]);
     await page.goto(`${owner.baseUrl}/designer`);
     await addRegisterTable(page);
-    await toolbarButton(page, "toolbar.save").click();
-    await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
+    await designerSaved(page);
     const added = (await savedScreen(page, owner)).widgets.find((widget) => widget.id !== A);
     // Phone: below the first. Tablet: beside it would need 8 columns, so below. Desktop: beside it, in the 8 columns that are left.
     expect(added?.layout).toEqual({ phone: { x: 0, y: 8, w: 1, h: 8 }, tablet: { x: 0, y: 8, w: 8, h: 8 }, desktop: { x: 4, y: 0, w: 8, h: 8 } });
@@ -121,13 +118,11 @@ test.describe("D18.2-AC1 the Designer arranges and saves", () => {
 
     const corner = page.locator(".react-resizable-handle-se");
     await dragBy(page, await centre(corner), Math.round(COLUMN_PX), 2 * ROW_PX);
-    await expect(status(page)).toHaveText(text(designer, "toolbar.dirty"));
 
     const handle = page.getByRole("button", { name: "Select widget: Moja tabela" });
     await dragBy(page, await centre(handle), Math.round(2 * COLUMN_PX), 3 * ROW_PX);
 
-    await toolbarButton(page, "toolbar.save").click();
-    await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
+    await designerSaved(page);
     const layout = (await savedScreen(page, owner)).widgets[0]?.layout;
     expect(layout?.desktop).toEqual({ x: 2, y: 3, w: 5, h: 8 });
     expect(layout?.phone).toEqual(LAYOUT.phone);
@@ -169,8 +164,7 @@ test.describe("D18.3-AC2 the grid on a collision", () => {
     ]);
     await page.goto(`${owner.baseUrl}/designer`);
     await dragBy(page, await centre(page.getByRole("button", { name: "Select widget: Druga" })), -Math.round(4 * COLUMN_PX), 0);
-    await toolbarButton(page, "toolbar.save").click();
-    await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
+    await designerSaved(page);
     const saved = (await savedScreen(page, owner)).widgets;
     const first = saved.find((widget) => widget.id === A)?.layout.desktop;
     const second = saved.find((widget) => widget.id === B)?.layout.desktop;
@@ -191,20 +185,19 @@ test.describe("D18.2-AC2 a save that fails, and leaving with unsaved changes", (
     await ready(page, owner);
     await createScreenWith(page, owner, [{ id: A, title: "Moja tabela", layout: LAYOUT }]);
     await page.goto(`${owner.baseUrl}/designer`);
+    await page.route(SCREEN_PATH, (route) => route.fulfill({ status: 422, contentType: "application/json", body: JSON.stringify({ code: "VALIDATION_FAILED", message: "refused", details: null, requestId: "req-refused-1" }) }));
     await addRegisterTable(page);
 
-    await page.route(SCREEN_PATH, (route) => route.fulfill({ status: 422, contentType: "application/json", body: JSON.stringify({ code: "VALIDATION_FAILED", message: "refused", details: null, requestId: "req-refused-1" }) }));
-    await toolbarButton(page, "toolbar.save").click();
+    // The autosave is refused: told with its code and reference, not tried again in a loop, every change kept.
     await expect(page.getByRole("alert").filter({ hasText: text(errors, "VALIDATION_FAILED") })).toBeVisible();
     await expect(page.getByText("req-refused-1")).toBeVisible();
-    await expect(status(page)).toHaveText(text(designer, "toolbar.dirty"));
+    await expect(status(page)).toHaveText(text(designer, "toolbar.refused"));
     await expect(page.getByRole("button", { name: /^Select widget: / })).toHaveCount(2);
-    await expect(toolbarButton(page, "toolbar.save")).toBeEnabled();
     await expect(savedScreenWidgets(page, owner)).resolves.toBe(1);
 
     await page.unroute(SCREEN_PATH);
-    await toolbarButton(page, "toolbar.save").click();
-    await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
+    await page.getByRole("button", { name: text(designer, "retry"), exact: true }).click();
+    await designerSaved(page);
     await expect(page.getByRole("alert")).toHaveCount(0);
     await expect(savedScreenWidgets(page, owner)).resolves.toBe(2);
   });
@@ -214,17 +207,16 @@ test.describe("D18.2-AC2 a save that fails, and leaving with unsaved changes", (
     await ready(page, owner);
     await createScreenWith(page, owner, [{ id: A, title: "Moja tabela", layout: LAYOUT }]);
     await page.goto(`${owner.baseUrl}/designer`);
+    await page.route(SCREEN_PATH, (route) => route.abort("connectionfailed"));
     const handle = page.getByRole("button", { name: "Select widget: Moja tabela" });
     await dragBy(page, await centre(handle), Math.round(COLUMN_PX), ROW_PX);
 
-    await page.route(SCREEN_PATH, (route) => route.abort("connectionfailed"));
-    await toolbarButton(page, "toolbar.save").click();
-    await expect(page.getByRole("alert").filter({ hasText: text(errors, "NETWORK") })).toBeVisible();
-    await expect(status(page)).toHaveText(text(designer, "toolbar.dirty"));
-
+    // No connection: the change waits in the tab and the bar says it will be saved.
+    await expect(status(page)).toHaveText(text(designer, "toolbar.offline"));
+    await expect(page.locator(".designer-status")).toHaveAttribute("data-dirty", "true");
+    // Back: the next try saves it without the owner doing anything.
     await page.unroute(SCREEN_PATH);
-    await toolbarButton(page, "toolbar.save").click();
-    await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
+    await designerSaved(page);
     expect((await savedScreen(page, owner)).widgets[0]?.layout.desktop).toEqual({ x: 1, y: 1, w: 4, h: 6 });
   });
 
@@ -233,11 +225,14 @@ test.describe("D18.2-AC2 a save that fails, and leaving with unsaved changes", (
     await ready(page, owner);
     await createScreenWith(page, owner, [{ id: A, title: "Moja tabela", layout: LAYOUT }]);
     await page.goto(`${owner.baseUrl}/designer`);
+    // The save cannot be made, so Finish cannot save first: it asks.
+    await page.route(SCREEN_PATH, (route) => route.abort("connectionfailed"));
     await addRegisterTable(page);
 
     await toolbarButton(page, "toolbar.finish").click();
     const ask = page.getByRole("alertdialog", { name: text(designer, "leave.heading") });
     await expect(ask).toBeVisible();
+    await expect(ask).toContainText(text(designer, "leave.text"));
     await expectNoViolations(page);
     await ask.getByRole("button", { name: text(designer, "leave.stay") }).click();
     await expect(ask).toHaveCount(0);
@@ -247,6 +242,7 @@ test.describe("D18.2-AC2 a save that fails, and leaving with unsaved changes", (
     await toolbarButton(page, "toolbar.finish").click();
     await page.getByRole("alertdialog").getByRole("button", { name: text(designer, "leave.discard") }).click();
     await expect(page).toHaveURL(`${owner.baseUrl}/`);
+    await page.unroute(SCREEN_PATH);
     await expect(savedScreenWidgets(page, owner)).resolves.toBe(1);
   });
 
@@ -263,6 +259,8 @@ test.describe("D18.2-AC2 a save that fails, and leaving with unsaved changes", (
 
     await page.reload();
     expect(kinds).toEqual([]);
+    // A save that cannot be made keeps the design unsaved while the page is closed.
+    await page.route(SCREEN_PATH, (route) => route.abort("connectionfailed"));
     await addRegisterTable(page);
     await page.reload();
     expect(kinds).toEqual(["beforeunload"]);

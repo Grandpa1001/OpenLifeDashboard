@@ -12,7 +12,7 @@
 import type { Locator, Page } from "@playwright/test";
 import type { BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully } from "./owner-session.ts";
+import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully, designerSaved } from "./owner-session.ts";
 
 const designer = locale("en", "designer");
 const widgets = locale("en", "widgets");
@@ -29,12 +29,10 @@ const BOOK_PATHS = BOOKS_DEFINITION.columns.map((column) => `Field.Register.ksia
 const say = (key: string, values: Record<string, string | number> = {}) => Object.entries(values).reduce((each, [name, value]) => each.replaceAll(`{{${name}}}`, String(value)), text(designer, key));
 const bar = (page: Page): Locator => page.getByRole("region", { name: text(designer, "bar.label") });
 const toolbarButton = (page: Page, key: string): Locator => page.getByRole("button", { name: text(designer, key), exact: true });
-const status = (page: Page): Locator => page.getByRole("status").filter({ hasText: /changes|Saved|Saving/ });
 const field = (page: Page, key: string, values: Record<string, string | number> = {}): Locator => bar(page).getByLabel(say(key, values), { exact: true });
 
 async function saved(page: Page, owner: BrowserOwner): Promise<Saved> {
-  await toolbarButton(page, "toolbar.save").click();
-  await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
+  await designerSaved(page);
   const listed = (await (await page.request.get(`${owner.baseUrl}/api/v1/screens`)).json()) as { screens: Array<{ id: string }> };
   return ((await (await page.request.get(`${owner.baseUrl}/api/v1/screens/${listed.screens[0]!.id}`)).json()) as { widgets: Saved }).widgets;
 }
@@ -154,7 +152,7 @@ test.describe("D34.1-AC2 what the bar refuses, asks and how it is used by the ke
       await pageSize.fill(wrong);
       await expect(pageSize).toHaveAttribute("aria-invalid", "true");
       await expect(bar(page).getByText(say("bar.pageSizeInvalid", { min: 1, max: 100 }))).toBeVisible();
-      await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
+      await expect(page.locator(".designer-status")).toHaveAttribute("data-dirty", "false");
     }
     await expectNoViolations(page);
 
@@ -164,7 +162,7 @@ test.describe("D34.1-AC2 what the bar refuses, asks and how it is used by the ke
     await question.getByRole("button", { name: text(designer, "bar.cancel") }).click();
     await expect(question).toHaveCount(0);
     await expect(field(page, "panel.registry").locator("option:checked")).toHaveText("Książki (ksiazki)");
-    await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
+    await expect(page.locator(".designer-status")).toHaveAttribute("data-dirty", "false");
 
     await field(page, "panel.registry").selectOption({ label: "Filmy (filmy)" });
     await question.getByRole("button", { name: text(designer, "bar.registryChangeConfirm") }).click();

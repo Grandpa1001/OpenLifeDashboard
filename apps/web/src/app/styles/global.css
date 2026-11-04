@@ -814,6 +814,21 @@ main.pulpit {
   margin: 0;
 }
 
+/* The state of the saving keeps one place and one width (makieta 29): the longest text sets it, so the
+   buttons beside it never move as the state changes. */
+@media (min-width: 768px) {
+  .designer-status {
+    min-width: 21rem;
+  }
+}
+
+.designer-save-failed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
 .designer-layouts {
   display: flex;
   gap: var(--space-3);

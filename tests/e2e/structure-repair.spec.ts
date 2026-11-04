@@ -11,7 +11,7 @@ import type { Locator, Page } from "@playwright/test";
 import { structurePath, structurePreviewPath } from "@openlife/contracts/http/registries";
 import { query, type BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully, openColumns } from "./owner-session.ts";
+import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully, openColumns, designerSaved } from "./owner-session.ts";
 
 const registers = locale("en", "registers");
 const designer = locale("en", "designer");
@@ -58,8 +58,7 @@ async function openPanel(page: Page, owner: BrowserOwner): Promise<Locator> {
 }
 
 async function saveDesign(page: Page): Promise<void> {
-  await page.getByRole("button", { name: text(designer, "toolbar.save"), exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: text(designer, "toolbar.saved") })).toBeVisible();
+  await designerSaved(page);
 }
 
 test.describe("D31.3-AC1 a dictionary from the window of columns", () => {

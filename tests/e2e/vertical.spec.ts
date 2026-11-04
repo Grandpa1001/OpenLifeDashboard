@@ -6,7 +6,7 @@
 // AC1: after the restart the widget is where each layout put it, and a record added from /main works.
 import type { Locator, Page } from "@playwright/test";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { expectNoViolations, signInFully, addRegisterTable, chooseColumns } from "./owner-session.ts";
+import { expectNoViolations, signInFully, addRegisterTable, chooseColumns, designerSaved } from "./owner-session.ts";
 
 const designer = locale("en", "designer");
 const registers = locale("en", "registers");
@@ -104,11 +104,8 @@ test.describe("D18.3-AC1 registry, Designer, three layouts, restart, record", ()
     // The design is saved as it stands: the drop must be in it.
     await settledAt("desktop", 2, 1, desktopColumn);
 
-    const save = page.getByRole("button", { name: text(designer, "toolbar.save"), exact: true });
-    await save.click();
-    // The whole text: "Unsaved changes" holds "saved" too, and a Finish pressed while the save is in flight asks to discard.
-    await expect(page.getByRole("status")).toHaveText(text(designer, "toolbar.saved"));
-    await expect(save).toBeDisabled();
+    // The design saves itself (D35.1); Finish leaves once the server has it.
+    await designerSaved(page);
     await page.getByRole("button", { name: text(designer, "toolbar.finish"), exact: true }).click();
     await expect(page).toHaveURL(`${owner.baseUrl}/`);
     await page.waitForLoadState("networkidle");

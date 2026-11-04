@@ -53,6 +53,13 @@ export async function chooseColumns(page: Page, names: readonly string[]): Promi
   await page.keyboard.press("Escape");
 }
 
+/** The Designer saved itself (D35.1): nothing waits to be sent and the server answered the last save. */
+export async function designerSaved(page: Page): Promise<void> {
+  const status = page.locator(".designer-status");
+  await expect(status).toHaveAttribute("data-dirty", "false", { timeout: 15_000 });
+  await expect(status).toHaveAttribute("data-save", "saved");
+}
+
 /** From the screen of the owner into the part of the application, by the one icon of the screen (D33.1). */
 export async function openApp(page: Page, common = locale("en")): Promise<void> {
   await page.getByRole("link", { name: text(common, "main.openApp") }).click();

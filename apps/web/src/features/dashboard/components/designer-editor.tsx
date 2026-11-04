@@ -1,10 +1,9 @@
 import type { RegistryDto } from "@openlife/contracts/http/registries";
 import { LAYOUT_NAMES, type DesignSnapshotDto, type LayoutName, type ScreenDto, type WidgetDesignDto, type WidgetTypesDto } from "@openlife/contracts/http/screens";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBlocker, useNavigate } from "@tanstack/react-router";
-import { useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import type { ApiFailure } from "../../../lib/api-client/request.js";
 import { describeFailure } from "../../../lib/failures/error-message.js";
 import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { newUuid7 } from "../../../lib/ids/uuid7.js";
@@ -12,33 +11,26 @@ import { useBreakpoint } from "../../../lib/layout/use-breakpoint.js";
 import { useWindowWidth } from "../../../lib/layout/use-window-width.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
 import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
+import { useOwnerDisplay } from "../../../lib/session/use-owner-display.js";
 import { fetchRegistries } from "../api/registries.js";
-import { fetchWidgetTypes, saveDesign } from "../api/screens.js";
+import { fetchWidgetTypes } from "../api/screens.js";
+import type { SaveState } from "../lib/autosave.js";
 import { designerReducer, isDirty, newWidget, startState } from "../lib/designer-state.js";
 import { placeCopy, placeInEveryLayout } from "../lib/layout-edit.js";
 import { previewWidth } from "../lib/preview-width.js";
 import { typeLabelKey } from "../lib/type-label.js";
+import { useAutosave } from "../lib/use-autosave.js";
 import { AddWidgetDialog } from "./add-widget-dialog.js";
 import { ContextBar } from "./context-bar.js";
 import { DesignCanvas } from "./design-canvas.js";
-
-class SaveFailure extends Error {
-  readonly failure: ApiFailure;
-
-  constructor(failure: ApiFailure) {
-    super("design not saved");
-    this.name = "SaveFailure";
-    this.failure = failure;
-  }
-}
 
 type WidgetType = WidgetTypesDto["types"][number];
 
 /**
  * The Designer of the first screen (Scope §5.4, D18.2): the layout being arranged, the widgets of
- * the catalog to add, the canvas and the bindings of the selected widget. The owner saves
- * explicitly; leaving with unsaved changes asks first. A refused or unreachable save leaves every
- * change in place and can be repeated.
+ * the catalog to add, the canvas and the bindings of the selected widget. Every change saves itself
+ * (D35.1); leaving waits for the save and asks only when it could not be made. A refused or
+ * unreachable save leaves every change in place.
  */
 export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
   const { t } = useTranslation("designer");
@@ -52,7 +44,7 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
   const layout: LayoutName = onPhone ? "phone" : chosen;
   const width = previewWidth(layout, useWindowWidth());
   const layoutButtons = useRef<Partial<Record<LayoutName, HTMLButtonElement | null>>>({});
-  const [justSaved, setJustSaved] = useState(false);
+  const display = useOwnerDisplay();
   const dirty = isDirty(state);
   const dirtyNow = useRef(dirty);
   dirtyNow.current = dirty;
@@ -75,24 +67,21 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
   });
   const registries: readonly RegistryDto[] = registryList.data ?? [];
 
-  const save = useMutation({
-    mutationFn: async (design: DesignSnapshotDto) => {
-      const result = await saveDesign(screen.id, design);
-      if (!result.ok) throw new SaveFailure(result.failure);
-      return result.value;
-    },
-    onSuccess: (received, sent) => {
+  const [gateLost, setGateLost] = useState(false);
+  useGuardRecheck(gateLost);
+  const onSaved = useCallback(
+    (sent: DesignSnapshotDto, received: ScreenDto) => {
       dispatch({ kind: "saved", sent, received: { name: received.name, theme: received.theme, accent: received.accent, widgets: received.widgets.map(({ id, type, config, layout: placed, bindings }) => ({ id, type, config, layout: placed, bindings })) } });
       queryClient.setQueryData(queryKeys.screens.list, received);
       void queryClient.invalidateQueries({ queryKey: queryKeys.screens.allWidgetData });
-      setJustSaved(true);
     },
-  });
-  const failure = save.error instanceof SaveFailure ? save.error.failure : null;
-  useGuardRecheck(failure !== null && failure.kind === "api" && (failure.status === 401 || failure.status === 403));
+    [queryClient],
+  );
+  const autosave = useAutosave({ screenId: screen.id, design: state.design, dirty, onSaved, onGateLost: () => setGateLost(true) });
+  const failure = autosave.state.kind === "refused" ? autosave.state.failure : null;
 
-  // Leaving by any route (the button, a link, the back button, closing the tab) asks first while changes are unsaved.
-  const blocker = useBlocker({ shouldBlockFn: () => dirtyNow.current, enableBeforeUnload: () => dirtyNow.current, withResolver: true });
+  // Leaving by any route first saves what is not saved; only a save that cannot be made asks (closing the tab warns, best effort).
+  const blocker = useBlocker({ shouldBlockFn: async () => (dirtyNow.current ? !(await autosave.flush()) : false), enableBeforeUnload: () => dirtyNow.current, withResolver: true });
 
   const typeOf = (type: string): WidgetType | undefined => types.data?.find((candidate) => candidate.type === type);
   const selected = state.design.widgets.find((widget) => widget.id === state.selectedId) ?? null;
@@ -119,7 +108,6 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
   }, [focusRegistryOf, state.selectedId]);
 
   function add(type: WidgetType): void {
-    setJustSaved(false);
     setAdding(false);
     const id = newUuid7();
     dispatch({ kind: "add", widget: newWidget(id, type.type, type.configVersion, placeInEveryLayout(state.design.widgets, type.defaultSize)) });
@@ -130,13 +118,12 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
   const focusTile = (id: string): void => document.querySelector<HTMLButtonElement>(`[data-widget-id="${CSS.escape(id)}"] .designer-handle`)?.focus();
 
   function duplicate(widget: WidgetDesignDto): void {
-    setJustSaved(false);
     const title = typeof widget.config["title"] === "string" && widget.config["title"] !== "" ? widget.config["title"] : tw(typeLabelKey(widget.type));
     const copy: WidgetDesignDto = { ...widget, id: newUuid7(), config: { ...widget.config, title: `${title} ${t("bar.copySuffix")}`.slice(0, 80) }, layout: placeCopy(state.design.widgets, widget.layout) };
     dispatch({ kind: "add", widget: copy });
   }
 
-  const status = save.isPending ? t("toolbar.saving") : dirty ? t("toolbar.dirty") : justSaved ? t("toolbar.saved") : t("toolbar.clean");
+  const status = t(statusKey(autosave.state, dirty), { time: autosave.state.kind === "saved" ? new Intl.DateTimeFormat(display.locale, { hour: "2-digit", minute: "2-digit", timeZone: display.timeZone }).format(autosave.state.at) : "" });
   return (
     <>
       <header className="designer-toolbar">
@@ -164,24 +151,21 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
             ))}
           </div>
         )}
-        <button
-          type="button"
-          disabled={!dirty || save.isPending}
-          onClick={() => {
-            setJustSaved(false);
-            save.mutate(state.design);
-          }}
-        >
-          {t("toolbar.save")}
-        </button>
-        <p role="status" className="designer-status" data-dirty={dirty}>
+        <p role="status" className="designer-status" data-dirty={dirty} data-save={autosave.state.kind}>
           {status}
         </p>
         <button type="button" onClick={() => void navigate({ to: "/" })}>
           {t("toolbar.finish")}
         </button>
       </header>
-      {failure === null || failure.kind === "aborted" ? null : <FailureAlert message={describeFailure(failure)} />}
+      {failure === null ? null : (
+        <div className="designer-save-failed">
+          <FailureAlert message={describeFailure(failure)} />
+          <button type="button" onClick={autosave.retryNow}>
+            {t("retry")}
+          </button>
+        </div>
+      )}
       {blocker.status === "blocked" ? (
         <div className="card designer-leave" role="alertdialog" aria-labelledby="designer-leave-heading" aria-describedby="designer-leave-text">
           <h2 id="designer-leave-heading">{t("leave.heading")}</h2>
@@ -205,17 +189,14 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
         onAdd={() => setAdding(true)}
         onBind={(change) => {
           if (selected === null) return;
-          setJustSaved(false);
           dispatch({ kind: "configured", id: selected.id, ...change });
         }}
         onConfigure={(config) => {
           if (selected === null) return;
-          setJustSaved(false);
           dispatch({ kind: "configured", id: selected.id, config, bindings: selected.bindings });
         }}
         onPlace={(rect) => {
           if (selected === null) return;
-          setJustSaved(false);
           dispatch({ kind: "placed", layout, id: selected.id, rect, minimum: typeOf(selected.type)?.minSize ?? { w: 1, h: 1 } });
         }}
         onDuplicate={() => {
@@ -223,7 +204,6 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
         }}
         onDelete={() => {
           if (selected === null) return;
-          setJustSaved(false);
           dispatch({ kind: "remove", id: selected.id });
         }}
         onDeselect={() => {
@@ -245,11 +225,28 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
           onPlace={(id, rect) => {
             const widget = state.design.widgets.find((each) => each.id === id);
             if (widget === undefined) return;
-            setJustSaved(false);
-            dispatch({ kind: "placed", layout, id, rect, minimum: typeOf(widget.type)?.minSize ?? { w: 1, h: 1 } });
+              dispatch({ kind: "placed", layout, id, rect, minimum: typeOf(widget.type)?.minSize ?? { w: 1, h: 1 } });
           }}
         />
       </div>
     </>
   );
+}
+
+/** What the bar says of the saving (makieta 29): a waiting change is being saved, "Saved" only after the server answered. */
+function statusKey(state: SaveState, dirty: boolean): "toolbar.saving" | "toolbar.savedAt" | "toolbar.retrying" | "toolbar.offline" | "toolbar.refused" | "toolbar.clean" {
+  switch (state.kind) {
+    case "offline":
+      return "toolbar.offline";
+    case "retrying":
+      return "toolbar.retrying";
+    case "refused":
+      return "toolbar.refused";
+    case "saving":
+      return "toolbar.saving";
+    case "saved":
+      return dirty ? "toolbar.saving" : "toolbar.savedAt";
+    case "clean":
+      return dirty ? "toolbar.saving" : "toolbar.clean";
+  }
 }

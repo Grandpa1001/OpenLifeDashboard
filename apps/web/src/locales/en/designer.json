@@ -15,13 +15,14 @@
     "phone": "Phone",
     "tablet": "Tablet",
     "desktop": "Desktop",
-    "save": "Save",
     "finish": "Finish",
     "saving": "Saving…",
-    "clean": "No changes to save",
-    "dirty": "Unsaved changes",
-    "saved": "Saved",
-    "phoneOnly": "Layout: Phone"
+    "clean": "No changes",
+    "phoneOnly": "Layout: Phone",
+    "savedAt": "Saved {{time}}",
+    "retrying": "Save failed — trying again",
+    "offline": "No connection — will save when back",
+    "refused": "Save failed"
   },
   "palette": {
     "heading": "Add a widget",
@@ -58,10 +59,10 @@
     "missingColumnHint": "The column is gone. Choose the columns again; saving drops the missing binding."
   },
   "leave": {
-    "heading": "Unsaved changes",
-    "text": "You have unsaved changes to the screen. Leaving discards them.",
+    "heading": "Leave without saving?",
+    "text": "The last changes are not saved on the server yet. If you leave now, they are lost.",
     "stay": "Stay",
-    "discard": "Discard and leave"
+    "discard": "Leave without saving"
   },
   "screens": {
     "title": "Dashboards",

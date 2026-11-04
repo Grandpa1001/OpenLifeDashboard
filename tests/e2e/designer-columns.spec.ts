@@ -9,7 +9,7 @@ import type { Locator, Page } from "@playwright/test";
 import { structurePath, structurePreviewPath, structurePreviewSchema, REGISTRIES_PATH, registryListSchema } from "@openlife/contracts/http/registries";
 import type { BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, openColumns, signInFully } from "./owner-session.ts";
+import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, openColumns, signInFully, designerSaved } from "./owner-session.ts";
 
 const designer = locale("en", "designer");
 test.use({ locale: "en-US", viewport: { width: 1440, height: 900 } });
@@ -20,13 +20,11 @@ type Saved = Array<{ id: string; state: string; config: Record<string, unknown>;
 
 const bar = (page: Page): Locator => page.getByRole("region", { name: text(designer, "bar.label") });
 const toolbarButton = (page: Page, key: string): Locator => page.getByRole("button", { name: text(designer, key), exact: true });
-const status = (page: Page): Locator => page.getByRole("status").filter({ hasText: /changes|Saved|Saving/ });
 const columnsField = (page: Page): Locator => bar(page).getByRole("button", { name: new RegExp(`^${text(designer, "panel.columns")} `) });
 const listed = async (list: Locator): Promise<string[]> => (await list.getByRole("listitem").allInnerTexts()).map((each) => each.replace("⠿", "").trim());
 
 async function saved(page: Page, owner: BrowserOwner): Promise<Saved> {
-  await toolbarButton(page, "toolbar.save").click();
-  await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
+  await designerSaved(page);
   const screens = (await (await page.request.get(`${owner.baseUrl}/api/v1/screens`)).json()) as { screens: Array<{ id: string }> };
   return ((await (await page.request.get(`${owner.baseUrl}/api/v1/screens/${screens.screens[0]!.id}`)).json()) as { widgets: Saved }).widgets;
 }
@@ -102,8 +100,7 @@ test.describe("D34.2-AC2 the last column, a removed one and the keyboard", () =>
     await expect(columnsField(page)).toHaveAttribute("aria-expanded", "false");
     // The widget stays selected: the first Escape is the list's.
     await expect(page.getByRole("button", { name: "Select widget: Moje" })).toHaveAttribute("aria-pressed", "true");
-    await toolbarButton(page, "toolbar.save").click();
-    await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
+    await designerSaved(page);
 
     // Autor back in the table, then removed from Książki through the structure: a broken binding.
     await openColumns(page).then((again) => again.getByRole("checkbox", { name: "Autor", exact: true }).check());

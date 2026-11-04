@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -3723,6 +3723,47 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D34.1", "D34.2", "D34.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.32: the autosave of the Designer in place of the button Save.
+    id: "D35.1",
+    ready: true,
+    title: "The autosave of the Designer: a second after the last change, one save in flight per tab with the newest design next, tries again after a growing wait, the four states of the saving, Finish that saves first",
+    criteria: ["D35.1-AC1", "D35.1-AC2", "D35.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D35.1-AC1", "D35.1-AC2"],
+        description: "pnpm -r build: the rules and the hook of the autosave and the editor without the button Save",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/dashboard/lib/autosave.ts", "apps/web/src/features/dashboard/lib/use-autosave.ts", "apps/web/src/features/dashboard/components/designer-editor.tsx"],
+      },
+      {
+        id: "autosave-rules-web",
+        criteria: ["D35.1-AC1", "D35.1-AC2"],
+        description: "Unit: a second of debounce; waits of 1, 2, 4, 8, 16 and 30 s with at most a fifth of jitter; no network offline, 5xx, 408 and 429 tried again, other 4xx refused, 401 and 403 to the guard; the reducer keeps edits made during a save",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/autosave.test.ts", "tests/unit/web/designer-state.test.ts"],
+        requires: ["tests/unit/web/autosave.test.ts", "tests/unit/web/designer-state.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D35.1-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/designer.json"],
+      },
+      {
+        id: "designer-autosave-e2e",
+        criteria: ["D35.1-AC1", "D35.1-AC2"],
+        description:
+          "Playwright with Książki and one table: a change shows Saving… then Saved and the time with no button, two changes within a second are one PUT with both, a change made while a PUT is held waits for it and goes with the next one and Saved never shows before the answer, Finish right after a change saves and leaves without asking; a 503 says it tries again and the next try saves, a 422 is told once and not tried in a loop; the D18.2 saves: a refusal told with its code and tried again by the owner, a lost connection saved when it is back, leaving without the network asks, closing the page with an unsaved design warns; axe; every test of the Designer that waits for its save",
+        command: ["node", "tests/verification/e2e.ts", "designer-autosave", "designer.spec", "designer-bar", "designer-columns", "designer-grid", "layouts-s12", "vertical.spec", "g1-path", "structure-repair"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/designer-autosave.spec.ts", "tests/e2e/designer.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      ...regressionChecks("D35.1-regression"),
+    ],
   },
   {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of

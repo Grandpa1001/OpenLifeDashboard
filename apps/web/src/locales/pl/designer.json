@@ -15,13 +15,14 @@
     "phone": "Telefon",
     "tablet": "Tablet",
     "desktop": "Desktop",
-    "save": "Zapisz",
     "finish": "Zakończ",
     "saving": "Zapisywanie…",
-    "clean": "Brak zmian do zapisania",
-    "dirty": "Niezapisane zmiany",
-    "saved": "Zapisano",
-    "phoneOnly": "Układ: Telefon"
+    "clean": "Bez zmian",
+    "phoneOnly": "Układ: Telefon",
+    "savedAt": "Zapisano {{time}}",
+    "retrying": "Błąd zapisu — ponawiam",
+    "offline": "Brak połączenia — zapiszę po powrocie",
+    "refused": "Błąd zapisu"
   },
   "palette": {
     "heading": "Dodaj widget",
@@ -58,10 +59,10 @@
     "missingColumnHint": "Kolumny już nie ma. Wybierz kolumny ponownie; zapis usunie brakujące powiązanie."
   },
   "leave": {
-    "heading": "Niezapisane zmiany",
-    "text": "Masz niezapisane zmiany ekranu. Wyjście je odrzuci.",
+    "heading": "Wyjść bez zapisania?",
+    "text": "Ostatnie zmiany nie zostały jeszcze zapisane na serwerze. Jeśli wyjdziesz teraz, przepadną.",
     "stay": "Zostań",
-    "discard": "Odrzuć i wyjdź"
+    "discard": "Wyjdź bez zapisania"
   },
   "screens": {
     "title": "Pulpity",

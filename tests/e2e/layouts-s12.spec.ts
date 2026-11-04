@@ -8,7 +8,7 @@
 import type { CDPSession, Locator, Page } from "@playwright/test";
 import type { BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { BOOKS_DEFINITION, createRegistry, expectNoViolations, openApp, signInFully, addRegisterTable } from "./owner-session.ts";
+import { BOOKS_DEFINITION, createRegistry, expectNoViolations, openApp, signInFully, addRegisterTable, designerSaved } from "./owner-session.ts";
 
 const designer = locale("en", "designer");
 test.use({ locale: "en-US" });
@@ -22,7 +22,6 @@ const TABLET_COLUMN_PX = (768 - 7 * 16) / 8 + 16;
 const ROW_PX = 48;
 
 const toolbarButton = (page: Page, key: string): Locator => page.getByRole("button", { name: text(designer, key), exact: true });
-const status = (page: Page): Locator => page.getByRole("status").filter({ hasText: /changes|Saved|Saving/ });
 const handle = (page: Page): Locator => page.getByRole("button", { name: /^Select widget: / });
 const corner = (page: Page): Locator => page.locator(".designer-widget .react-resizable-handle-se");
 
@@ -34,8 +33,7 @@ async function layoutOnServer(page: Page, owner: BrowserOwner): Promise<Layout> 
 }
 
 async function save(page: Page): Promise<void> {
-  await toolbarButton(page, "toolbar.save").click();
-  await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
+  await designerSaved(page);
 }
 
 const centre = async (locator: Locator): Promise<{ x: number; y: number }> => {

@@ -10,7 +10,7 @@
 import type { CDPSession, Locator, Page } from "@playwright/test";
 import type { BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully, addRegisterTable } from "./owner-session.ts";
+import { BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully, addRegisterTable, designerSaved } from "./owner-session.ts";
 
 const designer = locale("en", "designer");
 const errors = locale("en", "errors");
@@ -31,7 +31,6 @@ const COLUMN_PX = { desktop: (1200 - 11 * 16) / 12 + 16, tablet: (768 - 7 * 16) 
 const ROW_PX = 48;
 
 const toolbarButton = (page: Page, key: string): Locator => page.getByRole("button", { name: text(designer, key), exact: true });
-const status = (page: Page): Locator => page.getByRole("status").filter({ hasText: /changes|Saved|Saving/ });
 const handleOf = (page: Page, title: string): Locator => page.getByRole("button", { name: `Select widget: ${title}` });
 
 async function twoTables(page: Page, owner: BrowserOwner): Promise<void> {
@@ -46,8 +45,7 @@ async function twoTables(page: Page, owner: BrowserOwner): Promise<void> {
 }
 
 async function saved(page: Page, owner: BrowserOwner): Promise<Record<string, Layout>> {
-  await toolbarButton(page, "toolbar.save").click();
-  await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
+  await designerSaved(page);
   const listed = (await (await page.request.get(`${owner.baseUrl}/api/v1/screens`)).json()) as { screens: Array<{ id: string }> };
   const screen = (await (await page.request.get(`${owner.baseUrl}/api/v1/screens/${listed.screens[0]!.id}`)).json()) as { widgets: Array<{ id: string; layout: Layout }> };
   return Object.fromEntries(screen.widgets.map((widget) => [widget.id, widget.layout]));
@@ -120,7 +118,6 @@ test.describe("D33.2-AC1 one rule for the mouse, the touch and the keyboard", ()
     const session = await context.newCDPSession(page);
     await touchDrag(session, await centre(handleOf(page, "Druga")), -Math.round(4 * COLUMN_PX.tablet), 0);
     await expect(handleOf(page, "Druga")).toHaveAttribute("aria-pressed", "true");
-    await expect(status(page)).toHaveText(text(designer, "toolbar.dirty"));
     // The corner of Druga, now at the top left: one column wider by touch, which pushes nothing (Pierwsza is below).
     const corner = page.locator(`[data-widget-id="${B}"] .react-resizable-handle-se`);
     await touchDrag(session, await centre(corner), Math.round(COLUMN_PX.tablet), 0);
@@ -144,7 +141,6 @@ test.describe("D33.2-AC2 the edges, Escape, the phone and a failed load", () => 
     // Druga is 4 wide at column 4 of 12: four steps right reach the edge, the fifth does nothing.
     await second.focus();
     for (let step = 0; step < 6; step += 1) await page.keyboard.press("Alt+ArrowRight");
-    await expect(status(page)).toHaveText(text(designer, "toolbar.dirty"));
     await page.keyboard.press("Escape");
     await expect(second).toHaveAttribute("aria-pressed", "false");
 

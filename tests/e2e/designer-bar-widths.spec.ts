@@ -7,7 +7,7 @@
 //      of 2, Adding, the title) is on the screen as Scope §6.2 describes it; axe.
 import type { Locator, Page } from "@playwright/test";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { addRecordByApi, addRegisterTable, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, openColumns, signInFully } from "./owner-session.ts";
+import { addRecordByApi, addRegisterTable, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, openColumns, signInFully, designerSaved } from "./owner-session.ts";
 
 const designer = locale("en", "designer");
 const widgets = locale("en", "widgets");
@@ -17,7 +17,6 @@ const A = "019a0000-0000-7000-8000-0000000034d1";
 const LAYOUT = { phone: { x: 0, y: 0, w: 1, h: 8 }, tablet: { x: 0, y: 0, w: 8, h: 8 }, desktop: { x: 0, y: 0, w: 12, h: 8 } };
 const bar = (page: Page): Locator => page.getByRole("region", { name: text(designer, "bar.label") });
 const toolbarButton = (page: Page, key: string): Locator => page.getByRole("button", { name: text(designer, key), exact: true });
-const status = (page: Page): Locator => page.getByRole("status").filter({ hasText: /changes|Saved|Saving/ });
 const sideways = async (page: Page) => (await page.evaluate("({ page: document.documentElement.scrollWidth, view: window.innerWidth })")) as { page: number; view: number };
 
 test.describe("D34.3-AC1 the bar at the widths of a phone, a tablet and a laptop", () => {
@@ -89,8 +88,7 @@ test.describe("D34.3-AC2 a register table set up in the bar only", () => {
     await bar(page).getByLabel(text(designer, "bar.pageSizeWithRange").replace("{{min}}", "1").replace("{{max}}", "100"), { exact: true }).fill("2");
     await expect(bar(page).getByRole("switch", { name: text(designer, "bar.allowAdd") })).toBeChecked();
     await expectNoViolations(page);
-    await toolbarButton(page, "toolbar.save").click();
-    await expect(status(page)).toHaveText(text(designer, "toolbar.saved"));
+    await designerSaved(page);
 
     await toolbarButton(page, "toolbar.finish").click();
     const card = page.locator("section.widget");
