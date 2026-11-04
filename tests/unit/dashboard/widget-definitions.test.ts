@@ -7,6 +7,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   checkBindingShape,
+  clockDefinition,
   findWidgetDefinition,
   missingRequiredSlots,
   normalizeWidgetConfig,
@@ -28,10 +29,20 @@ const binding = (slot: string, ordinal: number, kind: SlotBinding["target"]["kin
 });
 
 describe("D17.1-AC2 the catalog of this build", () => {
-  it("knows the register table and no other type", () => {
-    expect(WIDGET_DEFINITIONS.map((definition) => definition.type)).toEqual(["register-table"]);
+  it("knows the register table and the clock and no other type", () => {
+    expect(WIDGET_DEFINITIONS.map((definition) => definition.type)).toEqual(["register-table", "clock"]);
     expect(findWidgetDefinition("register-table")).toBe(registerTableDefinition);
-    for (const other of ["clock", "", "REGISTER-TABLE", "register-table ", "__proto__", "constructor", "../register-table"]) expect(findWidgetDefinition(other), JSON.stringify(other)).toBeNull();
+    expect(findWidgetDefinition("clock")).toBe(clockDefinition);
+    for (const other of ["weather", "", "REGISTER-TABLE", "register-table ", "Clock", "__proto__", "constructor", "../register-table"]) expect(findWidgetDefinition(other), JSON.stringify(other)).toBeNull();
+  });
+
+  // D36.1: the clock binds nothing, adds nothing, and has the sizes of the plan.
+  it("the clock declares no slot and no capability, configuration version 1, a size of 4 × 3 and at least 2 × 2", () => {
+    expect(clockDefinition.slots).toEqual([]);
+    expect(clockDefinition.capabilities).toEqual([]);
+    expect(clockDefinition.configVersion).toBe(1);
+    expect(clockDefinition.defaultSize).toEqual({ w: 4, h: 3 });
+    expect(clockDefinition.minSize).toEqual({ w: 2, h: 2 });
   });
 
   it("the register table declares a registry, columns and an optional sort column, can add records, and has the sizes of the plan", () => {

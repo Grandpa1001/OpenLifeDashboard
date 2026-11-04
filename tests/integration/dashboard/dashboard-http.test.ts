@@ -124,7 +124,7 @@ describe("D17.4-AC1 F01 through the real API", () => {
     expect(screenSchema.parse((await send(again, "GET", screenPath(screen.id), undefined, { cookie })).json())).toEqual(canonical);
   });
 
-  it("the catalog of types has the register table with its slots, capability and sizes", async () => {
+  it("the catalog of types has the register table and the clock with their slots, capabilities and sizes", async () => {
     const setup = await installation();
     const { cookie } = await owned(setup);
     const reply = await send(setup.server, "GET", "/api/v1/widget-types", undefined, { cookie });
@@ -141,6 +141,7 @@ describe("D17.4-AC1 F01 through the real API", () => {
           { name: "sortColumn", cardinality: "one", required: false, accepts: ["column", "systemColumn"] },
         ],
       },
+      { type: "clock", configVersion: 1, capabilities: [], defaultSize: { w: 4, h: 3 }, minSize: { w: 2, h: 2 }, slots: [] },
     ]);
   });
 
@@ -259,7 +260,7 @@ describe("D17.4-AC2 in the test process: what is refused, and what is left behin
 
     const wagaColumn = waga.columns[0]!;
     const attempts: Array<[string, unknown, string[]]> = [
-      ["an unknown type", designOf({ ...tableOf(books), type: "clock" }), ["widgets.0.type:WIDGET_TYPE_UNKNOWN"]],
+      ["an unknown type", designOf({ ...tableOf(books), type: "weather" }), ["widgets.0.type:WIDGET_TYPE_UNKNOWN"]],
       ["a registry of nobody", designOf(tableOf(books, { bindings: [{ slot: "registry", ordinal: 0, path: "Field.Register.ksiazki", target: { kind: "registry", registryId: "019a0000-0000-7000-8000-0000000009ff" } }] })), ["widgets.0.bindings.0.target:TARGET_UNKNOWN"]],
       ["a column of another registry under the target of this one", designOf(tableOf(books, { bindings: [{ slot: "registry", ordinal: 0, path: "Field.Register.ksiazki", target: { kind: "registry", registryId: books.id } }, { slot: "columns", ordinal: 0, path: "Field.Register.ksiazki.kg", target: { kind: "column", registryId: books.id, columnId: wagaColumn.id } }] })), ["widgets.0.bindings.1.target:TARGET_UNKNOWN"]],
       ["two registries in one widget", designOf(tableOf(books, { bindings: [{ slot: "registry", ordinal: 0, path: "Field.Register.ksiazki", target: { kind: "registry", registryId: books.id } }, { slot: "columns", ordinal: 0, path: "Field.Register.waga.kg", target: { kind: "column", registryId: waga.id, columnId: wagaColumn.id } }] })), ["widgets.0.bindings:REGISTRY_MISMATCH"]],

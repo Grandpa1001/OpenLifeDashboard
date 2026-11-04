@@ -6,3 +6,6 @@ export type { BindingShapeIssue, BindingShapeProblem, ConfigOutcome } from "./ca
 export { PAGE_SIZE_RANGE, registerTableConfigSchema } from "./register-table/config.schema.js";
 export type { RegisterTableConfig } from "./register-table/config.schema.js";
 export { registerTableDefinition } from "./register-table/manifest.js";
+export { CLOCK_LABEL_MAX, clockConfigSchema, isKnownTimeZone, OWNER_ZONE } from "./clock/config.schema.js";
+export type { ClockConfig } from "./clock/config.schema.js";
+export { clockDefinition } from "./clock/manifest.js";

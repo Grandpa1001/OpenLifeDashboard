@@ -1,7 +1,8 @@
 {
   "types": {
     "register-table": "Tabela rejestru",
-    "unknown": "Widget"
+    "unknown": "Widget",
+    "clock": "Zegar"
   },
   "crashed": "Ten widget nie mógł zostać wyświetlony.",
   "unsupported": "Ten typ widgetu nie jest obsługiwany w tej wersji.",
@@ -34,6 +35,7 @@
   },
   "typeDescriptions": {
     "register-table": "Tabela rekordów wybranego rejestru, ze stronicowaniem.",
-    "unknown": "Widget tej wersji aplikacji."
+    "unknown": "Widget tej wersji aplikacji.",
+    "clock": "Godzina w wybranej strefie IANA albo w strefie właściciela, format 24/12 h, sekundy, data."
   }
 }

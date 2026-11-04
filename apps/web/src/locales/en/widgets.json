@@ -1,7 +1,8 @@
 {
   "types": {
     "register-table": "Register table",
-    "unknown": "Widget"
+    "unknown": "Widget",
+    "clock": "Clock"
   },
   "crashed": "This widget could not be displayed.",
   "unsupported": "This widget type is not supported in this version.",
@@ -32,6 +33,7 @@
   },
   "typeDescriptions": {
     "register-table": "A table of the records of a chosen registry, in pages.",
-    "unknown": "A widget of this version of the application."
+    "unknown": "A widget of this version of the application.",
+    "clock": "The time in a chosen IANA zone or the zone of the owner, 24 or 12 hours, seconds, date."
   }
 }

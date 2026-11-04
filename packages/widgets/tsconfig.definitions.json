@@ -9,7 +9,8 @@
     "src/definitions.ts",
     "src/definition.ts",
     "src/catalog.ts",
-    "src/register-table/*.ts"
+    "src/register-table/*.ts",
+    "src/clock/*.ts"
   ],
   "references": [
     {

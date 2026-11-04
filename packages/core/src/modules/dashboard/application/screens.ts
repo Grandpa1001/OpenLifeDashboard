@@ -175,7 +175,8 @@ export function readWidgetData(deps: DashboardDependencies, token: string, widge
     if (found === null) return notFoundResult();
     const { widget, screenId } = found;
     const state = stateOfStoredWidget(widget, contextOf(deps, ports, ownerId, screenId));
-    if (state !== "ok" || widget.type !== REGISTER_TABLE) return { ok: true, value: emptyData(widget, state === "ok" ? "needs_refresh" : state, page) };
+    // Only the register table reads records; a type that reads nothing (the clock, D36.1) has no data in its own state.
+    if (state !== "ok" || widget.type !== REGISTER_TABLE) return { ok: true, value: emptyData(widget, state, page) };
 
     const registryBinding = widget.bindings.find((binding) => binding.slot === "registry");
     const target = registryBinding?.target;

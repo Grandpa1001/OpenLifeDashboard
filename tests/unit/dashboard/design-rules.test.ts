@@ -97,14 +97,11 @@ describe("D17.2-AC1 the screen of F01 and the states of its widgets", () => {
     expect(result.value).toMatchObject({ name: "Ekran", theme: "dark", accent: "blue" });
   });
 
-  it("what the transport schema accepts is what the rules take: the screen of F01 goes through both (the clocks wait for D36)", () => {
+  it("what the transport schema accepts is what the rules take: the screen of F01 goes through both, its two clocks too (D36.1)", () => {
     const snapshot = designSnapshotSchema.parse({ name: "Test MVP", theme: "dark", accent: "blue", widgets: [F01_TABLE] });
     expect(validateDesign(snapshot as unknown as DesignInput, contextOf().context).ok).toBe(true);
-    const withClock = designSnapshotSchema.parse({ name: "Test MVP", theme: "dark", accent: "blue", widgets: fixture.screens[0]!.widgets });
-    expect(refusal(withClock as unknown as DesignInput)).toEqual([
-      { path: "widgets.1.type", code: "WIDGET_TYPE_UNKNOWN" },
-      { path: "widgets.2.type", code: "WIDGET_TYPE_UNKNOWN" },
-    ]);
+    const withClocks = designSnapshotSchema.parse({ name: "Test MVP", theme: "dark", accent: "blue", widgets: fixture.screens[0]!.widgets });
+    expect(validateDesign(withClocks as unknown as DesignInput, contextOf().context).ok).toBe(true);
   });
 
   it("a widget with no bindings, or without its columns, is a draft; without a sort column it is still ok", () => {
@@ -208,7 +205,7 @@ describe("D17.2-AC2 what is refused, with the path and the code", () => {
   });
 
   it("a type this build lacks, a configuration that is wrong, and the sizes of the configuration and the bindings", () => {
-    expect(only({ ...table(), type: "clock" })).toEqual([{ path: "widgets.0.type", code: "WIDGET_TYPE_UNKNOWN" }]);
+    expect(only({ ...table(), type: "weather" })).toEqual([{ path: "widgets.0.type", code: "WIDGET_TYPE_UNKNOWN" }]);
     for (const type of ["", "__proto__", "REGISTER-TABLE", "register-table "]) expect(only({ ...table(), type }), JSON.stringify(type)).toEqual([{ path: "widgets.0.type", code: "WIDGET_TYPE_UNKNOWN" }]);
     for (const config of [{ v: 1, pageSize: 0 }, { v: 1, pageSize: 101 }, { v: 1, sortDirection: "up" }, { v: 1, columns: ["tytul"] }, { v: 1, allowAdd: "yes" }]) {
       expect(only(table({ config })), JSON.stringify(config)).toEqual([{ path: "widgets.0.config", code: "CONFIG_INVALID" }]);

@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -3855,6 +3855,62 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D35.1", "D35.2", "D35.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.33: the clock widget, its time and its ticker, on the screen.
+    id: "D36.1",
+    ready: true,
+    title: "The clock widget: its manifest and configuration in the catalog, its time in its zone or the owner's by Intl, a ticker at the boundary of a second or a minute that resumes with the tab and leaves nothing, and the clocks of F01 on the screen",
+    criteria: ["D36.1-AC1", "D36.1-AC2", "D36.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and SPA and import the built definitions.
+        id: "workspace-build",
+        criteria: ["D36.1-AC1", "D36.1-AC2"],
+        description: "pnpm -r build: the manifest, schema and view of the clock, its time and ticker in the web app, the screen, and the data of a widget that reads nothing",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "packages/widgets/src/clock/manifest.ts",
+          "packages/widgets/src/clock/config.schema.ts",
+          "packages/widgets/src/clock/View.tsx",
+          "apps/web/src/features/dashboard/lib/clock.ts",
+          "apps/web/src/features/dashboard/lib/browser-ticker-host.ts",
+          "apps/web/src/features/dashboard/components/clock-widget.tsx",
+          "packages/core/src/modules/dashboard/application/screens.ts",
+        ],
+      },
+      {
+        id: "clock-rules",
+        criteria: ["D36.1-AC1", "D36.1-AC2"],
+        description: "Unit: the two moments of F02 in Warsaw and New York, 12 hours with AM/PM, the date in the owner's language, the owner's zone followed; the configuration of F01 with its defaults, an unknown zone and a caption over 40 refused; the ticker at the next second and minute, at once on resume, no timer and no listener after it stops; the catalog has the register table and the clock; the rules take the screen of F01 with its clocks",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/clock.test.ts", "tests/unit/dashboard/widget-definitions.test.ts", "tests/unit/dashboard/design-rules.test.ts"],
+        requires: ["tests/unit/web/clock.test.ts", "tests/unit/dashboard/widget-definitions.test.ts", "tests/unit/dashboard/design-rules.test.ts"],
+      },
+      {
+        id: "clock-http",
+        criteria: ["D36.1-AC1", "D36.1-AC2"],
+        description: "Over real HTTP: the screen of F01 with its table and two clocks saved and read back, the clocks ok without bindings and with empty data in their own state; an unknown zone, a caption over 40 and an unknown format are 422 at the configuration with the screen as it was; the catalog of types and the refusals of D17.4 with the clock",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/dashboard/clock-http.test.ts", "tests/integration/dashboard/dashboard-http.test.ts"],
+        requires: ["tests/integration/dashboard/clock-http.test.ts", "tests/integration/dashboard/dashboard-http.test.ts", "tests/support/books-http.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D36.1-AC1"],
+        description: "pl and en have the same keys, plural forms and variables in all namespaces",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/widgets.json"],
+      },
+      {
+        id: "clock-e2e",
+        criteria: ["D36.1-AC1", "D36.1-AC2"],
+        description:
+          "Playwright with the clock of the page at the first moment of F02: Dom shows 01:30 in the owner's Europe/Warsaw and Nowy Jork 20:30 with seconds in its zone, each with its date, caption and datetime; a minute later 01:31 and 20:31; axe; the screen and the bar of the Designer as before",
+        command: ["node", "tests/verification/e2e.ts", "clock.spec", "dashboard.spec", "designer-bar"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/clock.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D36.1-regression"),
+    ],
   },
   {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of

@@ -2,9 +2,10 @@
 // is a new folder and a release, and nothing is loaded at run time. The server's catalog port and
 // the rules of a screen are built on these functions.
 import type { SlotBinding, SlotKind, WidgetDefinition } from "./definition.js";
+import { clockDefinition } from "./clock/manifest.js";
 import { registerTableDefinition } from "./register-table/manifest.js";
 
-export const WIDGET_DEFINITIONS: readonly WidgetDefinition<never>[] = [registerTableDefinition as WidgetDefinition<never>];
+export const WIDGET_DEFINITIONS: readonly WidgetDefinition<never>[] = [registerTableDefinition as WidgetDefinition<never>, clockDefinition as WidgetDefinition<never>];
 
 export function findWidgetDefinition(type: string): WidgetDefinition<never> | null {
   return WIDGET_DEFINITIONS.find((definition) => definition.type === type) ?? null;

@@ -26,6 +26,8 @@ import { DesignCanvas } from "./design-canvas.js";
 import { UndoBar } from "./undo-bar.js";
 
 type WidgetType = WidgetTypesDto["types"][number];
+/** The types the context bar can set up; the clock joins with its bar (D36.2). */
+const CONFIGURABLE_TYPES: readonly string[] = ["register-table"];
 /** The grid of the layout being arranged, which takes the focus when the bar of a deletion is closed. */
 const FRAME_SELECTOR = ".designer-frame";
 /** How long the word that the layout came from another device stays (it takes no focus). */
@@ -357,7 +359,7 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
           }}
         />
       )}
-      {adding ? <AddWidgetDialog types={types.data ?? []} loading={types.isPending} failed={types.isError} onRetry={() => void types.refetch()} onPick={add} onClose={() => setAdding(false)} /> : null}
+      {adding ? <AddWidgetDialog types={(types.data ?? []).filter((type) => CONFIGURABLE_TYPES.includes(type.type))} loading={types.isPending} failed={types.isError} onRetry={() => void types.refetch()} onPick={add} onClose={() => setAdding(false)} /> : null}
       <div className="designer-body">
         <DesignCanvas
           layout={layout}

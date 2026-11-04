@@ -785,6 +785,25 @@ main.pulpit {
   padding: var(--space-4);
 }
 
+/* The clock (D36.1): large digits, the date and the zone under them. */
+.clock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.clock-time {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.clock-date,
+.clock-zone {
+  font-size: var(--text-sm);
+}
+
 .widget h2 {
   margin: 0;
 }

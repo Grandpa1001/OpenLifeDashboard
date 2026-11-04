@@ -11,14 +11,17 @@ import { queryKeys } from "../../../lib/query-keys/index.js";
 import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
 import { leavesTheGate, readFirstScreen, ScreenFailure } from "../api/first-screen.js";
 import { typeLabelKey } from "../lib/type-label.js";
+import { ClockWidget } from "../components/clock-widget.js";
 import { RegisterTableWidget, type AddRecordRenderer } from "../components/register-table-widget.js";
 
 function WidgetCell({ widget, layout, renderAddRecord }: Readonly<{ widget: WidgetViewDto; layout: ReturnType<typeof useBreakpoint>; renderAddRecord: AddRecordRenderer }>) {
   const { t } = useTranslation("widgets");
   const title = typeof widget.config["title"] === "string" ? widget.config["title"] : "";
   const headingId = `widget-${widget.id}`;
+  // A clock has a caption instead of a title; its view shows it, so it names the region without a heading.
+  const caption = typeof widget.config["label"] === "string" && widget.config["label"] !== "" ? `${t(typeLabelKey(widget.type))}: ${widget.config["label"]}` : t(typeLabelKey(widget.type));
   return (
-    <section className="card widget" style={placementStyle(widget.layout[layout])} aria-labelledby={title === "" ? undefined : headingId} aria-label={title === "" ? t(typeLabelKey(widget.type)) : undefined}>
+    <section className="card widget" style={placementStyle(widget.layout[layout])} aria-labelledby={title === "" ? undefined : headingId} aria-label={title === "" ? caption : undefined}>
       {title === "" ? null : <h2 id={headingId}>{title}</h2>}
       <WidgetBoundary
         fallback={(reset) => (
@@ -32,6 +35,8 @@ function WidgetCell({ widget, layout, renderAddRecord }: Readonly<{ widget: Widg
       >
         {widget.type === "register-table" ? (
           <RegisterTableWidget widget={widget} renderAddRecord={renderAddRecord} />
+        ) : widget.type === "clock" ? (
+          <ClockWidget widget={widget} />
         ) : (
           <p role="status">{t("unsupported")}</p>
         )}
