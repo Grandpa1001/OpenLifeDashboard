@@ -1,7 +1,8 @@
 // D35.3 — two tabs of one owner on one screen, and a save whose answer was lost, in a real browser
 // (Scope §5.4 "Konflikt dwóch kart"; Architektura §18.5, LWW; makieta 29) on Książki of F01.
 // AC1: tab B, clean, takes the layout tab A saved when it comes back, with a passing word; with changes
-//      of its own it asks: Load the newer layout gives A's layout, Keep mine saves B's over it.
+//      of its own it asks: Load the newer layout gives A's layout, Keep mine saves B's over it; coming back
+//      during a try of its own, it asks once the try has ended.
 // AC2: a save that the server made but whose answer was lost is tried again without a second effect
 //      and without a lasting error, and is not taken for a change from another device; axe.
 import type { BrowserContext, Locator, Page } from "@playwright/test";
@@ -14,6 +15,7 @@ test.use({ locale: "en-US", viewport: { width: 1440, height: 900 } });
 
 const A = "019a0000-0000-7000-8000-0000000035f1";
 const DESIGN = /\/api\/v1\/screens\/[^/]+\/design$/;
+const SCREEN = /\/api\/v1\/screens\/[^/]+$/;
 const LAYOUT = { phone: { x: 0, y: 0, w: 1, h: 8 }, tablet: { x: 0, y: 0, w: 8, h: 8 }, desktop: { x: 0, y: 0, w: 4, h: 6 } };
 
 const bar = (page: Page): Locator => page.getByRole("region", { name: text(designer, "bar.label") });
@@ -99,8 +101,46 @@ test.describe("D35.3-AC1 a layout saved in another tab", () => {
     await elsewhere(other).getByRole("button", { name: text(designer, "elsewhere.keep") }).click();
     await expect(elsewhere(other)).toHaveCount(0);
     await other.unroute(DESIGN);
+    // The connection is back and the browser says so: the waiting change goes at once, not after the growing wait of its tries.
+    await other.evaluate("window.dispatchEvent(new Event('online'))");
     await designerSaved(other);
     expect((await onTheServer(page, owner))[0]!.config["title"]).toBe("Znowu B");
+  });
+  test("a tab that comes back while its own try is in flight asks once the try has ended", async ({ page, context, ownerServer }) => {
+    const owner = await ownerServer("ready");
+    const other = await twoTabs(context, page, owner);
+    // B's tries fail; each one waits at this gate first, so the test decides when it ends.
+    let gate: Promise<void> = Promise.resolve();
+    await other.route(DESIGN, async (route) => {
+      await gate;
+      await route.abort("connectionfailed");
+    });
+    await other.bringToFront();
+    await retitle(other, "Moje", "Z karty B");
+    await expect(other.locator(".designer-status")).toHaveAttribute("data-save", "offline");
+    await page.bringToFront();
+    await retitle(page, "Moje", "Z karty A");
+    await designerSaved(page);
+
+    // B comes back: it tries its change again at once, and its read of the screen answers during that try (run 41833935928).
+    let endTry: () => void = () => undefined;
+    gate = new Promise<void>((resolve) => (endTry = resolve));
+    let answerReads: () => void = () => undefined;
+    const readsHeld = new Promise<void>((resolve) => (answerReads = resolve));
+    await other.route(SCREEN, async (route) => {
+      if (route.request().method() === "GET") await readsHeld;
+      await route.continue();
+    });
+    const answered = other.waitForResponse((response) => SCREEN.test(response.url()) && response.request().method() === "GET");
+    await backTo(other);
+    await expect(other.locator(".designer-status")).toHaveAttribute("data-save", "saving");
+    answerReads();
+    await answered;
+    await expect(elsewhere(other)).toHaveCount(0);
+    // The try ends without the network: now B asks what the read found.
+    endTry();
+    await expect(elsewhere(other)).toBeVisible();
+    await expect(other.locator(".designer-status")).toHaveAttribute("data-dirty", "true");
   });
 });
 

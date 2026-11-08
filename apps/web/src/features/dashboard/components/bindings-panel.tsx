@@ -72,9 +72,10 @@ export function BindingsPanel({
   widget,
   registries,
   registriesFailed,
+  registriesLoading,
   registryRef,
   onChange,
-}: Readonly<{ widget: WidgetDesignDto; registries: readonly RegistryDto[]; registriesFailed: boolean; registryRef?: Ref<HTMLSelectElement> | undefined; onChange: (change: Reconfigured) => void }>) {
+}: Readonly<{ widget: WidgetDesignDto; registries: readonly RegistryDto[]; registriesFailed: boolean; registriesLoading: boolean; registryRef?: Ref<HTMLSelectElement> | undefined; onChange: (change: Reconfigured) => void }>) {
   const { t } = useTranslation("designer");
   const { t: tw } = useTranslation("widgets");
   // Another registry (or none) waiting for the owner to agree that the choice of columns is cleared.
@@ -85,7 +86,11 @@ export function BindingsPanel({
   const direction = isDirection(String(widget.config["sortDirection"])) ? String(widget.config["sortDirection"]) : "desc";
   const offer: readonly Pickable[] = registry === null ? [] : pickableColumns(registry);
   // What the bindings name and the registries no longer have (Scope §5.4, S8, S10): a deleted registry, a removed column.
-  const missing = missingPaths(widget.bindings, registry, choice.registryId);
+  // Until the list arrives nothing is known of the registries: an empty list is neither "none yet" nor a deleted one,
+  // and the bar keeps the height it has with them (a drag started meanwhile is not moved under the pointer). The
+  // field stays enabled, so the focus of a new widget lands on it; with only the loading option it changes nothing.
+  const known = !registriesFailed && !registriesLoading;
+  const missing = known ? missingPaths(widget.bindings, registry, choice.registryId) : [];
   const nameOf = (pick: Pickable): string => pick.label ?? tw(`registerTable.system.${pick.system ?? "id"}`);
 
   const rebind = (nextRegistry: RegistryDto | null, columnKeys: readonly string[], sortKey: string | null, nextDirection: string = direction): void =>
@@ -99,8 +104,8 @@ export function BindingsPanel({
     <section className="bar-group" aria-label={t("panel.heading")}>
       <h2 className="bar-group-title">{t("panel.heading")}</h2>
       {registriesFailed ? <p role="alert">{t("panel.registriesFailed")}</p> : null}
-      {!registriesFailed && registries.length === 0 ? <p>{t("panel.noRegistries")}</p> : null}
-      {registriesFailed || missing.length === 0 ? null : (
+      {known && registries.length === 0 ? <p>{t("panel.noRegistries")}</p> : null}
+      {missing.length === 0 ? null : (
         <div className="bindings-missing" role="alert">
           <ul aria-label={t("panel.missing")}>
             {missing.map((path) => (
@@ -124,7 +129,7 @@ export function BindingsPanel({
           else choose(next);
         }}
       >
-        <option value={NONE}>{t("panel.noRegistry")}</option>
+        <option value={NONE}>{t(registriesLoading ? "panel.registriesLoading" : "panel.noRegistry")}</option>
         {registries.map((candidate) => (
           <option key={candidate.id} value={candidate.id}>
             {candidate.displayName} ({candidate.symbol})

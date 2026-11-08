@@ -8,7 +8,8 @@
 //      and shown; Duplicate makes a copy with a new id, the same bindings and "(copy)", Delete removes.
 // AC2: a page size of 0 and 101 is told at the field and changes nothing; another registry after a
 //      choice of columns asks, and Cancel keeps it; Escape lets go and gives the focus to the tile; the
-//      order of Tab follows the groups; a selection does not move the grid; axe.
+//      order of Tab follows the groups; a selection does not move the grid; while the registries load
+//      the bar says so, names no binding missing and keeps its height; axe.
 import type { Locator, Page } from "@playwright/test";
 import type { BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
@@ -208,6 +209,43 @@ test.describe("D34.1-AC2 what the bar refuses, asks and how it is used by the ke
     await expect(tile).toBeFocused();
     await expect(tile).toHaveAttribute("aria-pressed", "false");
     await expect(bar(page)).toContainText(text(designer, "bar.none"));
+    expect((await frame.boundingBox())!.y).toBe(unselected);
+    await expectNoViolations(page);
+  });
+});
+
+test.describe("D34.1-AC2 the bar while the registries load", () => {
+  // The narrowest laptop of the two rows of the bar: a taller bar while loading moved the grid under a drag (run 42465241253).
+  test.use({ viewport: { width: 1280, height: 720 } });
+
+  test("the bar says it is loading, names no binding missing and keeps its height, so the grid stays under the pointer", async ({ page, ownerServer }) => {
+    const owner = await ownerServer("ready");
+    await signInFully(page, owner);
+    await createRegistry(page, owner, BOOKS_DEFINITION);
+    await createScreenWith(page, owner, [{ id: A, title: "Moje", layout: LAYOUT }]);
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route(/\/api\/v1\/registries$/, async (route) => {
+      await held;
+      await route.continue();
+    });
+    await page.goto(`${owner.baseUrl}/designer`);
+    const frame = page.locator(".designer-frame");
+    const tile = page.getByRole("button", { name: "Select widget: Moje" });
+    await expect(tile).toBeVisible();
+    const unselected = (await frame.boundingBox())!.y;
+    await tile.click();
+
+    const registry = field(page, "panel.registry");
+    await expect(registry.locator("option")).toHaveCount(1);
+    await expect(registry.locator("option:checked")).toHaveText(text(designer, "panel.registriesLoading"));
+    await expect(bar(page).getByRole("alert")).toHaveCount(0);
+    await expect(bar(page)).not.toContainText(text(designer, "panel.noRegistries"));
+    await expect(bar(page).getByRole("button", { name: text(designer, "bar.removeBinding") })).toHaveCount(0);
+    expect((await frame.boundingBox())!.y).toBe(unselected);
+
+    release();
+    await expect(registry.locator("option:checked")).toHaveText("Książki (ksiazki)");
     expect((await frame.boundingBox())!.y).toBe(unselected);
     await expectNoViolations(page);
   });

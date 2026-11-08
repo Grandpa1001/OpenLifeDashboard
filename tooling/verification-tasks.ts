@@ -2124,7 +2124,7 @@ const definedLater: readonly TaskDefinition[] = [
         criteria: ["D18.2-AC1", "D18.2-AC2"],
         description:
           "Playwright on a fresh installation: the first screen created in the Designer, a register table added, bound to a registry and two columns and saved, shown by the screen; a second widget in the first free place of each layout; a real mouse drag and a resize that change the desktop layout only and survive a reload; a refused save (422) that shows the error and keeps every change; a lost connection that keeps them and a repeated save that works; leaving with unsaved changes that asks (stay keeps, leave drops, nothing was saved) and the browser's own confirmation on a closing page; the widget types that cannot be read with 'try again'; axe",
-        command: ["node", "tests/verification/e2e.ts", "designer"],
+        command: ["node", "tests/verification/e2e.ts", "designer.spec"],
         requires: ["tests/verification/e2e.ts", "tests/e2e/designer.spec.ts", "tests/e2e/owner-session.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
         timeoutMs: 15 * 60 * 1000,
       },
@@ -2160,7 +2160,7 @@ const definedLater: readonly TaskDefinition[] = [
         criteria: ["D18.3-AC2"],
         description:
           "The behaviour the grid proof records, run in a real browser: a widget dropped on another takes its place and the other is pushed below it with no overlap saved, a drag and a resize change one layout only, and each layout keeps its own place",
-        command: ["node", "tests/verification/e2e.ts", "designer"],
+        command: ["node", "tests/verification/e2e.ts", "designer.spec"],
         requires: ["tests/verification/e2e.ts", "tests/e2e/designer.spec.ts", "tests/e2e/owner-session.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
         timeoutMs: 15 * 60 * 1000,
       },
@@ -2776,7 +2776,7 @@ const definedLater: readonly TaskDefinition[] = [
         criteria: ["D25.3-AC1", "D25.3-AC2"],
         description:
           "Playwright on a fresh installation without SQL: the entry of F01 added from /registers, shown as Field.Config.norma_czytania with its value and 0 bindings, stored as text, changed with the symbol fixed and deleted, every change in the audit of the database with both values; a page that says no widget of this version reads the entries; a bad, taken symbol and an overlong value told at the field with no request; a save from a second tab is a conflict that keeps what was typed until the owner saves it or loads the stored version; the delete warns of the bindings; the Designer offers the register table nothing of ConfigTable; on a phone no sideways scroll; keyboard; axe; the registers, dictionaries and kreator as before",
-        command: ["node", "tests/verification/e2e.ts", "config.spec", "registers", "dictionaries", "new-registry", "designer"],
+        command: ["node", "tests/verification/e2e.ts", "config.spec", "registers", "dictionaries", "new-registry", "designer.spec"],
         requires: ["tests/verification/e2e.ts", "tests/e2e/config.spec.ts", "tests/e2e/registers.spec.ts", "tests/e2e/dictionaries.spec.ts", "tests/e2e/new-registry.spec.ts", "tests/e2e/designer.spec.ts", "tests/e2e/owner-session.ts"],
         timeoutMs: 15 * 60 * 1000,
       },
@@ -3341,7 +3341,7 @@ const definedLater: readonly TaskDefinition[] = [
         criteria: ["D31.3-AC1", "D31.3-AC2"],
         description:
           "Playwright on a fresh installation: a dictionary made from the row of a new choice column is chosen at once, saved with the column and listed in /dictionaries, one made for Status is a change of its options; Escape, a bad and a taken symbol at the field keep the row; after S8 the panel shows missing Field.Register.ksiazki.autor, the columns chosen again save and the widget on /main is ok; after S10 the panel shows the missing registry and another one chosen brings the widget back; axe; the Designer, the screen and the dictionaries as before",
-        command: ["node", "tests/verification/e2e.ts", "structure-repair", "designer", "dashboard.spec", "dictionaries"],
+        command: ["node", "tests/verification/e2e.ts", "structure-repair", "designer.spec", "dashboard.spec", "dictionaries"],
         requires: ["tests/verification/e2e.ts", "tests/e2e/structure-repair.spec.ts", "tests/e2e/designer.spec.ts", "tests/e2e/dashboard.spec.ts", "tests/e2e/dictionaries.spec.ts", "tests/e2e/owner-session.ts"],
         timeoutMs: 15 * 60 * 1000,
       },

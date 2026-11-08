@@ -50,6 +50,7 @@
     "noRegistry": "Choose a registry",
     "noRegistries": "There are no registries yet. Create a registry to bind a widget to it.",
     "registriesFailed": "The registries could not be loaded.",
+    "registriesLoading": "Loading the registries…",
     "columns": "Columns",
     "sort": "Sort by",
     "sortDefault": "Creation time (default)",

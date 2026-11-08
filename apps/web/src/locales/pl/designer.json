@@ -50,6 +50,7 @@
     "noRegistry": "Wybierz rejestr",
     "noRegistries": "Nie ma jeszcze rejestrów. Utwórz rejestr, aby powiązać z nim widget.",
     "registriesFailed": "Nie udało się wczytać rejestrów.",
+    "registriesLoading": "Wczytywanie rejestrów…",
     "columns": "Kolumny",
     "sort": "Sortuj według",
     "sortDefault": "Data utworzenia (domyślnie)",

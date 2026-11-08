@@ -102,15 +102,27 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
   stateNow.current = state;
   const saving = useRef(false);
   saving.current = autosave.state.kind === "saving";
+  // A check that met a save of this tab in flight is put off until the save ends: a tab coming back
+  // also tries its waiting changes again at once, and skipping the check then would never ask.
+  const checkAfterSave = useRef(false);
+  const checkNow = useRef<() => void>(() => undefined);
   useEffect(() => {
     let inFlight: AbortController | null = null;
     const check = async (): Promise<void> => {
-      if (document.visibilityState !== "visible" || saving.current) return;
+      if (document.visibilityState !== "visible") return;
+      if (saving.current) {
+        checkAfterSave.current = true;
+        return;
+      }
       inFlight?.abort();
       const controller = new AbortController();
       inFlight = controller;
       const read = await fetchScreen(screen.id, controller.signal);
-      if (!read.ok || controller.signal.aborted || saving.current) return;
+      if (!read.ok || controller.signal.aborted) return;
+      if (saving.current) {
+        checkAfterSave.current = true;
+        return;
+      }
       const at = Date.parse(read.value.updatedAt);
       if (!(at > knownAt.current)) return;
       const there = toSnapshot(read.value);
@@ -127,6 +139,7 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
       } else setElsewhere({ design: there, at: read.value.updatedAt });
     };
     const onFocus = (): void => void check();
+    checkNow.current = onFocus;
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
     return () => {
@@ -135,6 +148,12 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
       document.removeEventListener("visibilitychange", onFocus);
     };
   }, [screen.id, queryClient]);
+  const saveKind = autosave.state.kind;
+  useEffect(() => {
+    if (saveKind === "saving" || !checkAfterSave.current) return;
+    checkAfterSave.current = false;
+    checkNow.current();
+  }, [saveKind]);
   useEffect(() => {
     if (!refreshed) return;
     const timer = setTimeout(() => setRefreshed(false), REFRESHED_NOTICE_MS);
@@ -331,6 +350,7 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
         minimum={selected === null ? { w: 1, h: 1 } : (typeOf(selected.type)?.minSize ?? { w: 1, h: 1 })}
         registries={registries}
         registriesFailed={registryList.isError}
+        registriesLoading={registryList.isPending}
         registryRef={registryField}
         onAdd={() => setAdding(true)}
         onBind={(change) => {

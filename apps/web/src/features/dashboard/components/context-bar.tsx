@@ -126,6 +126,7 @@ export function ContextBar({
   minimum,
   registries,
   registriesFailed,
+  registriesLoading,
   registryRef,
   onAdd,
   onBind,
@@ -144,6 +145,7 @@ export function ContextBar({
   minimum: Size;
   registries: readonly RegistryDto[];
   registriesFailed: boolean;
+  registriesLoading: boolean;
   registryRef?: Ref<HTMLSelectElement> | undefined;
   onAdd: () => void;
   onBind: (change: Reconfigured) => void;
@@ -194,7 +196,7 @@ export function ContextBar({
       {clock ? (
         <ClockTimeGroup key={`time-${widget.id}-${restored}`} widget={widget} onConfigure={onConfigure} />
       ) : (
-        <BindingsPanel widget={widget} registries={registries} registriesFailed={registriesFailed} registryRef={registryRef} onChange={onBind} />
+        <BindingsPanel widget={widget} registries={registries} registriesFailed={registriesFailed} registriesLoading={registriesLoading} registryRef={registryRef} onChange={onBind} />
       )}
       {unbound ? <p className="field-hint bar-unbound">{t("bar.startWithRegistry")}</p> : null}
       <SizeGroup key={`${widget.id}-${layout}`} rect={widget.layout[layout]} columns={GRID_COLUMNS[layout]} minimum={minimum} disabled={unbound} onPlace={onPlace} />
