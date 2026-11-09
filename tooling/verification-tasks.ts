@@ -4182,6 +4182,50 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.35: the Designer on the live stream (S11 on two tabs).
+    id: "D38.3",
+    ready: true,
+    title: "The Designer on the live stream: the layout of another tab at once, the news held during a drag, a lost event found by the reconnect, no loop on the own save",
+    criteria: ["D38.3-AC1", "D38.3-AC2", "D38.3-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D38.3-AC1", "D38.3-AC2"],
+        description: "pnpm -r build: the Designer that reads its screen through the query the stream keeps current, and the canvas that tells when a drag begins and ends",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/dashboard/components/designer-editor.tsx", "apps/web/src/features/dashboard/components/design-canvas.tsx"],
+      },
+      {
+        id: "designer-live-e2e",
+        criteria: ["D38.3-AC1", "D38.3-AC2"],
+        description:
+          "Playwright on the built app, two tabs: a layout saved in A is in B within a second with the passing word and no return of the tab; the news that comes while B holds a widget in a drag waits for the drop, B then asks about it and its own change still saves; the news lost with the stream (server restarted, B cut off) is found by the reconnect; the save of a tab brings a few reads that settle, not a loop",
+        command: ["node", "tests/verification/e2e.ts", "designer-live.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/designer-live.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      {
+        id: "designer-tabs-e2e",
+        criteria: ["D38.3-AC1"],
+        description: "Playwright: the two tabs of D35.3 as before, now on the news of the stream (a clean tab takes the layout, one with changes asks, news during a try of its own is asked about after it, a lost answer is not a change of another device)",
+        command: ["node", "tests/verification/e2e.ts", "designer-tabs.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/designer-tabs.spec.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D38.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the events from the routes, the tab, and the Designer.
+  {
+    id: "D38",
+    ready: true,
+    title: "Live events in the application: committed changes announced, the tab reads what they concern, the Designer follows another tab",
+    steps: ["D38.1", "D38.2", "D38.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
     // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
     id: "G2",

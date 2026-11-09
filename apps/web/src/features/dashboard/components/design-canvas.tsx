@@ -35,6 +35,7 @@ export function DesignCanvas({
   selectedId,
   minimumOf,
   onSelect,
+  onArranging,
   onPlace,
 }: Readonly<{
   layout: LayoutName;
@@ -45,6 +46,8 @@ export function DesignCanvas({
   selectedId: string | null;
   minimumOf: (type: string) => Size;
   onSelect: (id: string | null) => void;
+  /** A drag or a resize begins (`true`) or ends, by a drop or by Escape (`false`). */
+  onArranging: (arranging: boolean) => void;
   onPlace: (id: string, rect: LayoutRectDto) => void;
 }>) {
   const { t } = useTranslation("designer");
@@ -52,12 +55,16 @@ export function DesignCanvas({
   const label = t(`toolbar.${layout}`);
   // A drag or a resize in progress; Escape draws the grid anew, which drops it, and its end is not a place.
   const moving = useRef(false);
+  const arrange = (arranging: boolean): void => {
+    moving.current = arranging;
+    onArranging(arranging);
+  };
   const [generation, setGeneration] = useState(0);
 
   useEffect(() => {
     const onKey = (event: globalThis.KeyboardEvent): void => {
       if (event.key !== "Escape" || !moving.current) return;
-      moving.current = false;
+      arrange(false);
       setGeneration((each) => each + 1);
     };
     document.addEventListener("keydown", onKey, true);
@@ -76,9 +83,9 @@ export function DesignCanvas({
   }
 
   function landed(item: LayoutItem | null): void {
-    if (!moving.current || item === null) return;
-    moving.current = false;
-    onPlace(item.i, rectOf(item));
+    if (!moving.current) return;
+    arrange(false);
+    if (item !== null) onPlace(item.i, rectOf(item));
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, widget: WidgetDesignDto): void {
@@ -110,12 +117,10 @@ export function DesignCanvas({
           resizeConfig={{ handles: RESIZE_HANDLES }}
           compactor={noCompactor}
           onDragStart={(_layout, _old, item) => {
-            moving.current = true;
+            arrange(true);
             if (item !== null && item.i !== selectedId) onSelect(item.i);
           }}
-          onResizeStart={() => {
-            moving.current = true;
-          }}
+          onResizeStart={() => arrange(true)}
           onDragStop={(_layout, _old, item) => landed(item)}
           onResizeStop={(_layout, _old, item) => landed(item)}
         >

@@ -1,8 +1,8 @@
 // D35.3 — two tabs of one owner on one screen, and a save whose answer was lost, in a real browser
 // (Scope §5.4 "Konflikt dwóch kart"; Architektura §18.5, LWW; makieta 29) on Książki of F01.
-// AC1: tab B, clean, takes the layout tab A saved when it comes back, with a passing word; with changes
-//      of its own it asks: Load the newer layout gives A's layout, Keep mine saves B's over it; coming back
-//      during a try of its own, it asks once the try has ended.
+// AC1: tab B, clean, takes the layout tab A saved (the stream of D38 brings the news; the return of the tab no
+//      longer does), with a passing word; with changes of its own it asks: Load the newer layout gives A's
+//      layout, Keep mine saves B's over it; news during a try of its own is asked about once the try has ended.
 // AC2: a save that the server made but whose answer was lost is tried again without a second effect
 //      and without a lasting error, and is not taken for a change from another device; axe.
 import type { BrowserContext, Locator, Page } from "@playwright/test";
@@ -106,35 +106,25 @@ test.describe("D35.3-AC1 a layout saved in another tab", () => {
     await designerSaved(other);
     expect((await onTheServer(page, owner))[0]!.config["title"]).toBe("Znowu B");
   });
-  test("a tab that comes back while its own try is in flight asks once the try has ended", async ({ page, context, ownerServer }) => {
+  test("a change that arrives while its own try is in flight asks once the try has ended", async ({ page, context, ownerServer }) => {
     const owner = await ownerServer("ready");
     const other = await twoTabs(context, page, owner);
-    // B's tries fail; each one waits at this gate first, so the test decides when it ends.
-    let gate: Promise<void> = Promise.resolve();
+    // B's try waits at this gate and then fails, so the test decides when it ends.
+    let endTry: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (endTry = resolve));
     await other.route(DESIGN, async (route) => {
       await gate;
       await route.abort("connectionfailed");
     });
     await other.bringToFront();
     await retitle(other, "Moje", "Z karty B");
-    await expect(other.locator(".designer-status")).toHaveAttribute("data-save", "offline");
+    await expect(other.locator(".designer-status")).toHaveAttribute("data-save", "saving");
+
+    // A saves: B's stream brings the news and B reads the screen during its try (run 41833935928), without asking yet.
+    const answered = other.waitForResponse((response) => SCREEN.test(response.url()) && response.request().method() === "GET");
     await page.bringToFront();
     await retitle(page, "Moje", "Z karty A");
     await designerSaved(page);
-
-    // B comes back: it tries its change again at once, and its read of the screen answers during that try (run 41833935928).
-    let endTry: () => void = () => undefined;
-    gate = new Promise<void>((resolve) => (endTry = resolve));
-    let answerReads: () => void = () => undefined;
-    const readsHeld = new Promise<void>((resolve) => (answerReads = resolve));
-    await other.route(SCREEN, async (route) => {
-      if (route.request().method() === "GET") await readsHeld;
-      await route.continue();
-    });
-    const answered = other.waitForResponse((response) => SCREEN.test(response.url()) && response.request().method() === "GET");
-    await backTo(other);
-    await expect(other.locator(".designer-status")).toHaveAttribute("data-save", "saving");
-    answerReads();
     await answered;
     await expect(elsewhere(other)).toHaveCount(0);
     // The try ends without the network: now B asks what the read found.

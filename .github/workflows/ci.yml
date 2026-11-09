@@ -605,6 +605,9 @@ jobs:
       - name: Verify D38.2 (the changes of another tab read again, the message of a lost connection)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D38.2
+      - name: Verify D38.3 (the Designer on the live stream, S11 on two tabs)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D38.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1047,8 +1050,8 @@ jobs:
           if-no-files-found: error
 
   full-stream:
-    # The live stream: on the server, in a tab and behind Caddy (Docker on the runner), all in one parent.
-    name: verify:task (full tier, live stream D37)
+    # The live stream and its events: on the server, in a tab and behind Caddy (Docker on the runner), and the events of changes in the application, in two parents.
+    name: verify:task (full tier, live stream D37-D38)
     needs: changes
     if: ${{ needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
@@ -1083,6 +1086,8 @@ jobs:
         run: pnpm exec playwright install-deps chromium
       - name: Verify D37 (the parent, D37.1–D37.3 together; the phone is a manual protocol and not run here)
         run: pnpm verify:task -- D37
+      - name: Verify D38 (the parent, D38.1–D38.3 together)
+        run: pnpm verify:task -- D38
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

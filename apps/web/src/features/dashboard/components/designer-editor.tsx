@@ -94,66 +94,46 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
   const autosave = useAutosave({ screenId: screen.id, design: state.design, dirty, onSaved, onGateLost: () => setGateLost(true) });
   const failure = autosave.state.kind === "refused" ? autosave.state.failure : null;
 
-  // Another tab saved this screen (D35.3; until the events of D38): asked when this tab comes back or takes the focus.
-  // A clean design takes the newer one with a passing word; a design with changes asks, and its changes still save.
+  // Another tab saved this screen (D35.3, D38.3): the live stream says `layout.changed`, the bridge makes the
+  // read of this query stale, and what it finds is compared with what this tab knows. A clean design takes the
+  // newer one with a passing word; a design with changes asks, and its changes still save. After a lost
+  // stream the bridge reads everything again, so an event that went missing is found here too.
   const [elsewhere, setElsewhere] = useState<Readonly<{ design: DesignSnapshotDto; at: string }> | null>(null);
   const [refreshed, setRefreshed] = useState(false);
   const stateNow = useRef(state);
   stateNow.current = state;
-  const saving = useRef(false);
-  saving.current = autosave.state.kind === "saving";
-  // A check that met a save of this tab in flight is put off until the save ends: a tab coming back
-  // also tries its waiting changes again at once, and skipping the check then would never ask.
-  const checkAfterSave = useRef(false);
-  const checkNow = useRef<() => void>(() => undefined);
-  useEffect(() => {
-    let inFlight: AbortController | null = null;
-    const check = async (): Promise<void> => {
-      if (document.visibilityState !== "visible") return;
-      if (saving.current) {
-        checkAfterSave.current = true;
-        return;
-      }
-      inFlight?.abort();
-      const controller = new AbortController();
-      inFlight = controller;
-      const read = await fetchScreen(screen.id, controller.signal);
-      if (!read.ok || controller.signal.aborted) return;
-      if (saving.current) {
-        checkAfterSave.current = true;
-        return;
-      }
-      const at = Date.parse(read.value.updatedAt);
-      if (!(at > knownAt.current)) return;
-      const there = toSnapshot(read.value);
-      if (!changedElsewhere(there, stateNow.current)) {
-        knownAt.current = at;
-        return;
-      }
-      knownAt.current = at;
-      queryClient.setQueryData(queryKeys.screens.list, read.value);
-      if (!dirtyNow.current) {
-        dispatch({ kind: "loaded", design: there });
-        setElsewhere(null);
-        setRefreshed(true);
-      } else setElsewhere({ design: there, at: read.value.updatedAt });
-    };
-    const onFocus = (): void => void check();
-    checkNow.current = onFocus;
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onFocus);
-    return () => {
-      inFlight?.abort();
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
-    };
-  }, [screen.id, queryClient]);
+  // The read the stream keeps current. It starts as the screen this tab was given, so opening the Designer reads nothing twice.
+  const remote = useQuery<ScreenDto>({
+    queryKey: queryKeys.screens.screen(screen.id),
+    queryFn: async ({ signal }) => {
+      const result = await fetchScreen(screen.id, signal);
+      if (!result.ok) throw result.failure.kind === "aborted" ? new DOMException("aborted", "AbortError") : new Error("request failed");
+      return result.value;
+    },
+    initialData: screen,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+  // A drag or a resize in progress: what came meanwhile is applied after the drop (Scope §5.4), and so is
+  // what came during a save of this tab, which tells by its own answer what is its own work.
+  const [arranging, setArranging] = useState(false);
   const saveKind = autosave.state.kind;
+  const read = remote.data;
   useEffect(() => {
-    if (saveKind === "saving" || !checkAfterSave.current) return;
-    checkAfterSave.current = false;
-    checkNow.current();
-  }, [saveKind]);
+    if (arranging || saveKind === "saving") return;
+    const at = Date.parse(read.updatedAt);
+    if (!(at > knownAt.current)) return;
+    knownAt.current = at;
+    const there = toSnapshot(read);
+    if (!changedElsewhere(there, stateNow.current)) return;
+    queryClient.setQueryData(queryKeys.screens.list, read);
+    if (!dirtyNow.current) {
+      dispatch({ kind: "loaded", design: there });
+      setElsewhere(null);
+      setRefreshed(true);
+    } else setElsewhere({ design: there, at: read.updatedAt });
+  }, [read, arranging, saveKind, queryClient]);
   useEffect(() => {
     if (!refreshed) return;
     const timer = setTimeout(() => setRefreshed(false), REFRESHED_NOTICE_MS);
@@ -406,6 +386,7 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
           selectedId={state.selectedId}
           minimumOf={(type) => typeOf(type)?.minSize ?? { w: 1, h: 1 }}
           onSelect={(id) => dispatch({ kind: "select", id })}
+          onArranging={setArranging}
           onPlace={(id, rect) => {
             const widget = state.design.widgets.find((each) => each.id === id);
             if (widget === undefined) return;
