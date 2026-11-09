@@ -71,6 +71,8 @@ test.describe("a screen is open only to its own state", () => {
     await expect(page.getByRole("heading", { level: 2 })).toHaveText(text(setup, "enrollment.heading"));
     await page.goto(`${owner.baseUrl}/`);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);
+    // The address changes before the screen is drawn: axe reads the finished page, not the one being replaced.
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText(text(setup, "enrollment.heading"));
     await expectNoViolations(page);
   });
 
