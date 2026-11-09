@@ -15,7 +15,7 @@ import { DICTIONARIES_PATH, dictionaryListSchema } from "@openlife/contracts/htt
 import { REGISTRIES_PATH, registryListSchema } from "@openlife/contracts/http/registries";
 import { query, type BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully } from "./owner-session.ts";
+import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully, deafToLiveEvents } from "./owner-session.ts";
 
 const registers = locale("en", "registers");
 test.use({ locale: "en-US" });
@@ -222,6 +222,7 @@ test.describe("D24.3-AC2 the editor, a second tab and the records", () => {
   });
 
   test("a save from a second tab first: the editor tells it, keeps what was typed, and saves it only when the owner says so", async ({ page, ownerServer }) => {
+    await deafToLiveEvents(page);
     const owner = await ownerServer("ready");
     await booksWithDictionary(page, owner);
     await page.goto(`${owner.baseUrl}/dictionaries?symbol=status_czytania`);

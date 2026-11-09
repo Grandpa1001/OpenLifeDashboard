@@ -13,6 +13,7 @@ import type { Page } from "@playwright/test";
 import { REGISTRIES_PATH, registryListSchema } from "@openlife/contracts/http/registries";
 import { query, type BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
+import { deafToLiveEvents } from "./owner-session.ts";
 
 const auth = locale("en", "auth");
 const registers = locale("en", "registers");
@@ -192,6 +193,7 @@ test.describe("D16.2-AC2 what is refused, and what is kept", () => {
   });
 
   test("a symbol that is taken comes back from the server at the field and everything typed stays", async ({ page, ownerServer }) => {
+    await deafToLiveEvents(page);
     const owner = await ownerServer("ready");
     await openRegisters(page, owner);
     // The registry is made behind the back of the page: the form cannot know its symbol, and the server says so.

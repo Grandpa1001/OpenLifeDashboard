@@ -11,7 +11,7 @@ import type { Page } from "@playwright/test";
 import { registryRecordPath, registryRecordsPath } from "@openlife/contracts/http/records";
 import { query, type BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, expectNoViolations, signInFully } from "./owner-session.ts";
+import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, deafToLiveEvents, expectNoViolations, signInFully } from "./owner-session.ts";
 
 const registers = locale("en", "registers");
 const errors = locale("en", "errors");
@@ -61,6 +61,7 @@ test.describe("D23.3-AC1 a change in the window, and two tabs changing one recor
   });
 
   test("the second tab's change comes first: the window tells when, compares the differing fields, keeps what was typed, and saves after loading the newer version without losing the other change", async ({ page, ownerServer }) => {
+    await deafToLiveEvents(page);
     const owner = await ownerServer("ready");
     await books(page, owner);
     const other = await page.context().newPage();
@@ -143,6 +144,7 @@ test.describe("D23.3-AC2 a delete, a record gone elsewhere, a lost answer and th
   });
 
   test("a record deleted in the other tab is taken as deleted, without an error, and the list is read again", async ({ page, ownerServer }) => {
+    await deafToLiveEvents(page);
     const owner = await ownerServer("ready");
     await books(page, owner);
     const solaris = stored(owner).find((each) => each.tytul === "Solaris")!;

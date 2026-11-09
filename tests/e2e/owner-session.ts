@@ -28,6 +28,16 @@ export async function expectNoViolations(page: Page): Promise<void> {
   expect(result.violations.map((violation) => `${violation.id}: ${violation.nodes.map((node) => node.target.join(" ")).join(", ")}`)).toEqual([]);
 }
 
+/**
+ * The tabs of a context hear no live events (D38.2): the stream never opens, so they neither refresh by
+ * themselves nor say "no connection". For the tests that stand for tabs which do not yet know a change made
+ * behind their back (a taken symbol, a record gone elsewhere, a save from another tab); call it before the
+ * tabs load.
+ */
+export async function deafToLiveEvents(page: Page): Promise<void> {
+  await page.context().addInitScript("window.EventSource = class { addEventListener() {} close() {} };");
+}
+
 /** The owner past the password and the second factor, on the private screen. */
 export async function signInFully(page: Page, owner: BrowserOwner): Promise<void> {
   await page.goto(`${owner.baseUrl}/login`);

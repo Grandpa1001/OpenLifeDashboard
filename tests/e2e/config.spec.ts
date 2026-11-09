@@ -11,7 +11,7 @@ import type { Page } from "@playwright/test";
 import { CONFIG_PATH } from "@openlife/contracts/http/config";
 import { execute, query, type BrowserOwner } from "../support/auth-http.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
-import { BOOKS_DEFINITION, createRegistry, expectNoViolations, signInFully, addRegisterTable, openColumns } from "./owner-session.ts";
+import { BOOKS_DEFINITION, createRegistry, expectNoViolations, signInFully, addRegisterTable, openColumns, deafToLiveEvents } from "./owner-session.ts";
 
 const registers = locale("en", "registers");
 const designer = locale("en", "designer");
@@ -129,6 +129,7 @@ test.describe("D25.3-AC2 what the window refuses, a second tab and the bindings"
   });
 
   test("a save from a second tab first: the window tells it, keeps what was typed, and saves it only when the owner says so", async ({ page, ownerServer }) => {
+    await deafToLiveEvents(page);
     const owner = await ownerServer("ready");
     await withNorma(page, owner);
     const other = await page.context().newPage();
