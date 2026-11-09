@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -3981,6 +3981,59 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D36.1", "D36.2", "D36.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.34: the live stream on the server.
+    id: "D37.1",
+    ready: true,
+    title: "The live stream on the server: GET /api/v1/stream behind the gate, ready, ping and published events, five per session, ended with the session or the server",
+    criteria: ["D37.1-AC1", "D37.1-AC2", "D37.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests import the built contracts and server and run the built server.
+        id: "workspace-build",
+        criteria: ["D37.1-AC1", "D37.1-AC2"],
+        description: "pnpm -r build: the contract of the stream, the gate of the stream in core, the hub, the route and the composition of the server",
+        command: ["pnpm", "-r", "build"],
+        requires: [
+          "packages/contracts/src/http/stream.ts",
+          "packages/core/src/modules/identity/application/live-stream-access.ts",
+          "apps/server/src/adapters/events/live-hub.ts",
+          "apps/server/src/adapters/events/limits.ts",
+          "apps/server/src/http/routes/stream.routes.ts",
+        ],
+      },
+      {
+        id: "live-hub",
+        criteria: ["D37.1-AC1", "D37.1-AC2"],
+        description: "Unit: every event of the architecture written as the wire carries it and read back, a foreign name, bad JSON and a missing or extra field refused; the hub counts streams per session, refuses past the limit, frees a closed place, drops a stream that cannot be written to without stopping the rest, and ends a token or all",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/events/live-hub.test.ts"],
+        requires: ["tests/unit/events/live-hub.test.ts"],
+      },
+      {
+        id: "stream-http",
+        criteria: ["D37.1-AC1", "D37.1-AC2"],
+        description:
+          "HTTP: the headers of the stream, ready first, a published event, ping on the interval; none, password only and data not chosen refused with their codes; the sixth stream 429 with Retry-After and a closed one frees its place; sign-out ends the streams; a vanished session ends its stream at the next ping; a client that does not read is ended; on the built server the stream ends with sign-out and a stopping server ends it and exits 0",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/stream/stream-http.test.ts"],
+        requires: ["tests/integration/stream/stream-http.test.ts", "tests/support/app-harness.ts"],
+      },
+      {
+        id: "stream-access",
+        criteria: ["D37.1-AC1"],
+        description: "The stream is a route of the data access in the inventory: refused in every state before the gate and answered 200 to the owner past it (D20.2); the other routes and the inventory as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/access/data-routes.test.ts", "tests/integration/http/server.test.ts", "tests/integration/auth/route-inventory.test.ts"],
+        requires: ["tests/integration/access/data-routes.test.ts", "tests/support/route-inventory.ts"],
+      },
+      {
+        id: "lifecycle",
+        criteria: ["D37.1-AC2"],
+        description: "The stop of the server as before with the streams ended first: the five steps of the shutdown in order, a request in progress finished, the lease released last",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/lifecycle/shutdown.test.ts"],
+        requires: ["tests/integration/lifecycle/shutdown.test.ts"],
+      },
+      ...regressionChecks("D37.1-regression"),
+    ],
   },
   {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of

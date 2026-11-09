@@ -54,6 +54,11 @@
       "types": "./dist/http/mfa.d.ts",
       "default": "./dist/http/mfa.js"
     },
+    "./http/stream": {
+      "@openlife/source": "./src/http/stream.ts",
+      "types": "./dist/http/stream.d.ts",
+      "default": "./dist/http/stream.js"
+    },
     "./http/system-tables": {
       "@openlife/source": "./src/http/system-tables.ts",
       "types": "./dist/http/system-tables.d.ts",

@@ -47,6 +47,12 @@ export async function serve(instance: TestInstance, at?: Readonly<{ port: number
   return server;
 }
 
+/** Waits for a server the test stopped itself to exit; it is then no longer for `stopServers` to stop. */
+export async function waitForExitOf(server: ServerProcess, timeoutMs: number): Promise<{ code: number | null; output: string }> {
+  const exit = await waitForExit(server.child, server.output, timeoutMs);
+  return { code: exit.code, output: exit.output };
+}
+
 export async function stopServer(server: ServerProcess): Promise<void> {
   server.child.kill("SIGTERM");
   const exit = await waitForExit(server.child, server.output, 15_000);

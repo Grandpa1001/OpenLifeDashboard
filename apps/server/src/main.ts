@@ -42,6 +42,8 @@ import { stdoutSink } from "./adapters/logging/stdout-sink.js";
 import { createTechnicalLogger } from "./adapters/logging/technical-logger.js";
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
+import { createLiveHub } from "./adapters/events/live-hub.js";
+import { STREAM_CONNECTIONS_PER_SESSION, STREAM_PING_INTERVAL_MS } from "./adapters/events/limits.js";
 import { bindSystemTableReader } from "./adapters/system-tables.js";
 import { loadBootstrapConfig } from "./bootstrap/bootstrap-config.js";
 import { createApp } from "./bootstrap/create-app.js";
@@ -203,6 +205,7 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   audit: bindAppendAudit(tx),
   systemTables: bindSystemTableReader(tx),
 }));
+const liveHub = createLiveHub({ perSession: STREAM_CONNECTIONS_PER_SESSION });
 const attemptKeys = createAttemptKeys(secret);
 const clientIp = (c: Context<AppEnv>): string => getConnInfo(c).remote.address ?? "unknown";
 const cookies = createSessionCookies({ instanceId: paths.instanceId, secret });
@@ -233,6 +236,7 @@ const app = createApp({
     nowMs: Date.now,
     newId: randomUUID,
     newSessionToken,
+    onSessionEnded: liveHub.closeToken,
     logger,
   },
   mfaEnrollment: {
@@ -269,6 +273,7 @@ const app = createApp({
   dictionaries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },
   config: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
   systemTables: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
+  stream: { unit: identityUnit, hub: liveHub, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, pingIntervalMs: STREAM_PING_INTERVAL_MS, logger },
   screens: { dashboard: { unit: identityUnit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: environment.baseUrl, logger },
 });
 try {
@@ -278,7 +283,14 @@ try {
   const shutdown = createShutdown({
     steps: [
       { name: "readiness", run: () => readiness.withdraw() },
-      { name: "http", run: () => drainServer(server) },
+      {
+        name: "http",
+        // Open streams never end by themselves: they are ended first, so the drain waits only for requests.
+        run: () => {
+          liveHub.closeAll();
+          return drainServer(server);
+        },
+      },
       {
         name: "logger",
         run: () => {

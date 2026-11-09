@@ -16,7 +16,7 @@ name: CI
 # artifact: platform (D01-D08, Docker, images, the G0 inputs), access (D09-D13), registries
 # (D14-D17), data (the parents D22-D26), structure (the parents D27-D32), screens (D18 and the parents
 # from D33 on) and installer (D19). The fast tier is split the same way: core (D01-D20.2), data
-# (D22.1-D26.2), structure (the steps from D27.1 on), browser (D12-D20.1), the records in a browser
+# (D22.1-D26.2 and D37.1), structure (the steps from D27.1 on), browser (D12-D20.1), the records in a browser
 # (D22.2-D25.3), the structure in a browser (D31.1-D32.2), the screens and the Designer in a browser
 # (D33.1-D34.3), and the saving of the Designer and the widgets in a browser (from D35.1 on). A new task
 # joins the job of its topic, so no single job grows past its time limit.
@@ -173,7 +173,7 @@ jobs:
 
   fast-data:
     # The fast tier of the code is three jobs side by side, as the full tier is: the platform and
-    # the access above, the data of the registries here (D22.1-D26.2) and their structure below, so a
+    # the access above, the data of the registries here (D22.1-D26.2, and the live stream on the server D37.1) and their structure below, so a
     # growing list of steps never meets one job's time limit.
     name: fast tier (code of the data, SQLite, HTTP)
     runs-on: ubuntu-24.04
@@ -221,6 +221,9 @@ jobs:
       - name: Verify D26.2 (the preview of a change of the structure over SQLite and HTTP)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D26.2
+      - name: Verify D37.1 (the live stream on the server, behind the gate, ended with the session or the server)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D37.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

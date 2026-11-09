@@ -36,6 +36,8 @@ export type IdentityRouteDependencies = Readonly<{
   nowMs: () => number;
   newId: () => string;
   newSessionToken: () => string;
+  /** Called once the session of this token has been ended, so that its live streams end with it (D37). */
+  onSessionEnded: (token: string) => void;
   logger: TechnicalLogger;
 }>;
 
@@ -95,7 +97,9 @@ export function registerIdentityRoutes(app: Hono<AppEnv>, deps: IdentityRouteDep
   app.post(SIGN_OUT_PATH, requireSameOrigin(deps.allowedOrigin), async (c) => {
     noStore(c);
     try {
-      signOut(deps.unit, await sessionToken(c));
+      const token = await sessionToken(c);
+      signOut(deps.unit, token);
+      if (token !== null) deps.onSessionEnded(token);
     } catch (error) {
       return unavailable(c, error);
     }

@@ -16,6 +16,7 @@ import { registerScreenRoutes, type ScreenRouteDependencies } from "../http/rout
 import { registerRegistryRoutes, type RegistryRouteDependencies } from "../http/routes/registries.routes.js";
 import { registerStructureRoutes, type StructureRouteDependencies } from "../http/routes/structure.routes.js";
 import { registerSetupRoutes, type SetupRouteDependencies } from "../http/routes/setup.routes.js";
+import { registerStreamRoutes, type StreamRouteDependencies } from "../http/routes/stream.routes.js";
 import { registerSystemTableRoutes, type SystemTableRouteDependencies } from "../http/routes/system-tables.routes.js";
 import { registerMfaVerificationRoutes, type MfaVerificationRouteDependencies } from "../http/routes/mfa-verification.routes.js";
 import type { Readiness } from "./readiness.js";
@@ -42,6 +43,7 @@ export type AppDependencies = Readonly<{
   config: ConfigRouteDependencies;
   screens: ScreenRouteDependencies;
   systemTables: SystemTableRouteDependencies;
+  stream: StreamRouteDependencies;
 }>;
 
 /**
@@ -64,6 +66,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   registerConfigRoutes(app, dependencies.config);
   registerScreenRoutes(app, dependencies.screens);
   registerSystemTableRoutes(app, dependencies.systemTables);
+  registerStreamRoutes(app, dependencies.stream);
   app.all("/api", apiNotFound);
   app.all("/api/*", apiNotFound);
   app.use("*", webAssets(dependencies.webRoot));

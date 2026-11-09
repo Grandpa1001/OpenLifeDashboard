@@ -38,6 +38,7 @@ import { acquireWriterLease } from "../../apps/server/dist/adapters/filesystem/w
 import { DESIGN_POLICY } from "../../apps/server/dist/bootstrap/design-policy.js";
 import { sha256Hex } from "../../apps/server/dist/adapters/crypto/sha256-hex.js";
 import { createUuidV7 } from "../../apps/server/dist/adapters/ids/uuid-v7.js";
+import { createLiveHub } from "../../apps/server/dist/adapters/events/live-hub.js";
 import { bindSystemTableReader } from "../../apps/server/dist/adapters/system-tables.js";
 import { bindOwnerPreferencesStore } from "../../packages/sqlite/dist/adapters/settings/owner-preferences.js";
 import { openDatabase, type SqliteConnection } from "../../packages/sqlite/dist/connection/open-database.js";
@@ -60,7 +61,9 @@ export function closeHarnesses(): void {
 
 export type HarnessReply = Readonly<{ status: number; text: string; json: () => unknown; setCookies: string[]; cookie: string | null }>;
 
-export async function createAppHarness() {
+export type HarnessOptions = Readonly<{ pingIntervalMs?: number; streamsPerSession?: number }>;
+
+export async function createAppHarness(options: HarnessOptions = {}) {
   const dir = scratchDir("openlife-harness-");
   // The writer lease and the maintenance gate as the bootstrap takes them, before the database exists.
   const workingPaths = { maintenance: path.join(dir, "maintenance"), database: path.join(dir, "app.db"), backups: path.join(dir, "backup") };
@@ -136,6 +139,7 @@ export async function createAppHarness() {
     now: () => new Date().toISOString(),
     newSnapshotId: randomUUID,
   });
+  const hub = createLiveHub({ perSession: options.streamsPerSession ?? 5 });
   const clientIp = () => "127.0.0.1";
   const common = { nowMs: Date.now, newId: randomUUID, newSessionToken: () => randomBytes(32).toString("base64url"), logger, allowedOrigin: HARNESS_ORIGIN, secureCookies: false, cookies, keys, clientIp };
   const app = createApp({
@@ -145,7 +149,7 @@ export async function createAppHarness() {
     logger,
     readiness: createReadiness(),
     nowMs: () => performance.now(),
-    identity: { ...common, unit, verifier: hasher, decoyHash: await hasher.hash("decoy"), trustedDevice: { cookies: trustedDeviceCookies, hash: mfaCrypto.hashTrustedDeviceToken }, loginLimiter: createRateLimiter({ limit: 1000, windowMs: 60_000, nowMs: Date.now }) },
+    identity: { ...common, onSessionEnded: hub.closeToken, unit, verifier: hasher, decoyHash: await hasher.hash("decoy"), trustedDevice: { cookies: trustedDeviceCookies, hash: mfaCrypto.hashTrustedDeviceToken }, loginLimiter: createRateLimiter({ limit: 1000, windowMs: 60_000, nowMs: Date.now }) },
     mfaEnrollment: { ...common, unit, crypto: mfaCrypto },
     mfaVerification: { ...common, unit, crypto: mfaCrypto, trustedDeviceCookies },
     setup: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
@@ -156,6 +160,7 @@ export async function createAppHarness() {
     config: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
     systemTables: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
+    stream: { unit, hub, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, pingIntervalMs: options.pingIntervalMs ?? 25_000, logger },
   });
 
   async function request(method: string, route: string, body?: unknown, init: { cookie?: string | null; origin?: string | null; headers?: Record<string, string> } = {}): Promise<HarnessReply> {
@@ -170,8 +175,14 @@ export async function createAppHarness() {
     return { status: response.status, text, json: () => JSON.parse(text) as unknown, setCookies, cookie: setCookies[0]?.split(";")[0] ?? null };
   }
 
+  /** A request whose answer is not read to the end: a live stream stays open for the test to read event by event. */
+  const open = (route: string, init: { cookie?: string | null } = {}): Promise<Response> => Promise.resolve(app.request(route, { method: "GET", headers: init.cookie ? { Cookie: init.cookie } : {} }));
+
   return {
     request,
+    open,
+    /** The hub of the live stream, to publish an event as a commit will (D38) and to count the streams. */
+    hub,
     /** The technical log lines written so far. */
     logLines: (): readonly string[] => lines,
     /** The next unit of work starts only after `action` has run (once). */

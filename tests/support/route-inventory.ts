@@ -17,6 +17,7 @@ import * as records from "@openlife/contracts/http/records";
 import * as screens from "@openlife/contracts/http/screens";
 import * as registries from "@openlife/contracts/http/registries";
 import * as setup from "@openlife/contracts/http/setup";
+import * as stream from "@openlife/contracts/http/stream";
 import * as systemTables from "@openlife/contracts/http/system-tables";
 
 export type RouteAccess = "public" | "identity" | "gate" | "data" | "setup";
@@ -24,7 +25,7 @@ export type RouteEntry = Readonly<{ method: "GET" | "POST" | "PUT" | "PATCH" | "
 
 /** Every exported path constant of the contracts, by name. */
 export const PATH_CONSTANTS: Readonly<Record<string, string>> = Object.fromEntries(
-  [bootstrap, config, dictionaries, healthStatus, identity, mfa, records, registries, screens, setup, systemTables].flatMap((module) =>
+  [bootstrap, config, dictionaries, healthStatus, identity, mfa, records, registries, screens, setup, stream, systemTables].flatMap((module) =>
     Object.entries(module).filter((entry): entry is [string, string] => entry[0].endsWith("_PATH") && typeof entry[1] === "string"),
   ),
 );
@@ -73,6 +74,7 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "GET", path: registries.REGISTRY_SUMMARIES_PATH, access: "data", note: "the records of each active registry and the widgets bound to it, for its card" },
   { method: "GET", path: systemTables.SYSTEM_TABLES_PATH, access: "data", note: "the tables of the system preview with their columns and the owner's rows in each; read only" },
   { method: "GET", path: systemTables.SYSTEM_TABLE_PATH, access: "data", note: "one page of one table of the system preview; a name outside its list is 404" },
+  { method: "GET", path: stream.STREAM_PATH, access: "data", note: "the live stream (SSE) of the cookie session: ready, then pings and events until the session or the server ends; five per session" },
 ];
 
 /**
@@ -83,5 +85,4 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
 export type PlannedRoute = Readonly<{ method: "GET"; path: string; task: string; note: string }>;
 export const PLANNED_ROUTES: readonly PlannedRoute[] = [
   { method: "GET", path: "/api/v1/export", task: "D45", note: "the export of the owner's data; asks for a fresh second factor" },
-  { method: "GET", path: "/api/v1/stream", task: "D37", note: "the live stream (SSE) of the cookie session; asks for the gate and the starting data" },
 ];

@@ -18,7 +18,6 @@ const UI_ROUTES = ["/", "/main", "/registers/ksiazki"];
 const FUTURE_PRIVATE_ENDPOINTS = [
   ["POST", "/api/auth/sign-up/email"],
   ["GET", "/api/v1/export"],
-  ["GET", "/api/v1/stream"],
 ] as const;
 
 type Evidence = { method: string; path: string; status: number; contentType: string | null; cacheControl: string | null; body: string };

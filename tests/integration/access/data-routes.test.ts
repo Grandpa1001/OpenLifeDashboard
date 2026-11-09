@@ -8,7 +8,7 @@
 //      the session of another installation are refused on every data route, with and without data,
 //      and nothing is stored; the owner past the gate gets the data.
 // AC2: foreign identifiers, assurance and roles in headers, cookies, query and body decide nothing;
-//      the planned routes (export, live stream) are not registered and are reported as not_run.
+//      the planned route (export) is not registered and are reported as not_run.
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { apiErrorSchema } from "@openlife/contracts/http/errors";
@@ -109,6 +109,14 @@ function stored(setup: Installation): string {
   return JSON.stringify(tables.map((table) => query(setup.instance, `SELECT * FROM "${table}" ORDER BY 1`)));
 }
 
+/** The stream of the owner past the gate never ends by itself: its answer is read as far as the status and then dropped. */
+async function openStream(baseUrl: string, route: string, cookie: string): Promise<Reply> {
+  const controller = new AbortController();
+  const response = await fetch(`${baseUrl}${route}`, { headers: { Cookie: cookie }, signal: controller.signal });
+  controller.abort();
+  return { status: response.status, headers: response.headers, text: "", json: () => null, cookie: null, cookies: [], setCookies: [] };
+}
+
 type Refusal = Readonly<{ status: number; code: string }>;
 
 /** Every data route with the cookie, all of them refused the same way; returns what was asked. */
@@ -140,6 +148,7 @@ describe("D20.2 the table is the inventory", () => {
       "GET /api/v1/registry-summaries",
       "GET /api/v1/screens",
       "GET /api/v1/screens/:id",
+      "GET /api/v1/stream",
       "GET /api/v1/system-tables",
       "GET /api/v1/system-tables/:name",
       "GET /api/v1/widget-types",
@@ -189,7 +198,7 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     const answered = new Map<string, number>();
     const run = async (route: RouteEntry, ids: Ids, design?: unknown): Promise<Reply> => {
       const { body, headers } = requestOf(route, design);
-      const reply = await send(server, route.method, fill(route, ids), body, { cookie: session, headers });
+      const reply = keyOf(route) === "GET /api/v1/stream" ? await openStream(server.baseUrl, fill(route, ids), session) : await send(server, route.method, fill(route, ids), body, { cookie: session, headers });
       answered.set(keyOf(route), reply.status);
       return reply;
     };
@@ -233,6 +242,7 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     await run(route("GET", "/registry-summaries"), ids);
     await run(route("GET", "/system-tables"), ids);
     await run(route("GET", "/system-tables/:name"), ids);
+    expect((await run(route("GET", "/stream"), ids)).status).toBe(200);
     // Last, because it raises the schema revision the requests above are built on: a rename of the column
     // of waga on the plan of its own preview; the column is the server's, so its identifier is read first.
     const kg = { ...RENAME_KG, columnId: registry.columns.find((column) => column.symbol === "kg")?.id ?? "" };
@@ -297,7 +307,7 @@ describe("D20.2-AC2 what a request may not decide, and the routes that do not ex
   it("the planned routes are not registered, are listed with the task that owns them, and are reported as not_run", () => {
     const registered = new Set(ROUTE_INVENTORY.map(keyOf));
     const sources = [path.join(repoRoot, "apps/server/src/bootstrap/create-app.ts"), ...readdirSync(path.join(repoRoot, "apps/server/src/http/routes")).map((name) => path.join(repoRoot, "apps/server/src/http/routes", name))].map((file) => readFileSync(file, "utf8")).join("\n");
-    expect(PLANNED_ROUTES.map((planned) => planned.task).sort()).toEqual(["D37", "D45"]);
+    expect(PLANNED_ROUTES.map((planned) => planned.task).sort()).toEqual(["D45"]);
     for (const planned of PLANNED_ROUTES) {
       expect(registered.has(keyOf(planned)), `${keyOf(planned)} is planned, so it is not in the inventory yet`).toBe(false);
       expect(sources.includes(planned.path), `${keyOf(planned)} is planned, so the server does not register it yet`).toBe(false);
