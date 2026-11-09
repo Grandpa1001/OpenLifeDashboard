@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { describeFailure } from "../../../lib/failures/error-message.js";
 import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
+import { useScreenAccent } from "../../../lib/theme/screen-accent.js";
 import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
 import { leavesTheGate, readFirstScreen, ScreenFailure } from "../api/first-screen.js";
 import { CreateScreenForm } from "../components/create-screen-form.js";
@@ -20,6 +21,7 @@ export function DesignerPage() {
   const { t } = useTranslation("designer");
   // The screen is read once per visit: the editor owns the draft, so a refetch of the same screen must not replace it.
   const screen = useQuery<ScreenDto | null>({ queryKey: queryKeys.screens.list, queryFn: ({ signal }) => readFirstScreen(signal), staleTime: Infinity, refetchOnWindowFocus: false, refetchOnReconnect: false });
+  useScreenAccent(screen.data?.accent);
   const failure = screen.error instanceof ScreenFailure ? screen.error.failure : null;
   useGuardRecheck(leavesTheGate(failure));
 

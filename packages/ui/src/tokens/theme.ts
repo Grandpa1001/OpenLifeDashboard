@@ -38,3 +38,9 @@ export function applyTheme(element: StyledElement, theme: Theme = DARK_THEME, ac
     element.style.setProperty(name, value);
   }
 }
+
+/** Sets `accent` on `element` and returns how to put the default accent back, for the screen that is open and that it leaves (D39.1). */
+export function applyAccent(element: StyledElement, accent: AccentName): () => void {
+  applyTheme(element, DARK_THEME, accent);
+  return () => applyTheme(element);
+}

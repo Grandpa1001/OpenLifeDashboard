@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -4224,6 +4224,40 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D38.1", "D38.2", "D38.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.36: the look of the open screen and the word of a layout from another device.
+    id: "D39.1",
+    ready: true,
+    title: "The accent of the screen on the dashboard and in the Designer, and the word that the layout came from another device on the dashboard",
+    criteria: ["D39.1-AC1", "D39.1-AC2", "D39.1-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D39.1-AC1", "D39.1-AC2"],
+        description: "pnpm -r build: the accent applied by the screens, the shared time and test of the passing word, the dashboard that shows it",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/ui/src/tokens/theme.ts", "apps/web/src/lib/theme/screen-accent.ts", "apps/web/src/features/dashboard/lib/refreshed-notice.ts", "apps/web/src/features/dashboard/pages/main-page.tsx"],
+      },
+      {
+        id: "screen-accent-unit",
+        criteria: ["D39.1-AC1", "D39.1-AC2"],
+        description: "Unit: each accent of the theme goes onto the element and the default comes back; a layout saved later with another place, title, name or accent is a change of another device, the same layout again, an older screen and a change of only the state of a widget are not",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/screen-accent.test.ts"],
+        requires: ["tests/unit/web/screen-accent.test.ts"],
+      },
+      {
+        id: "dashboard-live-e2e",
+        criteria: ["D39.1-AC1", "D39.1-AC2"],
+        description:
+          "Playwright on the built app: a screen with the accent green has it on the dashboard and in the Designer and the default in the part of the application; the dashboard tells within a second a layout another tab saved, with no question and no focus, and says nothing at the first reading, for the same layout saved again or without a stream",
+        command: ["node", "tests/verification/e2e.ts", "dashboard-live.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/dashboard-live.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D39.1-regression"),
+    ],
   },
   {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of

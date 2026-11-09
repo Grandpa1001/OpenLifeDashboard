@@ -8,8 +8,10 @@ import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { gridStyle, placementStyle, readingOrder } from "../../../lib/layout/grid.js";
 import { useBreakpoint } from "../../../lib/layout/use-breakpoint.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
+import { useScreenAccent } from "../../../lib/theme/screen-accent.js";
 import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
 import { leavesTheGate, readFirstScreen, ScreenFailure } from "../api/first-screen.js";
+import { useLayoutRefreshedNotice } from "../lib/refreshed-notice.js";
 import { typeLabelKey } from "../lib/type-label.js";
 import { ClockWidget } from "../components/clock-widget.js";
 import { RegisterTableWidget, type AddRecordRenderer } from "../components/register-table-widget.js";
@@ -60,10 +62,12 @@ function OpenAppIcon() {
  * the application.
  */
 export function MainPage({ renderAddRecord }: Readonly<{ renderAddRecord: AddRecordRenderer }>) {
-  const { t } = useTranslation("common");
+  const { t } = useTranslation(["common", "designer"]);
   const layout = useBreakpoint();
 
   const screen = useQuery<ScreenDto | null>({ queryKey: queryKeys.screens.list, queryFn: ({ signal }) => readFirstScreen(signal) });
+  useScreenAccent(screen.data?.accent);
+  const refreshed = useLayoutRefreshedNotice(screen.data);
   const failure = screen.error instanceof ScreenFailure ? screen.error.failure : null;
   const gone = leavesTheGate(failure);
   useGuardRecheck(gone);
@@ -76,6 +80,11 @@ export function MainPage({ renderAddRecord }: Readonly<{ renderAddRecord: AddRec
         <OpenAppIcon />
       </Link>
       {screen.isPending ? <p role="status">{t("main.loading")}</p> : null}
+      {refreshed ? (
+        <p role="status" className="layout-refreshed">
+          {t("elsewhere.refreshed", { ns: "designer" })}
+        </p>
+      ) : null}
       {failure === null ? null : (
         <>
           <FailureAlert message={describeFailure(failure)} />

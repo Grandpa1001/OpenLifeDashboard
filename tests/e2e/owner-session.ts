@@ -139,7 +139,7 @@ export type WidgetPlan = Readonly<{
  * The first screen of the owner with register tables of Książki, made through the API with the
  * session of the page (as the Designer of D18.2 will): the registry must exist already.
  */
-export async function createScreenWith(page: Page, owner: BrowserOwner, plans: readonly WidgetPlan[], name = "Test MVP"): Promise<string> {
+export async function createScreenWith(page: Page, owner: BrowserOwner, plans: readonly WidgetPlan[], name = "Test MVP", accent = "blue"): Promise<string> {
   const base = owner.baseUrl;
   const headers = { Origin: base };
   const registries = (await (await page.request.get(`${base}${REGISTRIES_PATH}`)).json()) as { registries: Array<{ id: string; symbol: string; columns: Array<{ id: string; symbol: string }> }> };
@@ -165,7 +165,7 @@ export async function createScreenWith(page: Page, owner: BrowserOwner, plans: r
       bindings,
     };
   });
-  const saved = await page.request.put(`${base}/api/v1/screens/${screenId}/design`, { data: { name, theme: "dark", accent: "blue", widgets }, headers });
+  const saved = await page.request.put(`${base}/api/v1/screens/${screenId}/design`, { data: { name, theme: "dark", accent, widgets }, headers });
   expect(saved.status()).toBe(200);
   return screenId;
 }

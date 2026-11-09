@@ -18,6 +18,7 @@ import { fetchScreen, fetchWidgetTypes } from "../api/screens.js";
 import type { SaveState } from "../lib/autosave.js";
 import { canRedo, canUndo, changedElsewhere, designerReducer, HISTORY_LIMIT, isDirty, newWidget, startState, toSnapshot } from "../lib/designer-state.js";
 import { placeCopy, placeInEveryLayout } from "../lib/layout-edit.js";
+import { REFRESHED_NOTICE_MS } from "../lib/refreshed-notice.js";
 import { previewWidth } from "../lib/preview-width.js";
 import { typeLabelKey } from "../lib/type-label.js";
 import { useAutosave } from "../lib/use-autosave.js";
@@ -31,8 +32,6 @@ type WidgetType = WidgetTypesDto["types"][number];
 const CONFIGURABLE_TYPES: readonly string[] = ["register-table", "clock"];
 /** The grid of the layout being arranged, which takes the focus when the bar of a deletion is closed. */
 const FRAME_SELECTOR = ".designer-frame";
-/** How long the word that the layout came from another device stays (it takes no focus). */
-const REFRESHED_NOTICE_MS = 6000;
 /** How many frames a tile that is to take the focus is waited for. */
 const TILE_FRAMES = 10;
 
