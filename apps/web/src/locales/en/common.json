@@ -40,5 +40,8 @@
     "account": "Account",
     "role": "Owner",
     "signOut": "Sign out"
+  },
+  "connection": {
+    "lost": "No connection to the server. Connecting again…"
   }
 }

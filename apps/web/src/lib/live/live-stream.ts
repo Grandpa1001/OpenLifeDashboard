@@ -1,7 +1,7 @@
 // The live stream of one tab (Scope §5.4 S11; Architektura §7.6, §10; D37.2): one connection, the state
 // it is in, and the way back when it is lost. The browser's own pieces (EventSource, timers, the events
 // of the page, the question to the server) come in as a host, so the logic is the same in the browser
-// and under test. An event of data is not handled here; D38 hands them on.
+// and under test. The events of changes are handed on as they come; what they mean is decided elsewhere.
 import type { LiveEvent } from "@openlife/contracts/http/stream";
 import { RECONNECT_DELAYS_MS, RESUME_QUIET_LIMIT_MS, STREAM_SILENCE_LIMIT_MS } from "./limits.js";
 
@@ -24,6 +24,8 @@ export type LiveHost = Readonly<{
 
 export type LiveCallbacks = Readonly<{
   onState: (state: LiveState) => void;
+  /** A change another tab or the server made (every event but `ready` and `ping`); nothing is replayed, so one that came while the stream was lost never arrives. */
+  onChange: (event: LiveEvent) => void;
   /** The stream is back after a loss: what the tab shows may have changed meanwhile, nothing is replayed. */
   onResync: () => void;
   /** The server says the session has ended; the stream is stopped and does not come back. */
@@ -87,7 +89,11 @@ export function startLiveStream(host: LiveHost, callbacks: LiveCallbacks): () =>
   function received(event: LiveEvent): void {
     lastEventAt = host.now();
     armSilence();
-    if (event.type !== "ready") return;
+    if (event.type === "ping") return;
+    if (event.type !== "ready") {
+      callbacks.onChange(event);
+      return;
+    }
     failures = 0;
     setState("live");
     if (resyncOnReady) {

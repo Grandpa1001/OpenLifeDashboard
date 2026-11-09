@@ -4141,6 +4141,47 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.35: the tab reads again what the events concern, and says when the stream is lost.
+    id: "D38.2",
+    ready: true,
+    title: "Live events in the browser: precise invalidation of the cached data, a record of another tab in under a second, the message of a lost connection",
+    criteria: ["D38.2-AC1", "D38.2-AC2", "D38.2-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D38.2-AC1", "D38.2-AC2"],
+        description: "pnpm -r build: the table of events and keys, the handing on of changes by the manager and the message of the bridge in the SPA",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/lib/live/event-keys.ts", "apps/web/src/lib/live/live-stream.ts", "apps/web/src/app/router/live-stream-bridge.tsx"],
+      },
+      {
+        id: "live-event-keys-unit",
+        criteria: ["D38.2-AC1"],
+        description: "Unit: each event names the keys of its table and no others (another registry never), the events without a table none; the manager hands changes on in order and none after it stops",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/live-event-keys.test.ts", "tests/unit/web/live-stream.test.ts"],
+        requires: ["tests/unit/web/live-event-keys.test.ts", "tests/unit/web/live-stream.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D38.2-AC2"],
+        description: "pl and en have the same keys, including the message of the lost connection",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/common.json", "apps/web/src/locales/en/common.json"],
+      },
+      {
+        id: "live-events-e2e",
+        criteria: ["D38.2-AC1", "D38.2-AC2"],
+        description:
+          "Playwright on the built app: a record added in one tab is in the table of another within a second without a reload; with the stream cut and the server restarted the message appears, and after the return it is gone and the record written meanwhile is shown",
+        command: ["node", "tests/verification/e2e.ts", "live-events.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/live-events.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D38.2-regression"),
+    ],
+  },
+  {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
     // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
     id: "G2",

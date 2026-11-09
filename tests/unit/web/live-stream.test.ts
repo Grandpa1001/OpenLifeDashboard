@@ -18,6 +18,7 @@ function rig(session: () => boolean | null = () => true) {
   const states: LiveState[] = [];
   let resyncs = 0;
   let sessionLost = 0;
+  const changes: LiveEvent[] = [];
   const host: LiveHost = {
     now: () => time,
     setTimeout: (run, ms) => {
@@ -37,7 +38,7 @@ function rig(session: () => boolean | null = () => true) {
     },
     sessionHolds: () => Promise.resolve(session()),
   };
-  const stop = startLiveStream(host, { onState: (state) => states.push(state), onResync: () => (resyncs += 1), onSessionLost: () => (sessionLost += 1) });
+  const stop = startLiveStream(host, { onState: (state) => states.push(state), onResync: () => (resyncs += 1), onSessionLost: () => (sessionLost += 1), onChange: (event) => changes.push(event) });
   /** Moves the clock and runs every timer that falls due, in order, letting the answers of the server settle between them. */
   const advance = async (ms: number): Promise<void> => {
     const end = time + ms;
@@ -65,6 +66,8 @@ function rig(session: () => boolean | null = () => true) {
     open: () => sources.filter((source) => !source.closed).length,
     resyncs: () => resyncs,
     sessionLost: () => sessionLost,
+    changes: () => changes,
+    send: (event: LiveEvent) => current().handlers.onEvent(event),
     resume: () => resumes.forEach((run) => run()),
     ready: () => current().handlers.onEvent({ type: "ready" }),
     ping: () => current().handlers.onEvent({ type: "ping" }),
@@ -72,6 +75,21 @@ function rig(session: () => boolean | null = () => true) {
     state: () => states[states.length - 1],
   };
 }
+
+describe("D38.2 the events of changes", () => {
+  it("every event but `ready` and `ping` is handed on as it comes, in order, and none after the stream stops", () => {
+    const stream = rig();
+    stream.ready();
+    stream.ping();
+    stream.send({ type: "data.changed", registry: "ksiazki" });
+    stream.send({ type: "layout.changed", screenId: "s1" });
+    expect(stream.changes()).toEqual([{ type: "data.changed", registry: "ksiazki" }, { type: "layout.changed", screenId: "s1" }]);
+    const source = stream.current();
+    stream.stop();
+    source.handlers.onEvent({ type: "config.changed", symbol: "norma" });
+    expect(stream.changes()).toHaveLength(2);
+  });
+});
 
 describe("D37.2 the states of the stream", () => {
   it("one connection from the start: connecting, then live at `ready`, and no refresh for a first connection", () => {

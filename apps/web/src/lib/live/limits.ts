@@ -9,3 +9,5 @@ const SILENCE_GRACE_MS = 5_000;
 export const STREAM_SILENCE_LIMIT_MS = 2 * STREAM_PING_INTERVAL_MS + SILENCE_GRACE_MS;
 /** A tab that comes back to a stream quiet for longer than a ping and the slack connects again, as the sleep may have cut it. */
 export const RESUME_QUIET_LIMIT_MS = STREAM_PING_INTERVAL_MS + SILENCE_GRACE_MS;
+/** A stream lost for less than this shows nothing: a phone waking up or a server restarting is not worth a message (Scope §5.3). */
+export const OFFLINE_NOTICE_DELAY_MS = 3_000;

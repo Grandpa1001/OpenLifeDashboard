@@ -602,6 +602,9 @@ jobs:
       - name: Verify D37.2 (the live stream of a tab in a browser, lost and found again, ended with the session)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D37.2
+      - name: Verify D38.2 (the changes of another tab read again, the message of a lost connection)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D38.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

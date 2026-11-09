@@ -40,5 +40,8 @@
     "account": "Konto",
     "role": "Właściciel",
     "signOut": "Wyloguj"
+  },
+  "connection": {
+    "lost": "Brak połączenia z serwerem. Łączę ponownie…"
   }
 }
