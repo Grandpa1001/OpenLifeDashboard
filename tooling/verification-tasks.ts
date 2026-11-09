@@ -4071,6 +4071,43 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.34: the live stream behind Caddy. AC2 (the phone) is a manual protocol with the owner's result
+    // and is reported not_run in DEV until there is one; it is not a check of this map.
+    id: "D37.3",
+    ready: true,
+    title: "The live stream behind Caddy with a local certificate: ready and ping in time, compression harmless, the sixth stream 429, sign-out ends the streams",
+    criteria: ["D37.3-AC1", "D37.3-regression"],
+    checks: [
+      {
+        // Runs first: the check makes the owner with the built CLI and builds the image from the sources.
+        id: "workspace-build",
+        criteria: ["D37.3-AC1"],
+        description: "pnpm -r build: the CLI that makes the owner and the contracts the check reads the stream with",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/cli/create-owner.ts", "packages/contracts/src/http/stream.ts"],
+      },
+      {
+        id: "stream-behind-caddy",
+        criteria: ["D37.3-AC1"],
+        description:
+          "Real Docker: the app image on a network of its own with no published port, Caddy 2.10.2 (pinned by digest) with tls internal, compression and flush_interval -1 as the only way in; through HTTPS with the root certificate of that Caddy the owner signs in and opens five streams: text/event-stream, no-store, ready at once, ping on the 25 s interval and apart from ready, the sixth stream 429 with Retry-After, sign-out ends all five within 5 s and the old cookie opens nothing; the session cookie is Secure and HttpOnly. Blocked without Docker on this architecture",
+        command: ["node", "tests/system/stream-behind-caddy.ts"],
+        requires: ["tests/system/stream-behind-caddy.ts", "tests/support/tls-http.ts", "docker/Dockerfile"],
+        timeoutMs: 20 * 60 * 1000,
+      },
+      ...regressionChecks("D37.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the stream on the server, in the browser and behind Caddy.
+  {
+    id: "D37",
+    ready: true,
+    title: "PoC of the live stream: the server, the tab and Caddy with HTTPS (the phone is a manual protocol)",
+    steps: ["D37.1", "D37.2", "D37.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
     // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
     id: "G2",
