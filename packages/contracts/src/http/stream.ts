@@ -7,6 +7,9 @@ import { z } from "zod";
 
 export const STREAM_PATH = "/api/v1/stream";
 
+/** A `ping` every 25 s keeps the stream alive through proxies and tells the server whether the session still holds; the browser reads the silence of a stream against it (Architektura §10). */
+export const STREAM_PING_INTERVAL_MS = 25_000;
+
 /** The wire name of each event, as the `event:` field of the stream carries it (Architektura §10). */
 export const LIVE_EVENT_NAMES = ["ready", "ping", "data.changed", "config.changed", "schema.changed", "layout.changed", "day.changed", "update.available"] as const;
 export type LiveEventName = (typeof LIVE_EVENT_NAMES)[number];

@@ -596,6 +596,9 @@ jobs:
       - name: Verify D36.3 (S13 with the clocks at the two moments of F02, the zone of the owner, a tab that comes back and no timer left)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D36.3
+      - name: Verify D37.2 (the live stream of a tab in a browser, lost and found again, ended with the session)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D37.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

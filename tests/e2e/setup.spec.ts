@@ -166,8 +166,10 @@ test.describe("signing out", () => {
     // The other tab was never reloaded or touched, and still it leaves the private screen.
     await expect(other).toHaveURL(`${owner.baseUrl}/login`);
     await expect(other.getByRole("heading", { name: text(common, "main.title") })).toHaveCount(0);
+    // Back must not bring the private screen back. The live stream (D37.2) may send the tab away before the broadcast does, and then the guard replaces the entry of the screen, so back leads out of the application, not to the sign-in.
     await other.goBack();
-    await expect(other).toHaveURL(`${owner.baseUrl}/login`);
+    await expect.poll(() => other.url()).toMatch(new RegExp(`^(about:blank|${owner.baseUrl}/login)$`));
+    await expect(other.getByRole("heading", { name: text(common, "main.title") })).toHaveCount(0);
 
     // The cookie of the ended session opens nothing.
     const stale = await playwright.request.newContext({ baseURL: owner.baseUrl, extraHTTPHeaders: { cookie: oldCookies } });

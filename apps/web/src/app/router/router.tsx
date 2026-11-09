@@ -24,6 +24,7 @@ import { AppBar } from "../layout/app-bar.js";
 import { GateErrorPage } from "../pages/gate-error-page.js";
 import { NotFoundPage } from "../pages/not-found-page.js";
 import { StatusPage } from "../pages/status-page.js";
+import { LiveStreamBridge } from "./live-stream-bridge.js";
 import { SessionEndWatcher } from "./session-end-watcher.js";
 
 export type RouterContext = Readonly<{ queryClient: QueryClient }>;
@@ -36,6 +37,7 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
     return (
       <>
         <SessionEndWatcher />
+        <LiveStreamBridge />
         <Outlet />
       </>
     );

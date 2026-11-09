@@ -20,6 +20,7 @@ import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindR
 import { bindOwnerPreferencesStore } from "@openlife/sqlite/adapters/settings";
 import { DEFAULT_DICTIONARY_LIMITS } from "@openlife/core/dictionaries";
 import { DEFAULT_CONFIG_LIMITS } from "@openlife/core/configuration";
+import { STREAM_PING_INTERVAL_MS } from "@openlife/contracts/http/stream";
 import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "@openlife/core/registries";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
 import { createWidgetCatalog } from "./adapters/widget-catalog.js";
@@ -43,7 +44,7 @@ import { createTechnicalLogger } from "./adapters/logging/technical-logger.js";
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
 import { createLiveHub } from "./adapters/events/live-hub.js";
-import { STREAM_CONNECTIONS_PER_SESSION, STREAM_PING_INTERVAL_MS } from "./adapters/events/limits.js";
+import { STREAM_CONNECTIONS_PER_SESSION } from "./adapters/events/limits.js";
 import { bindSystemTableReader } from "./adapters/system-tables.js";
 import { loadBootstrapConfig } from "./bootstrap/bootstrap-config.js";
 import { createApp } from "./bootstrap/create-app.js";

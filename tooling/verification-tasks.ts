@@ -4036,6 +4036,41 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.34: the live stream in the browser.
+    id: "D37.2",
+    ready: true,
+    title: "The live stream in the browser: one stream per tab with its states, lost and found again, a tab that comes back connects at once, the end of the session closes it",
+    criteria: ["D37.2-AC1", "D37.2-AC2", "D37.2-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D37.2-AC1", "D37.2-AC2"],
+        description: "pnpm -r build: the contract with the ping interval, the manager of the stream and its bridge in the SPA",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/http/stream.ts", "apps/web/src/lib/live/live-stream.ts", "apps/web/src/app/router/live-stream-bridge.tsx"],
+      },
+      {
+        id: "live-stream-unit",
+        criteria: ["D37.2-AC1", "D37.2-AC2"],
+        description:
+          "Unit with a fake host and clock: connecting, live at ready and no refresh for a first connection; offline at once, the waits growing and starting again, the data read again once after the return; silence taken for a loss after two pings and the slack; a tab that comes back connects at once and one quiet longer than a ping connects again; the late word of a replaced connection ignored; a session the server no longer holds ends the stream for good; nothing left after stop and after forty cycles",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/live-stream.test.ts"],
+        requires: ["tests/unit/web/live-stream.test.ts"],
+      },
+      {
+        id: "live-stream-e2e",
+        criteria: ["D37.2-AC1", "D37.2-AC2"],
+        description:
+          "Playwright on the built app: one stream after sign-in and through the moves between private screens; the server stops and returns (offline, live again, the list of screens read again, one stream open); focus, online and the visibility of the page connect at once after failed attempts; sign-out and a session ended elsewhere close the stream and it does not come back",
+        command: ["node", "tests/verification/e2e.ts", "live-stream.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/live-stream.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D37.2-regression"),
+    ],
+  },
+  {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
     // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
     id: "G2",

@@ -108,7 +108,8 @@ test.describe("D18.3-AC1 registry, Designer, three layouts, restart, record", ()
     await designerSaved(page);
     await page.getByRole("button", { name: text(designer, "toolbar.finish"), exact: true }).click();
     await expect(page).toHaveURL(`${owner.baseUrl}/`);
-    await page.waitForLoadState("networkidle");
+    // The page is settled when its widget is drawn; the stream of the tab never lets the network go idle (D37.2).
+    await expect(page.locator("section.widget")).toHaveCount(1);
 
     // The server stops and starts again on the same data.
     await owner.restart();
