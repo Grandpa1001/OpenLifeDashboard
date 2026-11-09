@@ -590,6 +590,9 @@ jobs:
       - name: Verify D36.2 (the clock in the window Add widget and in its bar)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D36.2
+      - name: Verify D36.3 (S13 with the clocks at the two moments of F02, the zone of the owner, a tab that comes back and no timer left)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D36.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -964,7 +967,7 @@ jobs:
 
   full-screens:
     # Screens: the private screen and the Designer in a browser.
-    name: verify:task (full tier, screens D18 and D33-D35)
+    name: verify:task (full tier, screens D18 and D33-D36)
     needs: changes
     if: ${{ needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
@@ -1018,6 +1021,9 @@ jobs:
       - name: Verify D35 (the parent, D35.1–D35.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D35
+      - name: Verify D36 (the parent, D36.1–D36.3 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D36
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

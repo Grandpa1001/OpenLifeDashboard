@@ -3947,6 +3947,42 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.33: S13 and what a clock leaves behind.
+    id: "D36.3",
+    ready: true,
+    title: "S13: the clocks at the two moments of F02, the zone of the owner moving only the clock of the owner, a tab that comes back, and clocks removed that leave no timer and no listener",
+    criteria: ["D36.3-AC1", "D36.3-AC2", "D36.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D36.3-AC1", "D36.3-AC2"],
+        description: "pnpm -r build: the clock, its ticker and the Designer the tests run in",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/dashboard/lib/clock.ts", "apps/web/src/features/dashboard/components/clock-widget.tsx"],
+      },
+      {
+        id: "clock-s13-e2e",
+        criteria: ["D36.3-AC1", "D36.3-AC2"],
+        description:
+          "Playwright with the clock of the page at each moment of F02: Dom 01:30 and Nowy Jork 20:30, then 03:30 and 21:30; the zone of the owner changed to Tokyo moves Dom to 09:30 and leaves Nowy Jork; a tab that comes back (focus, visibility) shows the current time at once; both clocks deleted in the Designer leave two listeners fewer and no tick on a whole second; axe",
+        command: ["node", "tests/verification/e2e.ts", "clock-s13.spec", "clock.spec", "designer-clock"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/clock-s13.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D36.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the clock, its bar and S13.
+  {
+    id: "D36",
+    ready: true,
+    title: "The clock widget: its configuration and time, its place in the Designer, and S13 with nothing left behind",
+    steps: ["D36.1", "D36.2", "D36.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
     // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
     id: "G2",
