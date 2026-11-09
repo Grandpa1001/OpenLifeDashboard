@@ -1,6 +1,7 @@
 import { PUBLIC_BOOTSTRAP_PATH } from "@openlife/contracts/http/bootstrap";
 import { HEALTH_PATH } from "@openlife/contracts/http/health";
 import { Hono } from "hono";
+import type { Announce } from "../adapters/events/live-hub.js";
 import type { TechnicalLogger } from "../adapters/logging/technical-logger.js";
 import { apiNotFound } from "../http/api-errors.js";
 import type { AppEnv } from "../http/app-env.js";
@@ -44,6 +45,8 @@ export type AppDependencies = Readonly<{
   screens: ScreenRouteDependencies;
   systemTables: SystemTableRouteDependencies;
   stream: StreamRouteDependencies;
+  /** Tells the open streams of a committed change; a failure of it never changes the answer of the route. */
+  announce: Announce;
 }>;
 
 /**
@@ -52,6 +55,14 @@ export type AppDependencies = Readonly<{
  */
 export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
+  // The change is committed by now: if the streams cannot be told, the tab that missed it reads again on its next reconnect.
+  const announce: Announce = (event) => {
+    try {
+      dependencies.announce(event);
+    } catch (error) {
+      dependencies.logger.log({ level: "warn", event: "live.announce_failed", error });
+    }
+  };
   installHttpFoundation(app, dependencies);
   app.get(HEALTH_PATH, health(dependencies.readiness));
   app.get(PUBLIC_BOOTSTRAP_PATH, publicBootstrap);
@@ -59,12 +70,12 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   registerMfaEnrollmentRoutes(app, dependencies.mfaEnrollment);
   registerMfaVerificationRoutes(app, dependencies.mfaVerification);
   registerSetupRoutes(app, dependencies.setup);
-  registerRegistryRoutes(app, dependencies.registries);
-  registerStructureRoutes(app, dependencies.structure);
-  registerRecordRoutes(app, dependencies.records);
-  registerDictionaryRoutes(app, dependencies.dictionaries);
-  registerConfigRoutes(app, dependencies.config);
-  registerScreenRoutes(app, dependencies.screens);
+  registerRegistryRoutes(app, dependencies.registries, announce);
+  registerStructureRoutes(app, dependencies.structure, announce);
+  registerRecordRoutes(app, dependencies.records, announce);
+  registerDictionaryRoutes(app, dependencies.dictionaries, announce);
+  registerConfigRoutes(app, dependencies.config, announce);
+  registerScreenRoutes(app, dependencies.screens, announce);
   registerSystemTableRoutes(app, dependencies.systemTables);
   registerStreamRoutes(app, dependencies.stream);
   app.all("/api", apiNotFound);

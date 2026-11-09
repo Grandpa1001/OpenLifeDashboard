@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -4106,6 +4106,39 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D37.1", "D37.2", "D37.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.35: the events of committed changes, from the routes to the open streams.
+    id: "D38.1",
+    ready: true,
+    title: "Events after the commit: every route that writes tells the open streams what changed, and none when it refused or wrote nothing",
+    criteria: ["D38.1-AC1", "D38.1-AC2", "D38.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests import the built contracts and server.
+        id: "workspace-build",
+        criteria: ["D38.1-AC1", "D38.1-AC2"],
+        description: "pnpm -r build: the announcement in the routes of records, registries, structure, dictionaries, ConfigTable and screens, and in the composition of the server",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/adapters/events/live-hub.ts", "apps/server/src/bootstrap/create-app.ts", "apps/server/src/http/routes/records.routes.ts"],
+      },
+      {
+        id: "live-events",
+        criteria: ["D38.1-AC1", "D38.1-AC2"],
+        description:
+          "HTTP: a registry, a record (add, change, delete), a column, an entry of ConfigTable and a screen (create, design) each send one event with the field that names them; a dictionary sends one per registry that uses it and none when nothing does; a refusal, a stale revision, a repeated add and a foreign Origin send nothing; the event comes after the commit; a stream that cannot be written to does not stop the others and an announcement that throws does not change the answer",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/stream/live-events.test.ts"],
+        requires: ["tests/integration/stream/live-events.test.ts", "tests/support/harness-owner.ts"],
+      },
+      {
+        id: "stream-http",
+        criteria: ["D38.1-AC2"],
+        description: "The stream as before (the harness now announces too): headers, ready, a published event, ping, the limit of five, sign-out and the stop of the server",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/stream/stream-http.test.ts"],
+        requires: ["tests/integration/stream/stream-http.test.ts", "tests/support/app-harness.ts"],
+      },
+      ...regressionChecks("D38.1-regression"),
+    ],
   },
   {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of

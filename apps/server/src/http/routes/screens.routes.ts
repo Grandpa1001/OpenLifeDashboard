@@ -31,6 +31,7 @@ import {
 } from "@openlife/core/dashboard";
 import type { Context, Hono } from "hono";
 import type { SignedCookie } from "../../adapters/auth/session-cookie.js";
+import type { Announce } from "../../adapters/events/live-hub.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
 import { apiErrorResponse } from "../api-errors.js";
 import type { AppEnv } from "../app-env.js";
@@ -50,7 +51,7 @@ const idOf = (c: Context<AppEnv>): string => c.req.param("id") ?? "";
 const toScreenDto = (screen: ScreenView): ScreenDto => screen as unknown as ScreenDto;
 const toDataDto = (data: WidgetData): WidgetDataDto => data as unknown as WidgetDataDto;
 
-export function registerScreenRoutes(app: Hono<AppEnv>, deps: ScreenRouteDependencies): void {
+export function registerScreenRoutes(app: Hono<AppEnv>, deps: ScreenRouteDependencies, announce: Announce): void {
   const { guard, operation, read, refused } = createSessionOperationKit({ allowedOrigin: deps.allowedOrigin, cookies: deps.cookies, logger: deps.logger, bodyMaxBytes: JSON_BODY_MAX_BYTES });
   const { dashboard } = deps;
 
@@ -69,7 +70,9 @@ export function registerScreenRoutes(app: Hono<AppEnv>, deps: ScreenRouteDepende
     ...guard,
     operation(createScreenRequestSchema, async (c, token, body) => {
       const result = createScreen(dashboard, token, body.name, c.get("requestId"));
-      return result.ok ? c.json(toScreenDto(result.value), 201) : refused(c, result.error);
+      if (!result.ok) return refused(c, result.error);
+      announce({ type: "layout.changed", screenId: result.value.id });
+      return c.json(toScreenDto(result.value), 201);
     }),
   );
 
@@ -86,7 +89,9 @@ export function registerScreenRoutes(app: Hono<AppEnv>, deps: ScreenRouteDepende
     ...guard,
     operation(designSnapshotSchema, async (c, token, body) => {
       const result = saveDesign(dashboard, token, idOf(c), body, c.get("requestId"));
-      return result.ok ? c.json(toScreenDto(result.value)) : refused(c, result.error);
+      if (!result.ok) return refused(c, result.error);
+      announce({ type: "layout.changed", screenId: idOf(c) });
+      return c.json(toScreenDto(result.value));
     }),
   );
 

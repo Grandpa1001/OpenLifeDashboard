@@ -10,8 +10,9 @@ import { apiErrorSchema } from "@openlife/contracts/http/errors";
 import { SIGN_OUT_PATH } from "@openlife/contracts/http/identity";
 import { decodeLiveEvent, STREAM_PATH, type LiveEvent } from "@openlife/contracts/http/stream";
 import { afterEach, describe, expect, it } from "vitest";
-import { closeHarnesses, createAppHarness, HARNESS_EMAIL, HARNESS_PASSWORD, type HarnessOptions } from "../../support/app-harness.ts";
-import { codeOf, installation, readyOwner, secretOf, send, stopServers, waitForExitOf } from "../../support/auth-http.ts";
+import { closeHarnesses, createAppHarness, HARNESS_EMAIL, HARNESS_PASSWORD } from "../../support/app-harness.ts";
+import { installation, readyOwner, send, stopServers, waitForExitOf } from "../../support/auth-http.ts";
+import { ownerSession } from "../../support/harness-owner.ts";
 
 afterEach(async () => {
   closeHarnesses();
@@ -44,16 +45,6 @@ function readerOf(response: Response) {
     }
   };
   return { next, cancel: () => reader.cancel() };
-}
-
-async function ownerSession(options: HarnessOptions = {}) {
-  const h = await createAppHarness(options);
-  const password = (await h.request("POST", "/api/auth/sign-in/email", { email: HARNESS_EMAIL, password: HARNESS_PASSWORD })).cookie ?? "";
-  const begun = (await h.request("POST", "/api/v1/mfa/enrollment/begin", {}, { cookie: password })).json() as { challengeId: string; otpauthUri: string };
-  const confirmed = await h.request("POST", "/api/v1/mfa/enrollment/confirm", { challengeId: begun.challengeId, code: await codeOf(secretOf(begun.otpauthUri)) }, { cookie: password });
-  const cookie = confirmed.cookie ?? "";
-  await h.request("POST", "/api/v1/mfa/enrollment/recovery/ack", { batchId: (confirmed.json() as { batchId: string }).batchId }, { cookie });
-  return { h, password, cookie, chooseEmpty: () => h.request("POST", "/api/v1/setup/choose-empty", {}, { cookie }) };
 }
 
 describe("D37.1-AC1 the stream of a session that passed the gate", () => {

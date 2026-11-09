@@ -274,6 +274,7 @@ const app = createApp({
   dictionaries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },
   config: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
   systemTables: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
+  announce: liveHub.publish,
   stream: { unit: identityUnit, hub: liveHub, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, pingIntervalMs: STREAM_PING_INTERVAL_MS, logger },
   screens: { dashboard: { unit: identityUnit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: environment.baseUrl, logger },
 });

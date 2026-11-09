@@ -13,6 +13,9 @@ export type LiveListener = Readonly<{
   close: () => void;
 }>;
 
+/** What a route calls once a change is committed: tells the open streams of it (D38). */
+export type Announce = (event: LiveEvent) => void;
+
 export type LiveHub = Readonly<{
   /** Registers a listener unless its session already holds the most; the returned function removes it. */
   subscribe: (listener: LiveListener) => { accepted: true; unsubscribe: () => void } | { accepted: false };

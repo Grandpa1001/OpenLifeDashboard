@@ -21,6 +21,7 @@ import type { ReadUnit, UnitOfWork } from "@openlife/core/foundation";
 import { createRecord, deleteRecord, getRecord, listRecords, updateRecord, type RecordDependencies, type RecordPorts, type StoredRecord } from "@openlife/core/registries";
 import type { Context, Hono } from "hono";
 import type { SignedCookie } from "../../adapters/auth/session-cookie.js";
+import type { Announce } from "../../adapters/events/live-hub.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
 import { apiErrorResponse } from "../api-errors.js";
 import type { AppEnv } from "../app-env.js";
@@ -47,7 +48,7 @@ const recordIdOf = (c: Context<AppEnv>): string => c.req.param("recordId") ?? ""
 /** The public shape of a record: its values and revision, not its owner or its registry. */
 const toDto = (record: StoredRecord): RecordDto => ({ id: record.id, revision: record.revision, createdAt: record.createdAt, updatedAt: record.updatedAt, values: record.values });
 
-export function registerRecordRoutes(app: Hono<AppEnv>, deps: RecordRouteDependencies): void {
+export function registerRecordRoutes(app: Hono<AppEnv>, deps: RecordRouteDependencies, announce: Announce): void {
   const { guard, operation, read, refused } = createSessionOperationKit({ allowedOrigin: deps.allowedOrigin, cookies: deps.cookies, logger: deps.logger, bodyMaxBytes: JSON_BODY_MAX_BYTES });
   const records = { unit: deps.unit, nowMs: deps.nowMs, newId: deps.newId, hash: deps.hash, limits: deps.limits, recordMaxBytes: deps.recordMaxBytes };
 
@@ -63,6 +64,8 @@ export function registerRecordRoutes(app: Hono<AppEnv>, deps: RecordRouteDepende
       if (!result.ok) {
         return refused(c, result.error);
       }
+      // A replayed add wrote nothing, so there is nothing to tell.
+      if (!result.value.replayed) announce({ type: "data.changed", registry: symbolOf(c) });
       return c.json(toDto(result.value.record), result.value.replayed ? 200 : 201);
     }),
   );
@@ -80,7 +83,9 @@ export function registerRecordRoutes(app: Hono<AppEnv>, deps: RecordRouteDepende
     ...guard,
     operation(updateRecordRequestSchema, async (c, token, body) => {
       const result = updateRecord(records, token, { symbol: symbolOf(c), recordId: recordIdOf(c), schemaRevision: body.schemaRevision, expectedRevision: body.expectedRevision, values: body.values }, c.get("requestId"));
-      return result.ok ? c.json(toDto(result.value)) : refused(c, result.error);
+      if (!result.ok) return refused(c, result.error);
+      announce({ type: "data.changed", registry: symbolOf(c) });
+      return c.json(toDto(result.value));
     }),
   );
 
@@ -89,7 +94,9 @@ export function registerRecordRoutes(app: Hono<AppEnv>, deps: RecordRouteDepende
     ...guard,
     operation(deleteRecordRequestSchema, async (c, token, body) => {
       const result = deleteRecord(records, token, { symbol: symbolOf(c), recordId: recordIdOf(c), expectedRevision: body.expectedRevision }, c.get("requestId"));
-      return result.ok ? c.body(null, 204) : refused(c, result.error);
+      if (!result.ok) return refused(c, result.error);
+      announce({ type: "data.changed", registry: symbolOf(c) });
+      return c.body(null, 204);
     }),
   );
 

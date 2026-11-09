@@ -16,6 +16,7 @@ import { createDictionary, deleteDictionary, getDictionary, listDictionaries, sa
 import type { ReadUnit, UnitOfWork } from "@openlife/core/foundation";
 import type { Context, Hono } from "hono";
 import type { SignedCookie } from "../../adapters/auth/session-cookie.js";
+import type { Announce } from "../../adapters/events/live-hub.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
 import type { AppEnv } from "../app-env.js";
 import { JSON_BODY_MAX_BYTES } from "../security-limits.js";
@@ -49,9 +50,13 @@ const toDto = (dictionary: StoredDictionary, usages: readonly DictionaryUsage[])
 /** The dictionary the path names; an empty symbol is a dictionary that does not exist. */
 const symbolOf = (c: Context<AppEnv>): string => c.req.param("symbol") ?? "";
 
-export function registerDictionaryRoutes(app: Hono<AppEnv>, deps: DictionaryRouteDependencies): void {
+export function registerDictionaryRoutes(app: Hono<AppEnv>, deps: DictionaryRouteDependencies, announce: Announce): void {
   const { guard, operation, read, refused } = createSessionOperationKit({ allowedOrigin: deps.allowedOrigin, cookies: deps.cookies, logger: deps.logger, bodyMaxBytes: JSON_BODY_MAX_BYTES });
   const dictionaries = { unit: deps.unit, nowMs: deps.nowMs, newId: deps.newId, limits: deps.limits };
+  // A dictionary changes the labels of the records of every registry that uses it; one that nothing uses shows nowhere, so tells nobody.
+  const announceUsers = (usages: readonly DictionaryUsage[]): void => {
+    for (const registry of new Set(usages.map((usage) => usage.registrySymbol))) announce({ type: "schema.changed", registry });
+  };
 
   app.get(
     DICTIONARIES_PATH,
@@ -88,6 +93,7 @@ export function registerDictionaryRoutes(app: Hono<AppEnv>, deps: DictionaryRout
       if (!saved.ok) return refused(c, saved.error);
       // The usages are read after the commit, as the list reads them.
       const read = getDictionary(dictionaries, token, symbolOf(c), c.get("requestId"));
+      if (read.ok) announceUsers(read.value.usages);
       return c.json(toDto(saved.value, read.ok ? read.value.usages : []));
     }),
   );
@@ -98,6 +104,7 @@ export function registerDictionaryRoutes(app: Hono<AppEnv>, deps: DictionaryRout
     operation(deleteDictionaryRequestSchema, async (c, token, body) => {
       const result = deleteDictionary(dictionaries, token, { symbol: symbolOf(c), expectedRevision: body.expectedRevision }, c.get("requestId"));
       if (!result.ok) return refused(c, result.error);
+      announceUsers(result.value);
       const dto: DictionaryDeletedDto = { unpinned: result.value.map(usageDto) };
       return c.json(dto);
     }),

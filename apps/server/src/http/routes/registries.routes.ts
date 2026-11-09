@@ -15,6 +15,7 @@ import type { ReadUnit, UnitOfWork } from "@openlife/core/foundation";
 import { createRegistry, listRegistries, listRegistrySummaries, type RegistryLimits, type RegistryPorts, type RegistrySummaryPorts, type StoredRegistry } from "@openlife/core/registries";
 import type { Hono } from "hono";
 import type { SignedCookie } from "../../adapters/auth/session-cookie.js";
+import type { Announce } from "../../adapters/events/live-hub.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
 import type { AppEnv } from "../app-env.js";
 import { JSON_BODY_MAX_BYTES } from "../security-limits.js";
@@ -55,7 +56,7 @@ const toDto = (registry: StoredRegistry): RegistryDto => ({
   })),
 });
 
-export function registerRegistryRoutes(app: Hono<AppEnv>, deps: RegistryRouteDependencies): void {
+export function registerRegistryRoutes(app: Hono<AppEnv>, deps: RegistryRouteDependencies, announce: Announce): void {
   const { guard, operation, read, refused } = createSessionOperationKit({ allowedOrigin: deps.allowedOrigin, cookies: deps.cookies, logger: deps.logger, bodyMaxBytes: JSON_BODY_MAX_BYTES });
   const registries = { unit: deps.unit, nowMs: deps.nowMs, newId: deps.newId, limits: deps.limits };
 
@@ -64,7 +65,9 @@ export function registerRegistryRoutes(app: Hono<AppEnv>, deps: RegistryRouteDep
     ...guard,
     operation(createRegistryRequestSchema, async (c, token, body) => {
       const result = createRegistry(registries, token, body, c.get("requestId"));
-      return result.ok ? c.json(toDto(result.value), 201) : refused(c, result.error);
+      if (!result.ok) return refused(c, result.error);
+      announce({ type: "schema.changed", registry: result.value.symbol });
+      return c.json(toDto(result.value), 201);
     }),
   );
 

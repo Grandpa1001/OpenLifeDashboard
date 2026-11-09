@@ -36,6 +36,7 @@ import type { MaintenanceGate } from "../../adapters/filesystem/maintenance-gate
 import { createStructureOperation } from "../../workers/rebuild-operation.js";
 import type { Context, Hono } from "hono";
 import type { SignedCookie } from "../../adapters/auth/session-cookie.js";
+import type { Announce } from "../../adapters/events/live-hub.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
 import type { AppEnv } from "../app-env.js";
 import { JSON_BODY_MAX_BYTES } from "../security-limits.js";
@@ -74,7 +75,7 @@ const toDto = (preview: StructurePreview): StructurePreviewDto => ({
   expiresAt: preview.expiresAt,
 });
 
-export function registerStructureRoutes(app: Hono<AppEnv>, deps: StructureRouteDependencies): void {
+export function registerStructureRoutes(app: Hono<AppEnv>, deps: StructureRouteDependencies, announce: Announce): void {
   const { guard, operation, refused } = createSessionOperationKit({ allowedOrigin: deps.allowedOrigin, cookies: deps.cookies, logger: deps.logger, bodyMaxBytes: JSON_BODY_MAX_BYTES });
 
   app.post(
@@ -101,6 +102,7 @@ export function registerStructureRoutes(app: Hono<AppEnv>, deps: StructureRouteD
         const result = await inGate(input, (ports, nowMs) => carryOutTypeChange(ports, { signer: deps.signer, limits: deps.limits, nowMs }, token, input), "pre_type_change");
         if (!result.ok) return refused(c, result.error);
         const { value: changed, snapshotId } = result.value;
+        announce({ type: "schema.changed", registry: input.symbol });
         const dto: StructureChangedDto = { registry: { ...registry, schemaRevision: changed.schemaRevision }, columnId: changed.columnId, affected: changed.affected, failed: changed.failed, ...(snapshotId === null ? {} : { snapshotId }) };
         return c.json(dto);
       }
@@ -109,12 +111,14 @@ export function registerStructureRoutes(app: Hono<AppEnv>, deps: StructureRouteD
         const result = await inGate(input, (ports, nowMs) => carryOutRegistryDeletion(ports, { signer: deps.signer, limits: deps.limits, nowMs }, token, input), "pre_delete");
         if (!result.ok) return refused(c, result.error);
         const { value: deleted, snapshotId } = result.value;
+        announce({ type: "schema.changed", registry: input.symbol });
         const dto: StructureChangedDto = { registry: { ...registry, schemaRevision: deleted.schemaRevision }, columnId: null, affected: deleted.affected, ...(snapshotId === null ? {} : { snapshotId }) };
         return c.json(dto);
       }
       const result = await inGate(input, (ports, nowMs) => carryOutColumnChange(ports, { signer: deps.signer, limits: deps.limits, nowMs, newId: deps.newId }, token, input));
       if (!result.ok) return refused(c, result.error);
       const changed = result.value.value;
+      announce({ type: "schema.changed", registry: input.symbol });
       const dto: StructureChangedDto = { registry: { ...registry, schemaRevision: changed.schemaRevision }, columnId: changed.columnId, affected: changed.affected };
       return c.json(dto);
     }),

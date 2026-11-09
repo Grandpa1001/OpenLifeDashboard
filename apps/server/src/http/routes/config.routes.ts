@@ -17,6 +17,7 @@ import { createConfigEntry, deleteConfigEntry, getConfigEntry, listConfigEntries
 import type { ReadUnit, UnitOfWork } from "@openlife/core/foundation";
 import type { Context, Hono } from "hono";
 import type { SignedCookie } from "../../adapters/auth/session-cookie.js";
+import type { Announce } from "../../adapters/events/live-hub.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
 import type { AppEnv } from "../app-env.js";
 import { JSON_BODY_MAX_BYTES } from "../security-limits.js";
@@ -49,7 +50,7 @@ const toDto = (entry: StoredConfigEntry, bindings: number): ConfigEntryDto => ({
 /** The entry the path names; an empty symbol is an entry that does not exist. */
 const symbolOf = (c: Context<AppEnv>): string => c.req.param("symbol") ?? "";
 
-export function registerConfigRoutes(app: Hono<AppEnv>, deps: ConfigRouteDependencies): void {
+export function registerConfigRoutes(app: Hono<AppEnv>, deps: ConfigRouteDependencies, announce: Announce): void {
   const { guard, operation, read, refused } = createSessionOperationKit({ allowedOrigin: deps.allowedOrigin, cookies: deps.cookies, logger: deps.logger, bodyMaxBytes: JSON_BODY_MAX_BYTES });
   const config = { unit: deps.unit, nowMs: deps.nowMs, newId: deps.newId, limits: deps.limits };
 
@@ -68,7 +69,9 @@ export function registerConfigRoutes(app: Hono<AppEnv>, deps: ConfigRouteDepende
     ...guard,
     operation(createConfigEntryRequestSchema, async (c, token, body) => {
       const result = createConfigEntry(config, token, body, c.get("requestId"));
-      return result.ok ? c.json(toDto(result.value, 0), 201) : refused(c, result.error);
+      if (!result.ok) return refused(c, result.error);
+      announce({ type: "config.changed", symbol: result.value.symbol });
+      return c.json(toDto(result.value, 0), 201);
     }),
   );
 
@@ -87,6 +90,7 @@ export function registerConfigRoutes(app: Hono<AppEnv>, deps: ConfigRouteDepende
       const { expectedRevision, ...content } = body;
       const saved = saveConfigEntry(config, token, { symbol: symbolOf(c), expectedRevision, content }, c.get("requestId"));
       if (!saved.ok) return refused(c, saved.error);
+      announce({ type: "config.changed", symbol: symbolOf(c) });
       // The bindings are read after the commit, as the list reads them.
       const read = getConfigEntry(config, token, symbolOf(c), c.get("requestId"));
       return c.json(toDto(saved.value, read.ok ? read.value.bindings : 0));
@@ -99,6 +103,7 @@ export function registerConfigRoutes(app: Hono<AppEnv>, deps: ConfigRouteDepende
     operation(deleteConfigEntryRequestSchema, async (c, token, body) => {
       const result = deleteConfigEntry(config, token, { symbol: symbolOf(c), expectedRevision: body.expectedRevision }, c.get("requestId"));
       if (!result.ok) return refused(c, result.error);
+      announce({ type: "config.changed", symbol: symbolOf(c) });
       const dto: ConfigEntryDeletedDto = { bindings: result.value.bindings };
       return c.json(dto);
     }),

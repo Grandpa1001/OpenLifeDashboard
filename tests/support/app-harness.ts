@@ -38,6 +38,7 @@ import { acquireWriterLease } from "../../apps/server/dist/adapters/filesystem/w
 import { DESIGN_POLICY } from "../../apps/server/dist/bootstrap/design-policy.js";
 import { sha256Hex } from "../../apps/server/dist/adapters/crypto/sha256-hex.js";
 import { createUuidV7 } from "../../apps/server/dist/adapters/ids/uuid-v7.js";
+import type { LiveEvent } from "@openlife/contracts/http/stream";
 import { createLiveHub } from "../../apps/server/dist/adapters/events/live-hub.js";
 import { bindSystemTableReader } from "../../apps/server/dist/adapters/system-tables.js";
 import { bindOwnerPreferencesStore } from "../../packages/sqlite/dist/adapters/settings/owner-preferences.js";
@@ -61,7 +62,8 @@ export function closeHarnesses(): void {
 
 export type HarnessReply = Readonly<{ status: number; text: string; json: () => unknown; setCookies: string[]; cookie: string | null }>;
 
-export type HarnessOptions = Readonly<{ pingIntervalMs?: number; streamsPerSession?: number }>;
+/** `announce` replaces what the routes tell the streams after a commit, to try an announcement that fails (D38). */
+export type HarnessOptions = Readonly<{ pingIntervalMs?: number; streamsPerSession?: number; announce?: (event: LiveEvent) => void }>;
 
 export async function createAppHarness(options: HarnessOptions = {}) {
   const dir = scratchDir("openlife-harness-");
@@ -160,6 +162,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     config: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
     systemTables: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
+    announce: options.announce ?? hub.publish,
     stream: { unit, hub, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, pingIntervalMs: options.pingIntervalMs ?? 25_000, logger },
   });
 
