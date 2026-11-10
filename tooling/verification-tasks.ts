@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -4358,6 +4358,33 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D39.1", "D39.2", "D39.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.37: a screen with ten widgets.
+    id: "D40.1",
+    ready: true,
+    title: "A screen with ten widgets: the dashboard on a laptop and a phone, the Designer and the preview, the reads of the data and the budget of time",
+    criteria: ["D40.1-AC1", "D40.1-AC2", "D40.1-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D40.1-AC1", "D40.1-AC2"],
+        description: "pnpm -r build: the server and the SPA the screen of ten widgets runs on",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/main.ts", "apps/web/src/app/router/router.tsx"],
+      },
+      {
+        id: "ten-widgets-e2e",
+        criteria: ["D40.1-AC1", "D40.1-AC2"],
+        description:
+          "Playwright on the built app: six working tables, two clocks, a draft and a table of an old configuration; the dashboard draws all ten on a laptop within the budget of 2 s (warm, local, the time goes to the report) with one read of data per working table and none for the others, and in one column on a phone without sideways scrolling; the Designer selects and moves a widget and saves, the phone layout and the preview show all ten; axe on each. The profile of 50 000 records and the p95 of 100 writes are not run",
+        command: ["node", "tests/verification/e2e.ts", "ten-widgets.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/ten-widgets.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D40.1-regression"),
+    ],
   },
   {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of

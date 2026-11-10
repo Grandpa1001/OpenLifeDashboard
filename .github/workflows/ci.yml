@@ -617,6 +617,9 @@ jobs:
       - name: Verify D39.3 (the preview of the Designer, sample data only for an unbound widget)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D39.3
+      - name: Verify D40.1 (a screen with ten widgets on the dashboard, in the Designer and in the preview)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D40.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
