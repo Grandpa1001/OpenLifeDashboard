@@ -4436,6 +4436,55 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
+    // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
+    id: "G3",
+    ready: true,
+    title: "Gate G3: the screen on a laptop and a phone, the register and two clocks, and the Designer",
+    criteria: ["G3-path", "G3-matrix", "G3-reports"],
+    checks: [
+      {
+        // Runs first: the path test uses the built server and SPA.
+        id: "workspace-build",
+        criteria: ["G3-path"],
+        description: "pnpm -r build: the server and the SPA the path of the screen runs on",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/main.ts", "apps/web/src/app/router/router.tsx"],
+      },
+      {
+        id: "g3-path-e2e",
+        criteria: ["G3-path"],
+        description:
+          "Playwright on a fresh installation: the table and the two clocks of F01 through the routes of the product; at the night the clocks change (F02) Dom and Nowy Jork show their local times on a laptop and then on a phone without sideways scrolling, axe on both; a record added in tab A is in tab B within a second, and after the server restarts tab B is live again and shows what came meanwhile; a table whose data cannot be read says why with its code and reference while the clocks go on, and the Designer and its preview open the same screen",
+        command: ["node", "tests/verification/e2e.ts", "g3-path"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/g3-path.spec.ts", "tests/fixtures/books/books-v1.export.json", "tests/fixtures/books/books-v1.expected.json", "tests/e2e/owner-session.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "g3-matrix-static",
+        criteria: ["G3-matrix"],
+        description: "Every item of G3 names ready reports, checks of those tasks and test titles written as they stand in the sources the checks run; every report joined proves an item",
+        command: ["node", "tests/verification/g3-matrix-static.ts"],
+        requires: ["tests/verification/g3-matrix-static.ts", "tests/verification/g3-matrix.ts"],
+      },
+      {
+        id: "g3-gate-controls",
+        criteria: ["G3-matrix"],
+        description: "The G3 gate on synthetic reports: a complete set passes; a failed or renamed test line and a failed check fail; a missing report and a report of other code are blocked; the result always lists every item",
+        command: ["node", "tests/verification/g3-gate-controls.ts"],
+        requires: ["tests/verification/g3-gate-controls.ts", "tests/verification/gate-controls.ts", "tests/verification/g3-gate.ts", "tests/verification/gate-run.ts", "tests/verification/g3-matrix.ts"],
+      },
+      {
+        id: "g3-gate",
+        criteria: ["G3-reports"],
+        description:
+          "Joins the reports of D33.1, D33.2, D35.1, D35.3, D36.1, D36.3, D37.2, D38.1, D38.2, D38.3, D39.1, D39.2, D39.3 and D40.1 for exactly this code and decides every item of G3 from the passed test that proves it: a record from tab A in tab B, a layout from tab A in tab B, the stream coming back, the end of a session, the clocks across the change of time, a failing widget beside the others, a failed save, a touch and an interrupted drag, ten widgets, the preview; names what is not run. A missing report is blocked",
+        command: ["node", "tests/verification/g3-gate.ts"],
+        requires: ["tests/verification/g3-gate.ts", "tests/verification/g3-matrix.ts", "tests/verification/gate-run.ts", "tests/verification/report-join.ts"],
+      },
+    ],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",
