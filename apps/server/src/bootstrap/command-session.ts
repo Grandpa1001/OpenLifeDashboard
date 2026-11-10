@@ -4,6 +4,7 @@
 // never initializes, migrates or snapshots: a missing database, a pending upgrade or an active
 // maintenance operation is refused with a code. A running app holds the lease, so the command
 // meets INSTANCE_BUSY and changes nothing.
+import { integerSetting } from "@openlife/core/settings";
 import { openDatabase, type SqliteConnection } from "@openlife/sqlite/connection";
 import { DATABASE_FIELD, inspectDatabase, PRODUCT_MIGRATION_PLAN, type DatabaseRefusalCode } from "@openlife/sqlite/migrations";
 import { checkAuthSchema } from "../adapters/auth/auth-schema.js";
@@ -57,7 +58,7 @@ export function openCommandSession(inputs: CommandSessionInputs): CommandSession
     return refused(bootstrap.code, bootstrap.fields);
   }
   const { environment, paths, settings } = bootstrap.config;
-  const reserveMiB = settings.find((setting) => setting.key === DISK_RESERVE_KEY)?.value;
+  const reserveMiB = integerSetting(settings, DISK_RESERVE_KEY);
   if (reserveMiB === undefined) {
     return refused("CONFIG_INVALID", [DISK_RESERVE_KEY]);
   }

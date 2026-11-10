@@ -4,6 +4,7 @@
 // (inspect, initialize, upgrade with a snapshot or reconcile) → auth schema → MFA capabilities → technical logger → HTTP. Any failure exits 1 before listening; a failure
 // names a code and fields, never a value. Exiting releases the lease with the process; nothing
 // before the lease opens or changes database files.
+import { integerSetting } from "@openlife/core/settings";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import type { Context } from "hono";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -93,7 +94,7 @@ if (!bootstrap.ok) {
   bootstrapFailed(bootstrap.code, bootstrap.fields);
 }
 const { environment, paths, settings } = bootstrap.config;
-const reserveMiB = settings.find((setting) => setting.key === DISK_RESERVE_KEY)?.value;
+const reserveMiB = integerSetting(settings, DISK_RESERVE_KEY);
 if (reserveMiB === undefined) {
   bootstrapFailed("CONFIG_INVALID", [DISK_RESERVE_KEY]);
 }

@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -4433,6 +4433,32 @@ const definedLater: readonly TaskDefinition[] = [
         command: ["node", "tests/verification/g2-gate.ts"],
         requires: ["tests/verification/g2-gate.ts", "tests/verification/g2-matrix.ts", "tests/verification/gate-run.ts", "tests/verification/report-join.ts"],
       },
+    ],
+  },
+  {
+    // DEV §9.38: the catalog of the application options and the resolver for each type.
+    id: "D41.1",
+    ready: true,
+    title: "The catalog of the application options: the types, the rest of the options of the architecture, and the resolver for each type",
+    criteria: ["D41.1-AC1", "D41.1-AC2", "D41.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests import the built contracts.
+        id: "workspace-build",
+        criteria: ["D41.1-AC1", "D41.1-AC2"],
+        description: "pnpm -r build: the catalog with its four types and the resolver of the settings module",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/settings/catalog.ts", "packages/core/src/modules/settings/domain/resolve-settings.ts"],
+      },
+      {
+        id: "settings-catalog",
+        criteria: ["D41.1-AC1", "D41.1-AC2"],
+        description:
+          "Unit: the catalog holds every application option of the architecture once, each default inside its own range or list, an environment variable only for the integer options §14 names, the options that ask for a fresh second factor are the named ones; the resolver takes and refuses a value of each type, one bad value rejects the whole set, the environment cannot set an option without a variable, a time of the day matches in the catalog and in the resolver; the cases F08 of D03.2 as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/settings"],
+        requires: ["tests/unit/settings/settings-catalog.test.ts", "tests/unit/settings/resolve-settings.test.ts", "tests/fixtures/cases/bootstrap-v1.cases.json"],
+      },
+      ...regressionChecks("D41.1-regression"),
     ],
   },
   {

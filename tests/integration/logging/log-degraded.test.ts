@@ -46,7 +46,8 @@ describe("D06.2-AC2 the server with an unwritable log folder", () => {
     const exit = await waitForExit(server.child, server.output, 15_000);
     const ready = outputEvent(exit.output, "bootstrap.ready");
     const settings = (ready?.["settings"] ?? []) as Array<{ key: string; value: number; source: string }>;
-    expect(settings.filter((setting) => setting.key.startsWith("logs."))).toEqual([
+    // The rotation options only: the level of the log (D41.1) is another option of the same group.
+    expect(settings.filter((setting) => ["logs.fileMaxMiB", "logs.maxFiles", "logs.retentionDays"].includes(setting.key))).toEqual([
       { key: "logs.fileMaxMiB", value: 10, source: "default" },
       { key: "logs.maxFiles", value: 5, source: "default" },
       { key: "logs.retentionDays", value: 14, source: "default" },

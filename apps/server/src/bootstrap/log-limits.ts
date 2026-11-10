@@ -14,6 +14,9 @@ export function logLimitsFrom(read: () => readonly EffectiveSetting[]): () => Lo
     if (setting === undefined) {
       throw new Error(`the option ${key} is missing from the settings catalog`);
     }
+    if (typeof setting.value !== "number") {
+      throw new Error(`the option ${key} is not a number`);
+    }
     return setting.value;
   };
   return () => ({ fileMaxBytes: value("logs.fileMaxMiB") * MIB, maxFiles: value("logs.maxFiles"), retentionDays: value("logs.retentionDays") });
