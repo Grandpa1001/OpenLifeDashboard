@@ -230,6 +230,9 @@ jobs:
       - name: Verify D41.1 (the catalog of the application options and the resolver for each type)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D41.1
+      - name: Verify D41.2 (the application options on SQLite, the audit, the locks and the refusals)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D41.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

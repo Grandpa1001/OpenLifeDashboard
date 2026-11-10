@@ -19,3 +19,13 @@ export type SetupPorts = Readonly<{
   preferences: OwnerPreferencesStore;
   audit: AppendAudit;
 }>;
+
+/** The application options the owner has changed (D41.2): raw values by key, as stored; the catalog validates them. */
+export interface AppSettingStore {
+  /** Every stored override; no entry for an option means its default. */
+  readAll(): Readonly<Record<string, unknown>>;
+  /** Writes the given values in the unit's transaction, replacing the stored ones. */
+  writeMany(values: Readonly<Record<string, unknown>>, nowMs: number): void;
+  /** Removes the override of an option; true when there was one. */
+  remove(key: string): boolean;
+}

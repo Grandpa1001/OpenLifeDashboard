@@ -4462,6 +4462,39 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.38: the store and the use cases of the application options.
+    id: "D41.2",
+    ready: true,
+    title: "The application options on SQLite: an atomic change of several options, the audit, the locks and the refusals, a reset",
+    criteria: ["D41.2-AC1", "D41.2-AC2", "D41.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests import the built core and SQLite adapters.
+        id: "workspace-build",
+        criteria: ["D41.2-AC1", "D41.2-AC2"],
+        description: "pnpm -r build: the table app_setting and its migration, the adapter, and the use cases of the settings module",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/sqlite/src/migrations/0016-app-setting.ts", "packages/sqlite/src/adapters/settings/app-settings.ts", "packages/core/src/modules/settings/application/app-settings.ts"],
+      },
+      {
+        id: "app-settings",
+        criteria: ["D41.2-AC1", "D41.2-AC2"],
+        description:
+          "SQLite: two options written at once and read with their source, the old and the new value in the audit; a refused option or a failing audit takes everything back; the values stay when the database is opened again, a reset removes the stored value and audits only a real one; an unknown key, a wrong type, a value outside the range, a read-only option, one locked by the environment (a reset does not get round the lock), a set that breaks the rule between the record and the body limit, and an option that asks for a fresh second factor each give their code and write nothing; no session is no access",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/settings"],
+        requires: ["tests/integration/settings/app-settings.test.ts", "tests/support/identity-rig.ts"],
+      },
+      {
+        id: "migrations",
+        criteria: ["D41.2-AC1"],
+        description: "The migration plan of the product with the new migration: versions without gaps, checksums, the order of the IDs",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/sqlite/migrations.test.ts"],
+        requires: ["tests/integration/sqlite/migrations.test.ts"],
+      },
+      ...regressionChecks("D41.2-regression"),
+    ],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

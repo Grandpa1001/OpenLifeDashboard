@@ -8,6 +8,8 @@ export type {
   SettingsResolution,
   SettingValue,
 } from "./domain/types.js";
+export { patchAppSettings, readAppSettings, resetAppSetting } from "./application/app-settings.js";
+export type { AppSettingsDependencies, AppSettingsPorts } from "./application/app-settings.js";
 export { readOwnerPreferences, readSetupStatus, saveOwnerPreferences } from "./application/setup.js";
 export type { DataChoice, PreferencesView, SetupDependencies, SetupStage, SetupStatus } from "./application/setup.js";
-export type { OwnerPreferences, OwnerPreferencesStore, SetupPorts } from "./ports.js";
+export type { AppSettingStore, OwnerPreferences, OwnerPreferencesStore, SetupPorts } from "./ports.js";
