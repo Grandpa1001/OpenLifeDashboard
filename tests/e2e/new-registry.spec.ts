@@ -122,6 +122,8 @@ test.describe("D16.2-AC1 Książki of F01 from the form", () => {
     await fillColumn(page, 1, { name: "Tytuł" });
     await create(page).click();
     await expect(page.getByRole("status")).toBeVisible();
+    // The suggestion counts the symbols the list holds when the name is typed: wait for the list to hold the new one (run 42801809367, a slow runner opened the form first).
+    await expect(page.getByText("Książki i komiksy", { exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: text(registers, "list.new") }).click();
     await registryName(page).fill("Moje książki");
