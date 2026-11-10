@@ -41,7 +41,9 @@
     "select": "Select widget: {{name}}",
     "unbound": "Not configured",
     "bound": "Registry {{registry}}, columns: {{columns}}",
-    "keys": "Alt and an arrow move the widget, Alt, Shift and an arrow resize it, Escape deselects it."
+    "keys": "Alt and an arrow move the widget, Alt, Shift and an arrow resize it, Escape deselects it.",
+    "needsRefresh": "Widget needs a refresh",
+    "needsRebinding": "Widget needs its binding updated"
   },
   "panel": {
     "heading": "Bindings",

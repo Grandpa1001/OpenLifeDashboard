@@ -1,5 +1,5 @@
 import type { RegistryDto } from "@openlife/contracts/http/registries";
-import { GRID_COLUMNS, type LayoutName, type LayoutRectDto, type WidgetDesignDto } from "@openlife/contracts/http/screens";
+import { GRID_COLUMNS, type LayoutName, type LayoutRectDto, type WidgetDesignDto, type WidgetViewDto } from "@openlife/contracts/http/screens";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import ReactGridLayout, { type LayoutItem, type ResizeHandleAxis } from "react-grid-layout";
 import { noCompactor } from "react-grid-layout/core";
@@ -34,6 +34,7 @@ export function DesignCanvas({
   registries,
   selectedId,
   minimumOf,
+  stateOf,
   onSelect,
   onArranging,
   onPlace,
@@ -45,6 +46,8 @@ export function DesignCanvas({
   registries: readonly RegistryDto[];
   selectedId: string | null;
   minimumOf: (type: string) => Size;
+  /** The state the server worked out for a widget, or undefined for one not saved yet. */
+  stateOf: (id: string) => WidgetViewDto["state"] | undefined;
   onSelect: (id: string | null) => void;
   /** A drag or a resize begins (`true`) or ends, by a drop or by Escape (`false`). */
   onArranging: (arranging: boolean) => void;
@@ -73,6 +76,9 @@ export function DesignCanvas({
 
   /** What a tile says of its widget: the zone of a clock, the registry and the columns of a table. */
   function summaryOf(widget: WidgetDesignDto): string {
+    const state = stateOf(widget.id);
+    if (state === "needs_refresh") return t("canvas.needsRefresh");
+    if (state === "needs_rebinding") return t("canvas.needsRebinding");
     if (widget.type === "clock") {
       const zone = widget.config["timezone"];
       return typeof zone === "string" && zone !== OWNER_ZONE ? zone : t("clock.ownerZone");
@@ -131,7 +137,7 @@ export function DesignCanvas({
             const title = named ?? tw(typeLabelKey(widget.type));
             const selected = widget.id === selectedId;
             return (
-              <div key={widget.id} className={selected ? "designer-widget selected" : "designer-widget"} data-widget-id={widget.id}>
+              <div key={widget.id} className={selected ? "designer-widget selected" : "designer-widget"} data-widget-id={widget.id} data-state={stateOf(widget.id)}>
                 <button
                   type="button"
                   className="designer-handle"

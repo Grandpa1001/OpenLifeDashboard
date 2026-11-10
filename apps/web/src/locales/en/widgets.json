@@ -10,7 +10,7 @@
     "configure": "Configure the widget",
     "brokenBinding": "Broken binding — the widget needs its binding updated.",
     "needsRefresh": "The configuration of the widget needs to be confirmed in the Designer.",
-    "openDesigner": "Open the Designer",
+    "openDesigner": "Set up in the Designer",
     "loading": "Loading the data…",
     "loadFailed": "The data of the widget could not be loaded.",
     "retry": "Try again",

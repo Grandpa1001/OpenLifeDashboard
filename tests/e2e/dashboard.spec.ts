@@ -217,7 +217,7 @@ test.describe("D18.1-AC2 what a widget says when it cannot show data", () => {
     await createScreenWith(page, owner, [{ id: A, title: "Dane", layout: HALVES.a.layout }]);
     await page.route("**/api/v1/widgets/*/data*", (route) => route.abort("connectionreset"));
     await page.goto(`${owner.baseUrl}/`);
-    await expect(widgetOf(page, "Dane").getByRole("alert")).toHaveText(table("loadFailed"));
+    await expect(widgetOf(page, "Dane").getByRole("alert")).toContainText(table("loadFailed"));
     await expectNoViolations(page);
     await page.unroute("**/api/v1/widgets/*/data*");
     await widgetOf(page, "Dane").getByRole("button", { name: table("retry") }).click();

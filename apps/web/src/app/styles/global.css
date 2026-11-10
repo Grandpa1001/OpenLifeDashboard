@@ -816,6 +816,36 @@ main.pulpit {
   align-items: flex-start;
 }
 
+/* The states of a widget that cannot show its data (Scope §5.3, D39.2): each has its own colour and its own
+   sign, so a broken binding and a configuration to confirm are told apart without reading. The sign is drawn
+   by the style with an empty text for the readers of the screen; the words say the rest. */
+.widget-state[data-state="needs_rebinding"],
+.designer-widget[data-state="needs_rebinding"] .designer-summary {
+  color: var(--color-danger);
+}
+
+.widget-state[data-state="needs_refresh"],
+.designer-widget[data-state="needs_refresh"] .designer-summary {
+  color: var(--color-warning);
+}
+
+.widget-state[data-state="needs_rebinding"] > p::before,
+.designer-widget[data-state="needs_rebinding"] .designer-summary::before {
+  content: "\26A0" / "";
+  margin-inline-end: var(--space-2);
+}
+
+.widget-state[data-state="needs_refresh"] > p::before,
+.designer-widget[data-state="needs_refresh"] .designer-summary::before {
+  content: "\21BB" / "";
+  margin-inline-end: var(--space-2);
+}
+
+.widget-state[data-state="needs_rebinding"] > p,
+.widget-state[data-state="needs_refresh"] > p {
+  color: inherit;
+}
+
 /* The Designer (D18.2): palette, canvas and panel side by side, stacked on a narrow window. */
 .designer-page {
   align-items: stretch;

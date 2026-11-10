@@ -611,6 +611,9 @@ jobs:
       - name: Verify D39.1 (the accent of the screen, the word of a layout from another device on the dashboard)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D39.1
+      - name: Verify D39.2 (the states of a widget, told apart, with the code of a failure and the old configuration kept)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D39.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

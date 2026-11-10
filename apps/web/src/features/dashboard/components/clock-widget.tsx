@@ -1,5 +1,6 @@
 import type { WidgetViewDto } from "@openlife/contracts/http/screens";
 import { ClockView, clockConfigSchema } from "@openlife/widgets/views";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useOwnerDisplay } from "../../../lib/session/use-owner-display.js";
@@ -29,9 +30,10 @@ export function ClockWidget({ widget }: Readonly<{ widget: WidgetViewDto }>) {
 
   if (widget.state === "needs_refresh" || config === null) {
     return (
-      <p role="status" className="widget-state" data-state="needs_refresh">
-        {t("registerTable.needsRefresh")}
-      </p>
+      <div className="widget-state" data-state="needs_refresh">
+        <p role="status">{t("registerTable.needsRefresh")}</p>
+        <Link to="/designer">{t("registerTable.openDesigner")}</Link>
+      </div>
     );
   }
   return reading === null ? null : <ClockView time={reading.time} date={reading.date} instant={reading.instant} label={config.label} zone={reading.zone} />;

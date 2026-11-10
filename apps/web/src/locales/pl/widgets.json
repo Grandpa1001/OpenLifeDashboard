@@ -10,7 +10,7 @@
     "configure": "Skonfiguruj widget",
     "brokenBinding": "Zerwane powiązanie — widget wymaga aktualizacji podpięcia.",
     "needsRefresh": "Konfiguracja widgetu wymaga potwierdzenia w Designerze.",
-    "openDesigner": "Otwórz Designer",
+    "openDesigner": "Ustaw w Designerze",
     "loading": "Wczytywanie danych…",
     "loadFailed": "Nie udało się wczytać danych widgetu.",
     "retry": "Spróbuj ponownie",

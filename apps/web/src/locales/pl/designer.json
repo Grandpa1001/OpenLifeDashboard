@@ -41,7 +41,9 @@
     "select": "Zaznacz widget: {{name}}",
     "unbound": "Nie skonfigurowano",
     "bound": "Rejestr {{registry}}, kolumny: {{columns}}",
-    "keys": "Alt i strzałka przesuwa widget, Alt, Shift i strzałka zmienia jego rozmiar, Escape odznacza."
+    "keys": "Alt i strzałka przesuwa widget, Alt, Shift i strzałka zmienia jego rozmiar, Escape odznacza.",
+    "needsRefresh": "Widget wymaga odświeżenia",
+    "needsRebinding": "Widget wymaga aktualizacji podpięcia"
   },
   "panel": {
     "heading": "Powiązania",

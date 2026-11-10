@@ -5,6 +5,8 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import type { ApiFailure } from "../../../lib/api-client/request.js";
 import { useTranslation } from "react-i18next";
+import { FailureLines } from "../../../lib/failures/failure-alert.js";
+import { describeFailure } from "../../../lib/failures/error-message.js";
 import { formatCell } from "../../../lib/format/cell-format.js";
 import { valueLabel } from "../../../lib/format/value-label.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
@@ -98,6 +100,7 @@ export function RegisterTableWidget({ widget, renderAddRecord }: Readonly<{ widg
         // A value of a dictionary by its label, hidden ones too; one the dictionary does not have as it is stored.
         cellText={(column, value) => valueLabel(data.data?.labels ?? {}, column.key, value) ?? formatCell(column, value, display)}
         designerLink={(label) => <Link to="/designer">{label}</Link>}
+        failureDetail={failure === null ? null : <FailureLines message={describeFailure(failure)} />}
         onAdd={() => setAdding(true)}
         onPage={setPage}
         onRetry={() => void data.refetch()}

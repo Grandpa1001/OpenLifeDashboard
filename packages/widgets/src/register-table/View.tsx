@@ -41,6 +41,8 @@ export type RegisterTableViewProps = Readonly<{
   labels: RegisterTableLabels;
   columnLabel: (column: RegisterTableColumn) => string;
   cellText: (column: RegisterTableColumn, value: RegisterTableValue) => string;
+  /** What the application adds to a failed read: the code of the failure and its reference (Scope §5.3). */
+  failureDetail?: ReactNode;
   /** The link to the Designer, as the application makes it (a router link keeps the page). */
   designerLink: (label: string) => ReactNode;
   onAdd: () => void;
@@ -85,7 +87,7 @@ function Table({ data, labels, columnLabel, cellText, title }: Pick<RegisterTabl
 }
 
 export function RegisterTableView(props: RegisterTableViewProps) {
-  const { title, state, status, data, allowAdd, labels, designerLink, onAdd, onPage, onRetry } = props;
+  const { title, state, status, data, allowAdd, labels, designerLink, failureDetail, onAdd, onPage, onRetry } = props;
 
   if (state !== "ok") {
     const message = state === "draft" ? labels.configure : state === "needs_rebinding" ? labels.brokenBinding : labels.needsRefresh;
@@ -100,7 +102,10 @@ export function RegisterTableView(props: RegisterTableViewProps) {
   if (status === "error" || data === null) {
     return (
       <div className="widget-state" data-state="error">
-        <p role="alert">{labels.loadFailed}</p>
+        <div role="alert">
+          <p>{labels.loadFailed}</p>
+          {failureDetail}
+        </div>
         <button type="button" onClick={onRetry}>
           {labels.retry}
         </button>

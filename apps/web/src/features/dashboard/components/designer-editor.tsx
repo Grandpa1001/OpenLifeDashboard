@@ -384,6 +384,7 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
           registries={registries}
           selectedId={state.selectedId}
           minimumOf={(type) => typeOf(type)?.minSize ?? { w: 1, h: 1 }}
+          stateOf={(id) => screen.widgets.find((each) => each.id === id)?.state}
           onSelect={(id) => dispatch({ kind: "select", id })}
           onArranging={setArranging}
           onPlace={(id, rect) => {

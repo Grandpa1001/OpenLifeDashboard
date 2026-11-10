@@ -4260,6 +4260,48 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.36: the states of a widget on the dashboard and in the Designer.
+    id: "D39.2",
+    ready: true,
+    title: "The states of a widget: a refresh and a broken binding told apart, a failed read with its code and reference, the Designer marks the old widget and keeps its configuration",
+    criteria: ["D39.2-AC1", "D39.2-AC2", "D39.2-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D39.2-AC1", "D39.2-AC2"],
+        description: "pnpm -r build: the view of the register table with the detail of a failure, the clock with its link, the tile of the Designer with the state of its widget",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/widgets/src/register-table/View.tsx", "apps/web/src/features/dashboard/components/clock-widget.tsx", "apps/web/src/features/dashboard/components/design-canvas.tsx", "apps/web/src/lib/failures/failure-alert.tsx"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D39.2-AC1", "D39.2-AC2"],
+        description: "pl and en have the same keys, including the states of the tile and the link to the Designer",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/designer.json", "apps/web/src/locales/en/designer.json"],
+      },
+      {
+        id: "widget-states-e2e",
+        criteria: ["D39.2-AC1", "D39.2-AC2"],
+        description:
+          "Playwright on the built app: the working table draws beside an old table and an old clock that say they need a refresh and offer the Designer; a broken binding differs from a refresh in colour and sign; a failed read gives the code and the reference and the other widgets go on; the Designer marks the old tile, and a move of another widget saves the screen with the old configuration unchanged",
+        command: ["node", "tests/verification/e2e.ts", "widget-states.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/widget-states.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      {
+        id: "dashboard-e2e",
+        criteria: ["D39.2-AC1"],
+        description: "Playwright: the screen of D33.1 as before, with the failed read now showing its code",
+        command: ["node", "tests/verification/e2e.ts", "dashboard.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/dashboard.spec.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D39.2-regression"),
+    ],
+  },
+  {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
     // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
     id: "G2",
