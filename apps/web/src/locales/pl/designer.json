@@ -25,7 +25,8 @@
     "refused": "Błąd zapisu",
     "history": "Historia zmian",
     "undo": "Cofnij",
-    "redo": "Ponów"
+    "redo": "Ponów",
+    "preview": "Podgląd"
   },
   "palette": {
     "heading": "Dodaj widget",
@@ -151,5 +152,10 @@
     "labelTooLong": "Dopisek może mieć najwyżej {{max}} znaków.",
     "seconds": "Sekundy",
     "date": "Data"
+  },
+  "preview": {
+    "label": "Podgląd",
+    "badge": "Podgląd — tak zobaczy to właściciel",
+    "exit": "Wyjdź z podglądu"
   }
 }

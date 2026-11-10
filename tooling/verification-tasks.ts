@@ -4302,6 +4302,64 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.36: the preview of the Designer.
+    id: "D39.3",
+    ready: true,
+    title: "The preview of the Designer: the screen as the owner will see it on real data, sample data only for an unbound widget, nothing saved",
+    criteria: ["D39.3-AC1", "D39.3-AC2", "D39.3-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D39.3-AC1", "D39.3-AC2"],
+        description: "pnpm -r build: the grid of widgets shared by the dashboard and the preview, the sample of the register table, the preview in the Designer",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/dashboard/components/screen-grid.tsx", "apps/web/src/features/dashboard/components/designer-editor.tsx", "packages/widgets/src/register-table/View.tsx"],
+      },
+      {
+        id: "preview-widgets-unit",
+        criteria: ["D39.3-AC1", "D39.3-AC2"],
+        description: "Unit: the preview draws the design being arranged with the states the server worked out, and a widget it has not seen yet is a draft",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/preview-widgets.test.ts"],
+        requires: ["tests/unit/web/preview-widgets.test.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D39.3-AC2"],
+        description: "pl and en have the same keys, including the preview and the sample data",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/designer.json", "apps/web/src/locales/en/widgets.json"],
+      },
+      {
+        id: "designer-preview-e2e",
+        criteria: ["D39.3-AC1", "D39.3-AC2"],
+        description:
+          "Playwright on the built app: the preview hides the grid, the handles and the bar; the table adds a record and the layout can be switched, with nothing sent to the server; the unbound table shows marked sample data in the preview and asks to be configured on the dashboard, the bound one never a sample; axe; leaving by the button and by Escape gives back the grid with the same widget selected and the focus on Preview",
+        command: ["node", "tests/verification/e2e.ts", "designer-preview.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/designer-preview.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      {
+        id: "dashboard-e2e",
+        criteria: ["D39.3-AC1"],
+        description: "Playwright: the screen of D33.1 as before, now drawn by the grid it shares with the preview",
+        command: ["node", "tests/verification/e2e.ts", "dashboard.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/dashboard.spec.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D39.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the accent and the word of the dashboard, the states, the preview.
+  {
+    id: "D39",
+    ready: true,
+    title: "The look, the states and the preview of widgets on the screen",
+    steps: ["D39.1", "D39.2", "D39.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM2 gate (DEV §8.4, §9.29): the whole of F01 on one installation in a browser, then the reports of
     // the fast tier for D22–D31 joined item by item for this exact code; does not run their tests again.
     id: "G2",

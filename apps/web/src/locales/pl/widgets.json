@@ -31,6 +31,15 @@
       "created_at": "Utworzono",
       "updated_at": "Zmieniono",
       "id": "Identyfikator"
+    },
+    "sample": {
+      "data": "Dane przykładowe",
+      "configure": "Skonfiguruj widget, aby na pulpicie zobaczyć tu swoje dane.",
+      "title": "Tytuł",
+      "author": "Autor",
+      "pages": "Strony",
+      "rowTitle": "Przykład {{row}}",
+      "rowAuthor": "Autor {{row}}"
     }
   },
   "typeDescriptions": {

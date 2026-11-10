@@ -29,6 +29,15 @@
       "created_at": "Created",
       "updated_at": "Changed",
       "id": "Identifier"
+    },
+    "sample": {
+      "data": "Sample data",
+      "configure": "Set up the widget to see your own data here on the dashboard.",
+      "title": "Title",
+      "author": "Author",
+      "pages": "Pages",
+      "rowTitle": "Example {{row}}",
+      "rowAuthor": "Author {{row}}"
     }
   },
   "typeDescriptions": {

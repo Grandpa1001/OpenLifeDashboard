@@ -1,51 +1,17 @@
-import type { ScreenDto, WidgetViewDto } from "@openlife/contracts/http/screens";
+import type { ScreenDto } from "@openlife/contracts/http/screens";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { WidgetBoundary } from "../../../lib/boundary/widget-boundary.js";
 import { describeFailure } from "../../../lib/failures/error-message.js";
 import { FailureAlert } from "../../../lib/failures/failure-alert.js";
-import { gridStyle, placementStyle, readingOrder } from "../../../lib/layout/grid.js";
 import { useBreakpoint } from "../../../lib/layout/use-breakpoint.js";
 import { queryKeys } from "../../../lib/query-keys/index.js";
 import { useScreenAccent } from "../../../lib/theme/screen-accent.js";
 import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
 import { leavesTheGate, readFirstScreen, ScreenFailure } from "../api/first-screen.js";
 import { useLayoutRefreshedNotice } from "../lib/refreshed-notice.js";
-import { typeLabelKey } from "../lib/type-label.js";
-import { ClockWidget } from "../components/clock-widget.js";
-import { RegisterTableWidget, type AddRecordRenderer } from "../components/register-table-widget.js";
-
-function WidgetCell({ widget, layout, renderAddRecord }: Readonly<{ widget: WidgetViewDto; layout: ReturnType<typeof useBreakpoint>; renderAddRecord: AddRecordRenderer }>) {
-  const { t } = useTranslation("widgets");
-  const title = typeof widget.config["title"] === "string" ? widget.config["title"] : "";
-  const headingId = `widget-${widget.id}`;
-  // A clock has a caption instead of a title; its view shows it, so it names the region without a heading.
-  const caption = typeof widget.config["label"] === "string" && widget.config["label"] !== "" ? `${t(typeLabelKey(widget.type))}: ${widget.config["label"]}` : t(typeLabelKey(widget.type));
-  return (
-    <section className="card widget" style={placementStyle(widget.layout[layout])} aria-labelledby={title === "" ? undefined : headingId} aria-label={title === "" ? caption : undefined}>
-      {title === "" ? null : <h2 id={headingId}>{title}</h2>}
-      <WidgetBoundary
-        fallback={(reset) => (
-          <div className="widget-state" data-state="crashed">
-            <p role="alert">{t("crashed")}</p>
-            <button type="button" onClick={reset}>
-              {t("registerTable.retry")}
-            </button>
-          </div>
-        )}
-      >
-        {widget.type === "register-table" ? (
-          <RegisterTableWidget widget={widget} renderAddRecord={renderAddRecord} />
-        ) : widget.type === "clock" ? (
-          <ClockWidget widget={widget} />
-        ) : (
-          <p role="status">{t("unsupported")}</p>
-        )}
-      </WidgetBoundary>
-    </section>
-  );
-}
+import type { AddRecordRenderer } from "../components/register-table-widget.js";
+import { ScreenGrid } from "../components/screen-grid.js";
 
 /** The way into the part of the application: a grid of four squares, its name for the reader and the hover. */
 function OpenAppIcon() {
@@ -72,7 +38,7 @@ export function MainPage({ renderAddRecord }: Readonly<{ renderAddRecord: AddRec
   const gone = leavesTheGate(failure);
   useGuardRecheck(gone);
 
-  const widgets = screen.data === undefined || screen.data === null ? [] : readingOrder(screen.data.widgets, layout);
+  const widgets = screen.data === undefined || screen.data === null ? [] : screen.data.widgets;
   return (
     <main className="page page-wide pulpit">
       <h1 className="visually-hidden">{t("main.title")}</h1>
@@ -100,13 +66,7 @@ export function MainPage({ renderAddRecord }: Readonly<{ renderAddRecord: AddRec
           <Link to="/designer">{t("main.openDesigner")}</Link>
         </section>
       ) : null}
-      {widgets.length === 0 ? null : (
-        <div className="screen-grid" style={gridStyle(layout)} data-layout={layout}>
-          {widgets.map((widget) => (
-            <WidgetCell key={widget.id} widget={widget} layout={layout} renderAddRecord={renderAddRecord} />
-          ))}
-        </div>
-      )}
+      {widgets.length === 0 ? null : <ScreenGrid widgets={widgets} layout={layout} renderAddRecord={renderAddRecord} />}
     </main>
   );
 }

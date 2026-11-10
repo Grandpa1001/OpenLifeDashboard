@@ -144,7 +144,7 @@ const designerRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/designer",
   beforeLoad: ({ context }) => admitPrivate(context),
-  component: DesignerPage,
+  component: () => <DesignerPage renderAddRecord={(props) => <AddRecordForRegistry {...props} />} />,
 });
 
 const registersRoute = createRoute({

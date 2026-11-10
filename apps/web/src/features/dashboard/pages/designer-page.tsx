@@ -10,6 +10,7 @@ import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
 import { leavesTheGate, readFirstScreen, ScreenFailure } from "../api/first-screen.js";
 import { CreateScreenForm } from "../components/create-screen-form.js";
 import { DesignerEditor } from "../components/designer-editor.js";
+import type { AddRecordRenderer } from "../components/register-table-widget.js";
 
 /**
  * The Designer (Scope §5.4): the first screen of the owner is loaded and handed to the editor; with none,
@@ -17,7 +18,7 @@ import { DesignerEditor } from "../components/designer-editor.js";
  * load shows no grid, only the code and the reference of the failure, "Try again" and the way back to
  * the screen (D33.2, makieta 48).
  */
-export function DesignerPage() {
+export function DesignerPage({ renderAddRecord }: Readonly<{ renderAddRecord: AddRecordRenderer }>) {
   const { t } = useTranslation("designer");
   // The screen is read once per visit: the editor owns the draft, so a refetch of the same screen must not replace it.
   const screen = useQuery<ScreenDto | null>({ queryKey: queryKeys.screens.list, queryFn: ({ signal }) => readFirstScreen(signal), staleTime: Infinity, refetchOnWindowFocus: false, refetchOnReconnect: false });
@@ -50,7 +51,7 @@ export function DesignerPage() {
         </section>
       ) : null}
       {screen.data === null ? <CreateScreenForm /> : null}
-      {screen.data === undefined || screen.data === null ? null : <DesignerEditor key={screen.data.id} screen={screen.data} />}
+      {screen.data === undefined || screen.data === null ? null : <DesignerEditor key={screen.data.id} screen={screen.data} renderAddRecord={renderAddRecord} />}
     </main>
   );
 }

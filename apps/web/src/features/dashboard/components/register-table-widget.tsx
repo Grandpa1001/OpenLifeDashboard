@@ -34,7 +34,7 @@ class DataFailure extends Error {
  * language, and opens the window that adds a record, which the composition root of the application
  * supplies. A record added is shown after the server's answer, on the first page.
  */
-export function RegisterTableWidget({ widget, renderAddRecord }: Readonly<{ widget: WidgetViewDto; renderAddRecord: AddRecordRenderer }>) {
+export function RegisterTableWidget({ widget, renderAddRecord, preview = false }: Readonly<{ widget: WidgetViewDto; renderAddRecord: AddRecordRenderer; preview?: boolean }>) {
   const { t } = useTranslation("widgets");
   const queryClient = useQueryClient();
   const display = useOwnerDisplay();
@@ -79,6 +79,10 @@ export function RegisterTableWidget({ widget, renderAddRecord }: Readonly<{ widg
       yes: t("registerTable.yes"),
       no: t("registerTable.no"),
       emptyValue: t("registerTable.emptyValue"),
+      sampleData: t("registerTable.sample.data"),
+      sampleConfigure: t("registerTable.sample.configure"),
+      sampleColumns: [t("registerTable.sample.title"), t("registerTable.sample.author"), t("registerTable.sample.pages")],
+      sampleRows: [1, 2, 3].map((row) => [t("registerTable.sample.rowTitle", { row }), t("registerTable.sample.rowAuthor", { row }), String(100 * row)]),
     }),
     [t],
   );
@@ -92,6 +96,7 @@ export function RegisterTableWidget({ widget, renderAddRecord }: Readonly<{ widg
       <RegisterTableView
         title={title}
         state={widget.state}
+        sample={preview}
         status={viewStatus(data.isError, data.data !== undefined)}
         data={data.data ?? null}
         allowAdd={config["allowAdd"] !== false && symbol !== null}

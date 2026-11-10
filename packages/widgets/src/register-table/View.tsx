@@ -27,6 +27,11 @@ export type RegisterTableLabels = Readonly<{
   yes: string;
   no: string;
   emptyValue: string;
+  /** The sample of the preview (Scope §5.4): the sentence that marks it, the sentence that says what the dashboard will show, and a few columns and rows. */
+  sampleData: string;
+  sampleConfigure: string;
+  sampleColumns: readonly string[];
+  sampleRows: readonly (readonly string[])[];
 }>;
 
 export type RegisterTableViewProps = Readonly<{
@@ -41,6 +46,8 @@ export type RegisterTableViewProps = Readonly<{
   labels: RegisterTableLabels;
   columnLabel: (column: RegisterTableColumn) => string;
   cellText: (column: RegisterTableColumn, value: RegisterTableValue) => string;
+  /** The preview of the Designer: a widget with an unbound slot shows the sample of its type instead of asking to be configured. */
+  sample?: boolean;
   /** What the application adds to a failed read: the code of the failure and its reference (Scope §5.3). */
   failureDetail?: ReactNode;
   /** The link to the Designer, as the application makes it (a router link keeps the page). */
@@ -86,8 +93,45 @@ function Table({ data, labels, columnLabel, cellText, title }: Pick<RegisterTabl
   );
 }
 
+/** The sample of the type, clearly marked: it is not data of the owner and it says what the dashboard will show instead. */
+function SampleTable({ title, labels }: Readonly<{ title: string; labels: RegisterTableLabels }>) {
+  return (
+    <div className="register-table sample" data-sample="true">
+      <p className="sample-note" role="note">
+        {labels.sampleData}
+      </p>
+      <div className="table-scroll" tabIndex={0}>
+        <table>
+          <caption className="visually-hidden">{title === "" ? labels.sampleData : `${title}: ${labels.sampleData}`}</caption>
+          <thead>
+            <tr>
+              {labels.sampleColumns.map((column) => (
+                <th key={column} scope="col">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {labels.sampleRows.map((row) => (
+              <tr key={row.join("|")}>
+                {row.map((cell, index) => (
+                  <td key={labels.sampleColumns[index]}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p>{labels.sampleConfigure}</p>
+    </div>
+  );
+}
+
 export function RegisterTableView(props: RegisterTableViewProps) {
-  const { title, state, status, data, allowAdd, labels, designerLink, failureDetail, onAdd, onPage, onRetry } = props;
+  const { title, state, status, data, allowAdd, labels, designerLink, failureDetail, sample = false, onAdd, onPage, onRetry } = props;
+
+  if (state === "draft" && sample) return <SampleTable title={title} labels={labels} />;
 
   if (state !== "ok") {
     const message = state === "draft" ? labels.configure : state === "needs_rebinding" ? labels.brokenBinding : labels.needsRefresh;

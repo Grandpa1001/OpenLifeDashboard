@@ -25,7 +25,8 @@
     "refused": "Save failed",
     "history": "History of changes",
     "undo": "Undo",
-    "redo": "Redo"
+    "redo": "Redo",
+    "preview": "Preview"
   },
   "palette": {
     "heading": "Add a widget",
@@ -149,5 +150,10 @@
     "labelTooLong": "The caption can have at most {{max}} characters.",
     "seconds": "Seconds",
     "date": "Date"
+  },
+  "preview": {
+    "label": "Preview",
+    "badge": "Preview — this is how the owner will see it",
+    "exit": "Exit the preview"
   }
 }

@@ -25,6 +25,9 @@ import { useAutosave } from "../lib/use-autosave.js";
 import { AddWidgetDialog } from "./add-widget-dialog.js";
 import { ContextBar } from "./context-bar.js";
 import { DesignCanvas } from "./design-canvas.js";
+import { previewWidgets } from "../lib/preview-widgets.js";
+import type { AddRecordRenderer } from "./register-table-widget.js";
+import { ScreenGrid } from "./screen-grid.js";
 import { UndoBar } from "./undo-bar.js";
 
 type WidgetType = WidgetTypesDto["types"][number];
@@ -41,13 +44,16 @@ const TILE_FRAMES = 10;
  * (D35.1); leaving waits for the save and asks only when it could not be made. A refused or
  * unreachable save leaves every change in place.
  */
-export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
+export function DesignerEditor({ screen, renderAddRecord }: Readonly<{ screen: ScreenDto; renderAddRecord: AddRecordRenderer }>) {
   const { t } = useTranslation("designer");
   const { t: tw } = useTranslation("widgets");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [state, dispatch] = useReducer(designerReducer, screen, startState);
   const [chosen, setChosen] = useState<LayoutName>("desktop");
+  // The preview (Scope §5.4): the screen as the owner will see it, on real data; it saves nothing and changes nothing.
+  const [previewing, setPreviewing] = useState(false);
+  const previewButton = useRef<HTMLButtonElement>(null);
   // On a phone the Designer arranges the layout of the phone only (Scope §5.4): the window cannot show another.
   const onPhone = useBreakpoint() === "phone";
   const layout: LayoutName = onPhone ? "phone" : chosen;
@@ -237,33 +243,81 @@ export function DesignerEditor({ screen }: Readonly<{ screen: ScreenDto }>) {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
+  // Escape leaves the preview (the exit button has the focus when it opens).
+  useEffect(() => {
+    if (!previewing) return undefined;
+    const onKey = (event: globalThis.KeyboardEvent): void => {
+      if (event.key === "Escape") leavePreview();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [previewing]);
+
   const status = t(statusKey(autosave.state, dirty), { time: autosave.state.kind === "saved" ? new Intl.DateTimeFormat(display.locale, { hour: "2-digit", minute: "2-digit", timeZone: display.timeZone }).format(autosave.state.at) : "" });
+  const layoutSwitch = onPhone ? (
+    <p className="designer-badge">{t("toolbar.phoneOnly")}</p>
+  ) : (
+    <div role="group" aria-label={t("toolbar.layouts")} className="designer-layouts">
+      {LAYOUT_NAMES.map((name) => (
+        <button
+          key={name}
+          ref={(element) => {
+            layoutButtons.current[name] = element;
+          }}
+          type="button"
+          className="link-button"
+          aria-pressed={layout === name}
+          tabIndex={layout === name ? 0 : -1}
+          onClick={() => setChosen(name)}
+          onKeyDown={onLayoutKey}
+        >
+          {t(`toolbar.${name}`)}
+        </button>
+      ))}
+    </div>
+  );
+
+  /** What is arranged is saved first, so the data the preview reads is that of the design it draws. */
+  async function enterPreview(): Promise<void> {
+    await autosave.flush();
+    setPreviewing(true);
+  }
+  function leavePreview(): void {
+    setPreviewing(false);
+    setTimeout(() => previewButton.current?.focus(), 0);
+  }
+
+  if (previewing) {
+    return (
+      <>
+        <header className="designer-toolbar">
+          <h1>{t("title")}</h1>
+          <p className="screen-name">{state.design.name}</p>
+          <p className="designer-badge preview-badge">{t("preview.badge")}</p>
+          {layoutSwitch}
+          <button type="button" autoFocus onClick={leavePreview}>
+            {t("preview.exit")}
+          </button>
+        </header>
+        <div className="designer-stage">
+          <div className="designer-frame designer-preview" style={{ width }} role="region" aria-label={t("preview.label")} data-layout={layout}>
+            <ScreenGrid widgets={previewWidgets(state.design, screen)} layout={layout} renderAddRecord={renderAddRecord} preview />
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <header className="designer-toolbar">
         <h1>{t("title")}</h1>
         <p className="screen-name">{state.design.name}</p>
-        {onPhone ? (
-          <p className="designer-badge">{t("toolbar.phoneOnly")}</p>
-        ) : (
-          <div role="group" aria-label={t("toolbar.layouts")} className="designer-layouts">
-            {LAYOUT_NAMES.map((name) => (
-              <button
-                key={name}
-                ref={(element) => {
-                  layoutButtons.current[name] = element;
-                }}
-                type="button"
-                className="link-button"
-                aria-pressed={layout === name}
-                tabIndex={layout === name ? 0 : -1}
-                onClick={() => setChosen(name)}
-                onKeyDown={onLayoutKey}
-              >
-                {t(`toolbar.${name}`)}
-              </button>
-            ))}
-          </div>
+        {layoutSwitch}
+        {onPhone ? null : (
+          <button type="button" className="link-button" ref={previewButton} onClick={() => void enterPreview()}>
+            {t("toolbar.preview")}
+          </button>
         )}
         <div className="designer-history" role="group" aria-label={t("toolbar.history")}>
           <button type="button" className="link-button" disabled={!canUndo(state)} onClick={undo} aria-keyshortcuts="Control+Z Meta+Z">
