@@ -545,6 +545,9 @@ jobs:
       - name: Verify D34.3 (the context bar at the widths of a phone, a tablet and a laptop, and a table set up in the bar only)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D34.3
+      - name: Verify D42.1 (the settings frame, Account and Style)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D42.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

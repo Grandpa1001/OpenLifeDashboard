@@ -8,6 +8,9 @@ import { DesignerPage } from "../../features/dashboard/pages/designer-page.js";
 import { AddRecordForRegistry } from "../../features/registers/components/add-record-for-registry.js";
 import { MainPage } from "../../features/dashboard/pages/main-page.js";
 import { ScreensPage } from "../../features/dashboard/pages/screens-page.js";
+import { AccountPage } from "../../features/settings/pages/account-page.js";
+import { SettingsLayout } from "../../features/settings/pages/settings-layout.js";
+import { StylePage } from "../../features/settings/pages/style-page.js";
 import { RegistryPage } from "../../features/registers/pages/registry-page.js";
 import { StructurePage } from "../../features/registers/pages/structure-page.js";
 import { SystemTablePage } from "../../features/registers/pages/system-table-page.js";
@@ -172,6 +175,33 @@ const configRoute = createRoute({
   component: ConfigPage,
 });
 
+// The settings (Scope §4, §5.9; D42.1): a frame with the sections; the bare address leads to the first of them.
+const settingsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/settings",
+  component: SettingsLayout,
+});
+
+const settingsIndexRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: "/",
+  beforeLoad: () => {
+    throw redirect({ to: "/settings/account", replace: true });
+  },
+});
+
+const accountRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: "/account",
+  component: AccountPage,
+});
+
+const styleRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: "/style",
+  component: StylePage,
+});
+
 const setupRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/setup",
@@ -245,7 +275,7 @@ export function createAppRouter(queryClient: QueryClient) {
       mfaRoute,
       setupRoute,
       designerRoute,
-      appRoute.addChildren([screensRoute, registersRoute, registryRoute, structureRoute, systemTableRoute, dictionariesRoute, configRoute]),
+      appRoute.addChildren([screensRoute, registersRoute, registryRoute, structureRoute, systemTableRoute, dictionariesRoute, configRoute, settingsRoute.addChildren([settingsIndexRoute, accountRoute, styleRoute])]),
     ]),
     context: { queryClient },
     defaultPreload: false,

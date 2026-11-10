@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -4543,6 +4543,40 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D41.1", "D41.2", "D41.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.39: the settings in the interface, the frame, Account and Style.
+    id: "D42.1",
+    ready: true,
+    title: "The settings in the interface: the way in from the bar, the Account page and the Style page with the accent of the dashboard",
+    criteria: ["D42.1-AC1", "D42.1-AC2", "D42.1-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D42.1-AC1", "D42.1-AC2"],
+        description: "pnpm -r build: the settings frame, the Account and Style pages and the namespace of their texts",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/settings/pages/settings-layout.tsx", "apps/web/src/features/settings/pages/account-page.tsx", "apps/web/src/features/settings/pages/style-page.tsx", "apps/web/src/app/router/router.tsx"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D42.1-AC1", "D42.1-AC2"],
+        description: "pl and en have the same namespaces and keys, including the new namespace of the settings",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/settings.json", "apps/web/src/locales/en/settings.json"],
+      },
+      {
+        id: "settings-account-style-e2e",
+        criteria: ["D42.1-AC1", "D42.1-AC2"],
+        description:
+          "Playwright on the built app: the bar leads to Account and the sections are links of one frame with aria-current; an unknown time zone is told at its field with everything typed kept, the language changes the interface at once without a reload, a new zone moves the clock of the owner; the preview card wears the chosen accent before the save and the dashboard after it, the Style page with no dashboard says where to make it; axe on both pages",
+        command: ["node", "tests/verification/e2e.ts", "settings-account-style.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/settings-account-style.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D42.1-regression"),
+    ],
   },
   {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of

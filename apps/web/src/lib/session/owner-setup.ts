@@ -8,6 +8,10 @@ import { StatusUnavailableError } from "./identity-status.js";
 
 export type OwnerSetup = Readonly<{ preferences: OwnerPreferencesDto | null; stage: "data" | "preferences" | "complete" }>;
 
+/** Saves the preferences of the owner (first setup and the Account page); the server decides what is a valid zone, and a refusal is a result like any other. */
+export const savePreferences = (preferences: OwnerPreferencesDto, signal?: AbortSignal): Promise<ApiResult<OwnerSetup>> =>
+  apiRequest({ method: "PUT", path: SETUP_PREFERENCES_PATH, body: preferences, schema: preferencesResponseSchema, signal });
+
 export const fetchOwnerSetup = (signal?: AbortSignal): Promise<ApiResult<OwnerSetup>> =>
   apiRequest({ method: "GET", path: SETUP_PREFERENCES_PATH, schema: preferencesResponseSchema, signal });
 

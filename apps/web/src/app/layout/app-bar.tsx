@@ -8,7 +8,7 @@ import { endSession } from "../../lib/session/end-session.js";
 
 /**
  * The bar of the part of the application (Scope §4; D33.1, makiety 30, 06): Pulpity · Rejestry and
- * the account of the owner with Wyloguj. Settings and My account join it with their screens (D42).
+ * the account of the owner with Wyloguj. Settings joined it with D42.1; My account joins with its screen.
  * The account opens as a disclosure: Escape or a click elsewhere closes it and gives the focus back.
  */
 export function AppBar() {
@@ -58,6 +58,7 @@ export function AppBar() {
       <nav aria-label={t("appBar.navigation")}>
         <Link to="/screens">{t("appBar.screens")}</Link>
         <Link to="/registers">{t("appBar.registers")}</Link>
+        <Link to="/settings">{t("appBar.settings")}</Link>
       </nav>
       <div className="app-bar-account" ref={account}>
         <button ref={toggle} type="button" className="link-button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((was) => !was)}>

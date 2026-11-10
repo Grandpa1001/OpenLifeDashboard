@@ -39,7 +39,8 @@
     "registers": "Registries",
     "account": "Account",
     "role": "Owner",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "settings": "Settings"
   },
   "connection": {
     "lost": "No connection to the server. Connecting again…"

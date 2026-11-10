@@ -1680,3 +1680,50 @@ main.pulpit {
 .config-path .field-label {
   font-weight: 600;
 }
+
+/* The settings (Scope §5.9; D42.1): the sections as links, the accent as a group of choices, and a preview
+   card that wears the colour being chosen (its own --color-accent, set on the card). */
+.settings-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.settings-nav a[aria-current="page"] {
+  border-bottom: 2px solid var(--color-accent);
+  font-weight: 600;
+}
+
+.settings-state[data-dirty="true"] {
+  color: var(--color-warning);
+}
+
+.accent-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.accent-option {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.accent-swatch {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+.accent-preview {
+  max-width: 24rem;
+  border-color: var(--color-accent);
+}
+
+.accent-preview-action {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}

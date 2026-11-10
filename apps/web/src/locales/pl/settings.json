@@ -1,0 +1,47 @@
+{
+  "title": "Ustawienia",
+  "navigation": "Sekcje ustawień",
+  "tabs": {
+    "account": "Konto",
+    "style": "Styl"
+  },
+  "locale": {
+    "pl": "Polski",
+    "en": "English"
+  },
+  "loading": "Wczytywanie ustawień…",
+  "loadFailed": "Nie udało się wczytać ustawień.",
+  "retry": "Spróbuj ponownie",
+  "dirty": "Niezapisane zmiany",
+  "clean": "Brak zmian",
+  "saving": "Zapisywanie…",
+  "saved": "Zapisano",
+  "account": {
+    "heading": "Konto",
+    "timezoneLabel": "Strefa czasowa",
+    "timezoneHint": "Nazwa IANA, na przykład Europe/Warsaw. Wyznacza „dziś” i zegary w strefie właściciela.",
+    "timezoneInvalid": "To nie jest znana strefa czasowa.",
+    "localeLabel": "Język",
+    "save": "Zapisz"
+  },
+  "style": {
+    "heading": "Styl",
+    "themeNote": "Motyw jest jeden (ciemny); wybierasz kolor akcentu pulpitu.",
+    "accentLegend": "Kolor akcentu",
+    "accents": {
+      "blue": "Niebieski",
+      "green": "Zielony",
+      "violet": "Fioletowy",
+      "orange": "Pomarańczowy",
+      "pink": "Różowy",
+      "teal": "Morski"
+    },
+    "previewLabel": "Podgląd karty widgetu",
+    "previewTitle": "Moje książki",
+    "previewBody": "Tak wygląda akcent na karcie widgetu.",
+    "previewAction": "Dodaj",
+    "save": "Zapisz akcent",
+    "noScreen": "Nie masz jeszcze pulpitu. Utwórz go w Designerze, aby wybrać jego akcent.",
+    "openDesigner": "Otwórz Designer"
+  }
+}

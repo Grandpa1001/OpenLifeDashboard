@@ -39,7 +39,8 @@
     "registers": "Rejestry",
     "account": "Konto",
     "role": "Właściciel",
-    "signOut": "Wyloguj"
+    "signOut": "Wyloguj",
+    "settings": "Ustawienia"
   },
   "connection": {
     "lost": "Brak połączenia z serwerem. Łączę ponownie…"

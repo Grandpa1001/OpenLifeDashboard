@@ -1,0 +1,47 @@
+{
+  "title": "Settings",
+  "navigation": "Settings sections",
+  "tabs": {
+    "account": "Account",
+    "style": "Style"
+  },
+  "locale": {
+    "pl": "Polski",
+    "en": "English"
+  },
+  "loading": "Loading the settings…",
+  "loadFailed": "The settings could not be loaded.",
+  "retry": "Try again",
+  "dirty": "Unsaved changes",
+  "clean": "No changes",
+  "saving": "Saving…",
+  "saved": "Saved",
+  "account": {
+    "heading": "Account",
+    "timezoneLabel": "Time zone",
+    "timezoneHint": "An IANA name, for example Europe/Warsaw. It decides “today” and the clocks in the owner's zone.",
+    "timezoneInvalid": "This is not a known time zone.",
+    "localeLabel": "Language",
+    "save": "Save"
+  },
+  "style": {
+    "heading": "Style",
+    "themeNote": "There is one theme (dark); you choose the accent colour of the dashboard.",
+    "accentLegend": "Accent colour",
+    "accents": {
+      "blue": "Blue",
+      "green": "Green",
+      "violet": "Violet",
+      "orange": "Orange",
+      "pink": "Pink",
+      "teal": "Teal"
+    },
+    "previewLabel": "Widget card preview",
+    "previewTitle": "My books",
+    "previewBody": "This is how the accent looks on a widget card.",
+    "previewAction": "Add",
+    "save": "Save the accent",
+    "noScreen": "You have no dashboard yet. Make it in the Designer to choose its accent.",
+    "openDesigner": "Open the Designer"
+  }
+}
