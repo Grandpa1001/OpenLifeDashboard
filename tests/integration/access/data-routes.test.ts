@@ -41,7 +41,7 @@ type Ids = Readonly<{ symbol: string; screen: string; widget: string; record: st
 
 const fill = (route: RouteEntry, ids: Ids): string => {
   const widgetPath = route.path.includes("/widgets/:id");
-  return route.path.replace(":symbol", ids.symbol).replace(":recordId", ids.record).replace(":id", widgetPath ? ids.widget : ids.screen).replace(":name", SYSTEM_TABLE);
+  return route.path.replace(":symbol", ids.symbol).replace(":recordId", ids.record).replace(":id", widgetPath ? ids.widget : ids.screen).replace(":name", SYSTEM_TABLE).replace(":key", "tables.defaultPageSize");
 };
 
 /** A well-formed request for the route, so that only the access can be the reason of a refusal. */
@@ -67,6 +67,10 @@ function requestOf(route: RouteEntry, design: unknown, planToken = "a-plan-that-
       return { body: { expectedRevision: 1, displayName: "Waga docelowa", value: "68" }, headers: {} };
     case "DELETE /api/v1/config/:symbol":
       return { body: { expectedRevision: 2 }, headers: {} };
+    case "PATCH /api/v1/settings":
+      return { body: { values: { "tables.defaultPageSize": 30 } }, headers: {} };
+    case "DELETE /api/v1/settings/:key":
+      return { body: {}, headers: {} };
     case "PATCH /api/v1/registries/:symbol/records/:recordId":
       return { body: { schemaRevision: 1, expectedRevision: 1, values: { kg: 72 } }, headers: {} };
     case "DELETE /api/v1/registries/:symbol/records/:recordId":
@@ -105,7 +109,7 @@ const designOf = (registry: { id: string; symbol: string; columns: Array<{ id: s
 /** Everything the data routes can change, as one text: any difference is a stored change. */
 function stored(setup: Installation): string {
   const registryTables = query<{ name: string }>(setup.instance, "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'reg\\_%' ESCAPE '\\' ORDER BY 1").map((row) => row.name);
-  const tables = ["registry", "registry_column", "screen", "widget", "binding", "idempotency_entry", "dictionary", "dictionary_value", "config_entry", ...registryTables];
+  const tables = ["registry", "registry_column", "screen", "widget", "binding", "idempotency_entry", "dictionary", "dictionary_value", "config_entry", "app_setting", ...registryTables];
   return JSON.stringify(tables.map((table) => query(setup.instance, `SELECT * FROM "${table}" ORDER BY 1`)));
 }
 
@@ -138,6 +142,7 @@ describe("D20.2 the table is the inventory", () => {
       "DELETE /api/v1/config/:symbol",
       "DELETE /api/v1/dictionaries/:symbol",
       "DELETE /api/v1/registries/:symbol/records/:recordId",
+      "DELETE /api/v1/settings/:key",
       "GET /api/v1/config",
       "GET /api/v1/config/:symbol",
       "GET /api/v1/dictionaries",
@@ -148,12 +153,14 @@ describe("D20.2 the table is the inventory", () => {
       "GET /api/v1/registry-summaries",
       "GET /api/v1/screens",
       "GET /api/v1/screens/:id",
+      "GET /api/v1/settings",
       "GET /api/v1/stream",
       "GET /api/v1/system-tables",
       "GET /api/v1/system-tables/:name",
       "GET /api/v1/widget-types",
       "GET /api/v1/widgets/:id/data",
       "PATCH /api/v1/registries/:symbol/records/:recordId",
+      "PATCH /api/v1/settings",
       "POST /api/v1/config",
       "POST /api/v1/dictionaries",
       "POST /api/v1/registries",
@@ -232,6 +239,10 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     await run(route("GET", "/config/:symbol"), withRecord);
     expect((await run(route("PUT", "/config/:symbol"), withRecord)).status).toBe(200);
     expect((await run(route("DELETE", "/config/:symbol"), withRecord)).status).toBe(200);
+    // The application options: a read, a change of one and the reset of it.
+    await run(route("GET", "/settings"), withRecord);
+    expect((await run(route("PATCH", "/settings"), withRecord)).status).toBe(200);
+    expect((await run(route("DELETE", "/settings/:key"), withRecord)).status).toBe(200);
     const screenReply = await run(route("POST", "/screens"), withRecord);
     const ids: Ids = { ...withRecord, screen: screenSchema.parse(screenReply.json()).id };
     await run(route("GET", "/screens"), ids);

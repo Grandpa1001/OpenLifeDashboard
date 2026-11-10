@@ -4,7 +4,8 @@
 // (inspect, initialize, upgrade with a snapshot or reconcile) → auth schema → MFA capabilities → technical logger → HTTP. Any failure exits 1 before listening; a failure
 // names a code and fields, never a value. Exiting releases the lease with the process; nothing
 // before the lease opens or changes database files.
-import { integerSetting } from "@openlife/core/settings";
+import { SETTINGS_CATALOG } from "@openlife/contracts/settings";
+import { integerSetting, type EffectiveSetting } from "@openlife/core/settings";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import type { Context } from "hono";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -18,11 +19,8 @@ import { bindCatalogReader, bindConfigBindingCounts, bindDashboardStore, bindDep
 import { bindDictionaryLookup, bindDictionaryStore } from "@openlife/sqlite/adapters/dictionaries";
 import { bindConfigStore } from "@openlife/sqlite/adapters/configuration";
 import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore, bindTableColumns, bindTableRebuild, bindRegistryTables } from "@openlife/sqlite/adapters/registries";
-import { bindOwnerPreferencesStore } from "@openlife/sqlite/adapters/settings";
-import { DEFAULT_DICTIONARY_LIMITS } from "@openlife/core/dictionaries";
-import { DEFAULT_CONFIG_LIMITS } from "@openlife/core/configuration";
+import { bindAppSettingStore, bindOwnerPreferencesStore } from "@openlife/sqlite/adapters/settings";
 import { STREAM_PING_INTERVAL_MS } from "@openlife/contracts/http/stream";
-import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "@openlife/core/registries";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
 import { createWidgetCatalog } from "./adapters/widget-catalog.js";
 import { createStructurePlanSigner } from "./adapters/structure-plan-signer.js";
@@ -41,7 +39,7 @@ import { openMaintenanceGate } from "./adapters/filesystem/maintenance-gate.js";
 import { LOG_RETENTION_SWEEP_MS } from "./adapters/logging/limits.js";
 import { createRotatingFileSink } from "./adapters/logging/rotating-file-sink.js";
 import { stdoutSink } from "./adapters/logging/stdout-sink.js";
-import { createTechnicalLogger } from "./adapters/logging/technical-logger.js";
+import { createTechnicalLogger, LOG_LEVELS, type LogLevel } from "./adapters/logging/technical-logger.js";
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
 import { createLiveHub } from "./adapters/events/live-hub.js";
@@ -52,6 +50,8 @@ import { createApp } from "./bootstrap/create-app.js";
 import type { AppEnv } from "./http/app-env.js";
 import { createRateLimiter } from "./http/middleware/fixed-window-limit.js";
 import { LOGIN_LIMIT_WINDOW_MS, LOGIN_REQUESTS_PER_MINUTE } from "./http/security-limits.js";
+import { createEffectiveSettings } from "./bootstrap/effective-settings.js";
+import { liveLimits } from "./bootstrap/live-limits.js";
 import { logLimitsFrom } from "./bootstrap/log-limits.js";
 import { readBuildInfo } from "./bootstrap/build-info.js";
 import { openInstallationDatabase } from "./bootstrap/database.js";
@@ -160,18 +160,25 @@ console.log(
 // The technical log: stdout always and data/logs/app/app.jsonl, rotated within the logs.* limits.
 // A file that cannot be written makes the sink degraded (reported on stderr, retried later), never
 // a failed start or a failed request; the preflight has already reported an unusable folder.
+// The options are read from the database once it is open (below); until then, and if they cannot be read, the ones from the start.
+let currentSettings: () => readonly EffectiveSetting[] = () => settings;
 const logFile = createRotatingFileSink({
   dir: workingPaths.logs,
-  limits: logLimitsFrom(() => settings),
+  limits: logLimitsFrom(() => currentSettings()),
   now: () => new Date(),
   notify: (line) => process.stderr.write(line),
 });
 logFile.enforceRetention();
 const retentionSweep = setInterval(logFile.enforceRetention, LOG_RETENTION_SWEEP_MS);
 retentionSweep.unref();
+/** The level of the log from the effective options; the default when the option is not a known level. */
+const levelOf = (effective: readonly EffectiveSetting[]): LogLevel => {
+  const value = effective.find((setting) => setting.key === "logs.level")?.value;
+  return LOG_LEVELS.find((level) => level === value) ?? LOG_MIN_LEVEL;
+};
 const logger = createTechnicalLogger({
   identity: { service: LOG_SERVICE, appVersion: build.appVersion, instanceId: paths.instanceId },
-  minLevel: LOG_MIN_LEVEL,
+  minLevel: () => levelOf(currentSettings()),
   now: () => new Date(),
   sinks: [stdoutSink, logFile],
 });
@@ -189,6 +196,7 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   trusted: bindTrustedDeviceStore(tx),
   setup: bindSetupStateStore(tx),
   preferences: bindOwnerPreferencesStore(tx),
+  appSettings: bindAppSettingStore(tx),
   registries: bindRegistryStore(tx),
   records: bindRecordStore(tx),
   columns: bindTableColumns(tx),
@@ -207,6 +215,16 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   audit: bindAppendAudit(tx),
   systemTables: bindSystemTableReader(tx),
 }));
+// The effective application options now (D41.3): the catalog with the stored values and the environment; the limits below read them at each use.
+const effectiveSettings = createEffectiveSettings({
+  catalog: SETTINGS_CATALOG,
+  environment: environment.overrides,
+  readStored: () => identityUnit.read((ports) => ports.appSettings.readAll()),
+  initial: settings,
+  onInvalid: () => logger.log({ level: "error", event: "settings.stored_invalid", code: "CONFIG_INVALID" }),
+});
+currentSettings = effectiveSettings.current;
+const limits = liveLimits(effectiveSettings);
 const liveHub = createLiveHub({ perSession: STREAM_CONNECTIONS_PER_SESSION });
 const attemptKeys = createAttemptKeys(secret);
 const clientIp = (c: Context<AppEnv>): string => getConnInfo(c).remote.address ?? "unknown";
@@ -269,12 +287,13 @@ const app = createApp({
     logger,
   },
   setup: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
-  registries: { unit: identityUnit, summaries: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
-  records: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
-  structure: { unit: identityUnit, gate: gate.gate, snapshots: createDatabaseSnapshots(database.connection, snapshotOptions), cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), newOperationId: randomUUID, signer: planSigner, limits: DEFAULT_REGISTRY_LIMITS, logger },
-  dictionaries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },
-  config: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
+  registries: { unit: identityUnit, summaries: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: limits.registry, logger },
+  records: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: limits.registry, recordMaxBytes: limits.recordMaxBytes, logger },
+  structure: { unit: identityUnit, gate: gate.gate, snapshots: createDatabaseSnapshots(database.connection, snapshotOptions), cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), newOperationId: randomUUID, signer: planSigner, limits: limits.registry, logger },
+  dictionaries: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: limits.dictionary, logger },
+  config: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: limits.config, logger },
   systemTables: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
+  settings: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, environment: environment.overrides, refresh: effectiveSettings.refresh, logger },
   announce: liveHub.publish,
   stream: { unit: identityUnit, hub: liveHub, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, pingIntervalMs: STREAM_PING_INTERVAL_MS, logger },
   screens: { dashboard: { unit: identityUnit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: environment.baseUrl, logger },

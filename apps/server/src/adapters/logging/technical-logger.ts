@@ -46,7 +46,8 @@ export type LoggerIdentity = Readonly<{
 
 export type LoggerOptions = Readonly<{
   identity: LoggerIdentity;
-  minLevel: LogLevel;
+  /** The lowest level written; a function is asked at each event, so a changed option applies to the next line (D41.3). */
+  minLevel: LogLevel | (() => LogLevel);
   now: () => Date;
   sinks: readonly LogSink[];
 }>;
@@ -87,7 +88,7 @@ function isLevel(value: unknown): value is LogLevel {
 /** The line for an event, or undefined below the minimum level. Never throws. */
 export function formatLogLine(options: LoggerOptions, input: LogEvent): string | undefined {
   const level: LogLevel = isLevel(input.level) ? input.level : "error";
-  if (LEVEL_RANK[level] < LEVEL_RANK[options.minLevel]) {
+  if (LEVEL_RANK[level] < LEVEL_RANK[typeof options.minLevel === "function" ? options.minLevel() : options.minLevel]) {
     return undefined;
   }
   const eventOk = text(SHAPES.event)(input.event);

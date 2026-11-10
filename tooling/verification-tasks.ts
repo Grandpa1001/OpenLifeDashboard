@@ -4495,6 +4495,56 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.38: the routes of the application options and their effect on the limits.
+    id: "D41.3",
+    ready: true,
+    title: "The application options over HTTP: the list, an atomic change, a reset, the locks and the refusals, and the limits that read them at each use",
+    criteria: ["D41.3-AC1", "D41.3-AC2", "D41.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built server and import the built packages.
+        id: "workspace-build",
+        criteria: ["D41.3-AC1", "D41.3-AC2"],
+        description: "pnpm -r build: the routes of the options, the effective options and the limits of the modules that read them",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/routes/settings.routes.ts", "apps/server/src/bootstrap/effective-settings.ts", "apps/server/src/bootstrap/live-limits.ts", "packages/contracts/src/http/settings.ts"],
+      },
+      {
+        id: "settings-http",
+        criteria: ["D41.3-AC1", "D41.3-AC2"],
+        description:
+          "HTTP: no session is 401 and a foreign Origin 403 on the list, the change and the reset; the list holds every option with its source and what the owner may do and names no environment variable; two options are changed at once or none, with the code and the reference of a refusal; an option locked by the environment, a read-only one and one that asks for a second factor are refused and a reset does not get round the lock; a lower limit applies to the next registry, text and record and trims nothing stored, a long stored text is read and kept while another field is edited, and a reset gives the old limit back",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/settings/settings-http.test.ts"],
+        requires: ["tests/integration/settings/settings-http.test.ts", "tests/support/harness-owner.ts", "tests/support/app-harness.ts"],
+      },
+      {
+        id: "settings-restart",
+        criteria: ["D41.3-AC2"],
+        description: "The built server on a real file: the level of the log applies to the next line, two options changed at once are the same after the process stops and starts again, the audit holds both changes, a reset after the restart removes the stored value",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/settings/settings-restart.test.ts", "tests/unit/logging/technical-logger.test.ts"],
+        requires: ["tests/integration/settings/settings-restart.test.ts", "tests/unit/logging/technical-logger.test.ts", "tests/support/auth-http.ts"],
+      },
+      {
+        id: "data-routes",
+        criteria: ["D41.3-AC1"],
+        description: "The route inventory and the access table of D13.1 and D20.2 with the three new routes: each refused in every state before the gate and answering the owner past it",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts"],
+        requires: ["tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D41.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the catalog, the store and the routes of the options.
+  {
+    id: "D41",
+    ready: true,
+    title: "The API of the application options: a typed catalog, an atomic change with its audit, the routes and their effect on the limits",
+    steps: ["D41.1", "D41.2", "D41.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

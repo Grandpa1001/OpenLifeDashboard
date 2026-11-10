@@ -24,12 +24,10 @@ import { bindSetupStateStore } from "../../packages/sqlite/dist/adapters/identit
 import { bindSignInStores } from "../../packages/sqlite/dist/adapters/identity/sign-in-ports.js";
 import { bindTrustedDeviceStore } from "../../packages/sqlite/dist/adapters/identity/trusted-device-store.js";
 import { bindCatalogReader, bindConfigBindingCounts, bindDashboardStore, bindDependentWidgets } from "../../packages/sqlite/dist/adapters/dashboard/public.js";
-import { DEFAULT_DICTIONARY_LIMITS } from "../../packages/core/dist/modules/dictionaries/public.js";
-import { DEFAULT_CONFIG_LIMITS } from "../../packages/core/dist/modules/configuration/public.js";
 import { bindDictionaryLookup, bindDictionaryStore } from "../../packages/sqlite/dist/adapters/dictionaries/public.js";
 import { bindConfigStore } from "../../packages/sqlite/dist/adapters/configuration/public.js";
 import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore, bindTableColumns, bindTableRebuild, bindRegistryTables } from "../../packages/sqlite/dist/adapters/registries/public.js";
-import { DEFAULT_RECORD_MAX_BYTES, DEFAULT_REGISTRY_LIMITS } from "../../packages/core/dist/modules/registries/public.js";
+import { DEFAULT_REGISTRY_LIMITS } from "../../packages/core/dist/modules/registries/public.js";
 import { createWidgetCatalog } from "../../apps/server/dist/adapters/widget-catalog.js";
 import { createStructurePlanSigner } from "../../apps/server/dist/adapters/structure-plan-signer.js";
 import { createDatabaseSnapshots } from "../../apps/server/dist/adapters/filesystem/database-snapshots.js";
@@ -42,6 +40,11 @@ import type { LiveEvent } from "@openlife/contracts/http/stream";
 import { createLiveHub } from "../../apps/server/dist/adapters/events/live-hub.js";
 import { bindSystemTableReader } from "../../apps/server/dist/adapters/system-tables.js";
 import { bindOwnerPreferencesStore } from "../../packages/sqlite/dist/adapters/settings/owner-preferences.js";
+import { bindAppSettingStore } from "../../packages/sqlite/dist/adapters/settings/app-settings.js";
+import { createEffectiveSettings } from "../../apps/server/dist/bootstrap/effective-settings.js";
+import { liveLimits } from "../../apps/server/dist/bootstrap/live-limits.js";
+import { resolveSettings } from "../../packages/core/dist/modules/settings/public.js";
+import { SETTINGS_CATALOG } from "@openlife/contracts/settings";
 import { openDatabase, type SqliteConnection } from "../../packages/sqlite/dist/connection/open-database.js";
 import { initializeDatabase, PRODUCT_MIGRATION_PLAN } from "../../packages/sqlite/dist/migrations/public.js";
 import { createUnitOfWork } from "../../packages/sqlite/dist/transactions/unit-of-work.js";
@@ -63,7 +66,13 @@ export function closeHarnesses(): void {
 export type HarnessReply = Readonly<{ status: number; text: string; json: () => unknown; setCookies: string[]; cookie: string | null }>;
 
 /** `announce` replaces what the routes tell the streams after a commit, to try an announcement that fails (D38). */
-export type HarnessOptions = Readonly<{ pingIntervalMs?: number; streamsPerSession?: number; announce?: (event: LiveEvent) => void }>;
+export type HarnessOptions = Readonly<{
+  pingIntervalMs?: number;
+  streamsPerSession?: number;
+  announce?: (event: LiveEvent) => void;
+  /** Environment overrides of the options, by key: they lock the options they name (D41). */
+  environment?: Readonly<Record<string, unknown>>;
+}>;
 
 export async function createAppHarness(options: HarnessOptions = {}) {
   const dir = scratchDir("openlife-harness-");
@@ -87,6 +96,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     trusted: bindTrustedDeviceStore(tx),
     setup: bindSetupStateStore(tx),
     preferences: bindOwnerPreferencesStore(tx),
+    appSettings: bindAppSettingStore(tx),
     registries: bindRegistryStore(tx),
     records: bindRecordStore(tx),
     columns: bindTableColumns(tx),
@@ -141,6 +151,12 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     now: () => new Date().toISOString(),
     newSnapshotId: randomUUID,
   });
+  // The effective options as the server composes them (D41.3): the limits below read them at each use.
+  const environment = options.environment ?? {};
+  const initial = resolveSettings(SETTINGS_CATALOG, { database: {}, environment });
+  if (!initial.ok) throw new Error(`the harness environment does not fit the catalog: ${initial.fields.join(", ")}`);
+  const effectiveSettings = createEffectiveSettings({ catalog: SETTINGS_CATALOG, environment, readStored: () => inner.read((ports) => ports.appSettings.readAll()), initial: initial.settings, onInvalid: () => undefined });
+  const limits = liveLimits(effectiveSettings);
   const hub = createLiveHub({ perSession: options.streamsPerSession ?? 5 });
   const clientIp = () => "127.0.0.1";
   const common = { nowMs: Date.now, newId: randomUUID, newSessionToken: () => randomBytes(32).toString("base64url"), logger, allowedOrigin: HARNESS_ORIGIN, secureCookies: false, cookies, keys, clientIp };
@@ -155,13 +171,14 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     mfaEnrollment: { ...common, unit, crypto: mfaCrypto },
     mfaVerification: { ...common, unit, crypto: mfaCrypto, trustedDeviceCookies },
     setup: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
-    registries: { unit, summaries: unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_REGISTRY_LIMITS, logger },
-    records: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: DEFAULT_REGISTRY_LIMITS, recordMaxBytes: DEFAULT_RECORD_MAX_BYTES, logger },
+    registries: { unit, summaries: unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: limits.registry, logger },
+    records: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: limits.registry, recordMaxBytes: limits.recordMaxBytes, logger },
     structure: { ...structure, gate: gate.gate, snapshots, newId: createUuidV7(), newOperationId: randomUUID, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
-    dictionaries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_DICTIONARY_LIMITS, logger },
-    config: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: DEFAULT_CONFIG_LIMITS, logger },
+    dictionaries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: limits.dictionary, logger },
+    config: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: limits.config, logger },
     systemTables: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
+    settings: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, environment, refresh: effectiveSettings.refresh, logger },
     announce: options.announce ?? hub.publish,
     stream: { unit, hub, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, pingIntervalMs: options.pingIntervalMs ?? 25_000, logger },
   });

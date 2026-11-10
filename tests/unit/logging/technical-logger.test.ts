@@ -31,6 +31,12 @@ describe("D06.1-AC1 the shape of a line", () => {
   it("stays below the minimum level and writes the rest", () => {
     expect(formatLogLine(options(), { level: "debug", event: "http.request" })).toBeUndefined();
     expect(formatLogLine(options({ minLevel: "warn" }), { level: "info", event: "http.request" })).toBeUndefined();
+    // D41.3: a level given as a function is asked at each event, so a changed option applies to the next line.
+    let level: "info" | "error" = "info";
+    const live = options({ minLevel: () => level });
+    expect(parse(formatLogLine(live, { level: "info", event: "http.request" }))["event"]).toBe("http.request");
+    level = "error";
+    expect(formatLogLine(live, { level: "info", event: "http.request" })).toBeUndefined();
     expect(parse(formatLogLine(options({ minLevel: "warn" }), { level: "error", event: "http.unhandled_error" }))["level"]).toBe("error");
   });
 

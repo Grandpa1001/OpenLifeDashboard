@@ -16,6 +16,7 @@ import * as mfa from "@openlife/contracts/http/mfa";
 import * as records from "@openlife/contracts/http/records";
 import * as screens from "@openlife/contracts/http/screens";
 import * as registries from "@openlife/contracts/http/registries";
+import * as settings from "@openlife/contracts/http/settings";
 import * as setup from "@openlife/contracts/http/setup";
 import * as stream from "@openlife/contracts/http/stream";
 import * as systemTables from "@openlife/contracts/http/system-tables";
@@ -25,7 +26,7 @@ export type RouteEntry = Readonly<{ method: "GET" | "POST" | "PUT" | "PATCH" | "
 
 /** Every exported path constant of the contracts, by name. */
 export const PATH_CONSTANTS: Readonly<Record<string, string>> = Object.fromEntries(
-  [bootstrap, config, dictionaries, healthStatus, identity, mfa, records, registries, screens, setup, stream, systemTables].flatMap((module) =>
+  [bootstrap, config, dictionaries, healthStatus, identity, mfa, records, registries, screens, settings, setup, stream, systemTables].flatMap((module) =>
     Object.entries(module).filter((entry): entry is [string, string] => entry[0].endsWith("_PATH") && typeof entry[1] === "string"),
   ),
 );
@@ -65,6 +66,9 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "GET", path: config.CONFIG_ENTRY_PATH, access: "data", note: "one entry of ConfigTable with the number of its bindings" },
   { method: "PUT", path: config.CONFIG_ENTRY_PATH, access: "data", note: "saves the whole entry on the revision it was loaded with" },
   { method: "DELETE", path: config.CONFIG_ENTRY_PATH, access: "data", note: "deletes an entry; its bindings stay and are broken" },
+  { method: "GET", path: settings.SETTINGS_PATH, access: "data", note: "the effective application options with their source and what the owner may change" },
+  { method: "PATCH", path: settings.SETTINGS_PATH, access: "data", note: "changes one or more application options at once, all or none" },
+  { method: "DELETE", path: settings.SETTING_PATH, access: "data", note: "takes the stored value of an option away, so it is the default again" },
   { method: "GET", path: screens.SCREENS_PATH, access: "data", note: "the owner's screens, in the order they were made" },
   { method: "POST", path: screens.SCREENS_PATH, access: "data", note: "makes the first, empty screen of the owner" },
   { method: "GET", path: screens.SCREEN_PATH, access: "data", note: "the canonical snapshot of a screen with the state of each widget" },

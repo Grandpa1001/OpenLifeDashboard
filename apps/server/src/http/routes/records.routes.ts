@@ -36,7 +36,8 @@ export type RecordRouteDependencies = Readonly<{
   newId: () => string;
   hash: (text: string) => string;
   limits: RecordDependencies["limits"];
-  recordMaxBytes: number;
+  /** The largest record now; read at each write, so a changed option applies to the next one. */
+  recordMaxBytes: () => number;
   logger: TechnicalLogger;
 }>;
 

@@ -54,6 +54,11 @@
       "types": "./dist/http/mfa.d.ts",
       "default": "./dist/http/mfa.js"
     },
+    "./http/settings": {
+      "@openlife/source": "./src/http/settings.ts",
+      "types": "./dist/http/settings.d.ts",
+      "default": "./dist/http/settings.js"
+    },
     "./http/stream": {
       "@openlife/source": "./src/http/stream.ts",
       "types": "./dist/http/stream.d.ts",

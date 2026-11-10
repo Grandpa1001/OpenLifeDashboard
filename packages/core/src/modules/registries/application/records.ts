@@ -31,7 +31,7 @@ export type RecordDependencies = Readonly<{
   hash: (text: string) => string;
   limits: RegistryLimits;
   /** The largest record, in bytes of its values as JSON (`limits.recordMaxKiB`). */
-  recordMaxBytes: number;
+  recordMaxBytes: () => number;
 }>;
 
 /** How long a key answers with the first answer (Architektura §4.6). */
@@ -68,7 +68,7 @@ function writerOf(ports: RecordPorts, token: string, nowMs: number, requestId: s
 
 const invalid = (issues: readonly RecordIssue[]): DomainFault => new DomainFault({ code: "VALIDATION_FAILED", fields: [...new Set(issues.map((issue) => issue.path))], issues });
 
-const policyOf = (deps: Pick<RecordDependencies, "limits" | "recordMaxBytes">) => ({ maxTextCodePoints: deps.limits.textMaxChars, maxRecordBytes: deps.recordMaxBytes });
+const policyOf = (deps: Pick<RecordDependencies, "limits" | "recordMaxBytes">) => ({ maxTextCodePoints: deps.limits.textMaxChars, maxRecordBytes: deps.recordMaxBytes() });
 
 export function createRecord(deps: RecordDependencies, token: string, input: NewRecordInput, requestId: string): Result<CreatedRecord> {
   const nowMs = deps.nowMs();
