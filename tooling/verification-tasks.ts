@@ -4628,6 +4628,55 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.39: the translations of the catalog and the whole of the Settings walked from the keyboard.
+    id: "D42.3",
+    ready: true,
+    title: "The Settings as a whole: every label of the catalog in both languages, and the three pages walked with the keyboard and checked with axe",
+    criteria: ["D42.3-AC1", "D42.3-AC2", "D42.3-regression"],
+    checks: [
+      {
+        // Runs first: the e2e test runs the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D42.3-AC1", "D42.3-AC2"],
+        description: "pnpm -r build: the catalog, the translations and the pages of the Settings",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/settings/catalog.ts", "apps/web/src/locales/pl/settings.json", "apps/web/src/features/settings/pages/app-page.tsx"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D42.3-AC1"],
+        description: "pl and en have the same keys, the same variables and non-empty texts in every namespace",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/settings.json", "apps/web/src/locales/en/settings.json"],
+      },
+      {
+        id: "catalog-translations",
+        criteria: ["D42.3-AC1"],
+        description: "Unit: every label, group, unit and listed level of the catalog has a text in Polish and in English, and no two options share a label",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/settings/settings-translations.test.ts"],
+        requires: ["tests/unit/settings/settings-translations.test.ts"],
+      },
+      {
+        id: "settings-path-e2e",
+        criteria: ["D42.3-AC2"],
+        description: "Playwright on the built app: from the bar through Account, Style and Application by the links of the frame, one change on each page made and saved from the keyboard alone and found stored on the server, axe on every page",
+        command: ["node", "tests/verification/e2e.ts", "settings-path.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/settings-path.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D42.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the frame, Account and Style, the Application page, the whole.
+  {
+    id: "D42",
+    ready: true,
+    title: "The settings of the application in the interface: Account, Style and Application, their texts and the path of the owner",
+    steps: ["D42.1", "D42.2", "D42.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

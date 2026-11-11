@@ -551,6 +551,9 @@ jobs:
       - name: Verify D42.2 (the format of dates and the advanced options of the application)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D42.2
+      - name: Verify D42.3 (the translations of the catalog and the Settings walked from the keyboard)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D42.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1081,7 +1084,7 @@ jobs:
 
   full-stream:
     # The live stream and its events: on the server, in a tab and behind Caddy (Docker on the runner), and the events of changes in the application, in two parents.
-    name: verify:task (full tier, live stream and its screens D37-D39)
+    name: verify:task (full tier, live stream and its screens D37-D39 and settings D42)
     needs: changes
     if: ${{ needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
@@ -1120,6 +1123,8 @@ jobs:
         run: pnpm verify:task -- D38
       - name: Verify D39 (the parent, D39.1–D39.3 together)
         run: pnpm verify:task -- D39
+      - name: Verify D42 (the parent, D42.1–D42.3 together)
+        run: pnpm verify:task -- D42
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
