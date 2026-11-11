@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 7,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -4675,6 +4675,40 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D42.1", "D42.2", "D42.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.40: the sessions of the owner over HTTP.
+    id: "D43.1",
+    ready: true,
+    title: "The sessions of the owner: the list with the browser and address, the end of one other session, and the end of all the others with a fresh second factor",
+    criteria: ["D43.1-AC1", "D43.1-AC2", "D43.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the in-process app on the built packages.
+        id: "workspace-build",
+        criteria: ["D43.1-AC1", "D43.1-AC2"],
+        description: "pnpm -r build: the contract of the sessions, the use cases, the store of sessions and the routes",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/http/security.ts", "packages/core/src/modules/identity/application/manage-sessions.ts", "apps/server/src/http/routes/security.routes.ts", "packages/sqlite/src/adapters/identity/sign-in-ports.ts"],
+      },
+      {
+        id: "sessions-http",
+        criteria: ["D43.1-AC1", "D43.1-AC2"],
+        description:
+          "HTTP: no session is 401 and a foreign Origin 403 on each route; the list has the newest first, the browser each session was opened from kept through the proofs, the caller's own marked and no token; the caller's own session and an unknown id are not found; another session ends at once; a session admitted by a recovery code is refused STEP_UP_REQUIRED and nothing is ended until a TOTP step-up; with a fresh TOTP every other session ends and the caller's stays; every end is audited with an id and a count and no token",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/security/sessions-http.test.ts"],
+        requires: ["tests/integration/security/sessions-http.test.ts", "tests/support/app-harness.ts", "tests/support/auth-http.ts"],
+      },
+      {
+        id: "data-routes",
+        criteria: ["D43.1-AC1"],
+        description: "The route inventory and the access table of D13.1 and D20.2 with the three new routes: each refused in every state before the gate and answering the owner past it",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts"],
+        requires: ["tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D43.1-regression"),
+    ],
   },
   {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of

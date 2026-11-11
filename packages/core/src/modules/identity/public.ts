@@ -5,6 +5,8 @@ export { resetOwnerMfa } from "./application/reset-mfa.js";
 export type { MfaReset, ResetMfaCommand } from "./application/reset-mfa.js";
 export { authorizeLiveStream } from "./application/live-stream-access.js";
 export type { LiveStreamDependencies, LiveStreamHolder, LiveStreamPorts } from "./application/live-stream-access.js";
+export { listOwnerSessions, revokeOtherSessions, revokeOwnerSession } from "./application/manage-sessions.js";
+export type { OwnerSession, SessionManagementDependencies } from "./application/manage-sessions.js";
 export { resolveSessionAccess } from "./application/session-access.js";
 export type { SessionAccess } from "./application/session-access.js";
 export { resetOwnerPassword } from "./application/reset-password.js";
@@ -59,6 +61,8 @@ export type {
   RecoveryCodeStore,
   ResetMfaPorts,
   SessionFacts,
+  SessionManagementPorts,
+  SessionSummary,
   SetupStateStore,
   SessionStore,
   SignInPorts,

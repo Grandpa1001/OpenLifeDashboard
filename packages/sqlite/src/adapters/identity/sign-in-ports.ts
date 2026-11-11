@@ -2,7 +2,7 @@
 // (`auth_lockout`), the owner's credential and the sessions in the tables of the auth adapter.
 // Dates of the provider's tables are ISO-8601 UTC text (migration 2). The session reader is the
 // authoritative one and writes nothing; it accepts only a session of the owner singleton.
-import type { AuthAttemptStore, CredentialReader, NewSession, SessionFacts, SessionStore, SignInPorts } from "@openlife/core/identity";
+import type { AuthAttemptStore, CredentialReader, NewSession, SessionFacts, SessionStore, SessionSummary, SignInPorts } from "@openlife/core/identity";
 import { LOCKOUT_WINDOW_MS } from "@openlife/core/identity";
 import type { TransactionHandle } from "../../transactions/unit-of-work.js";
 
@@ -56,6 +56,17 @@ type FactsRow = Readonly<{
   accessEpoch: number;
 }>;
 
+type SummaryRow = Readonly<{
+  sessionId: string;
+  assurance: SessionFacts["assurance"];
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  expiresAt: string;
+  passwordVerifiedAtMs: number;
+  totpVerifiedAtMs: number | null;
+}>;
+
 function bindSessions(tx: TransactionHandle): SessionStore {
   const insertSession = tx.prepare(
     `INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, ipAddress, userAgent, userId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -71,6 +82,17 @@ function bindSessions(tx: TransactionHandle): SessionStore {
        JOIN session_ext e ON e.session_id = s.id
       WHERE s.token = ? AND s.expiresAt > ?`,
   );
+  const addressOf = tx.prepare("SELECT ipAddress, userAgent FROM session WHERE token = ?");
+  const listActive = tx.prepare(
+    `SELECT s.id AS sessionId, e.assurance AS assurance, s.ipAddress AS ipAddress, s.userAgent AS userAgent,
+            s.createdAt AS createdAt, s.expiresAt AS expiresAt, e.password_verified_at_ms AS passwordVerifiedAtMs,
+            e.totp_verified_at_ms AS totpVerifiedAtMs
+       FROM session s JOIN session_ext e ON e.session_id = s.id
+      WHERE s.userId = ? AND s.expiresAt > ?
+      ORDER BY s.createdAt DESC, s.id DESC`,
+  );
+  const removeById = tx.prepare("DELETE FROM session WHERE userId = ? AND id = ?");
+  const removeOthers = tx.prepare("DELETE FROM session WHERE userId = ? AND id <> ?");
   const remove = tx.prepare("DELETE FROM session WHERE token = ?");
   const removeAll = tx.prepare("DELETE FROM session WHERE userId = ?");
   const insert = (session: NewSession): void => {
@@ -90,13 +112,29 @@ function bindSessions(tx: TransactionHandle): SessionStore {
     insert,
     findActive: (token, nowMs) => (active.get(token, iso(nowMs)) as FactsRow | undefined) ?? null,
     rotate: (oldToken, next) => {
+      // The browser and the address the session was opened from stay with it through every proof.
+      const origin = addressOf.get(oldToken) as { ipAddress: string | null; userAgent: string | null } | undefined;
       // session_ext follows its session by ON DELETE CASCADE.
       if (remove.run(oldToken).changes === 0) {
         return false;
       }
-      insert(next);
+      insert({ ...next, ipAddress: next.ipAddress ?? origin?.ipAddress ?? null, userAgent: next.userAgent ?? origin?.userAgent ?? null });
       return true;
     },
+    listActiveOfOwner: (ownerId, nowMs) =>
+      (listActive.all(ownerId, iso(nowMs)) as ReadonlyArray<SummaryRow>).map(
+        (row): SessionSummary => ({
+          sessionId: row.sessionId,
+          assurance: row.assurance,
+          ipAddress: row.ipAddress,
+          userAgent: row.userAgent,
+          createdAtMs: Date.parse(row.createdAt),
+          lastProofAtMs: Math.max(row.passwordVerifiedAtMs, row.totpVerifiedAtMs ?? 0),
+          expiresAtMs: Date.parse(row.expiresAt),
+        }),
+      ),
+    deleteById: (ownerId, sessionId) => removeById.run(ownerId, sessionId).changes > 0,
+    deleteAllButOne: (ownerId, keepSessionId) => removeOthers.run(ownerId, keepSessionId).changes,
     deleteByToken: (token) => remove.run(token).changes > 0,
     deleteAllOfOwner: (ownerId) => removeAll.run(ownerId).changes,
   };

@@ -11,6 +11,7 @@
 //      the planned route (export) is not registered and are reported as not_run.
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { securitySessionListSchema } from "@openlife/contracts/http/security";
 import { apiErrorSchema } from "@openlife/contracts/http/errors";
 import { registryListSchema, REGISTRIES_PATH, structurePath, structurePreviewPath, structurePreviewSchema } from "@openlife/contracts/http/registries";
 import { SIGN_OUT_PATH } from "@openlife/contracts/http/identity";
@@ -30,18 +31,19 @@ const DATA_ROUTES = ROUTE_INVENTORY.filter((route) => route.access === "data" &&
 
 /** A table of the system preview (D32.1); the route reads it the same way for every name of its list. */
 const SYSTEM_TABLE = "audit_log";
-const PLACEHOLDER = { symbol: "waga", screen: "019a0000-0000-7000-8000-0000000000a1", widget: "019a0000-0000-7000-8000-0000000000a2", record: "019a0000-0000-7000-8000-0000000000a3" };
+const PLACEHOLDER = { symbol: "waga", screen: "019a0000-0000-7000-8000-0000000000a1", widget: "019a0000-0000-7000-8000-0000000000a2", record: "019a0000-0000-7000-8000-0000000000a3", session: "019a0000-0000-7000-8000-0000000000a4" };
 const LAYOUT = { phone: { x: 0, y: 0, w: 1, h: 8 }, tablet: { x: 0, y: 0, w: 8, h: 8 }, desktop: { x: 0, y: 0, w: 8, h: 8 } };
 const WAGA = { symbol: "waga", displayName: "Waga", columns: [{ symbol: "kg", displayName: "Kg", type: "number", typeOptions: { decimalPlaces: 1 } }] };
 const code = (reply: Reply): string => apiErrorSchema.parse(reply.json()).code;
 /** A change of the structure the owner past the gate carries out on a plan of its own preview. */
 const RENAME_KG = { kind: "renameColumn", columnId: "019a0000-0000-7000-8000-0000000000c9", displayName: "Kilogramy" };
 
-type Ids = Readonly<{ symbol: string; screen: string; widget: string; record: string }>;
+type Ids = Readonly<{ symbol: string; screen: string; widget: string; record: string; session: string }>;
 
 const fill = (route: RouteEntry, ids: Ids): string => {
   const widgetPath = route.path.includes("/widgets/:id");
-  return route.path.replace(":symbol", ids.symbol).replace(":recordId", ids.record).replace(":id", widgetPath ? ids.widget : ids.screen).replace(":name", SYSTEM_TABLE).replace(":key", "tables.defaultPageSize");
+  const sessionPath = route.path.includes("/security/sessions/:id");
+  return route.path.replace(":symbol", ids.symbol).replace(":recordId", ids.record).replace(":id", sessionPath ? ids.session : widgetPath ? ids.widget : ids.screen).replace(":name", SYSTEM_TABLE).replace(":key", "tables.defaultPageSize");
 };
 
 /** A well-formed request for the route, so that only the access can be the reason of a refusal. */
@@ -70,6 +72,8 @@ function requestOf(route: RouteEntry, design: unknown, planToken = "a-plan-that-
     case "PATCH /api/v1/settings":
       return { body: { values: { "tables.defaultPageSize": 30 } }, headers: {} };
     case "DELETE /api/v1/settings/:key":
+    case "DELETE /api/v1/security/sessions/:id":
+    case "POST /api/v1/security/sessions/revoke-others":
       return { body: {}, headers: {} };
     case "PATCH /api/v1/registries/:symbol/records/:recordId":
       return { body: { schemaRevision: 1, expectedRevision: 1, values: { kg: 72 } }, headers: {} };
@@ -142,6 +146,7 @@ describe("D20.2 the table is the inventory", () => {
       "DELETE /api/v1/config/:symbol",
       "DELETE /api/v1/dictionaries/:symbol",
       "DELETE /api/v1/registries/:symbol/records/:recordId",
+      "DELETE /api/v1/security/sessions/:id",
       "DELETE /api/v1/settings/:key",
       "GET /api/v1/config",
       "GET /api/v1/config/:symbol",
@@ -153,6 +158,7 @@ describe("D20.2 the table is the inventory", () => {
       "GET /api/v1/registry-summaries",
       "GET /api/v1/screens",
       "GET /api/v1/screens/:id",
+      "GET /api/v1/security/sessions",
       "GET /api/v1/settings",
       "GET /api/v1/stream",
       "GET /api/v1/system-tables",
@@ -168,6 +174,7 @@ describe("D20.2 the table is the inventory", () => {
       "POST /api/v1/registries/:symbol/structure",
       "POST /api/v1/registries/:symbol/structure/preview",
       "POST /api/v1/screens",
+      "POST /api/v1/security/sessions/revoke-others",
       "PUT /api/v1/config/:symbol",
       "PUT /api/v1/dictionaries/:symbol",
       "PUT /api/v1/screens/:id/design",
@@ -244,7 +251,13 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     expect((await run(route("PATCH", "/settings"), withRecord)).status).toBe(200);
     expect((await run(route("DELETE", "/settings/:key"), withRecord)).status).toBe(200);
     const screenReply = await run(route("POST", "/screens"), withRecord);
-    const ids: Ids = { ...withRecord, screen: screenSchema.parse(screenReply.json()).id };
+    // The sessions: another session of the owner is ended by its id, then every other one with the fresh TOTP.
+    await signIn(server);
+    const otherSession = securitySessionListSchema.parse((await run(route("GET", "/security/sessions"), withRecord)).json()).sessions.find((candidate) => !candidate.current)?.id ?? "";
+    expect(otherSession).not.toBe("");
+    const ids: Ids = { ...withRecord, screen: screenSchema.parse(screenReply.json()).id, session: otherSession };
+    expect((await run(route("DELETE", "/security/sessions/:id"), ids)).status).toBe(204);
+    expect((await run(route("POST", "/security/sessions/revoke-others"), ids)).status).toBe(200);
     await run(route("GET", "/screens"), ids);
     await run(route("GET", "/screens/:id"), ids);
     expect((await run(route("PUT", "/design"), ids, designOf(registry, ids.widget))).status).toBe(200);

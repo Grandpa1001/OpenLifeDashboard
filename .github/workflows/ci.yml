@@ -236,6 +236,9 @@ jobs:
       - name: Verify D41.3 (the application options over HTTP, their effect on the limits and on the log)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D41.3
+      - name: Verify D43.1 (the sessions of the owner, the list, the end of one and of all the others)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D43.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

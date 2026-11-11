@@ -17,6 +17,7 @@ import { registerRecordRoutes, type RecordRouteDependencies } from "../http/rout
 import { registerScreenRoutes, type ScreenRouteDependencies } from "../http/routes/screens.routes.js";
 import { registerRegistryRoutes, type RegistryRouteDependencies } from "../http/routes/registries.routes.js";
 import { registerStructureRoutes, type StructureRouteDependencies } from "../http/routes/structure.routes.js";
+import { registerSecurityRoutes, type SecurityRouteDependencies } from "../http/routes/security.routes.js";
 import { registerSetupRoutes, type SetupRouteDependencies } from "../http/routes/setup.routes.js";
 import { registerStreamRoutes, type StreamRouteDependencies } from "../http/routes/stream.routes.js";
 import { registerSystemTableRoutes, type SystemTableRouteDependencies } from "../http/routes/system-tables.routes.js";
@@ -44,6 +45,7 @@ export type AppDependencies = Readonly<{
   dictionaries: DictionaryRouteDependencies;
   config: ConfigRouteDependencies;
   settings: SettingsRouteDependencies;
+  security: SecurityRouteDependencies;
   screens: ScreenRouteDependencies;
   systemTables: SystemTableRouteDependencies;
   stream: StreamRouteDependencies;
@@ -78,6 +80,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   registerDictionaryRoutes(app, dependencies.dictionaries, announce);
   registerConfigRoutes(app, dependencies.config, announce);
   registerSettingsRoutes(app, dependencies.settings);
+  registerSecurityRoutes(app, dependencies.security);
   registerScreenRoutes(app, dependencies.screens, announce);
   registerSystemTableRoutes(app, dependencies.systemTables);
   registerStreamRoutes(app, dependencies.stream);

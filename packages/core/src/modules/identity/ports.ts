@@ -91,6 +91,18 @@ export type SessionFacts = Readonly<{
   accessEpoch: number;
 }>;
 
+/** What the owner sees of a session in the list of the Security page: facts of the session, never its token. */
+export type SessionSummary = Readonly<{
+  sessionId: string;
+  assurance: Assurance;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAtMs: number;
+  /** The later of the password and the TOTP proof of this session. */
+  lastProofAtMs: number;
+  expiresAtMs: number;
+}>;
+
 export interface SessionStore {
   insert(session: NewSession): void;
   /** The authoritative read: the session of this token if it has not expired. Writes nothing. */
@@ -104,6 +116,12 @@ export interface SessionStore {
   deleteByToken(token: string): boolean;
   /** Ends every session of the owner (password reset); returns how many existed. */
   deleteAllOfOwner(ownerId: string): number;
+  /** The owner's sessions that have not expired, the newest first. Writes nothing. */
+  listActiveOfOwner(ownerId: string, nowMs: number): readonly SessionSummary[];
+  /** Ends one session of the owner by its id; true if it existed. */
+  deleteById(ownerId: string, sessionId: string): boolean;
+  /** Ends every session of the owner but `keepSessionId`; returns how many were ended. */
+  deleteAllButOne(ownerId: string, keepSessionId: string): number;
 }
 
 /** Encrypted values are opaque envelopes of the server's secret box; the port never sees a plain secret. */
@@ -277,5 +295,12 @@ export type ResetMfaPorts = Readonly<{
   recovery: Pick<RecoveryCodeStore, "discardAll">;
   sessions: Pick<SessionStore, "deleteAllOfOwner">;
   trusted: Pick<TrustedDeviceStore, "revokeAll">;
+  audit: AppendAudit;
+}>;
+
+/** The ports of the sessions page: the list, ending one session and ending all the others. */
+export type SessionManagementPorts = Readonly<{
+  sessions: Pick<SessionStore, "findActive" | "listActiveOfOwner" | "deleteById" | "deleteAllButOne">;
+  access: IdentityAccessReader;
   audit: AppendAudit;
 }>;

@@ -14,6 +14,7 @@ import * as healthStatus from "@openlife/contracts/http/health-status";
 import * as identity from "@openlife/contracts/http/identity";
 import * as mfa from "@openlife/contracts/http/mfa";
 import * as records from "@openlife/contracts/http/records";
+import * as security from "@openlife/contracts/http/security";
 import * as screens from "@openlife/contracts/http/screens";
 import * as registries from "@openlife/contracts/http/registries";
 import * as settings from "@openlife/contracts/http/settings";
@@ -26,7 +27,7 @@ export type RouteEntry = Readonly<{ method: "GET" | "POST" | "PUT" | "PATCH" | "
 
 /** Every exported path constant of the contracts, by name. */
 export const PATH_CONSTANTS: Readonly<Record<string, string>> = Object.fromEntries(
-  [bootstrap, config, dictionaries, healthStatus, identity, mfa, records, registries, screens, settings, setup, stream, systemTables].flatMap((module) =>
+  [bootstrap, config, dictionaries, healthStatus, identity, mfa, records, registries, screens, security, settings, setup, stream, systemTables].flatMap((module) =>
     Object.entries(module).filter((entry): entry is [string, string] => entry[0].endsWith("_PATH") && typeof entry[1] === "string"),
   ),
 );
@@ -69,6 +70,9 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "GET", path: settings.SETTINGS_PATH, access: "data", note: "the effective application options with their source and what the owner may change" },
   { method: "PATCH", path: settings.SETTINGS_PATH, access: "data", note: "changes one or more application options at once, all or none" },
   { method: "DELETE", path: settings.SETTING_PATH, access: "data", note: "takes the stored value of an option away, so it is the default again" },
+  { method: "GET", path: security.SECURITY_SESSIONS_PATH, access: "data", note: "the sessions of the owner with their browser, address and last proof; never a token" },
+  { method: "POST", path: security.SECURITY_SESSIONS_REVOKE_OTHERS_PATH, access: "data", note: "ends every session but the caller's; asks for a fresh second factor" },
+  { method: "DELETE", path: security.SECURITY_SESSION_PATH, access: "data", note: "ends one other session of the owner by its id; the caller's own is not found" },
   { method: "GET", path: screens.SCREENS_PATH, access: "data", note: "the owner's screens, in the order they were made" },
   { method: "POST", path: screens.SCREENS_PATH, access: "data", note: "makes the first, empty screen of the owner" },
   { method: "GET", path: screens.SCREEN_PATH, access: "data", note: "the canonical snapshot of a screen with the state of each widget" },
