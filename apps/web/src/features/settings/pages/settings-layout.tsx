@@ -13,6 +13,7 @@ export function SettingsLayout() {
       <nav aria-label={t("navigation")} className="settings-nav">
         <Link to="/settings/account">{t("tabs.account")}</Link>
         <Link to="/settings/style">{t("tabs.style")}</Link>
+        <Link to="/settings/app">{t("tabs.app")}</Link>
       </nav>
       <Outlet />
     </main>

@@ -104,18 +104,27 @@ describe("D11.4-AC1 the stage, the choice of data and the preferences", () => {
     expect(preferencesResponseSchema.parse(empty.json())).toEqual({ preferences: null, stage: "preferences" });
     const saved = await putPreferences(server, gate.cookie, PREFERENCES);
     expect(saved.status).toBe(200);
-    expect(preferencesResponseSchema.parse(saved.json())).toEqual({ preferences: PREFERENCES, stage: "complete" });
+    expect(preferencesResponseSchema.parse(saved.json())).toEqual({ preferences: { ...PREFERENCES, dateFormat: "DD.MM.YYYY" }, stage: "complete" });
     expect(query(setup.instance, "SELECT timezone, locale, date_format FROM owner_settings")).toEqual([{ timezone: "Europe/Warsaw", locale: "pl", date_format: "DD.MM.YYYY" }]);
 
     await stopServer(server);
     const restarted = await serve(setup.instance);
     // The same session, the same answers: nothing was held in memory.
-    expect(preferencesResponseSchema.parse((await getPreferences(restarted, gate.cookie)).json())).toEqual({ preferences: PREFERENCES, stage: "complete" });
+    expect(preferencesResponseSchema.parse((await getPreferences(restarted, gate.cookie)).json())).toEqual({ preferences: { ...PREFERENCES, dateFormat: "DD.MM.YYYY" }, stage: "complete" });
     expect(setupStatusSchema.parse((await setupStatus(restarted, gate.cookie)).json()).stage).toBe("complete");
     // A change replaces the row, it does not add one.
     expect((await putPreferences(restarted, gate.cookie, { timezone: "America/New_York", locale: "en" })).status).toBe(200);
     expect(query(setup.instance, "SELECT timezone, locale FROM owner_settings")).toEqual([{ timezone: "America/New_York", locale: "en" }]);
     expect(audits(setup, "settings.preferences_saved")).toBe(2);
+
+    // D42.2: a request with a date format changes it; one without leaves the stored one; a format outside the list is refused.
+    const formatted = await putPreferences(restarted, gate.cookie, { timezone: "America/New_York", locale: "en", dateFormat: "YYYY-MM-DD" });
+    expect(preferencesResponseSchema.parse(formatted.json())).toEqual({ preferences: { timezone: "America/New_York", locale: "en", dateFormat: "YYYY-MM-DD" }, stage: "complete" });
+    expect(preferencesResponseSchema.parse((await putPreferences(restarted, gate.cookie, { timezone: "Europe/Warsaw", locale: "pl" })).json()).preferences).toEqual({ timezone: "Europe/Warsaw", locale: "pl", dateFormat: "YYYY-MM-DD" });
+    expect(query(setup.instance, "SELECT date_format FROM owner_settings")).toEqual([{ date_format: "YYYY-MM-DD" }]);
+    for (const dateFormat of ["DD/MM/YYYY", "", 5]) expect((await putPreferences(restarted, gate.cookie, { timezone: "Europe/Warsaw", locale: "pl", dateFormat })).status, String(dateFormat)).toBe(422);
+    expect(query(setup.instance, "SELECT date_format FROM owner_settings")).toEqual([{ date_format: "YYYY-MM-DD" }]);
+    expect(audits(setup, "settings.preferences_saved")).toBe(4);
   });
 
   it("two choices at once both succeed and decide once", async () => {

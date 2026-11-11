@@ -89,15 +89,18 @@ describe("D16.3 what is typed becomes the canonical value", () => {
 });
 
 describe("D16.3 a stored value as it is read", () => {
-  const display = { locale: "en", timeZone: WARSAW };
+  const display = { locale: "en", timeZone: WARSAW, dateFormat: "DD.MM.YYYY" } as const;
   it("numbers with the decimals of the column, amounts with two, dates and date-times in the owner's zone", () => {
     expect(formatCell(column("number", { typeOptions: { decimalPlaces: 1 } }), 1234.5, display)).toBe("1,234.5");
     expect(formatCell(column("number"), 7, display)).toBe("7");
     expect(formatCell(column("money"), 1037, display)).toBe("10.37");
     expect(formatCell(column("money"), 1234567, { ...display, locale: "pl" })).toMatch(/^12\s345,67$/);
-    expect(formatCell(column("date"), "2026-02-03", display)).toBe("Feb 3, 2026");
-    expect(formatCell(column("datetime"), "2026-07-15T10:00:00.000Z", display)).toMatch(/^Jul 15, 2026,? 12:00/);
-    expect(formatCell(column("datetime"), "2026-07-15T23:30:00.000Z", display)).toMatch(/^Jul 16, 2026,? 1:30/);
+    expect(formatCell(column("date"), "2026-02-03", display)).toBe("03.02.2026");
+    expect(formatCell(column("date"), "2026-02-03", { ...display, dateFormat: "YYYY-MM-DD" })).toBe("2026-02-03");
+    expect(formatCell(column("date"), "2026-02-03", { ...display, dateFormat: "MM/DD/YYYY" })).toBe("02/03/2026");
+    expect(formatCell(column("date"), "not a date", display)).toBe("not a date");
+    expect(formatCell(column("datetime"), "2026-07-15T10:00:00.000Z", display)).toMatch(/^15\.07\.2026, 12:00/);
+    expect(formatCell(column("datetime"), "2026-07-15T23:30:00.000Z", display)).toMatch(/^16\.07\.2026, 1:30/);
     expect(formatCell(column("time"), "18:30", display)).toBe("18:30");
     expect(formatCell(column("text"), "<b>x</b>", display)).toBe("<b>x</b>");
     expect(formatCell(column("text"), null, display)).toBe("");
@@ -134,14 +137,14 @@ describe("D22.1-AC1 every value the form accepts is a value core accepts, and an
 
   it("1037 is 10,37 both ways, and the safe-integer bounds survive the round trip without a lost grosz", () => {
     expect(parseInput(column("money"), "10,37", WARSAW)).toEqual({ ok: true, value: 1037 });
-    expect(formatCell(column("money"), 1037, { locale: "pl", timeZone: WARSAW })).toBe("10,37");
+    expect(formatCell(column("money"), 1037, { locale: "pl", timeZone: WARSAW, dateFormat: "DD.MM.YYYY" })).toBe("10,37");
     for (const cents of [SAFE, -SAFE, SAFE - 1, 9_007_199_254_740_900, 1, -1, 0]) {
       expect(parseInput(column("money"), centsToText(cents), WARSAW), String(cents)).toEqual({ ok: true, value: cents });
     }
     expect(centsToText(SAFE)).toBe("90071992547409.91");
-    expect(formatCell(column("money"), SAFE, { locale: "en", timeZone: WARSAW })).toBe("90,071,992,547,409.91");
-    expect(formatCell(column("money"), -SAFE, { locale: "pl", timeZone: WARSAW })).toMatch(/^-90\s071\s992\s547\s409,91$/);
-    expect(formatCell(column("money"), -5, { locale: "pl", timeZone: WARSAW })).toBe("-0,05");
+    expect(formatCell(column("money"), SAFE, { locale: "en", timeZone: WARSAW, dateFormat: "DD.MM.YYYY" })).toBe("90,071,992,547,409.91");
+    expect(formatCell(column("money"), -SAFE, { locale: "pl", timeZone: WARSAW, dateFormat: "DD.MM.YYYY" })).toMatch(/^-90\s071\s992\s547\s409,91$/);
+    expect(formatCell(column("money"), -5, { locale: "pl", timeZone: WARSAW, dateFormat: "DD.MM.YYYY" })).toBe("-0,05");
   });
 
   it("a number keeps the decimal places of its column, from 0 to 6, on the edge", () => {

@@ -11,6 +11,7 @@ import path from "node:path";
 import type { Page } from "@playwright/test";
 import { registryRecordsPath } from "@openlife/contracts/http/records";
 import { query, type BrowserOwner } from "../support/auth-http.ts";
+import { shownDateTime } from "../support/shown-date.ts";
 import { repoRoot } from "../support/server-process.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
 import { createRegistry, expectNoViolations, signInFully } from "./owner-session.ts";
@@ -132,7 +133,7 @@ test.describe("D22.3-AC1 the 25 records of F01 typed into the window", () => {
       await expect.poll(titles).toEqual(expected.pageTitles[at + 1]);
     }
     const timeRow = page.getByRole("row").filter({ hasText: timeTitle });
-    const shownTime = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short", timeZone: OWNER_ZONE }).format(new Date(recordWithTime.values["rozpoczeto"] as string));
+    const shownTime = shownDateTime(recordWithTime.values["rozpoczeto"] as string, OWNER_ZONE);
     await expect(timeRow.getByRole("cell").nth(5)).toHaveText(shownTime);
     expect(RECORDS_IN_ORDER[0]!.values["cena"]).toBe(1037);
   });

@@ -1727,3 +1727,25 @@ main.pulpit {
   background: var(--color-accent);
   color: var(--color-on-accent);
 }
+
+/* The Application page (D42.2): the options in groups, each with its input, its note and its reset. */
+.option-group {
+  margin-block: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.option-row {
+  display: grid;
+  gap: var(--space-1);
+  margin-block: var(--space-3);
+}
+
+.settings-leave {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+  max-width: 32rem;
+}

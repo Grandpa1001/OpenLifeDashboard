@@ -4,7 +4,11 @@ import type { AppendAudit } from "../audit/public.js";
 import type { IdentityAccessReader, SessionStore } from "../identity/public.js";
 
 /** The preferences of the first setup; validated at the transport boundary, trusted here. */
-export type OwnerPreferences = Readonly<{ timezone: string; locale: "pl" | "en" }>;
+export const DATE_FORMATS = ["DD.MM.YYYY", "YYYY-MM-DD", "MM/DD/YYYY"] as const;
+export type DateFormat = (typeof DATE_FORMATS)[number];
+export const DEFAULT_DATE_FORMAT: DateFormat = "DD.MM.YYYY";
+
+export type OwnerPreferences = Readonly<{ timezone: string; locale: "pl" | "en"; dateFormat: DateFormat }>;
 
 export interface OwnerPreferencesStore {
   /** Null until the owner has saved them. */

@@ -103,15 +103,15 @@ describe("D13.1-AC1 every state of the owner meets the contract on the same rout
     expect(empty.json()).toEqual({ preferences: null, stage: "preferences" });
     const saved = await putPreferences(server, session, PREFERENCES);
     expect(saved.status).toBe(200);
-    expect(saved.json()).toEqual({ preferences: PREFERENCES, stage: "complete" });
-    expect((await getPreferences(server, session)).json()).toEqual({ preferences: PREFERENCES, stage: "complete" });
+    expect(saved.json()).toEqual({ preferences: { ...PREFERENCES, dateFormat: "DD.MM.YYYY" }, stage: "complete" });
+    expect((await getPreferences(server, session)).json()).toEqual({ preferences: { ...PREFERENCES, dateFormat: "DD.MM.YYYY" }, stage: "complete" });
 
     // A new password session of the finished owner is again before the second factor.
     const later = (await signIn(server)).cookie ?? "";
     const before = await getPreferences(server, later);
     expect([before.status, errorCode(before)]).toEqual([403, "MFA_REQUIRED"]);
     expect((await putPreferences(server, later, { timezone: "UTC", locale: "en" })).status).toBe(403);
-    expect((await getPreferences(server, session)).json()).toEqual({ preferences: PREFERENCES, stage: "complete" });
+    expect((await getPreferences(server, session)).json()).toEqual({ preferences: { ...PREFERENCES, dateFormat: "DD.MM.YYYY" }, stage: "complete" });
   });
 });
 

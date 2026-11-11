@@ -37,5 +37,6 @@
   "NETWORK": "Brak połączenia z serwerem. Sprawdź połączenie i spróbuj ponownie.",
   "INVALID_RESPONSE": "Serwer odpowiedział w nieoczekiwany sposób. Spróbuj ponownie.",
   "UNKNOWN": "Nie udało się wykonać operacji. Spróbuj ponownie.",
-  "requestReference": "Kod referencyjny: {{requestId}}"
+  "requestReference": "Kod referencyjny: {{requestId}}",
+  "STEP_UP_REQUIRED": "Ta zmiana wymaga świeżego kodu TOTP."
 }

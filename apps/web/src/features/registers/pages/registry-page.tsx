@@ -68,7 +68,7 @@ export function RegistryPage({ symbol, view, onView }: Readonly<{ symbol: string
   const registries = useRegistries();
   const registry = registries.data?.find((candidate) => candidate.symbol === symbol) ?? null;
 
-  const { locale, timeZone } = useOwnerDisplay();
+  const { locale, timeZone, dateFormat } = useOwnerDisplay();
   const columns = registry === null ? [] : formColumns(registry);
 
   // A sort the registry does not have (an edited address, a removed column) is the default sort, not an error.
@@ -242,6 +242,7 @@ export function RegistryPage({ symbol, view, onView }: Readonly<{ symbol: string
                 labels={records.data.labels}
                 locale={locale}
                 timeZone={timeZone}
+                dateFormat={dateFormat}
                 actions={(record) => {
                   const name = recordName(columns, record.values) ?? t("record.unnamed");
                   return (
@@ -279,6 +280,7 @@ export function RegistryPage({ symbol, view, onView }: Readonly<{ symbol: string
               {...(open.kind === "edit" ? { record: open.record } : {})}
               locale={locale}
               timeZone={timeZone}
+              dateFormat={dateFormat}
               onClose={() => {
                 closeDialog();
                 // A window closed after a conflict or a delete elsewhere leaves a list to read again.

@@ -3,7 +3,8 @@
   "navigation": "Sekcje ustawień",
   "tabs": {
     "account": "Konto",
-    "style": "Styl"
+    "style": "Styl",
+    "app": "Aplikacja"
   },
   "locale": {
     "pl": "Polski",
@@ -43,5 +44,97 @@
     "save": "Zapisz akcent",
     "noScreen": "Nie masz jeszcze pulpitu. Utwórz go w Designerze, aby wybrać jego akcent.",
     "openDesigner": "Otwórz Designer"
+  },
+  "app": {
+    "heading": "Aplikacja",
+    "dateFormat": {
+      "heading": "Format daty",
+      "legend": "Jak pokazywać daty",
+      "example": "Dziś: {{date}}",
+      "note": "Zmienia tylko sposób pokazywania; to, co zapisano, zostaje bez zmian.",
+      "save": "Zapisz format daty"
+    },
+    "options": {
+      "heading": "Opcje zaawansowane",
+      "hint": "Zmiana limitu nie usuwa ani nie przycina danych, które już zapisano.",
+      "save": "Zapisz opcje",
+      "reset": "Przywróć domyślną",
+      "resetFor": "Przywróć domyślną: {{name}}",
+      "range": "{{min}}–{{max}} {{unit}}",
+      "default": "Domyślnie: {{value}}",
+      "restart": "Zadziała po restarcie aplikacji.",
+      "env": "Wartość ustawiona w pliku instalacji; tu nie do zmiany.",
+      "readOnly": "Zmienia się tylko w pliku instalacji.",
+      "stepUp": "Zmiana wymaga potwierdzenia kodem TOTP (dostępne wraz z bezpieczeństwem konta).",
+      "saved": "Zapisano opcje.",
+      "resetDone": "Przywrócono domyślną: {{name}}.",
+      "none": "Nie wprowadzono zmian.",
+      "on": "Włączone"
+    },
+    "errors": {
+      "NOT_INTEGER": "Wpisz liczbę całkowitą.",
+      "OUT_OF_RANGE": "Wartość jest poza dozwolonym zakresem.",
+      "NOT_LISTED": "Wybierz jedną z wartości z listy.",
+      "NOT_TIME": "Wpisz godzinę w postaci GG:MM.",
+      "SETTING_INVALID": "Serwer nie przyjął tej wartości.",
+      "SETTING_CONFLICT": "Ta wartość jest sprzeczna z innym ustawieniem.",
+      "SETTING_LOCKED_BY_ENV": "Ta opcja jest ustawiona w pliku instalacji.",
+      "SETTING_READ_ONLY": "Ta opcja nie jest do zmiany tutaj.",
+      "SETTING_UNKNOWN": "Nieznana opcja.",
+      "STEP_UP_REQUIRED": "Ta zmiana wymaga potwierdzenia kodem TOTP."
+    },
+    "leave": {
+      "heading": "Niezapisane zmiany",
+      "text": "Masz niezapisane zmiany w opcjach. Wyjście je odrzuci.",
+      "stay": "Zostań",
+      "discard": "Odrzuć zmiany"
+    }
+  },
+  "options": {
+    "backupDiskReserve": "Rezerwa miejsca na dysku dla kopii",
+    "importMax": "Największy plik importu",
+    "recordMax": "Największy rekord",
+    "jsonBody": "Największe żądanie JSON",
+    "logsFileMax": "Rozmiar pliku logu przed rotacją",
+    "logsMaxFiles": "Liczba plików logu na usługę",
+    "logsRetention": "Jak długo trzymać rotowane logi",
+    "updatesCheck": "Sprawdzaj aktualizacje raz dziennie",
+    "backupNightly": "Kopia nocna",
+    "backupTime": "Godzina kopii nocnej",
+    "backupNightlyKeep": "Ile kopii nocnych trzymać",
+    "backupSafetyKeepDays": "Jak długo trzymać kopie zabezpieczające",
+    "auditRetention": "Jak długo trzymać dziennik audytu",
+    "logsLevel": "Poziom logu",
+    "limitRegistries": "Największa liczba rejestrów",
+    "limitColumns": "Największa liczba kolumn w rejestrze",
+    "limitTextLength": "Najdłuższy tekst",
+    "limitDictionaries": "Największa liczba słowników",
+    "limitDictionaryValues": "Największa liczba wartości w słowniku",
+    "limitConfigEntries": "Największa liczba wpisów konfiguracji",
+    "tablesDefaultPageSize": "Domyślna liczba wierszy na stronie tabeli"
+  },
+  "groups": {
+    "backup": "Kopie",
+    "limits": "Limity",
+    "logs": "Logi",
+    "audit": "Audyt",
+    "updates": "Aktualizacje",
+    "tables": "Tabele"
+  },
+  "units": {
+    "KiB": "KiB",
+    "MiB": "MiB",
+    "files": "plików",
+    "days": "dni",
+    "backups": "kopii",
+    "characters": "znaków",
+    "count": "szt.",
+    "rows": "wierszy"
+  },
+  "levels": {
+    "error": "Tylko błędy",
+    "warn": "Ostrzeżenia i błędy",
+    "info": "Informacje (domyślnie)",
+    "debug": "Szczegółowy (debug)"
   }
 }

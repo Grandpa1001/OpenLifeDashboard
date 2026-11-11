@@ -36,8 +36,8 @@ test.describe("D36.1-AC1 the clocks of F01 on the screen", () => {
     await expect(away.locator("time")).toHaveText(new RegExp(`^${moment["America/New_York"]}:[0-5]\\d$`));
     await expect(home).toContainText("Dom · Europe/Warsaw");
     await expect(away).toContainText("Nowy Jork · America/New_York");
-    await expect(home).toContainText("Sunday, March 29, 2026");
-    await expect(away).toContainText("Saturday, March 28, 2026");
+    await expect(home).toContainText("Sunday, 29.03.2026");
+    await expect(away).toContainText("Saturday, 28.03.2026");
     await expect(home.locator("time")).toHaveAttribute("datetime", /^2026-03-29T00:3\d:/);
     await expectNoViolations(page);
 

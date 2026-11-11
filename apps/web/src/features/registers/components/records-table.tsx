@@ -1,3 +1,4 @@
+import type { DateFormat } from "../../../lib/format/date-format.js";
 import type { PageLabels } from "@openlife/contracts/http/dictionaries";
 import type { RecordDto } from "@openlife/contracts/http/records";
 import type { TFunction } from "i18next";
@@ -25,6 +26,7 @@ export function RecordsTable({
   labels,
   locale,
   timeZone,
+  dateFormat,
   actions,
   busy = false,
 }: Readonly<{
@@ -34,6 +36,7 @@ export function RecordsTable({
   labels: PageLabels;
   locale: string;
   timeZone: string;
+  dateFormat: DateFormat;
   actions?: (record: RecordDto) => ReactNode;
   /** The rows are those of the previous page while the next one loads. */
   busy?: boolean;
@@ -62,7 +65,7 @@ export function RecordsTable({
             <tr key={record.id}>
               {columns.map((column) => (
                 <td key={column.symbol} className={column.type === "number" || column.type === "money" ? "numeric" : undefined}>
-                  {valueLabel(labels, column.symbol, record.values[column.symbol] ?? null) ?? cellText(t, column, record.values[column.symbol] ?? null, { locale, timeZone })}
+                  {valueLabel(labels, column.symbol, record.values[column.symbol] ?? null) ?? cellText(t, column, record.values[column.symbol] ?? null, { locale, timeZone, dateFormat })}
                 </td>
               ))}
               {actions === undefined ? null : <td className="actions">{actions(record)}</td>}

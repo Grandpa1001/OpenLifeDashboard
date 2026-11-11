@@ -121,7 +121,7 @@ test.describe("the first setup from an empty installation", () => {
     await expect(page).toHaveURL(`${owner.baseUrl}/`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(text(plCommon, "main.title"));
     const saved = await page.request.get(`${owner.baseUrl}/api/v1/setup/preferences`);
-    expect(await saved.json()).toEqual({ preferences: { timezone: "America/New_York", locale: "pl" }, stage: "complete" });
+    expect(await saved.json()).toEqual({ preferences: { timezone: "America/New_York", locale: "pl", dateFormat: "DD.MM.YYYY" }, stage: "complete" });
     const status = await page.request.get(`${owner.baseUrl}/api/v1/setup/status`);
     expect(await status.json()).toMatchObject({ dataChoice: "empty", stage: "complete", nextAction: "ready" });
   });

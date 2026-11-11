@@ -9,7 +9,7 @@ import { clockReading, startTicker, untilNextTick, zoneOf, type TickerHost } fro
 import { clockConfigSchema } from "../../../packages/widgets/dist/views.js";
 
 const F02 = JSON.parse(readFileSync(path.join(import.meta.dirname, "../../fixtures/books/books-v1.expected.json"), "utf8")) as { fixedClockCases: Array<{ nowIso: string; "Europe/Warsaw": string; "America/New_York": string }> };
-const display = { locale: "pl", timeZone: "Europe/Warsaw" };
+const display = { locale: "pl", timeZone: "Europe/Warsaw", dateFormat: "DD.MM.YYYY" } as const;
 const clock = (patch: Record<string, unknown> = {}) => clockConfigSchema.parse({ v: 1, ...patch });
 
 describe("D36.1 what the clock shows", () => {
@@ -24,8 +24,11 @@ describe("D36.1 what the clock shows", () => {
 
   it("12 hours with AM/PM, seconds, the date in the owner's language, and the owner's zone followed", () => {
     const now = Date.parse("2026-03-29T13:05:09Z");
-    expect(clockReading(now, clock({ format: "12h", showSeconds: true, timezone: "America/New_York" }), { locale: "en-US", timeZone: "UTC" }).time).toBe("09:05:09 AM");
-    expect(clockReading(now, clock(), display).date).toBe("niedziela, 29 marca 2026");
+    expect(clockReading(now, clock({ format: "12h", showSeconds: true, timezone: "America/New_York" }), { locale: "en-US", timeZone: "UTC", dateFormat: "DD.MM.YYYY" }).time).toBe("09:05:09 AM");
+    expect(clockReading(now, clock(), display).date).toBe("niedziela, 29.03.2026");
+    // D42.2: the weekday follows the language, the day follows the pattern the owner chose.
+    expect(clockReading(now, clock(), { ...display, dateFormat: "YYYY-MM-DD" }).date).toBe("niedziela, 2026-03-29");
+    expect(clockReading(now, clock(), { ...display, dateFormat: "MM/DD/YYYY", locale: "en-US" }).date).toBe("Sunday, 03/29/2026");
     expect(clockReading(now, clock({ showDate: false }), display).date).toBeNull();
     expect(zoneOf(clock(), "Asia/Tokyo")).toBe("Asia/Tokyo");
     expect(zoneOf(clock({ timezone: "Europe/London" }), "Asia/Tokyo")).toBe("Europe/London");

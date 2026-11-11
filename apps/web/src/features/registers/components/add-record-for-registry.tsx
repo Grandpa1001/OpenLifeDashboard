@@ -16,7 +16,7 @@ import type { FormColumn } from "../lib/record-input.js";
 export function AddRecordForRegistry({ symbol, onAdded, onClose }: Readonly<{ symbol: string; onAdded: () => void; onClose: () => void }>) {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const { locale, timeZone } = useOwnerDisplay();
+  const { locale, timeZone, dateFormat } = useOwnerDisplay();
   const definition = useQuery({
     queryKey: queryKeys.registries.list,
     queryFn: async ({ signal }) => {
@@ -45,6 +45,7 @@ export function AddRecordForRegistry({ symbol, onAdded, onClose }: Readonly<{ sy
       registry={{ symbol: registry.symbol, displayName: registry.displayName, schemaRevision: registry.schemaRevision, columns }}
       locale={locale}
       timeZone={timeZone}
+      dateFormat={dateFormat}
       onSaved={onAdded}
       onClose={onClose}
       onSchemaChanged={() => void queryClient.invalidateQueries({ queryKey: queryKeys.registries.list })}

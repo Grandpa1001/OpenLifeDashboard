@@ -4579,6 +4579,55 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.39: the Application page, the format of dates and the advanced options.
+    id: "D42.2",
+    ready: true,
+    title: "The Application page: the format of dates in the preferences and shown everywhere, and the advanced options with their reset, locks, errors and the question on leaving",
+    criteria: ["D42.2-AC1", "D42.2-AC2", "D42.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests import the built packages and the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D42.2-AC1", "D42.2-AC2"],
+        description: "pnpm -r build: the date format in the preferences (contract, store, route), its writing in the interface, and the Application page",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/http/setup.ts", "packages/sqlite/src/adapters/settings/owner-preferences.ts", "apps/web/src/lib/format/date-format.ts", "apps/web/src/features/settings/pages/app-page.tsx"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D42.2-AC1", "D42.2-AC2"],
+        description: "pl and en have the same keys, including the labels of the options, their groups, units and errors, and the text of the second factor",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/settings.json", "apps/web/src/locales/en/settings.json", "apps/web/src/locales/pl/errors.json"],
+      },
+      {
+        id: "date-format-web",
+        criteria: ["D42.2-AC1"],
+        description: "Unit: a stored date and a date-time in each of the three patterns and in the zone of the owner, the date of a clock as the weekday of the language and the day of the pattern, the drafts of the options (an integer in its range, a flag, a listed text, a time) and only the changed ones sent",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/record-input.test.ts", "tests/unit/web/clock.test.ts", "tests/unit/web/option-drafts.test.ts"],
+        requires: ["tests/unit/web/record-input.test.ts", "tests/unit/web/clock.test.ts", "tests/unit/web/option-drafts.test.ts"],
+      },
+      {
+        id: "preferences-http",
+        criteria: ["D42.2-AC1"],
+        description: "HTTP on the built server: the preferences carry the date format, a request without one keeps the stored one, a format outside the list is refused and stores nothing, every save is audited; the routes and the states of the owner as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/setup-http.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/unit/web/error-message.test.ts"],
+        requires: ["tests/integration/auth/setup-http.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/unit/web/error-message.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "settings-app-e2e",
+        criteria: ["D42.2-AC1", "D42.2-AC2"],
+        description:
+          "Playwright on the built app: the format of dates changes a date in a table and the stored date stays; two options are saved at once and are there after a reload; a wrong draft is told at its field and one the server refuses leaves the form with everything typed and nothing saved; a lower limit of text trims nothing stored; one option goes back to its default; an option set by the installation shows as locked with no reset, one needing a second factor is frozen with its reason; leaving with unsaved changes asks first; axe",
+        command: ["node", "tests/verification/e2e.ts", "settings-app.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/settings-app.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D42.2-regression"),
+    ],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

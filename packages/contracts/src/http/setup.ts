@@ -28,8 +28,18 @@ export const timeZoneSchema = z
     }
   }, { message: "unknown_time_zone" });
 
-export const ownerPreferencesSchema = z.object({ timezone: timeZoneSchema, locale: z.enum(SUPPORTED_LOCALES) }).strict();
+/** The ways the owner reads a date (Architektura §14.2); the stored value of a date does not change with it. */
+export const DATE_FORMATS = ["DD.MM.YYYY", "YYYY-MM-DD", "MM/DD/YYYY"] as const;
+export type DateFormat = (typeof DATE_FORMATS)[number];
+export const DEFAULT_DATE_FORMAT: DateFormat = "DD.MM.YYYY";
+
+/** The preferences as the server gives them. */
+export const ownerPreferencesSchema = z.object({ timezone: timeZoneSchema, locale: z.enum(SUPPORTED_LOCALES), dateFormat: z.enum(DATE_FORMATS) }).strict();
 export type OwnerPreferencesDto = z.infer<typeof ownerPreferencesSchema>;
+
+/** The preferences as a client sends them: the date format may be left out, and then the stored one stays (the first setup leaves it out). */
+export const ownerPreferencesRequestSchema = z.object({ timezone: timeZoneSchema, locale: z.enum(SUPPORTED_LOCALES), dateFormat: z.enum(DATE_FORMATS).optional() }).strict();
+export type OwnerPreferencesRequestDto = z.infer<typeof ownerPreferencesRequestSchema>;
 
 export const setupStatusSchema = z
   .object({

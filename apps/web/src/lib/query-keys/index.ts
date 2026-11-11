@@ -8,4 +8,5 @@ export const queryKeys = {
   systemTables: { list: ["system-tables", "list"] as const, page: (name: string, page: number) => ["system-tables", "page", name, page] as const },
   dictionaries: { list: ["dictionaries", "list"] as const },
   config: { list: ["config", "list"] as const },
+  appSettings: { list: ["app-settings", "list"] as const },
 } as const;

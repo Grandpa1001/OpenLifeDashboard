@@ -4,13 +4,13 @@ import type { OwnerPreferences, OwnerPreferencesStore } from "@openlife/core/set
 import type { TransactionHandle } from "../../transactions/unit-of-work.js";
 
 export function bindOwnerPreferencesStore(tx: TransactionHandle): OwnerPreferencesStore {
-  const read = tx.prepare("SELECT timezone, locale FROM owner_settings WHERE owner_id = ?");
+  const read = tx.prepare("SELECT timezone, locale, date_format AS dateFormat FROM owner_settings WHERE owner_id = ?");
   const write = tx.prepare(
-    `INSERT INTO owner_settings (owner_id, timezone, locale, updated_at_ms) VALUES (?, ?, ?, ?)
-     ON CONFLICT (owner_id) DO UPDATE SET timezone = excluded.timezone, locale = excluded.locale, updated_at_ms = excluded.updated_at_ms`,
+    `INSERT INTO owner_settings (owner_id, timezone, locale, date_format, updated_at_ms) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT (owner_id) DO UPDATE SET timezone = excluded.timezone, locale = excluded.locale, date_format = excluded.date_format, updated_at_ms = excluded.updated_at_ms`,
   );
   return {
     read: (ownerId) => (read.get(ownerId) as OwnerPreferences | undefined) ?? null,
-    write: (ownerId, preferences, nowMs) => void write.run(ownerId, preferences.timezone, preferences.locale, nowMs),
+    write: (ownerId, preferences, nowMs) => void write.run(ownerId, preferences.timezone, preferences.locale, preferences.dateFormat, nowMs),
   };
 }

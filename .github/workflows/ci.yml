@@ -548,6 +548,9 @@ jobs:
       - name: Verify D42.1 (the settings frame, Account and Style)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D42.1
+      - name: Verify D42.2 (the format of dates and the advanced options of the application)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D42.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

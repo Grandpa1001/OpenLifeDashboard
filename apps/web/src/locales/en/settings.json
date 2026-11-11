@@ -3,7 +3,8 @@
   "navigation": "Settings sections",
   "tabs": {
     "account": "Account",
-    "style": "Style"
+    "style": "Style",
+    "app": "Application"
   },
   "locale": {
     "pl": "Polski",
@@ -43,5 +44,97 @@
     "save": "Save the accent",
     "noScreen": "You have no dashboard yet. Make it in the Designer to choose its accent.",
     "openDesigner": "Open the Designer"
+  },
+  "app": {
+    "heading": "Application",
+    "dateFormat": {
+      "heading": "Date format",
+      "legend": "How dates are shown",
+      "example": "Today: {{date}}",
+      "note": "It changes only how dates are shown; what is stored stays as it is.",
+      "save": "Save the date format"
+    },
+    "options": {
+      "heading": "Advanced options",
+      "hint": "Changing a limit never removes or trims data that is already stored.",
+      "save": "Save the options",
+      "reset": "Restore the default",
+      "resetFor": "Restore the default: {{name}}",
+      "range": "{{min}}–{{max}} {{unit}}",
+      "default": "Default: {{value}}",
+      "restart": "Takes effect after the application restarts.",
+      "env": "Set in the installation file; it cannot be changed here.",
+      "readOnly": "Changed only in the installation file.",
+      "stepUp": "This change needs a TOTP code (available with the security of the account).",
+      "saved": "The options were saved.",
+      "resetDone": "The default was restored: {{name}}.",
+      "none": "No changes made.",
+      "on": "On"
+    },
+    "errors": {
+      "NOT_INTEGER": "Enter a whole number.",
+      "OUT_OF_RANGE": "The value is outside the allowed range.",
+      "NOT_LISTED": "Choose one of the values on the list.",
+      "NOT_TIME": "Enter a time as HH:MM.",
+      "SETTING_INVALID": "The server did not accept this value.",
+      "SETTING_CONFLICT": "This value conflicts with another setting.",
+      "SETTING_LOCKED_BY_ENV": "This option is set in the installation file.",
+      "SETTING_READ_ONLY": "This option cannot be changed here.",
+      "SETTING_UNKNOWN": "Unknown option.",
+      "STEP_UP_REQUIRED": "This change needs a TOTP code."
+    },
+    "leave": {
+      "heading": "Unsaved changes",
+      "text": "You have unsaved changes in the options. Leaving discards them.",
+      "stay": "Stay",
+      "discard": "Discard the changes"
+    }
+  },
+  "options": {
+    "backupDiskReserve": "Disk space kept free for copies",
+    "importMax": "Largest import file",
+    "recordMax": "Largest record",
+    "jsonBody": "Largest JSON request",
+    "logsFileMax": "Log file size before rotation",
+    "logsMaxFiles": "Log files per service",
+    "logsRetention": "How long rotated logs are kept",
+    "updatesCheck": "Check for updates once a day",
+    "backupNightly": "Nightly copy",
+    "backupTime": "Time of the nightly copy",
+    "backupNightlyKeep": "How many nightly copies to keep",
+    "backupSafetyKeepDays": "How long safety copies are kept",
+    "auditRetention": "How long the audit log is kept",
+    "logsLevel": "Log level",
+    "limitRegistries": "Most registries",
+    "limitColumns": "Most columns in a registry",
+    "limitTextLength": "Longest text",
+    "limitDictionaries": "Most dictionaries",
+    "limitDictionaryValues": "Most values in a dictionary",
+    "limitConfigEntries": "Most configuration entries",
+    "tablesDefaultPageSize": "Default rows on a page of a table"
+  },
+  "groups": {
+    "backup": "Copies",
+    "limits": "Limits",
+    "logs": "Logs",
+    "audit": "Audit",
+    "updates": "Updates",
+    "tables": "Tables"
+  },
+  "units": {
+    "KiB": "KiB",
+    "MiB": "MiB",
+    "files": "files",
+    "days": "days",
+    "backups": "copies",
+    "characters": "characters",
+    "count": "items",
+    "rows": "rows"
+  },
+  "levels": {
+    "error": "Errors only",
+    "warn": "Warnings and errors",
+    "info": "Information (default)",
+    "debug": "Detailed (debug)"
   }
 }

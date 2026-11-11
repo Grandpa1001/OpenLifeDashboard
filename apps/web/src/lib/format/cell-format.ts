@@ -1,11 +1,14 @@
 // A stored value as the owner reads it in a table (Scope §6.2), in the register page and in the widget: numbers with the decimals of the
 // column, amounts with two, dates and times in the owner's language and zone. An empty value is
 // an empty text; the table decides how to show emptiness and booleans, which need translations.
+import { formatInstantDate, formatStoredDate, type DateFormat } from "./date-format.js";
+
 export type CellValue = string | number | boolean | null;
 /** What the format of a value needs to know of its column. */
 export type FormatColumn = Readonly<{ type: string; typeOptions: Readonly<{ decimalPlaces?: number | undefined }> }>;
 
-export type Display = Readonly<{ locale: string; timeZone: string }>;
+/** How the owner reads values: the language, the zone and the way a date is written (Architektura §14.2). */
+export type Display = Readonly<{ locale: string; timeZone: string; dateFormat: DateFormat }>;
 
 /**
  * An amount in units × 100 in the owner's language, exact for every safe integer: the units are
@@ -29,13 +32,13 @@ export function formatCell(column: FormatColumn, value: CellValue, display: Disp
     }
     case "money":
       return typeof value === "number" && Number.isSafeInteger(value) ? formatCents(value, display.locale) : String(value);
-    case "date": {
-      const instant = typeof value === "string" ? Date.parse(`${value}T00:00:00Z`) : Number.NaN;
-      return Number.isNaN(instant) ? String(value) : new Intl.DateTimeFormat(display.locale, { dateStyle: "medium", timeZone: "UTC" }).format(instant);
-    }
+    case "date":
+      return (typeof value === "string" ? formatStoredDate(value, display.dateFormat) : null) ?? String(value);
     case "datetime": {
       const instant = typeof value === "string" ? Date.parse(value) : Number.NaN;
-      return Number.isNaN(instant) ? String(value) : new Intl.DateTimeFormat(display.locale, { dateStyle: "medium", timeStyle: "short", timeZone: display.timeZone }).format(instant);
+      if (Number.isNaN(instant)) return String(value);
+      // The day in the owner's pattern, the time in the owner's language: "15.07.2026, 12:00".
+      return `${formatInstantDate(instant, display.timeZone, display.dateFormat)}, ${new Intl.DateTimeFormat(display.locale, { timeStyle: "short", timeZone: display.timeZone }).format(instant)}`;
     }
     default:
       return String(value);

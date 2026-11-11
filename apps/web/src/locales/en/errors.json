@@ -33,5 +33,6 @@
   "NETWORK": "No connection to the server. Check the connection and try again.",
   "INVALID_RESPONSE": "The server answered in an unexpected way. Try again.",
   "UNKNOWN": "The operation could not be completed. Try again.",
-  "requestReference": "Reference code: {{requestId}}"
+  "requestReference": "Reference code: {{requestId}}",
+  "STEP_UP_REQUIRED": "This change needs a fresh TOTP code."
 }

@@ -4,7 +4,7 @@
 // preferences, then complete (the guide arrives with the Designer, D18).
 import { DomainFault, type Commit, type ReadUnit, type Result, type UnitOfWork } from "../../../foundation/public.js";
 import { decideAccess, nextActionFor, resolveSessionAccess, type NextAction } from "../../identity/public.js";
-import type { OwnerPreferences, SetupPorts } from "../ports.js";
+import { DEFAULT_DATE_FORMAT, type DateFormat, type OwnerPreferences, type SetupPorts } from "../ports.js";
 
 export type SetupStage = "data" | "preferences" | "complete";
 export type DataChoice = "unselected" | "empty" | "imported";
@@ -58,7 +58,7 @@ export function readOwnerPreferences(deps: SetupDependencies, token: string, req
 }
 
 /** Saves the preferences in one unit of work with the policy check and the audit entry. */
-export function saveOwnerPreferences(deps: SetupDependencies, token: string, preferences: OwnerPreferences, requestId: string): Result<PreferencesView> {
+export function saveOwnerPreferences(deps: SetupDependencies, token: string, input: Readonly<{ timezone: string; locale: "pl" | "en"; dateFormat?: DateFormat | undefined }>, requestId: string): Result<PreferencesView> {
   const nowMs = deps.nowMs();
   const result = deps.unit.run((ports) => {
     const access = resolveSessionAccess(ports, token, nowMs, requestId);
@@ -69,6 +69,8 @@ export function saveOwnerPreferences(deps: SetupDependencies, token: string, pre
     if (!decision.allow) {
       throw new DomainFault({ code: decision.code });
     }
+    // A request without a date format keeps the one stored (the first setup has none to keep).
+    const preferences: OwnerPreferences = { timezone: input.timezone, locale: input.locale, dateFormat: input.dateFormat ?? ports.preferences.read(access.session.ownerId)?.dateFormat ?? DEFAULT_DATE_FORMAT };
     ports.preferences.write(access.session.ownerId, preferences, nowMs);
     ports.audit.append({
       ownerId: access.session.ownerId,
@@ -76,7 +78,7 @@ export function saveOwnerPreferences(deps: SetupDependencies, token: string, pre
       entityId: access.session.ownerId,
       at: new Date(nowMs).toISOString(),
       requestId,
-      details: { timezone: preferences.timezone, locale: preferences.locale },
+      details: { timezone: preferences.timezone, locale: preferences.locale, dateFormat: preferences.dateFormat },
     });
     return { value: { preferences, stage: stageOf(access.snapshot.dataChoice, preferences) }, invalidations: [] } satisfies Commit<PreferencesView>;
   });

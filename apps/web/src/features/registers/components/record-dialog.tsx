@@ -1,3 +1,4 @@
+import type { DateFormat } from "../../../lib/format/date-format.js";
 import type { RecordDto } from "@openlife/contracts/http/records";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -53,11 +54,12 @@ export function RecordDialog({
   record,
   locale,
   timeZone,
+  dateFormat,
   onSaved,
   onClose,
   onSchemaChanged,
   onGateLost,
-}: Readonly<{ registry: Registry; record?: RecordDto; locale: string; timeZone: string; onSaved: () => void; onClose: () => void; onSchemaChanged: () => void; onGateLost: () => void }>) {
+}: Readonly<{ registry: Registry; record?: RecordDto; locale: string; timeZone: string; dateFormat: DateFormat; onSaved: () => void; onClose: () => void; onSchemaChanged: () => void; onGateLost: () => void }>) {
   const { t } = useTranslation("registers");
   const dialog = useRef<HTMLDialogElement>(null);
   const saveButton = useRef<HTMLButtonElement>(null);
@@ -224,7 +226,7 @@ export function RecordDialog({
             {t("record.deletedMeanwhile")}
           </p>
         ) : null}
-        {conflict === null ? null : <ConflictNotice server={conflict} rows={conflictRows(ordered, conflict.values, typed, timeZone)} locale={locale} timeZone={timeZone} onLoad={loadNewer} />}
+        {conflict === null ? null : <ConflictNotice server={conflict} rows={conflictRows(ordered, conflict.values, typed, timeZone)} locale={locale} timeZone={timeZone} dateFormat={dateFormat} onLoad={loadNewer} />}
         {whole === undefined ? null : (
           <p className="field-error" role="alert">
             {isKnownIssue(whole) ? t(`recordIssues.${whole}`) : t("recordIssues.UNKNOWN")}
@@ -289,9 +291,9 @@ export function RecordDialog({
 }
 
 /** A newer record on the server (makieta 21): when it changed, that nothing was overwritten, and the fields that differ. */
-function ConflictNotice({ server, rows, locale, timeZone, onLoad }: Readonly<{ server: RecordDto; rows: readonly ConflictRow[]; locale: string; timeZone: string; onLoad: () => void }>) {
+function ConflictNotice({ server, rows, locale, timeZone, dateFormat, onLoad }: Readonly<{ server: RecordDto; rows: readonly ConflictRow[]; locale: string; timeZone: string; dateFormat: DateFormat; onLoad: () => void }>) {
   const { t } = useTranslation("registers");
-  const display = { locale, timeZone };
+  const display = { locale, timeZone, dateFormat };
   const when = formatCell({ type: "datetime", typeOptions: {} }, server.updatedAt, display);
   return (
     <section className="conflict" role="alert" aria-labelledby="conflict-heading">

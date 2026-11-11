@@ -1,6 +1,7 @@
 // The time of a clock widget (Scope §6.3; D36.1): what it shows at an instant, and when it has to
 // change. `Intl` does the zones and their changes of time (DST); nothing here adds hours by hand.
 import { OWNER_ZONE, type ClockConfig } from "@openlife/widgets/views";
+import { formatInstantDate, type DateFormat } from "../../../lib/format/date-format.js";
 
 export type ClockReading = Readonly<{ time: string; date: string | null; zone: string; instant: string }>;
 
@@ -8,7 +9,7 @@ export type ClockReading = Readonly<{ time: string; date: string | null; zone: s
 export const zoneOf = (config: Pick<ClockConfig, "timezone">, ownerZone: string): string => (config.timezone === OWNER_ZONE ? ownerZone : config.timezone);
 
 /** What the clock shows at `now`, in its zone and the language of the owner. */
-export function clockReading(now: number, config: Pick<ClockConfig, "timezone" | "format" | "showSeconds" | "showDate">, display: Readonly<{ locale: string; timeZone: string }>): ClockReading {
+export function clockReading(now: number, config: Pick<ClockConfig, "timezone" | "format" | "showSeconds" | "showDate">, display: Readonly<{ locale: string; timeZone: string; dateFormat: DateFormat }>): ClockReading {
   const zone = zoneOf(config, display.timeZone);
   const time = new Intl.DateTimeFormat(display.locale, {
     timeZone: zone,
@@ -17,7 +18,8 @@ export function clockReading(now: number, config: Pick<ClockConfig, "timezone" |
     ...(config.showSeconds ? { second: "2-digit" } : {}),
     hourCycle: config.format === "12h" ? "h12" : "h23",
   }).format(now);
-  const date = config.showDate ? new Intl.DateTimeFormat(display.locale, { timeZone: zone, weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(now) : null;
+  // The weekday in the owner's language, the day in the owner's pattern: "Sunday, 29.03.2026".
+  const date = config.showDate ? `${new Intl.DateTimeFormat(display.locale, { timeZone: zone, weekday: "long" }).format(now)}, ${formatInstantDate(now, zone, display.dateFormat)}` : null;
   return { time, date, zone, instant: new Date(now).toISOString() };
 }
 

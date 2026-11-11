@@ -68,7 +68,7 @@ test.describe("D16.3-AC1 the first record and the pages", () => {
     await expect(rows(page)).toHaveCount(2);
     const cells = rows(page).nth(1).getByRole("cell");
     // The last cell holds the actions of the row (D23.3), named by their buttons.
-    await expect(cells).toHaveText(["Diuna", "Frank Herbert", "412", "39.99", "Feb 3, 2026", /^Jul 15, 2026,? 12:00/, "18:30", "Yes", "planowane", ""]);
+    await expect(cells).toHaveText(["Diuna", "Frank Herbert", "412", "39.99", "03.02.2026", /^15\.07\.2026, 12:00/, "18:30", "Yes", "planowane", ""]);
     await expect(page.getByText("1–1 of 1")).toBeVisible();
     await expectNoViolations(page);
 

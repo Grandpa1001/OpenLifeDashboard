@@ -10,6 +10,7 @@
 import type { Page } from "@playwright/test";
 import { registryRecordPath, registryRecordsPath } from "@openlife/contracts/http/records";
 import { query, type BrowserOwner } from "../support/auth-http.ts";
+import { shownDateTime } from "../support/shown-date.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
 import { addRecordByApi, BOOKS_DEFINITION, createRegistry, createScreenWith, deafToLiveEvents, expectNoViolations, signInFully } from "./owner-session.ts";
 
@@ -92,7 +93,7 @@ test.describe("D23.3-AC1 a change in the window, and two tabs changing one recor
     await expect(compare.getByRole("row").filter({ hasText: "Status" }).getByRole("cell")).toHaveText(["planowane", "czytane"]);
     // The time of the change, in the owner's zone, from the record on the server.
     const updatedAt = query<{ updated_at: string }>(owner.instance, "SELECT updated_at FROM reg_ksiazki WHERE tytul = 'Solaris'")[0]!.updated_at;
-    const when = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Warsaw" }).format(new Date(updatedAt));
+    const when = shownDateTime(updatedAt, "Europe/Warsaw");
     await expect(editDialog(page).getByText(say("record.conflict.changed", { when }))).toBeVisible();
     // What was typed is still in the fields, and saving waits.
     await expect(field(page, "Liczba stron")).toHaveValue("300");

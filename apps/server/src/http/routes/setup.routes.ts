@@ -5,7 +5,7 @@
 // authentication data and nothing is cached.
 import {
   chooseEmptyRequestSchema,
-  ownerPreferencesSchema,
+  ownerPreferencesRequestSchema,
   SETUP_CHOOSE_EMPTY_PATH,
   SETUP_PREFERENCES_PATH,
   SETUP_STATUS_PATH,
@@ -71,7 +71,7 @@ export function registerSetupRoutes(app: Hono<AppEnv>, deps: SetupRouteDependenc
   app.put(
     SETUP_PREFERENCES_PATH,
     ...guard,
-    operation(ownerPreferencesSchema, async (c, token, body) => {
+    operation(ownerPreferencesRequestSchema, async (c, token, body) => {
       const result = saveOwnerPreferences(setup, token, body, c.get("requestId"));
       return result.ok ? c.json(result.value) : refused(c, result.error);
     }),
