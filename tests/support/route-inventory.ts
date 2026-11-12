@@ -75,6 +75,7 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "POST", path: security.SECURITY_PASSWORD_CONFIRM_PATH, access: "data", note: "proves the password again while the second factor is off, where it is the proof of a sensitive action" },
   { method: "POST", path: security.SECURITY_MFA_RESTART_PATH, access: "data", note: "sets the second factor up again after a fresh proof; ends the other sessions and the trusted devices; enrollment follows" },
   { method: "POST", path: security.SECURITY_MFA_DISABLE_PATH, access: "data", note: "turns the second factor off on purpose after a fresh TOTP and the acknowledgment of the risk" },
+  { method: "GET", path: security.SECURITY_AUDIT_PATH, access: "data", note: "the audit log: newest first, fifty to a page, optionally of one kind; the address and browser of an entry in full" },
   { method: "GET", path: security.SECURITY_DEVICES_PATH, access: "data", note: "the trusted devices that are valid, with the name of their browser; never a token" },
   { method: "POST", path: security.SECURITY_DEVICES_REVOKE_ALL_PATH, access: "data", note: "revokes every trusted device; asks for a fresh second factor" },
   { method: "DELETE", path: security.SECURITY_DEVICE_PATH, access: "data", note: "revokes one trusted device by its id" },

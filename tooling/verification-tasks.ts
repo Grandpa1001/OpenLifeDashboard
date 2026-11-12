@@ -4854,6 +4854,47 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.40: the audit log for the Security page.
+    id: "D43.6",
+    ready: true,
+    title: "The audit log over HTTP: newest first, fifty to a page, filtered by kind, with the address and the browser in full",
+    criteria: ["D43.6-AC1", "D43.6-AC2", "D43.6-regression"],
+    checks: [
+      {
+        // Runs first: the tests import the built packages and run the in-process app on them.
+        id: "workspace-build",
+        criteria: ["D43.6-AC1", "D43.6-AC2"],
+        description: "pnpm -r build: the kinds of the log, the use case, the reader of the store and the route",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/audit/domain/audit-kinds.ts", "packages/core/src/modules/identity/application/read-audit-log.ts", "packages/sqlite/src/adapters/audit/audit-log-reader.ts", "apps/server/src/http/routes/security.routes.ts"],
+      },
+      {
+        id: "audit-kinds",
+        criteria: ["D43.6-AC1"],
+        description: "Unit: the kinds of the core are the kinds of the contract, every action the application writes is shown under its kind, an unknown action under none, and no action is in two kinds",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/audit/audit-kinds.test.ts"],
+        requires: ["tests/unit/audit/audit-kinds.test.ts"],
+      },
+      {
+        id: "audit-http",
+        criteria: ["D43.6-AC1", "D43.6-AC2"],
+        description:
+          "HTTP: no session is 401 and a query outside the contract (an unknown kind, a page below 1 or not whole, a field given twice) is 422 and a field it does not name decides nothing; the entries come newest first with the total, the address and the browser of an entry in full, fifty to a page, across pages without a repeat, and a page beyond the last is empty; each kind finds the entries it names and the kinds with the entries of none are the whole log; no password, token, cookie or recovery code is in an answer",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/security/audit-http.test.ts"],
+        requires: ["tests/integration/security/audit-http.test.ts", "tests/support/app-harness.ts", "tests/support/auth-http.ts"],
+      },
+      {
+        id: "data-routes",
+        criteria: ["D43.6-AC1"],
+        description: "The route inventory and the access table of D13.1 and D20.2 with the new route: refused in every state before the gate and answering the owner past it",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts"],
+        requires: ["tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D43.6-regression"),
+    ],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

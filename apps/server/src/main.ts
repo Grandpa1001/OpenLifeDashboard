@@ -13,7 +13,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
-import { bindAppendAudit } from "@openlife/sqlite/adapters/audit";
+import { bindAppendAudit, bindAuditLogReader } from "@openlife/sqlite/adapters/audit";
 import { bindIdentityAccessReader, bindMfaStore, bindOwnerWriters, bindRecoveryCodeStore, bindSetupStateStore, bindSignInStores, bindTrustedDeviceStore } from "@openlife/sqlite/adapters/identity";
 import { bindCatalogReader, bindConfigBindingCounts, bindDashboardStore, bindDependentWidgets } from "@openlife/sqlite/adapters/dashboard";
 import { bindDictionaryLookup, bindDictionaryStore } from "@openlife/sqlite/adapters/dictionaries";
@@ -213,6 +213,7 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   idempotency: bindIdempotencyStore(tx),
   access: bindIdentityAccessReader(tx, Date.now),
   audit: bindAppendAudit(tx),
+  auditLog: bindAuditLogReader(tx),
   systemTables: bindSystemTableReader(tx),
 }));
 // The effective application options now (D41.3): the catalog with the stored values and the environment; the limits below read them at each use.

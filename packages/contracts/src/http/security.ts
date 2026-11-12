@@ -36,6 +36,11 @@ export const SECURITY_MFA_RESTART_PATH = "/api/v1/security/mfa/restart";
 /** `POST` turns the second factor off on purpose; needs a fresh TOTP and the explicit acknowledgment of the risk. */
 export const SECURITY_MFA_DISABLE_PATH = "/api/v1/security/mfa/disable";
 
+/** `GET` reads the audit log: newest first, fifty to a page, optionally of one kind (`?kind=` and `?page=`). */
+export const SECURITY_AUDIT_PATH = "/api/v1/security/audit";
+/** The kinds the log is filtered by; the core module of the audit holds the same list and a test keeps them equal. */
+export const AUDIT_KIND_NAMES = ["logins", "security", "structure", "updates"] as const;
+
 export const SESSION_ASSURANCES = ["password", "totp", "trusted", "recovery"] as const;
 
 export const securitySessionSchema = z
@@ -110,3 +115,30 @@ export type FactorChangedDto = z.infer<typeof factorChangedSchema>;
 /** After a restart the owner enrolls again; the caller's own session carries on to the enrollment. */
 export const factorRestartedSchema = factorChangedSchema.extend({ nextAction: z.literal("mfa_enrollment") }).strict();
 export type FactorRestartedDto = z.infer<typeof factorRestartedSchema>;
+
+/** The query of the log: a page counts from 1. Fields it does not name are ignored (they decide nothing), a value outside it is refused. */
+export const auditQuerySchema = z
+  .object({ kind: z.enum(AUDIT_KIND_NAMES).optional(), page: z.coerce.number().int().min(1).max(100_000).default(1) });
+export type AuditQueryDto = z.infer<typeof auditQuerySchema>;
+
+/** One entry as stored: operation types and permitted context only, the address and the browser in full. */
+export const auditEntrySchema = z
+  .object({
+    id: z.number().int().min(1),
+    at: z.iso.datetime(),
+    action: z.string().min(1),
+    /** The kind the filter finds it under; null for an action no filter names. */
+    kind: z.enum(AUDIT_KIND_NAMES).nullable(),
+    entityId: z.string(),
+    requestId: z.string(),
+    ip: z.string().nullable(),
+    userAgent: z.string().nullable(),
+    details: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).nullable(),
+  })
+  .strict();
+export type AuditEntryDto = z.infer<typeof auditEntrySchema>;
+
+export const auditLogSchema = z
+  .object({ entries: z.array(auditEntrySchema), page: z.number().int().min(1), pageSize: z.number().int().min(1), total: z.number().int().min(0) })
+  .strict();
+export type AuditLogDto = z.infer<typeof auditLogSchema>;

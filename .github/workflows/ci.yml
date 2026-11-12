@@ -251,6 +251,9 @@ jobs:
       - name: Verify D43.5 (setting the second factor up again and turning it off)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D43.5
+      - name: Verify D43.6 (the audit log, its pages and its kinds)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D43.6
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

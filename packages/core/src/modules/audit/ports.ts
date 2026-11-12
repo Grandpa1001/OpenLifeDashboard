@@ -22,3 +22,30 @@ export type AuditEntry = Readonly<{
 export interface AppendAudit {
   append(entry: AuditEntry): void;
 }
+
+/** One entry of the trail as it is read: the stored facts, with the address and the browser in full. */
+export type AuditRecord = Readonly<{
+  id: number;
+  /** ISO-8601 UTC. */
+  at: string;
+  action: string;
+  entityId: string;
+  requestId: string;
+  ip: string | null;
+  userAgent: string | null;
+  details: AuditDetails | null;
+}>;
+
+export type AuditPage = Readonly<{ entries: readonly AuditRecord[]; total: number }>;
+
+/** The entries to read: a kind filter or all of them, and the window of the page. Newest first. */
+export type AuditQuery = Readonly<{
+  filter: Readonly<{ entities: readonly string[]; actions: readonly string[]; except: readonly string[] }> | null;
+  offset: number;
+  limit: number;
+}>;
+
+/** Reading the trail. It writes nothing. */
+export interface AuditLogReader {
+  page(query: AuditQuery): AuditPage;
+}

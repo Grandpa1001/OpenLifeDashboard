@@ -5,6 +5,8 @@ export { resetOwnerMfa } from "./application/reset-mfa.js";
 export type { MfaReset, ResetMfaCommand } from "./application/reset-mfa.js";
 export { authorizeLiveStream } from "./application/live-stream-access.js";
 export type { LiveStreamDependencies, LiveStreamHolder, LiveStreamPorts } from "./application/live-stream-access.js";
+export { AUDIT_PAGE_SIZE, readAuditLog } from "./application/read-audit-log.js";
+export type { AuditLogDependencies, AuditLogEntry, AuditLogPorts, AuditLogView } from "./application/read-audit-log.js";
 export { disableSecondFactor, restartSecondFactor } from "./application/manage-factor.js";
 export type { FactorDisabled, FactorManagementDependencies, FactorRestarted } from "./application/manage-factor.js";
 export { confirmOwnerPassword } from "./application/confirm-password.js";

@@ -4,6 +4,8 @@
 // An answer names a session by its id and never carries a token. Nothing is cached.
 import { issuedRecoveryCodesSchema } from "@openlife/contracts/http/mfa";
 import {
+  auditLogSchema,
+  auditQuerySchema,
   changePasswordRequestSchema,
   confirmPasswordRequestSchema,
   disableMfaRequestSchema,
@@ -14,6 +16,7 @@ import {
   SECURITY_PASSWORD_CONFIRM_PATH,
   passwordChangedSchema,
   revokeSessionRequestSchema,
+  SECURITY_AUDIT_PATH,
   SECURITY_PASSWORD_PATH,
   SECURITY_RECOVERY_CODES_PATH,
   SECURITY_DEVICE_PATH,
@@ -31,6 +34,7 @@ import {
   changeOwnerPassword,
   confirmOwnerPassword,
   disableSecondFactor,
+  readAuditLog,
   restartSecondFactor,
   regenerateRecoveryCodes,
   listOwnerSessions,
@@ -40,6 +44,7 @@ import {
   revokeOwnerSession,
   revokeTrustedDevice,
   type ChangePasswordDependencies,
+  type AuditLogDependencies,
   type ConfirmPasswordDependencies,
   type FactorManagementDependencies,
   type DeviceManagementDependencies,
@@ -50,12 +55,13 @@ import type { Context, Hono } from "hono";
 import type { AttemptKeys } from "../../adapters/auth/attempt-keys.js";
 import type { SignedCookie } from "../../adapters/auth/session-cookie.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
+import { apiErrorResponse } from "../api-errors.js";
 import type { AppEnv } from "../app-env.js";
 import { createSessionOperationKit } from "../session-operation.js";
 import { setSessionCookie } from "../session-cookie-http.js";
 
 export type SecurityRouteDependencies = Readonly<{
-  unit: SessionManagementDependencies["unit"] & DeviceManagementDependencies["unit"] & ChangePasswordDependencies["unit"] & RegenerateRecoveryDependencies["unit"] & FactorManagementDependencies["unit"] & ConfirmPasswordDependencies["unit"];
+  unit: SessionManagementDependencies["unit"] & DeviceManagementDependencies["unit"] & ChangePasswordDependencies["unit"] & RegenerateRecoveryDependencies["unit"] & FactorManagementDependencies["unit"] & ConfirmPasswordDependencies["unit"] & AuditLogDependencies["unit"];
   cookies: SignedCookie;
   allowedOrigin: string;
   secureCookies: boolean;
@@ -78,6 +84,7 @@ export function registerSecurityRoutes(app: Hono<AppEnv>, deps: SecurityRouteDep
   const sessions: SessionManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs };
   const devices: DeviceManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs };
   const recovery: RegenerateRecoveryDependencies = { unit: deps.unit, crypto: deps.crypto, nowMs: deps.nowMs, newId: deps.newId };
+  const trail: AuditLogDependencies = { unit: deps.unit, nowMs: deps.nowMs };
   const factor: FactorManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs, newSessionId: deps.newId, newSessionToken: deps.newSessionToken };
   const confirmation: ConfirmPasswordDependencies = {
     unit: deps.unit,
@@ -225,6 +232,18 @@ export function registerSecurityRoutes(app: Hono<AppEnv>, deps: SecurityRouteDep
     operation(disableMfaRequestSchema, async (c, token) => {
       const result = disableSecondFactor(factor, token, c.get("requestId"));
       return result.ok ? c.json(factorChangedSchema.parse(result.value)) : refused(c, result.error);
+    }),
+  );
+
+  app.get(
+    SECURITY_AUDIT_PATH,
+    read((c, token) => {
+      // A field given twice is not one of the contract's: it is refused, not read as its first value.
+      const given = c.req.queries();
+      const query = auditQuerySchema.safeParse(Object.fromEntries(Object.entries(given).map(([field, values]) => [field, values.length === 1 ? values[0] : values])));
+      if (!query.success) return apiErrorResponse(c, 422, "VALIDATION_FAILED");
+      const result = readAuditLog(trail, token, { page: query.data.page, ...(query.data.kind === undefined ? {} : { kind: query.data.kind }) }, c.get("requestId"));
+      return result.ok ? c.json(auditLogSchema.parse(result.value)) : refused(c, result.error);
     }),
   );
 }
