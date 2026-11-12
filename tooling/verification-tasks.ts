@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -5206,6 +5206,32 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D44.1", "D44.2", "D44.3", "D44.4", "D44.5", "D44.6"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.42: the format of the export and its parser.
+    id: "D45.1",
+    ready: true,
+    title: "The format v1 of the export and its parser: the shape, the versions and migrations, the rules of the catalogs with paths, and the canonical form",
+    criteria: ["D45.1-AC1", "D45.1-AC2", "D45.1-regression"],
+    checks: [
+      {
+        // Runs first: the build checks the contract and the parser together.
+        id: "workspace-build",
+        criteria: ["D45.1-AC1", "D45.1-AC2"],
+        description: "pnpm -r build: the schema of the format and the parser of the server",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/export/format.ts", "apps/server/src/portability/parse-export.ts", "apps/server/src/portability/canonical.ts", "apps/server/src/portability/migrations.ts"],
+      },
+      {
+        id: "parse-export",
+        criteria: ["D45.1-AC1", "D45.1-AC2"],
+        description: "The F01 fixture passes; a file over the limit, not JSON, of another format, newer or broken is refused with its code, an older one is migrated; a problem in each section has its path and code, repeated identifiers and unknown dictionaries are found, the limits apply, issues are bounded; the canonical form ignores the order of arrays and the time of the export",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/portability/parse-export.test.ts"],
+        requires: ["tests/unit/portability/parse-export.test.ts", "tests/fixtures/books/books-v1.export.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D45.1-regression"),
+    ],
   },
   {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
