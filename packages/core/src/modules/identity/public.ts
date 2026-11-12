@@ -5,6 +5,10 @@ export { resetOwnerMfa } from "./application/reset-mfa.js";
 export type { MfaReset, ResetMfaCommand } from "./application/reset-mfa.js";
 export { authorizeLiveStream } from "./application/live-stream-access.js";
 export type { LiveStreamDependencies, LiveStreamHolder, LiveStreamPorts } from "./application/live-stream-access.js";
+export { disableSecondFactor, restartSecondFactor } from "./application/manage-factor.js";
+export type { FactorDisabled, FactorManagementDependencies, FactorRestarted } from "./application/manage-factor.js";
+export { confirmOwnerPassword } from "./application/confirm-password.js";
+export type { ConfirmPasswordDependencies, PasswordConfirmed } from "./application/confirm-password.js";
 export { changeOwnerPassword } from "./application/change-password.js";
 export type { ChangePasswordDependencies, ChangePasswordRequest, PasswordChanged, PasswordHasherPort } from "./application/change-password.js";
 export { regenerateRecoveryCodes } from "./application/regenerate-recovery.js";
@@ -57,6 +61,8 @@ export type {
   AuthAttemptStore,
   ChangePasswordPorts,
   ChooseDataPorts,
+  ConfirmPasswordPorts,
+  FactorManagementPorts,
   CredentialReader,
   DeviceManagementPorts,
   MfaCrypto,

@@ -4820,6 +4820,40 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.40: setting the second factor up again and turning it off.
+    id: "D43.5",
+    ready: true,
+    title: "Setting the second factor up again and turning it off on purpose, and the password as the proof of a step-up while it is off",
+    criteria: ["D43.5-AC1", "D43.5-AC2", "D43.5-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the in-process app on the built packages.
+        id: "workspace-build",
+        criteria: ["D43.5-AC1", "D43.5-AC2"],
+        description: "pnpm -r build: the use cases of the restart, the turning off and the confirmation of the password, and their routes",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/identity/application/manage-factor.ts", "packages/core/src/modules/identity/application/confirm-password.ts", "packages/sqlite/src/adapters/identity/mfa-store.ts", "apps/server/src/http/routes/security.routes.ts"],
+      },
+      {
+        id: "mfa-management-http",
+        criteria: ["D43.5-AC1", "D43.5-AC2"],
+        description:
+          "HTTP: no session is 401 and a foreign Origin 403 on the three routes; turning off needs the acknowledgment (422 without); a session admitted by a recovery code is refused STEP_UP_REQUIRED by the restart and the turning off; a restart with a fresh TOTP kills the old secret and codes, ends the other sessions and the trusted devices, keeps the caller on to an enrollment of its own and is audited; turning off removes the secret and the codes, ends the others, leaves the password as the factor and is refused a second time; with the factor off a step-up is a fresh password, which the confirmation gives (a wrong one is INVALID_CREDENTIALS and counted, with the factor in force it is refused); a restart from the off state turns the factor on again",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/security/mfa-management-http.test.ts"],
+        requires: ["tests/integration/security/mfa-management-http.test.ts", "tests/support/app-harness.ts", "tests/support/auth-http.ts"],
+      },
+      {
+        id: "data-routes",
+        criteria: ["D43.5-AC1"],
+        description: "The route inventory and the access table of D13.1 and D20.2 with the three new routes: refused in every state before the gate, and answering the owner past it (the three on an installation of their own, turned off, confirmed and set up again)",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts"],
+        requires: ["tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D43.5-regression"),
+    ],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

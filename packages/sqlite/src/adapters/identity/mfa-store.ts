@@ -43,6 +43,13 @@ export function bindMfaStore(tx: TransactionHandle): MfaStore {
             recovery_batch_id = NULL, recovery_batch_session_id = NULL
       WHERE singleton = 1`,
   );
+  const disable = tx.prepare(
+    `UPDATE mfa_state
+        SET policy = 'disabled', enrollment_state = 'required', secret_generation = 0, active_secret = NULL, last_used_step = NULL,
+            pending_challenge_id = NULL, pending_secret = NULL, pending_expires_at_ms = NULL, pending_session_id = NULL,
+            recovery_batch_id = NULL, recovery_batch_session_id = NULL
+      WHERE singleton = 1`,
+  );
   const consume = tx.prepare(
     `UPDATE mfa_state SET last_used_step = ?
       WHERE singleton = 1 AND secret_generation = ? AND secret_generation > 0 AND (last_used_step IS NULL OR last_used_step < ?)`,
@@ -72,6 +79,7 @@ export function bindMfaStore(tx: TransactionHandle): MfaStore {
     },
     consumeStep: ({ expectedGeneration, step }) => consume.run(step, expectedGeneration, step).changes === 1,
     resetFactor: () => void reset.run(),
+    disableFactor: () => void disable.run(),
     savePending: ({ challengeId, secret, expiresAtMs, sessionId, expectedGeneration }) =>
       savePending.run(challengeId, secret, expiresAtMs, sessionId, expectedGeneration).changes === 1,
     activatePending: ({ challengeId, sessionId, expectedGeneration, usedStep, nowMs }) =>

@@ -9,10 +9,10 @@
 // (the same locks as sign-in), never a fault: its counters and audit entry must survive the refusal.
 import type { Commit, Failure, ReadUnit, Result, UnitOfWork } from "../../../foundation/public.js";
 import { decideAccess } from "../domain/access-policy.js";
-import { SESSION_LIFETIME_MS } from "../domain/session-policy.js";
 import type { ChangePasswordPorts, OwnerCredential, SessionFacts } from "../ports.js";
 import { clearAccountBucket, lockedFor, registerFailure, type BucketKeys } from "./lockout-buckets.js";
 import { resolveSessionAccess } from "./session-access.js";
+import { renewedSession } from "./session-renewal.js";
 import type { PasswordVerifier } from "./sign-in.js";
 
 export type PasswordHasherPort = PasswordVerifier & Readonly<{ hash(password: string): Promise<string> }>;
@@ -82,21 +82,13 @@ export async function changeOwnerPassword(
     }
     if (!ports.credentials.replaceOwnerPassword({ ownerId, passwordHash: newHash, at })) return commit<Result<PasswordChanged>>(refuse({ code: "OWNER_NOT_FOUND" }));
     const accessEpoch = ports.owners.advanceAccessEpoch();
-    const next = {
-      sessionId: deps.newSessionId(),
-      token: deps.newSessionToken(),
-      ownerId,
-      createdAtMs: nowMs,
-      expiresAtMs: nowMs + SESSION_LIFETIME_MS,
-      ipAddress: null,
-      userAgent: null,
-      assurance: access.session.assurance,
-      passwordVerifiedAtMs: nowMs,
-      totpVerifiedAtMs: access.session.totpVerifiedAtMs,
-      accessEpoch,
-      // A device that granted this session is revoked below: the session stands on the factor it proved.
-      trustedDeviceId: null,
-    } as const;
+    // A device that granted this session is revoked below: the session stands on the factor it proved.
+    const next = renewedSession(
+      access.session,
+      { assurance: access.session.assurance, passwordVerifiedAtMs: nowMs, totpVerifiedAtMs: access.session.totpVerifiedAtMs, accessEpoch },
+      nowMs,
+      { sessionId: deps.newSessionId(), token: deps.newSessionToken() },
+    );
     if (!ports.sessions.rotate(token, next)) return commit<Result<PasswordChanged>>(refuse({ code: "AUTH_REQUIRED" }));
     const revokedSessions = ports.sessions.deleteAllButOne(ownerId, next.sessionId);
     const revokedDevices = ports.trusted.revokeAll(nowMs);

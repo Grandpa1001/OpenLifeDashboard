@@ -29,6 +29,13 @@ export const SECURITY_PASSWORD_PATH = "/api/v1/security/password";
  */
 export const SECURITY_RECOVERY_CODES_PATH = "/api/v1/security/recovery-codes";
 
+/** `POST` proves the password again; only while the second factor is off, where it is the proof of a sensitive action. */
+export const SECURITY_PASSWORD_CONFIRM_PATH = "/api/v1/security/password/confirm";
+/** `POST` sets the second factor up again (also after it was turned off); needs a fresh proof; enrollment follows. */
+export const SECURITY_MFA_RESTART_PATH = "/api/v1/security/mfa/restart";
+/** `POST` turns the second factor off on purpose; needs a fresh TOTP and the explicit acknowledgment of the risk. */
+export const SECURITY_MFA_DISABLE_PATH = "/api/v1/security/mfa/disable";
+
 export const SESSION_ASSURANCES = ["password", "totp", "trusted", "recovery"] as const;
 
 export const securitySessionSchema = z
@@ -89,3 +96,17 @@ export type ChangePasswordRequestDto = z.infer<typeof changePasswordRequestSchem
 /** The caller's session is replaced and keeps working; the others and the trusted devices are gone. */
 export const passwordChangedSchema = z.object({ revokedSessions: z.number().int().min(0), revokedDevices: z.number().int().min(0) }).strict();
 export type PasswordChangedDto = z.infer<typeof passwordChangedSchema>;
+
+/** Only the size is bounded, like a sign-in: a wrong password is a wrong password. */
+export const confirmPasswordRequestSchema = z.object({ password: z.string().min(1).max(LOGIN_PASSWORD_MAX_UTF16_UNITS) }).strict();
+
+/** The owner says in so many words that the account will be protected by the password alone. */
+export const disableMfaRequestSchema = z.object({ acknowledgeRisk: z.literal(true) }).strict();
+
+/** What ended with the factor: the other sessions and the trusted devices. */
+export const factorChangedSchema = z.object({ revokedSessions: z.number().int().min(0), revokedDevices: z.number().int().min(0) }).strict();
+export type FactorChangedDto = z.infer<typeof factorChangedSchema>;
+
+/** After a restart the owner enrolls again; the caller's own session carries on to the enrollment. */
+export const factorRestartedSchema = factorChangedSchema.extend({ nextAction: z.literal("mfa_enrollment") }).strict();
+export type FactorRestartedDto = z.infer<typeof factorRestartedSchema>;

@@ -171,6 +171,12 @@ export interface MfaStore {
    * the stage name what the owner must do next; nothing outside the factor is touched.
    */
   resetFactor(): void;
+  /**
+   * The owner turned the second factor off on purpose (Architektura §9.6): the secret, its ledger, the
+   * pending enrollment and the recovery batch are gone and the policy is `disabled`, so the password is the
+   * factor. A new enrollment can only be started by a restart of the factor, which requires one again.
+   */
+  disableFactor(): void;
 }
 
 /** Recovery codes: only hashes are stored, in batches; one batch is current (Architektura §9.7). */
@@ -343,6 +349,27 @@ export type RegenerateRecoveryPorts = Readonly<{
   sessions: Pick<SessionStore, "findActive">;
   mfa: Pick<MfaStore, "read">;
   recovery: Pick<RecoveryCodeStore, "issueBatch">;
+  access: IdentityAccessReader;
+  audit: AppendAudit;
+}>;
+
+/** The ports of restarting and of turning off the second factor from a live session (Scope §5.9; D43.5). */
+export type FactorManagementPorts = Readonly<{
+  sessions: Pick<SessionStore, "findActive" | "rotate" | "deleteAllButOne">;
+  owners: Pick<OwnerSingletonWriter, "advanceAccessEpoch">;
+  mfa: Pick<MfaStore, "read" | "resetFactor" | "disableFactor">;
+  recovery: Pick<RecoveryCodeStore, "discardAll">;
+  trusted: Pick<TrustedDeviceStore, "revokeAll">;
+  access: IdentityAccessReader;
+  audit: AppendAudit;
+}>;
+
+/** The ports of proving the password again when the second factor is off (Scope §5.9; D43.5). */
+export type ConfirmPasswordPorts = Readonly<{
+  attempts: AuthAttemptStore;
+  credentialReader: CredentialReader;
+  sessions: Pick<SessionStore, "findActive" | "rotate">;
+  mfa: Pick<MfaStore, "read">;
   access: IdentityAccessReader;
   audit: AppendAudit;
 }>;

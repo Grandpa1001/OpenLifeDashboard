@@ -73,12 +73,17 @@ function requestOf(route: RouteEntry, design: unknown, planToken = "a-plan-that-
       return { body: { expectedRevision: 2 }, headers: {} };
     case "PATCH /api/v1/settings":
       return { body: { values: { "tables.defaultPageSize": 30 } }, headers: {} };
+    case "POST /api/v1/security/mfa/disable":
+      return { body: { acknowledgeRisk: true }, headers: {} };
+    case "POST /api/v1/security/password/confirm":
+      return { body: { password: OWNER_PASSWORD }, headers: {} };
     case "POST /api/v1/security/password":
       return { body: { currentPassword: OWNER_PASSWORD, newPassword: OWNER_PASSWORD }, headers: {} };
     case "DELETE /api/v1/settings/:key":
     case "DELETE /api/v1/security/sessions/:id":
     case "DELETE /api/v1/security/devices/:id":
     case "POST /api/v1/security/recovery-codes":
+    case "POST /api/v1/security/mfa/restart":
     case "POST /api/v1/security/devices/revoke-all":
     case "POST /api/v1/security/sessions/revoke-others":
       return { body: {}, headers: {} };
@@ -184,7 +189,10 @@ describe("D20.2 the table is the inventory", () => {
       "POST /api/v1/registries/:symbol/structure/preview",
       "POST /api/v1/screens",
       "POST /api/v1/security/devices/revoke-all",
+      "POST /api/v1/security/mfa/disable",
+      "POST /api/v1/security/mfa/restart",
       "POST /api/v1/security/password",
+      "POST /api/v1/security/password/confirm",
       "POST /api/v1/security/recovery-codes",
       "POST /api/v1/security/sessions/revoke-others",
       "PUT /api/v1/config/:symbol",
@@ -298,6 +306,20 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     expect((await ack(server, session, issuedRecoveryCodesSchema.parse(regenerated.json()).batchId)).status).toBe(200);
     // The password: changed to the same one so that the sign-ins below still work; the session of the change is replaced.
     expect((await run(route("POST", "/security/password"), ids)).status).toBe(200);
+    // The three routes that change the second factor itself are answered on an installation of their own: they
+    // would take the state the checks below stand on. Turned off, the password is confirmed, then set up again.
+    const factorOwner = await installation();
+    const factor = await readyOwner(factorOwner);
+    const factorReply = async (method: string, route: string): Promise<number> => {
+      const { body, headers } = requestOf(DATA_ROUTES.find((candidate) => candidate.method === method && candidate.path === route) as RouteEntry, undefined);
+      const reply = await send(factorOwner.server, method, route, body, { cookie: factorCookie, headers });
+      if (reply.cookie !== null) factorCookie = reply.cookie;
+      return reply.status;
+    };
+    let factorCookie = factor.sessionCookie;
+    answered.set("POST /api/v1/security/mfa/disable", await factorReply("POST", "/api/v1/security/mfa/disable"));
+    answered.set("POST /api/v1/security/password/confirm", await factorReply("POST", "/api/v1/security/password/confirm"));
+    answered.set("POST /api/v1/security/mfa/restart", await factorReply("POST", "/api/v1/security/mfa/restart"));
     expect([...answered.keys()].sort(), "every data route has its positive control").toEqual(DATA_ROUTES.map(keyOf).sort());
     for (const [key, status] of answered) expect([200, 201, 204], `the owner past the gate on ${key}`).toContain(status);
 

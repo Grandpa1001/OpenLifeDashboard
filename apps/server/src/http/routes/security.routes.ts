@@ -5,6 +5,13 @@
 import { issuedRecoveryCodesSchema } from "@openlife/contracts/http/mfa";
 import {
   changePasswordRequestSchema,
+  confirmPasswordRequestSchema,
+  disableMfaRequestSchema,
+  factorChangedSchema,
+  factorRestartedSchema,
+  SECURITY_MFA_DISABLE_PATH,
+  SECURITY_MFA_RESTART_PATH,
+  SECURITY_PASSWORD_CONFIRM_PATH,
   passwordChangedSchema,
   revokeSessionRequestSchema,
   SECURITY_PASSWORD_PATH,
@@ -22,6 +29,9 @@ import {
 } from "@openlife/contracts/http/security";
 import {
   changeOwnerPassword,
+  confirmOwnerPassword,
+  disableSecondFactor,
+  restartSecondFactor,
   regenerateRecoveryCodes,
   listOwnerSessions,
   listTrustedDevices,
@@ -30,6 +40,8 @@ import {
   revokeOwnerSession,
   revokeTrustedDevice,
   type ChangePasswordDependencies,
+  type ConfirmPasswordDependencies,
+  type FactorManagementDependencies,
   type DeviceManagementDependencies,
   type RegenerateRecoveryDependencies,
   type SessionManagementDependencies,
@@ -43,7 +55,7 @@ import { createSessionOperationKit } from "../session-operation.js";
 import { setSessionCookie } from "../session-cookie-http.js";
 
 export type SecurityRouteDependencies = Readonly<{
-  unit: SessionManagementDependencies["unit"] & DeviceManagementDependencies["unit"] & ChangePasswordDependencies["unit"] & RegenerateRecoveryDependencies["unit"];
+  unit: SessionManagementDependencies["unit"] & DeviceManagementDependencies["unit"] & ChangePasswordDependencies["unit"] & RegenerateRecoveryDependencies["unit"] & FactorManagementDependencies["unit"] & ConfirmPasswordDependencies["unit"];
   cookies: SignedCookie;
   allowedOrigin: string;
   secureCookies: boolean;
@@ -66,6 +78,15 @@ export function registerSecurityRoutes(app: Hono<AppEnv>, deps: SecurityRouteDep
   const sessions: SessionManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs };
   const devices: DeviceManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs };
   const recovery: RegenerateRecoveryDependencies = { unit: deps.unit, crypto: deps.crypto, nowMs: deps.nowMs, newId: deps.newId };
+  const factor: FactorManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs, newSessionId: deps.newId, newSessionToken: deps.newSessionToken };
+  const confirmation: ConfirmPasswordDependencies = {
+    unit: deps.unit,
+    verifier: deps.hasher,
+    nowMs: deps.nowMs,
+    newSessionId: deps.newId,
+    newSessionToken: deps.newSessionToken,
+    keysOf: (email, ipKey) => ({ account: deps.keys.account(email), ip: ipKey }),
+  };
   const passwords: ChangePasswordDependencies = {
     unit: deps.unit,
     hasher: deps.hasher,
@@ -172,6 +193,38 @@ export function registerSecurityRoutes(app: Hono<AppEnv>, deps: SecurityRouteDep
     operation(revokeSessionRequestSchema, async (c, token) => {
       const result = regenerateRecoveryCodes(recovery, token, c.get("requestId"));
       return result.ok ? c.json(issuedRecoveryCodesSchema.parse(result.value)) : refused(c, result.error);
+    }),
+  );
+
+  app.post(
+    SECURITY_PASSWORD_CONFIRM_PATH,
+    ...guard,
+    operation(confirmPasswordRequestSchema, async (c, token, body) => {
+      const result = await confirmOwnerPassword(confirmation, token, body.password, { requestId: c.get("requestId"), ipKey: deps.keys.ip(deps.clientIp(c)) });
+      if (!result.ok) return refused(c, result.error);
+      await setSessionCookie(c, deps.cookies, deps.secureCookies, { token: result.value.token, expiresAtMs: result.value.expiresAtMs }, deps.nowMs());
+      return c.body(null, 204);
+    }),
+  );
+
+  app.post(
+    SECURITY_MFA_RESTART_PATH,
+    ...guard,
+    operation(revokeSessionRequestSchema, async (c, token) => {
+      const result = restartSecondFactor(factor, token, c.get("requestId"));
+      if (!result.ok) return refused(c, result.error);
+      // The restart has committed: only now does the browser get the cookie of the session that replaces its own.
+      await setSessionCookie(c, deps.cookies, deps.secureCookies, { token: result.value.token, expiresAtMs: result.value.expiresAtMs }, deps.nowMs());
+      return c.json(factorRestartedSchema.parse({ revokedSessions: result.value.revokedSessions, revokedDevices: result.value.revokedDevices, nextAction: "mfa_enrollment" }));
+    }),
+  );
+
+  app.post(
+    SECURITY_MFA_DISABLE_PATH,
+    ...guard,
+    operation(disableMfaRequestSchema, async (c, token) => {
+      const result = disableSecondFactor(factor, token, c.get("requestId"));
+      return result.ok ? c.json(factorChangedSchema.parse(result.value)) : refused(c, result.error);
     }),
   );
 }
