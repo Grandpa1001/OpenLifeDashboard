@@ -17,7 +17,7 @@ import { freshTestInstance, outputEvent, startBuiltServer, waitForExit, type Ser
 import { serverHasReadEverything } from "../../support/socket-state.ts";
 
 const DEADLINE_MS = 15_000;
-const STEPS = ["readiness", "http", "logger", "database", "lease"];
+const STEPS = ["readiness", "http", "jobs", "logger", "database", "lease"];
 
 type Event = { event?: string; [key: string]: unknown };
 const eventsOf = (output: string): Event[] =>

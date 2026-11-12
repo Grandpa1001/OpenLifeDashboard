@@ -16,6 +16,7 @@ import { createTechnicalLogger } from "../../apps/server/dist/adapters/logging/t
 import { createRateLimiter } from "../../apps/server/dist/http/middleware/fixed-window-limit.js";
 import { createOwner } from "../../packages/core/dist/modules/identity/public.js";
 import { bindAppendAudit } from "../../packages/sqlite/dist/adapters/audit/append-audit.js";
+import { bindAuditRetention } from "../../packages/sqlite/dist/adapters/audit/audit-retention.js";
 import { bindAuditLogReader } from "../../packages/sqlite/dist/adapters/audit/audit-log-reader.js";
 import { bindIdentityAccessReader } from "../../packages/sqlite/dist/adapters/identity/access-reader.js";
 import { bindMfaStore } from "../../packages/sqlite/dist/adapters/identity/mfa-store.js";
@@ -123,6 +124,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     access: bindIdentityAccessReader(tx, Date.now),
     audit: bindAppendAudit(tx),
     auditLog: bindAuditLogReader(tx),
+    auditRetention: bindAuditRetention(tx),
     systemTables: bindSystemTableReader(tx),
   }));
   const hasher = createPasswordHasher();

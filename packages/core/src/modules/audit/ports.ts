@@ -49,3 +49,11 @@ export type AuditQuery = Readonly<{
 export interface AuditLogReader {
   page(query: AuditQuery): AuditPage;
 }
+
+/**
+ * Removing the entries that are past their retention (Architektura §11.2; D44.5). The oldest go first, at most
+ * `limit` at a time, so one unit of work stays short; the count is what the caller records.
+ */
+export interface AuditRetention {
+  deleteOlderThan(before: string, limit: number): number;
+}

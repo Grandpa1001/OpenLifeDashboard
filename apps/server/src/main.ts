@@ -13,7 +13,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRODUCT_MIGRATION_PLAN } from "@openlife/sqlite/migrations";
-import { bindAppendAudit, bindAuditLogReader } from "@openlife/sqlite/adapters/audit";
+import { bindAppendAudit, bindAuditLogReader, bindAuditRetention } from "@openlife/sqlite/adapters/audit";
 import { bindIdentityAccessReader, bindMfaStore, bindOwnerWriters, bindRecoveryCodeStore, bindSetupStateStore, bindSignInStores, bindTrustedDeviceStore } from "@openlife/sqlite/adapters/identity";
 import { bindCatalogReader, bindConfigBindingCounts, bindDashboardStore, bindDependentWidgets } from "@openlife/sqlite/adapters/dashboard";
 import { bindDictionaryLookup, bindDictionaryStore } from "@openlife/sqlite/adapters/dictionaries";
@@ -43,6 +43,7 @@ import { createTechnicalLogger, LOG_LEVELS, type LogLevel } from "./adapters/log
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
 import { createLogFiles } from "./adapters/diagnostics/log-files.js";
+import { createAuditRetentionJob } from "./workers/audit-retention.js";
 import { createReportBuilder } from "./adapters/diagnostics/report-builder.js";
 import { createOverviewReader } from "./adapters/diagnostics/overview-reader.js";
 import { createLiveHub } from "./adapters/events/live-hub.js";
@@ -218,6 +219,7 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   access: bindIdentityAccessReader(tx, Date.now),
   audit: bindAppendAudit(tx),
   auditLog: bindAuditLogReader(tx),
+  auditRetention: bindAuditRetention(tx),
   systemTables: bindSystemTableReader(tx),
 }));
 // The effective application options now (D41.3): the catalog with the stored values and the environment; the limits below read them at each use.
@@ -316,6 +318,15 @@ const app = createApp({
   stream: { unit: identityUnit, hub: liveHub, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, pingIntervalMs: STREAM_PING_INTERVAL_MS, logger },
   screens: { dashboard: { unit: identityUnit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: environment.baseUrl, logger },
 });
+// The retention of the audit log (D44.5): in this process, between requests, in short batches.
+const auditRetention = createAuditRetentionJob({
+  unit: identityUnit,
+  nowMs: Date.now,
+  retentionDays: () => effectiveSettings.integer("audit.retentionDays"),
+  maintenanceActive: () => gate.gate.current().activeOperation !== null,
+  newOperationId: randomUUID,
+  logger,
+});
 try {
   const { server, address } = await startServer(app, host, port);
   // One ordered sequence (§15.2): readiness, started requests, logger, database, and the writer
@@ -331,6 +342,7 @@ try {
           return drainServer(server);
         },
       },
+      { name: "jobs", run: () => auditRetention.stop() },
       {
         name: "logger",
         run: () => {
@@ -351,6 +363,7 @@ try {
   for (const signal of ["SIGTERM", "SIGINT"] as const) {
     process.on(signal, () => void shutdown(signal));
   }
+  auditRetention.start();
   console.log(JSON.stringify({ event: "server.listening", host: address.address, port: address.port }));
 } catch (error) {
   fail(`cannot listen on ${host}:${port} (${error instanceof Error && "code" in error ? String(error.code) : "unknown error"})`);

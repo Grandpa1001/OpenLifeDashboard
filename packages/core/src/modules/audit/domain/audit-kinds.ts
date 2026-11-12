@@ -20,8 +20,8 @@ const SIGN_IN_ACTIONS = ["login.succeeded", "login.failed", "mfa.verified", "mfa
 
 export const AUDIT_KIND_FILTERS: Readonly<Record<AuditKind, AuditKindFilter>> = {
   logins: { entities: [], actions: SIGN_IN_ACTIONS, except: [] },
-  // The account and what protects it: the owner, the password, the second factor, the sessions and the devices.
-  security: { entities: ["owner", "password", "mfa", "session", "device"], actions: [], except: SIGN_IN_ACTIONS },
+  // The account and what protects it: the owner, the password, the second factor, the sessions and the devices, and the trail itself (its retention).
+  security: { entities: ["owner", "password", "mfa", "session", "device", "audit"], actions: [], except: SIGN_IN_ACTIONS },
   // What the owner has built and configured: registries, dictionaries, ConfigTable, screens, the options and the setup.
   structure: { entities: ["registry", "dictionary", "config", "screen", "setting", "settings", "setup"], actions: [], except: [] },
   // Updates and copies of the installation (written from D49 on).

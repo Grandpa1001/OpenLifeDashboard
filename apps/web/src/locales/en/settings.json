@@ -267,6 +267,9 @@
         "screen": {
           "created": "Dashboard created",
           "design_saved": "Dashboard design saved"
+        },
+        "audit": {
+          "pruned": "Old audit entries removed"
         }
       }
     },

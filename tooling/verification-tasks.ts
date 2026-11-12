@@ -5124,6 +5124,39 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.41: the retention of the audit log.
+    id: "D44.5",
+    ready: true,
+    title: "The retention of the audit log: old entries removed in short batches by a job of the server",
+    criteria: ["D44.5-AC1", "D44.5-AC2", "D44.5-regression"],
+    checks: [
+      {
+        // Runs first: the tests import the built packages and the built job.
+        id: "workspace-build",
+        criteria: ["D44.5-AC1", "D44.5-AC2"],
+        description: "pnpm -r build: the port and the use case of the retention, its adapter and the job of the server",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/audit/application/prune-audit-log.ts", "packages/sqlite/src/adapters/audit/audit-retention.ts", "apps/server/src/workers/audit-retention.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D44.5-AC2"],
+        description: "pl and en have the name of the action of the retention for the log of the Security page",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/settings.json", "apps/web/src/locales/en/settings.json"],
+      },
+      {
+        id: "audit-retention",
+        criteria: ["D44.5-AC1", "D44.5-AC2"],
+        description: "Over a real SQLite database: older entries removed and those at the limit kept, the oldest first and a batch bounded, the count recorded without the removed content, nothing written when nothing was removed; the job in bounded batches that yield, stops at the bound, waits for maintenance, never overlaps, reads the option each run, ends when stopped, logs a failure, runs on its schedule; the entry shows under the security kind",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/audit/audit-retention.test.ts", "tests/unit/audit/audit-kinds.test.ts"],
+        requires: ["tests/integration/audit/audit-retention.test.ts", "tests/unit/audit/audit-kinds.test.ts", "tests/support/app-harness.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D44.5-regression"),
+    ],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

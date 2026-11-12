@@ -271,6 +271,9 @@
         "screen": {
           "created": "Utworzono pulpit",
           "design_saved": "Zapisano projekt pulpitu"
+        },
+        "audit": {
+          "pruned": "Usunięto stare wpisy dziennika"
         }
       }
     },
