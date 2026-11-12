@@ -1,13 +1,15 @@
 // The diagnostics of the installation (Architektura §15.3; D44) for the owner whose session passes the gate of
 // the private data: the overview (D44.1), the files of the technical log with their download, and the lines of
-// one request (D44.2). The readers of the adapters decide what may be read; the routes only ask the gate and
+// one request (D44.2), and the report to download (D44.3). The readers of the adapters decide what may be read; the routes only ask the gate and
 // answer. Nothing is cached, and nothing in a request is a path: a file is named from the list and refused
 // when it is not on it.
 import {
   DIAGNOSTICS_LOG_PATH,
   DIAGNOSTICS_LOGS_PATH,
   DIAGNOSTICS_PATH,
+  DIAGNOSTICS_REPORT_PATH,
   DIAGNOSTICS_REQUEST_PATH,
+  diagnosticReportSchema,
   diagnosticsSchema,
   LOG_REQUEST_ID_PATTERN,
   logFileListSchema,
@@ -17,6 +19,7 @@ import { authorizeDataAccess, type DataAccessPorts } from "@openlife/core/identi
 import type { ReadUnit } from "@openlife/core/foundation";
 import type { Hono } from "hono";
 import type { LogFiles } from "../../adapters/diagnostics/log-files.js";
+import type { ReportBuilder } from "../../adapters/diagnostics/report-builder.js";
 import type { OverviewReader } from "../../adapters/diagnostics/overview-reader.js";
 import type { SignedCookie } from "../../adapters/auth/session-cookie.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
@@ -27,6 +30,7 @@ export type DiagnosticsRouteDependencies = Readonly<{
   unit: ReadUnit<DataAccessPorts>;
   overview: OverviewReader;
   logs: LogFiles;
+  report: ReportBuilder;
   cookies: SignedCookie;
   allowedOrigin: string;
   nowMs: () => number;
@@ -83,6 +87,24 @@ export function registerDiagnosticsRoutes(app: Hono<AppEnv>, deps: DiagnosticsRo
       const requestId = c.req.param("requestId") ?? "";
       if (!LOG_REQUEST_ID_PATTERN.test(requestId)) return refused(c, { code: "VALIDATION_FAILED" });
       return c.json(requestLogSchema.parse({ requestId, ...(await deps.logs.search(requestId)) }));
+    }),
+  );
+
+  app.get(
+    DIAGNOSTICS_REPORT_PATH,
+    read(async (c, token) => {
+      const holder = authorizeDataAccess(deps, token, c.get("requestId"));
+      if (!holder.ok) return refused(c, holder.error);
+      // Parsed against the strict contract: a field the report does not name cannot be in it.
+      const report = diagnosticReportSchema.parse(await deps.report());
+      return new Response(`${JSON.stringify(report, null, 2)}\n`, {
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Content-Disposition": 'attachment; filename="openlife-diagnostics.json"',
+          "X-Content-Type-Options": "nosniff",
+          "Cache-Control": "no-store",
+        },
+      });
     }),
   );
 }

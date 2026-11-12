@@ -72,6 +72,7 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "GET", path: diagnostics.DIAGNOSTICS_LOGS_PATH, access: "data", note: "the files of the technical log the sink wrote, from a closed set of names" },
   { method: "GET", path: diagnostics.DIAGNOSTICS_LOG_PATH, access: "data", note: "downloads one file of that list as an attachment; any other name is not found" },
   { method: "GET", path: diagnostics.DIAGNOSTICS_REQUEST_PATH, access: "data", note: "the lines of the log that belong to one request id" },
+  { method: "GET", path: diagnostics.DIAGNOSTICS_REPORT_PATH, access: "data", note: "the diagnostic report as one file to download: the overview, the options of the catalog and the log files, from a list of fields" },
   { method: "GET", path: settings.SETTINGS_PATH, access: "data", note: "the effective application options with their source and what the owner may change" },
   { method: "PATCH", path: settings.SETTINGS_PATH, access: "data", note: "changes one or more application options at once, all or none" },
   { method: "DELETE", path: settings.SETTING_PATH, access: "data", note: "takes the stored value of an option away, so it is the default again" },

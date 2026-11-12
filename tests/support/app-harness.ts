@@ -39,6 +39,7 @@ import { sha256Hex } from "../../apps/server/dist/adapters/crypto/sha256-hex.js"
 import { createUuidV7 } from "../../apps/server/dist/adapters/ids/uuid-v7.js";
 import type { LiveEvent } from "@openlife/contracts/http/stream";
 import { createLogFiles } from "../../apps/server/dist/adapters/diagnostics/log-files.js";
+import { createReportBuilder } from "../../apps/server/dist/adapters/diagnostics/report-builder.js";
 import { createOverviewReader } from "../../apps/server/dist/adapters/diagnostics/overview-reader.js";
 import { describeInstallation, installationWorkingPaths } from "../../apps/server/dist/adapters/filesystem/installation-paths.js";
 import { createLiveHub } from "../../apps/server/dist/adapters/events/live-hub.js";
@@ -172,6 +173,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
   const logsDir = path.join(dir, "logs");
   mkdirSync(logsDir);
   const installation = describeInstallation({ formatVersion: 1, instanceId: INSTANCE_ID, installMode: "local", composeProjectName: "openlife-0123456789ab", hostPlatform: "posix", installationPath: dir, createdAt: "2026-01-01T00:00:00.000Z" });
+  const diagnosticsLogs = createLogFiles({ dir: logsDir, retentionDays: () => 14, now: () => new Date(), ...(options.logFileMaxBytes === undefined ? {} : { maxFileBytes: options.logFileMaxBytes }), ...(options.logSearchMaxBytes === undefined ? {} : { maxScanBytes: options.logSearchMaxBytes }) });
   const overview = createOverviewReader({
     build: { appVersion: "0.0.0", buildRevision: "harness", imageDigest: null },
     schemaVersion: 17,
@@ -200,7 +202,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     systemTables: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
     settings: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, environment, refresh: effectiveSettings.refresh, logger },
-    diagnostics: { unit, overview, logs: createLogFiles({ dir: logsDir, retentionDays: () => 14, now: () => new Date(), ...(options.logFileMaxBytes === undefined ? {} : { maxFileBytes: options.logFileMaxBytes }), ...(options.logSearchMaxBytes === undefined ? {} : { maxScanBytes: options.logSearchMaxBytes }) }), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
+    diagnostics: { unit, overview, logs: diagnosticsLogs, report: createReportBuilder({ overview, logs: diagnosticsLogs, options: effectiveSettings.current, catalog: SETTINGS_CATALOG, now: () => new Date() }), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     security: { ...common, unit, hasher, crypto: mfaCrypto },
     announce: options.announce ?? hub.publish,
     stream: { unit, hub, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, pingIntervalMs: options.pingIntervalMs ?? 25_000, logger },

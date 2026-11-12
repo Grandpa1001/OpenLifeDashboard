@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SETTING_SOURCES } from "./settings.js";
 
 // The diagnostics of the installation over HTTP (Architektura §15.3; D44). One read for the owner whose
 // session passes the gate of the private data: the versions, the paths of the host and of the container,
@@ -102,3 +103,31 @@ export const requestLogSchema = z
   })
   .strict();
 export type RequestLogDto = z.infer<typeof requestLogSchema>;
+
+// The diagnostic report (D44.3): one JSON file the owner downloads and reads, or sends to whoever helps, by
+// their own hand. It is built from a list of fields: the overview, the effective application options with
+// their source, and the list of the log files. It holds no database, no export, no environment, no `.env`, no
+// audit with values and no content of a record or of ConfigTable, and it is never sent anywhere by the app.
+
+export const DIAGNOSTICS_REPORT_PATH = "/api/v1/diagnostics/report";
+
+export const REPORT_FORMAT_VERSION = 1;
+
+export const reportOptionSchema = z
+  .object({
+    key: z.string().min(1).max(64),
+    value: z.union([z.number(), z.boolean(), z.string().max(64)]),
+    source: z.enum(SETTING_SOURCES),
+  })
+  .strict();
+
+export const diagnosticReportSchema = z
+  .object({
+    formatVersion: z.literal(REPORT_FORMAT_VERSION),
+    generatedAt: z.iso.datetime(),
+    overview: diagnosticsSchema,
+    options: z.array(reportOptionSchema).max(200),
+    logFiles: z.array(logFileSchema).max(100),
+  })
+  .strict();
+export type DiagnosticReportDto = z.infer<typeof diagnosticReportSchema>;

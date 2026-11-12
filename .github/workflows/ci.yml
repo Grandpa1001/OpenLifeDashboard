@@ -260,6 +260,9 @@ jobs:
       - name: Verify D44.2 (the files of the technical log and the search by request id)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D44.2
+      - name: Verify D44.3 (the diagnostic report and the scan of the secrets)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D44.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

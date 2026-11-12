@@ -5056,6 +5056,48 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.41: the diagnostic report and the scan of the secrets.
+    id: "D44.3",
+    ready: true,
+    title: "The diagnostic report built from a list of fields, and the scan of the secrets of the installation",
+    criteria: ["D44.3-AC1", "D44.3-AC2", "D44.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests import the built packages and run the built server.
+        id: "workspace-build",
+        criteria: ["D44.3-AC1", "D44.3-AC2"],
+        description: "pnpm -r build: the contract of the report, its builder and the route",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/http/diagnostics.ts", "apps/server/src/adapters/diagnostics/report-builder.ts", "apps/server/src/http/routes/diagnostics.routes.ts"],
+      },
+      {
+        id: "report-http",
+        criteria: ["D44.3-AC1", "D44.3-AC2"],
+        description: "HTTP: 401 and the code of the gate, one JSON file as an attachment in the shape of the contract with the options of the catalog and their source, and nothing the owner keeps (registry, record, ConfigTable entry, audit values, log lines, codes, cookie, password) in it",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/diagnostics/report-http.test.ts"],
+        requires: ["tests/integration/diagnostics/report-http.test.ts", "tests/support/app-harness.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "secret-scan-server",
+        criteria: ["D44.3-AC2"],
+        description: "The running server with real secrets: none of them, no recovery code, TOTP code or session cookie is in its output, in any listed log file as downloaded, in the overview or in the report",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/diagnostics/secret-scan-server.test.ts"],
+        requires: ["tests/integration/diagnostics/secret-scan-server.test.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "data-routes",
+        criteria: ["D44.3-AC1"],
+        description: "The route is in the inventory and the table of the access: refused in every state before the gate, 200 for the owner past it, on the running server",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/access/data-routes.test.ts", "tests/integration/auth/route-inventory.test.ts"],
+        requires: ["tests/integration/access/data-routes.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D44.3-regression"),
+    ],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

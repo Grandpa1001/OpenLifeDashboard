@@ -166,6 +166,7 @@ describe("D20.2 the table is the inventory", () => {
       "GET /api/v1/diagnostics",
       "GET /api/v1/diagnostics/logs",
       "GET /api/v1/diagnostics/logs/:file",
+      "GET /api/v1/diagnostics/report",
       "GET /api/v1/diagnostics/requests/:requestId",
       "GET /api/v1/dictionaries",
       "GET /api/v1/dictionaries/:symbol",
@@ -279,6 +280,7 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     expect((await run(route("GET", "/diagnostics/logs"), withRecord)).status).toBe(200);
     expect((await run(route("GET", "/diagnostics/logs/:file"), withRecord)).status).toBe(200);
     expect((await run(route("GET", "/diagnostics/requests/:requestId"), withRecord)).status).toBe(200);
+    expect((await run(route("GET", "/diagnostics/report"), withRecord)).status).toBe(200);
     expect((await run(route("PATCH", "/settings"), withRecord)).status).toBe(200);
     expect((await run(route("DELETE", "/settings/:key"), withRecord)).status).toBe(200);
     const screenReply = await run(route("POST", "/screens"), withRecord);

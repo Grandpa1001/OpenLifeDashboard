@@ -43,6 +43,7 @@ import { createTechnicalLogger, LOG_LEVELS, type LogLevel } from "./adapters/log
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
 import { createLogFiles } from "./adapters/diagnostics/log-files.js";
+import { createReportBuilder } from "./adapters/diagnostics/report-builder.js";
 import { createOverviewReader } from "./adapters/diagnostics/overview-reader.js";
 import { createLiveHub } from "./adapters/events/live-hub.js";
 import { STREAM_CONNECTIONS_PER_SESSION } from "./adapters/events/limits.js";
@@ -230,6 +231,8 @@ const effectiveSettings = createEffectiveSettings({
 currentSettings = effectiveSettings.current;
 const limits = liveLimits(effectiveSettings);
 const liveHub = createLiveHub({ perSession: STREAM_CONNECTIONS_PER_SESSION });
+const diagnosticsOverview = createOverviewReader({ build, schemaVersion: database.schemaVersion, installation: paths, workingPaths, logStatus: logFile.status, liveConnections: liveHub.total });
+const diagnosticsLogs = createLogFiles({ dir: workingPaths.logs, retentionDays: () => logLimits().retentionDays, now: () => new Date() });
 const attemptKeys = createAttemptKeys(secret);
 const clientIp = (c: Context<AppEnv>): string => getConnInfo(c).remote.address ?? "unknown";
 const cookies = createSessionCookies({ instanceId: paths.instanceId, secret });
@@ -300,8 +303,9 @@ const app = createApp({
   settings: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, environment: environment.overrides, refresh: effectiveSettings.refresh, logger },
   diagnostics: {
     unit: identityUnit,
-    overview: createOverviewReader({ build, schemaVersion: database.schemaVersion, installation: paths, workingPaths, logStatus: logFile.status, liveConnections: liveHub.total }),
-    logs: createLogFiles({ dir: workingPaths.logs, retentionDays: () => logLimits().retentionDays, now: () => new Date() }),
+    overview: diagnosticsOverview,
+    logs: diagnosticsLogs,
+    report: createReportBuilder({ overview: diagnosticsOverview, logs: diagnosticsLogs, options: effectiveSettings.current, catalog: SETTINGS_CATALOG, now: () => new Date() }),
     cookies,
     allowedOrigin: environment.baseUrl,
     nowMs: Date.now,
