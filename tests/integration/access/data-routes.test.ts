@@ -18,7 +18,7 @@ import { SIGN_OUT_PATH } from "@openlife/contracts/http/identity";
 import { recordSchema } from "@openlife/contracts/http/records";
 import { SCREENS_PATH, screenSchema } from "@openlife/contracts/http/screens";
 import { afterEach, describe, expect, it } from "vitest";
-import { ack, chooseEmpty, codeOf, enrolled, execute, installation, post, query, readyOwner, send, signIn, stopServers, verify, type Installation, type Reply } from "../../support/auth-http.ts";
+import { ack, chooseEmpty, codeOf, enrolled, execute, installation, OWNER_PASSWORD, post, query, readyOwner, send, signIn, stopServers, verify, type Installation, type Reply } from "../../support/auth-http.ts";
 import { PLANNED_ROUTES, ROUTE_INVENTORY, type RouteEntry } from "../../support/route-inventory.ts";
 import { repoRoot } from "../../support/server-process.ts";
 
@@ -72,6 +72,8 @@ function requestOf(route: RouteEntry, design: unknown, planToken = "a-plan-that-
       return { body: { expectedRevision: 2 }, headers: {} };
     case "PATCH /api/v1/settings":
       return { body: { values: { "tables.defaultPageSize": 30 } }, headers: {} };
+    case "POST /api/v1/security/password":
+      return { body: { currentPassword: OWNER_PASSWORD, newPassword: OWNER_PASSWORD }, headers: {} };
     case "DELETE /api/v1/settings/:key":
     case "DELETE /api/v1/security/sessions/:id":
     case "DELETE /api/v1/security/devices/:id":
@@ -180,6 +182,7 @@ describe("D20.2 the table is the inventory", () => {
       "POST /api/v1/registries/:symbol/structure/preview",
       "POST /api/v1/screens",
       "POST /api/v1/security/devices/revoke-all",
+      "POST /api/v1/security/password",
       "POST /api/v1/security/sessions/revoke-others",
       "PUT /api/v1/config/:symbol",
       "PUT /api/v1/dictionaries/:symbol",
@@ -286,6 +289,8 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     const renamed = await send(server, "POST", structurePath("waga"), { change: kg, planToken }, { cookie: session });
     answered.set("POST /api/v1/registries/:symbol/structure", renamed.status);
     expect(renamed.status).toBe(200);
+    // The password: changed to the same one so that the sign-ins below still work; the session of the change is replaced.
+    expect((await run(route("POST", "/security/password"), ids)).status).toBe(200);
     expect([...answered.keys()].sort(), "every data route has its positive control").toEqual(DATA_ROUTES.map(keyOf).sort());
     for (const [key, status] of answered) expect([200, 201, 204], `the owner past the gate on ${key}`).toContain(status);
 

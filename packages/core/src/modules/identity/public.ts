@@ -5,6 +5,8 @@ export { resetOwnerMfa } from "./application/reset-mfa.js";
 export type { MfaReset, ResetMfaCommand } from "./application/reset-mfa.js";
 export { authorizeLiveStream } from "./application/live-stream-access.js";
 export type { LiveStreamDependencies, LiveStreamHolder, LiveStreamPorts } from "./application/live-stream-access.js";
+export { changeOwnerPassword } from "./application/change-password.js";
+export type { ChangePasswordDependencies, ChangePasswordRequest, PasswordChanged, PasswordHasherPort } from "./application/change-password.js";
 export { listTrustedDevices, revokeAllTrustedDevices, revokeTrustedDevice } from "./application/manage-devices.js";
 export type { DeviceManagementDependencies } from "./application/manage-devices.js";
 export { listOwnerSessions, revokeOtherSessions, revokeOwnerSession } from "./application/manage-sessions.js";
@@ -51,6 +53,7 @@ export type { LockoutBucket } from "./domain/lockout.js";
 export { SESSION_LIFETIME_MS, TRUSTED_DEVICE_LIFETIME_MS } from "./domain/session-policy.js";
 export type {
   AuthAttemptStore,
+  ChangePasswordPorts,
   ChooseDataPorts,
   CredentialReader,
   DeviceManagementPorts,

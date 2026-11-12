@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 7,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -4742,6 +4742,40 @@ const definedLater: readonly TaskDefinition[] = [
         timeoutMs: 10 * 60 * 1000,
       },
       ...regressionChecks("D43.2-regression"),
+    ],
+  },
+  {
+    // DEV §9.40: changing the password from a live session.
+    id: "D43.3",
+    ready: true,
+    title: "Changing the password: the current password and a fresh second factor, the other sessions and the trusted devices ended, the caller kept in a new session",
+    criteria: ["D43.3-AC1", "D43.3-AC2", "D43.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the in-process app on the built packages.
+        id: "workspace-build",
+        criteria: ["D43.3-AC1", "D43.3-AC2"],
+        description: "pnpm -r build: the contract of the change, the use case and the route",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/http/security.ts", "packages/core/src/modules/identity/application/change-password.ts", "apps/server/src/http/routes/security.routes.ts"],
+      },
+      {
+        id: "password-http",
+        criteria: ["D43.3-AC1", "D43.3-AC2"],
+        description:
+          "HTTP: no session is 401 and a foreign Origin 403; a new password outside the contract is 422 and changes nothing; a session admitted by a recovery code is refused STEP_UP_REQUIRED; a wrong current password is told as INVALID_CREDENTIALS, changes nothing and counts in the buckets of sign-in until a lock that holds for the right password; with a fresh TOTP the new password works and the old does not, the caller's cookie is replaced with its browser kept, every other session ends and every trusted device is revoked; the audit holds counts and no password",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/security/password-http.test.ts"],
+        requires: ["tests/integration/security/password-http.test.ts", "tests/support/app-harness.ts", "tests/support/auth-http.ts"],
+      },
+      {
+        id: "data-routes",
+        criteria: ["D43.3-AC1"],
+        description: "The route inventory and the access table of D13.1 and D20.2 with the new route: refused in every state before the gate and answering the owner past it",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts"],
+        requires: ["tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D43.3-regression"),
     ],
   },
   {

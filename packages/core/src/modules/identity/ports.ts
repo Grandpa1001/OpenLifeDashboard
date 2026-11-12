@@ -325,3 +325,15 @@ export type DeviceManagementPorts = Readonly<{
   access: IdentityAccessReader;
   audit: AppendAudit;
 }>;
+
+/** The ports of changing the password from a live session (Scope §5.9; D43.3). */
+export type ChangePasswordPorts = Readonly<{
+  attempts: AuthAttemptStore;
+  credentialReader: CredentialReader;
+  credentials: Pick<CredentialWriter, "replaceOwnerPassword">;
+  owners: Pick<OwnerSingletonWriter, "currentOwnerId" | "advanceAccessEpoch">;
+  sessions: Pick<SessionStore, "findActive" | "rotate" | "deleteAllButOne">;
+  trusted: Pick<TrustedDeviceStore, "revokeAll">;
+  access: IdentityAccessReader;
+  audit: AppendAudit;
+}>;

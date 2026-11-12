@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LOGIN_PASSWORD_MAX_UTF16_UNITS, ownerPasswordSchema } from "./identity.js";
 
 // The security of the account over HTTP (Scope §5.9; Architektura §9.6, §9.7; D43). The sessions of the
 // owner: the list with the browser and address each was opened from, the end of one other session, and
@@ -18,6 +19,9 @@ export const SECURITY_DEVICE_PATH = `${SECURITY_DEVICES_PATH}/:id` as const;
 export const securityDevicePath = (id: string): string => `${SECURITY_DEVICES_PATH}/${id}`;
 /** `POST` revokes every trusted device; asks for a fresh second factor. */
 export const SECURITY_DEVICES_REVOKE_ALL_PATH = `${SECURITY_DEVICES_PATH}/revoke-all` as const;
+
+/** `POST` changes the password: the current one and the new one, with a fresh second factor. */
+export const SECURITY_PASSWORD_PATH = "/api/v1/security/password";
 
 export const SESSION_ASSURANCES = ["password", "totp", "trusted", "recovery"] as const;
 
@@ -66,3 +70,16 @@ export type TrustedDeviceListDto = z.infer<typeof trustedDeviceListSchema>;
 
 export const devicesRevokedSchema = z.object({ revoked: z.number().int().min(0) }).strict();
 export type DevicesRevokedDto = z.infer<typeof devicesRevokedSchema>;
+
+/**
+ * The current password is only bounded in size, like a sign-in: a wrong one is a wrong password, and the
+ * answer cannot tell a short guess from a long one. The new one follows the contract of the owner's password.
+ */
+export const changePasswordRequestSchema = z
+  .object({ currentPassword: z.string().min(1).max(LOGIN_PASSWORD_MAX_UTF16_UNITS), newPassword: ownerPasswordSchema })
+  .strict();
+export type ChangePasswordRequestDto = z.infer<typeof changePasswordRequestSchema>;
+
+/** The caller's session is replaced and keeps working; the others and the trusted devices are gone. */
+export const passwordChangedSchema = z.object({ revokedSessions: z.number().int().min(0), revokedDevices: z.number().int().min(0) }).strict();
+export type PasswordChangedDto = z.infer<typeof passwordChangedSchema>;

@@ -3,7 +3,10 @@
 // asks for a fresh second factor, so without one the answer is `STEP_UP_REQUIRED` and nothing is ended.
 // An answer names a session by its id and never carries a token. Nothing is cached.
 import {
+  changePasswordRequestSchema,
+  passwordChangedSchema,
   revokeSessionRequestSchema,
+  SECURITY_PASSWORD_PATH,
   SECURITY_DEVICE_PATH,
   SECURITY_DEVICES_PATH,
   SECURITY_DEVICES_REVOKE_ALL_PATH,
@@ -16,25 +19,38 @@ import {
   type SessionsRevokedDto,
 } from "@openlife/contracts/http/security";
 import {
+  changeOwnerPassword,
   listOwnerSessions,
   listTrustedDevices,
   revokeAllTrustedDevices,
   revokeOtherSessions,
   revokeOwnerSession,
   revokeTrustedDevice,
+  type ChangePasswordDependencies,
   type DeviceManagementDependencies,
   type SessionManagementDependencies,
 } from "@openlife/core/identity";
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
+import type { AttemptKeys } from "../../adapters/auth/attempt-keys.js";
 import type { SignedCookie } from "../../adapters/auth/session-cookie.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
 import type { AppEnv } from "../app-env.js";
 import { createSessionOperationKit } from "../session-operation.js";
+import { setSessionCookie } from "../session-cookie-http.js";
 
 export type SecurityRouteDependencies = Readonly<{
-  unit: SessionManagementDependencies["unit"] & DeviceManagementDependencies["unit"];
+  unit: SessionManagementDependencies["unit"] & DeviceManagementDependencies["unit"] & ChangePasswordDependencies["unit"];
   cookies: SignedCookie;
   allowedOrigin: string;
+  secureCookies: boolean;
+  /** The shared hasher of the password: the current one is verified and the new one hashed outside a unit of work. */
+  hasher: ChangePasswordDependencies["hasher"];
+  /** Keys of the buckets of the password: a wrong current password counts like a wrong password at sign-in. */
+  keys: AttemptKeys;
+  /** The peer of the connection; X-Forwarded-For is not read until the trusted proxy exists. */
+  clientIp: (c: Context<AppEnv>) => string;
+  newId: () => string;
+  newSessionToken: () => string;
   /** Wall clock in milliseconds. */
   nowMs: () => number;
   logger: TechnicalLogger;
@@ -43,6 +59,14 @@ export type SecurityRouteDependencies = Readonly<{
 export function registerSecurityRoutes(app: Hono<AppEnv>, deps: SecurityRouteDependencies): void {
   const sessions: SessionManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs };
   const devices: DeviceManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs };
+  const passwords: ChangePasswordDependencies = {
+    unit: deps.unit,
+    hasher: deps.hasher,
+    nowMs: deps.nowMs,
+    newSessionId: deps.newId,
+    newSessionToken: deps.newSessionToken,
+    keysOf: (email, ipKey) => ({ account: deps.keys.account(email), ip: ipKey }),
+  };
   const { guard, operation, read, refused } = createSessionOperationKit({ allowedOrigin: deps.allowedOrigin, cookies: deps.cookies, logger: deps.logger });
 
   app.get(
@@ -120,6 +144,18 @@ export function registerSecurityRoutes(app: Hono<AppEnv>, deps: SecurityRouteDep
     operation(revokeSessionRequestSchema, async (c, token) => {
       const result = revokeTrustedDevice(devices, token, c.req.param("id") ?? "", c.get("requestId"));
       return result.ok ? c.body(null, 204) : refused(c, result.error);
+    }),
+  );
+
+  app.post(
+    SECURITY_PASSWORD_PATH,
+    ...guard,
+    operation(changePasswordRequestSchema, async (c, token, body) => {
+      const result = await changeOwnerPassword(passwords, token, body, { requestId: c.get("requestId"), ipKey: deps.keys.ip(deps.clientIp(c)) });
+      if (!result.ok) return refused(c, result.error);
+      // The change has committed: only now does the browser get the cookie of the session that replaces its own.
+      await setSessionCookie(c, deps.cookies, deps.secureCookies, { token: result.value.token, expiresAtMs: result.value.expiresAtMs }, deps.nowMs());
+      return c.json(passwordChangedSchema.parse({ revokedSessions: result.value.revokedSessions, revokedDevices: result.value.revokedDevices }));
     }),
   );
 }

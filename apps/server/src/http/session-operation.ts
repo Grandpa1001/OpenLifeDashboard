@@ -21,6 +21,8 @@ const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 403 | 404 | 409 | 422 
   AUTH_LOCKED: 429,
   AUTH_REQUIRED: 401,
   MFA_INVALID_CODE: 401,
+  // A wrong current password is told at its field; 403, not 401, so the session itself is not taken for ended.
+  INVALID_CREDENTIALS: 403,
   MFA_REQUIRED: 403,
   RECOVERY_ACK_REQUIRED: 403,
   SETUP_DATA_REQUIRED: 403,
