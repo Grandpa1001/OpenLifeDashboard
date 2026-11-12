@@ -212,6 +212,21 @@ export type BrowserOwner = Readonly<{
  * real routes from an API session that is not the browser's.
  */
 export async function browserOwner(stage: OwnerStage, password = "  a spaced pass phrase 🔐  "): Promise<BrowserOwner> {
+  // The port is chosen free and the server listens a few seconds later, after the owner is made; another
+  // worker can take it in between (EADDRINUSE, run 43194896323). The installation is then made again on another port.
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await startBrowserOwner(stage, password);
+    } catch (error) {
+      if (attempt >= PORT_TAKEN_ATTEMPTS || !(error instanceof Error && error.message.includes("EADDRINUSE"))) throw error;
+    }
+  }
+}
+
+/** How many times an installation is made again when its port was taken before the server could listen. */
+const PORT_TAKEN_ATTEMPTS = 3;
+
+async function startBrowserOwner(stage: OwnerStage, password: string): Promise<BrowserOwner> {
   const port = await freeLoopbackPort();
   const origin = `http://127.0.0.1:${port}`;
   const instance = await startedInstallation({ baseUrl: origin });
