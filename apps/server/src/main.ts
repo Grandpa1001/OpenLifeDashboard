@@ -42,6 +42,7 @@ import { stdoutSink } from "./adapters/logging/stdout-sink.js";
 import { createTechnicalLogger, LOG_LEVELS, type LogLevel } from "./adapters/logging/technical-logger.js";
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
+import { createLogFiles } from "./adapters/diagnostics/log-files.js";
 import { createOverviewReader } from "./adapters/diagnostics/overview-reader.js";
 import { createLiveHub } from "./adapters/events/live-hub.js";
 import { STREAM_CONNECTIONS_PER_SESSION } from "./adapters/events/limits.js";
@@ -163,9 +164,10 @@ console.log(
 // a failed start or a failed request; the preflight has already reported an unusable folder.
 // The options are read from the database once it is open (below); until then, and if they cannot be read, the ones from the start.
 let currentSettings: () => readonly EffectiveSetting[] = () => settings;
+const logLimits = logLimitsFrom(() => currentSettings());
 const logFile = createRotatingFileSink({
   dir: workingPaths.logs,
-  limits: logLimitsFrom(() => currentSettings()),
+  limits: logLimits,
   now: () => new Date(),
   notify: (line) => process.stderr.write(line),
 });
@@ -299,6 +301,7 @@ const app = createApp({
   diagnostics: {
     unit: identityUnit,
     overview: createOverviewReader({ build, schemaVersion: database.schemaVersion, installation: paths, workingPaths, logStatus: logFile.status, liveConnections: liveHub.total }),
+    logs: createLogFiles({ dir: workingPaths.logs, retentionDays: () => logLimits().retentionDays, now: () => new Date() }),
     cookies,
     allowedOrigin: environment.baseUrl,
     nowMs: Date.now,

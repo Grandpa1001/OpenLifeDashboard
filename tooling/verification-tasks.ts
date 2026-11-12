@@ -5014,6 +5014,48 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.41: the files of the technical log and the search by request id.
+    id: "D44.2",
+    ready: true,
+    title: "The files of the technical log: a list, a download from a closed set of names and the lines of one request id",
+    criteria: ["D44.2-AC1", "D44.2-AC2", "D44.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests import the built packages and run the built server.
+        id: "workspace-build",
+        criteria: ["D44.2-AC1", "D44.2-AC2"],
+        description: "pnpm -r build: the contract of the log files, the reader of the files and the three routes",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/http/diagnostics.ts", "apps/server/src/adapters/diagnostics/log-files.ts", "apps/server/src/http/routes/diagnostics.routes.ts"],
+      },
+      {
+        id: "log-files-http",
+        criteria: ["D44.2-AC1", "D44.2-AC2"],
+        description: "HTTP: 401 and the code of the gate, only the names the sink writes are listed and downloaded, traversal in any spelling and a missing name are 404, a link, a file over the bound and an old rotated file are refused, the search finds the lines whose own request id it is, a malformed id is 422, the limits are told",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/diagnostics/log-files-http.test.ts"],
+        requires: ["tests/integration/diagnostics/log-files-http.test.ts", "tests/support/app-harness.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "request-log-server",
+        criteria: ["D44.2-AC1", "D44.2-AC2"],
+        description: "The running server: the request id of an error answer finds its entry in the real file, and a marker sent as a password, a cookie and a query is in no downloaded file",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/diagnostics/request-log-server.test.ts"],
+        requires: ["tests/integration/diagnostics/request-log-server.test.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "data-routes",
+        criteria: ["D44.2-AC1"],
+        description: "The three routes are in the inventory and the table of the access: refused in every state before the gate, 200 for the owner past it, on the running server",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/access/data-routes.test.ts", "tests/integration/auth/route-inventory.test.ts"],
+        requires: ["tests/integration/access/data-routes.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D44.2-regression"),
+    ],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

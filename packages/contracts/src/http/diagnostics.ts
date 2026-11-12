@@ -60,3 +60,45 @@ export const diagnosticsSchema = z
   })
   .strict();
 export type DiagnosticsDto = z.infer<typeof diagnosticsSchema>;
+
+// The files of the technical log and the lines of one request (D44.2). The client names a file from the
+// list, never a path: the server accepts only the names its own sink writes (`app.jsonl` and
+// `app.<UTC>-<seq>.jsonl`), and only a plain file of a bounded size and age. The lines are the ones the
+// logger wrote, already reduced to its closed set of fields.
+
+export const DIAGNOSTICS_LOGS_PATH = "/api/v1/diagnostics/logs";
+/** One file of the log: `GET` downloads it. */
+export const DIAGNOSTICS_LOG_PATH = `${DIAGNOSTICS_LOGS_PATH}/:file` as const;
+export const diagnosticsLogPath = (file: string): string => `${DIAGNOSTICS_LOGS_PATH}/${encodeURIComponent(file)}`;
+/** The lines of the log that belong to one request id (the one an answer of the API carries). */
+export const DIAGNOSTICS_REQUEST_PATH = "/api/v1/diagnostics/requests/:requestId" as const;
+export const diagnosticsRequestPath = (requestId: string): string => `/api/v1/diagnostics/requests/${encodeURIComponent(requestId)}`;
+
+/** The shape of a request id the search accepts: what the server issues, nothing that could be a path or a pattern. */
+export const LOG_REQUEST_ID_PATTERN = /^[0-9A-Za-z-]{1,64}$/;
+
+export const logFileSchema = z
+  .object({
+    name: z.string().min(1).max(64),
+    bytes: z.number().int().min(0),
+    modifiedAt: z.iso.datetime(),
+    /** The file being written now; the others are rotated. */
+    active: z.boolean(),
+  })
+  .strict();
+export type LogFileDto = z.infer<typeof logFileSchema>;
+
+export const logFileListSchema = z.object({ files: z.array(logFileSchema).max(100) }).strict();
+export type LogFileListDto = z.infer<typeof logFileListSchema>;
+
+export const requestLogSchema = z
+  .object({
+    requestId: z.string().regex(LOG_REQUEST_ID_PATTERN),
+    /** The lines as they are in the files, oldest first. */
+    lines: z.array(z.string().max(16 * 1024)).max(100),
+    /** More lines or more files than the search reads. */
+    truncated: z.boolean(),
+    filesSearched: z.number().int().min(0),
+  })
+  .strict();
+export type RequestLogDto = z.infer<typeof requestLogSchema>;

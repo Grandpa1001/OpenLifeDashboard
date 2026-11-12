@@ -61,7 +61,7 @@ function stamp(date: Date): string {
 }
 
 /** UTC time encoded in a rotated file's name, or undefined for any other name. */
-function rotatedAt(name: string): number | undefined {
+export function rotatedAt(name: string): number | undefined {
   const match = ROTATED_NAME.exec(name);
   if (!match) {
     return undefined;

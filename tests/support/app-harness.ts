@@ -38,6 +38,7 @@ import { DESIGN_POLICY } from "../../apps/server/dist/bootstrap/design-policy.js
 import { sha256Hex } from "../../apps/server/dist/adapters/crypto/sha256-hex.js";
 import { createUuidV7 } from "../../apps/server/dist/adapters/ids/uuid-v7.js";
 import type { LiveEvent } from "@openlife/contracts/http/stream";
+import { createLogFiles } from "../../apps/server/dist/adapters/diagnostics/log-files.js";
 import { createOverviewReader } from "../../apps/server/dist/adapters/diagnostics/overview-reader.js";
 import { describeInstallation, installationWorkingPaths } from "../../apps/server/dist/adapters/filesystem/installation-paths.js";
 import { createLiveHub } from "../../apps/server/dist/adapters/events/live-hub.js";
@@ -75,6 +76,10 @@ export type HarnessOptions = Readonly<{
   announce?: (event: LiveEvent) => void;
   /** Environment overrides of the options, by key: they lock the options they name (D41). */
   environment?: Readonly<Record<string, unknown>>;
+  /** Narrows the largest log file the diagnostics list, download and search (D44.2). */
+  logFileMaxBytes?: number;
+  /** Narrows the bytes one search by request id reads in all (D44.2). */
+  logSearchMaxBytes?: number;
 }>;
 
 export async function createAppHarness(options: HarnessOptions = {}) {
@@ -195,7 +200,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     systemTables: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
     settings: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, environment, refresh: effectiveSettings.refresh, logger },
-    diagnostics: { unit, overview, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
+    diagnostics: { unit, overview, logs: createLogFiles({ dir: logsDir, retentionDays: () => 14, now: () => new Date(), ...(options.logFileMaxBytes === undefined ? {} : { maxFileBytes: options.logFileMaxBytes }), ...(options.logSearchMaxBytes === undefined ? {} : { maxScanBytes: options.logSearchMaxBytes }) }), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     security: { ...common, unit, hasher, crypto: mfaCrypto },
     announce: options.announce ?? hub.publish,
     stream: { unit, hub, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, pingIntervalMs: options.pingIntervalMs ?? 25_000, logger },

@@ -45,7 +45,7 @@ const fill = (route: RouteEntry, ids: Ids): string => {
   const widgetPath = route.path.includes("/widgets/:id");
   const sessionPath = route.path.includes("/security/sessions/:id");
   const devicePath = route.path.includes("/security/devices/:id");
-  return route.path.replace(":symbol", ids.symbol).replace(":recordId", ids.record).replace(":id", devicePath ? ids.device : sessionPath ? ids.session : widgetPath ? ids.widget : ids.screen).replace(":name", SYSTEM_TABLE).replace(":key", "tables.defaultPageSize");
+  return route.path.replace(":symbol", ids.symbol).replace(":recordId", ids.record).replace(":id", devicePath ? ids.device : sessionPath ? ids.session : widgetPath ? ids.widget : ids.screen).replace(":name", SYSTEM_TABLE).replace(":key", "tables.defaultPageSize").replace(":file", "app.jsonl").replace(":requestId", "d20-2-no-such-request");
 };
 
 /** A well-formed request for the route, so that only the access can be the reason of a refusal. */
@@ -164,6 +164,9 @@ describe("D20.2 the table is the inventory", () => {
       "GET /api/v1/config",
       "GET /api/v1/config/:symbol",
       "GET /api/v1/diagnostics",
+      "GET /api/v1/diagnostics/logs",
+      "GET /api/v1/diagnostics/logs/:file",
+      "GET /api/v1/diagnostics/requests/:requestId",
       "GET /api/v1/dictionaries",
       "GET /api/v1/dictionaries/:symbol",
       "GET /api/v1/registries",
@@ -273,6 +276,9 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     await run(route("GET", "/settings"), withRecord);
     // The overview of the installation: built from the files and the build of the running server.
     expect((await run(route("GET", "/diagnostics"), withRecord)).status).toBe(200);
+    expect((await run(route("GET", "/diagnostics/logs"), withRecord)).status).toBe(200);
+    expect((await run(route("GET", "/diagnostics/logs/:file"), withRecord)).status).toBe(200);
+    expect((await run(route("GET", "/diagnostics/requests/:requestId"), withRecord)).status).toBe(200);
     expect((await run(route("PATCH", "/settings"), withRecord)).status).toBe(200);
     expect((await run(route("DELETE", "/settings/:key"), withRecord)).status).toBe(200);
     const screenReply = await run(route("POST", "/screens"), withRecord);
