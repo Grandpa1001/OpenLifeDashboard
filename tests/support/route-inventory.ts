@@ -9,6 +9,7 @@
 //         "setup"    — gate; the choice of the starting data itself
 import * as bootstrap from "@openlife/contracts/http/bootstrap";
 import * as config from "@openlife/contracts/http/config";
+import * as diagnostics from "@openlife/contracts/http/diagnostics";
 import * as dictionaries from "@openlife/contracts/http/dictionaries";
 import * as healthStatus from "@openlife/contracts/http/health-status";
 import * as identity from "@openlife/contracts/http/identity";
@@ -27,7 +28,7 @@ export type RouteEntry = Readonly<{ method: "GET" | "POST" | "PUT" | "PATCH" | "
 
 /** Every exported path constant of the contracts, by name. */
 export const PATH_CONSTANTS: Readonly<Record<string, string>> = Object.fromEntries(
-  [bootstrap, config, dictionaries, healthStatus, identity, mfa, records, registries, screens, security, settings, setup, stream, systemTables].flatMap((module) =>
+  [bootstrap, config, diagnostics, dictionaries, healthStatus, identity, mfa, records, registries, screens, security, settings, setup, stream, systemTables].flatMap((module) =>
     Object.entries(module).filter((entry): entry is [string, string] => entry[0].endsWith("_PATH") && typeof entry[1] === "string"),
   ),
 );
@@ -67,6 +68,7 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "GET", path: config.CONFIG_ENTRY_PATH, access: "data", note: "one entry of ConfigTable with the number of its bindings" },
   { method: "PUT", path: config.CONFIG_ENTRY_PATH, access: "data", note: "saves the whole entry on the revision it was loaded with" },
   { method: "DELETE", path: config.CONFIG_ENTRY_PATH, access: "data", note: "deletes an entry; its bindings stay and are broken" },
+  { method: "GET", path: diagnostics.DIAGNOSTICS_PATH, access: "data", note: "the overview of the installation: versions, paths, sizes, the technical log and its latest errors, built from a list of fields" },
   { method: "GET", path: settings.SETTINGS_PATH, access: "data", note: "the effective application options with their source and what the owner may change" },
   { method: "PATCH", path: settings.SETTINGS_PATH, access: "data", note: "changes one or more application options at once, all or none" },
   { method: "DELETE", path: settings.SETTING_PATH, access: "data", note: "takes the stored value of an option away, so it is the default again" },

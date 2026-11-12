@@ -29,6 +29,11 @@
       "types": "./dist/http/config.d.ts",
       "default": "./dist/http/config.js"
     },
+    "./http/diagnostics": {
+      "@openlife/source": "./src/http/diagnostics.ts",
+      "types": "./dist/http/diagnostics.d.ts",
+      "default": "./dist/http/diagnostics.js"
+    },
     "./http/errors": {
       "@openlife/source": "./src/http/errors.ts",
       "types": "./dist/http/errors.d.ts",

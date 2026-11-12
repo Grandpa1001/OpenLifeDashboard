@@ -27,6 +27,8 @@ export type LiveHub = Readonly<{
   closeAll: () => void;
   /** Streams held by the session now. */
   count: (sessionId: string) => number;
+  /** Streams open now, of every session. */
+  total: () => number;
 }>;
 
 export function createLiveHub(options: Readonly<{ perSession: number }>): LiveHub {
@@ -66,5 +68,6 @@ export function createLiveHub(options: Readonly<{ perSession: number }>): LiveHu
     closeToken: (token) => close([...bySession.values()].flatMap((held) => [...held]).filter((listener) => listener.token === token)),
     closeAll: () => close([...bySession.values()].flatMap((held) => [...held])),
     count: (sessionId) => bySession.get(sessionId)?.size ?? 0,
+    total: () => [...bySession.values()].reduce((sum, held) => sum + held.size, 0),
   };
 }

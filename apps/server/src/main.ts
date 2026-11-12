@@ -42,6 +42,7 @@ import { stdoutSink } from "./adapters/logging/stdout-sink.js";
 import { createTechnicalLogger, LOG_LEVELS, type LogLevel } from "./adapters/logging/technical-logger.js";
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
+import { createOverviewReader } from "./adapters/diagnostics/overview-reader.js";
 import { createLiveHub } from "./adapters/events/live-hub.js";
 import { STREAM_CONNECTIONS_PER_SESSION } from "./adapters/events/limits.js";
 import { bindSystemTableReader } from "./adapters/system-tables.js";
@@ -295,6 +296,14 @@ const app = createApp({
   config: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: limits.config, logger },
   systemTables: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
   settings: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, environment: environment.overrides, refresh: effectiveSettings.refresh, logger },
+  diagnostics: {
+    unit: identityUnit,
+    overview: createOverviewReader({ build, schemaVersion: database.schemaVersion, installation: paths, workingPaths, logStatus: logFile.status, liveConnections: liveHub.total }),
+    cookies,
+    allowedOrigin: environment.baseUrl,
+    nowMs: Date.now,
+    logger,
+  },
   security: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, secureCookies, hasher, crypto: mfaCrypto, keys: attemptKeys, clientIp, newId: randomUUID, newSessionToken, nowMs: Date.now, logger },
   announce: liveHub.publish,
   stream: { unit: identityUnit, hub: liveHub, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, pingIntervalMs: STREAM_PING_INTERVAL_MS, logger },

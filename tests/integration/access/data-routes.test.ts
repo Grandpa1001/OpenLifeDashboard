@@ -163,6 +163,7 @@ describe("D20.2 the table is the inventory", () => {
       "DELETE /api/v1/settings/:key",
       "GET /api/v1/config",
       "GET /api/v1/config/:symbol",
+      "GET /api/v1/diagnostics",
       "GET /api/v1/dictionaries",
       "GET /api/v1/dictionaries/:symbol",
       "GET /api/v1/registries",
@@ -270,6 +271,8 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     expect((await run(route("DELETE", "/config/:symbol"), withRecord)).status).toBe(200);
     // The application options: a read, a change of one and the reset of it.
     await run(route("GET", "/settings"), withRecord);
+    // The overview of the installation: built from the files and the build of the running server.
+    expect((await run(route("GET", "/diagnostics"), withRecord)).status).toBe(200);
     expect((await run(route("PATCH", "/settings"), withRecord)).status).toBe(200);
     expect((await run(route("DELETE", "/settings/:key"), withRecord)).status).toBe(200);
     const screenReply = await run(route("POST", "/screens"), withRecord);

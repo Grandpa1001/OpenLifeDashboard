@@ -10,6 +10,7 @@ import { publicBootstrap } from "../http/routes/bootstrap.routes.js";
 import { health } from "../http/routes/health.routes.js";
 import { registerDictionaryRoutes, type DictionaryRouteDependencies } from "../http/routes/dictionaries.routes.js";
 import { registerConfigRoutes, type ConfigRouteDependencies } from "../http/routes/config.routes.js";
+import { registerDiagnosticsRoutes, type DiagnosticsRouteDependencies } from "../http/routes/diagnostics.routes.js";
 import { registerSettingsRoutes, type SettingsRouteDependencies } from "../http/routes/settings.routes.js";
 import { registerIdentityRoutes, type IdentityRouteDependencies } from "../http/routes/identity.routes.js";
 import { registerMfaEnrollmentRoutes, type MfaEnrollmentRouteDependencies } from "../http/routes/mfa-enrollment.routes.js";
@@ -45,6 +46,7 @@ export type AppDependencies = Readonly<{
   dictionaries: DictionaryRouteDependencies;
   config: ConfigRouteDependencies;
   settings: SettingsRouteDependencies;
+  diagnostics: DiagnosticsRouteDependencies;
   security: SecurityRouteDependencies;
   screens: ScreenRouteDependencies;
   systemTables: SystemTableRouteDependencies;
@@ -80,6 +82,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   registerDictionaryRoutes(app, dependencies.dictionaries, announce);
   registerConfigRoutes(app, dependencies.config, announce);
   registerSettingsRoutes(app, dependencies.settings);
+  registerDiagnosticsRoutes(app, dependencies.diagnostics);
   registerSecurityRoutes(app, dependencies.security);
   registerScreenRoutes(app, dependencies.screens, announce);
   registerSystemTableRoutes(app, dependencies.systemTables);

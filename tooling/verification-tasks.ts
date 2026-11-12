@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -4978,6 +4978,40 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D43.1", "D43.2", "D43.3", "D43.4", "D43.5", "D43.6", "D43.7", "D43.8"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.41: the overview of the installation over HTTP.
+    id: "D44.1",
+    ready: true,
+    title: "The overview of the installation: versions, paths, sizes, the technical log and its latest errors, behind the gate of the data",
+    criteria: ["D44.1-AC1", "D44.1-AC2", "D44.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests import the built packages and run the built server.
+        id: "workspace-build",
+        criteria: ["D44.1-AC1", "D44.1-AC2"],
+        description: "pnpm -r build: the contract of the diagnostics, the gate of the data in core, the reader of the overview and the route",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/http/diagnostics.ts", "packages/core/src/modules/identity/application/data-access.ts", "apps/server/src/adapters/diagnostics/overview-reader.ts", "apps/server/src/http/routes/diagnostics.routes.ts"],
+      },
+      {
+        id: "diagnostics-http",
+        criteria: ["D44.1-AC1", "D44.1-AC2"],
+        description: "HTTP: 401 and the code of the gate, the shape of the overview with the paths of the host and of the container, the latest errors from the end of the log as four fields only, a log that is a link gives none, the parts without a module say so",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/diagnostics/diagnostics-http.test.ts"],
+        requires: ["tests/integration/diagnostics/diagnostics-http.test.ts", "tests/support/app-harness.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "data-routes",
+        criteria: ["D44.1-AC1"],
+        description: "The route is in the inventory and the table of the access: refused in every state before the gate, 200 for the owner past it, on the running server",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/access/data-routes.test.ts", "tests/integration/auth/route-inventory.test.ts"],
+        requires: ["tests/integration/access/data-routes.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D44.1-regression"),
+    ],
   },
   {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of

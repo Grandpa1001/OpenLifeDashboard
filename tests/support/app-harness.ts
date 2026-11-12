@@ -38,6 +38,8 @@ import { DESIGN_POLICY } from "../../apps/server/dist/bootstrap/design-policy.js
 import { sha256Hex } from "../../apps/server/dist/adapters/crypto/sha256-hex.js";
 import { createUuidV7 } from "../../apps/server/dist/adapters/ids/uuid-v7.js";
 import type { LiveEvent } from "@openlife/contracts/http/stream";
+import { createOverviewReader } from "../../apps/server/dist/adapters/diagnostics/overview-reader.js";
+import { describeInstallation, installationWorkingPaths } from "../../apps/server/dist/adapters/filesystem/installation-paths.js";
 import { createLiveHub } from "../../apps/server/dist/adapters/events/live-hub.js";
 import { bindSystemTableReader } from "../../apps/server/dist/adapters/system-tables.js";
 import { bindOwnerPreferencesStore } from "../../packages/sqlite/dist/adapters/settings/owner-preferences.js";
@@ -161,6 +163,18 @@ export async function createAppHarness(options: HarnessOptions = {}) {
   const limits = liveLimits(effectiveSettings);
   const hub = createLiveHub({ perSession: options.streamsPerSession ?? 5 });
   const clientIp = () => "127.0.0.1";
+  // The diagnostics of the harness: the files of its own folder, a synthetic installation and a sink that is not degraded.
+  const logsDir = path.join(dir, "logs");
+  mkdirSync(logsDir);
+  const installation = describeInstallation({ formatVersion: 1, instanceId: INSTANCE_ID, installMode: "local", composeProjectName: "openlife-0123456789ab", hostPlatform: "posix", installationPath: dir, createdAt: "2026-01-01T00:00:00.000Z" });
+  const overview = createOverviewReader({
+    build: { appVersion: "0.0.0", buildRevision: "harness", imageDigest: null },
+    schemaVersion: 17,
+    installation,
+    workingPaths: { ...installationWorkingPaths(dir), database: workingPaths.database, logs: logsDir },
+    logStatus: () => ({ degraded: false, lostLines: 0, queuedBytes: 0, file: "app.jsonl" }),
+    liveConnections: hub.total,
+  });
   const common = { nowMs: Date.now, newId: randomUUID, newSessionToken: () => randomBytes(32).toString("base64url"), logger, allowedOrigin: HARNESS_ORIGIN, secureCookies: false, cookies, keys, clientIp };
   const app = createApp({
     webRoot: dir,
@@ -181,6 +195,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     systemTables: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
     settings: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, environment, refresh: effectiveSettings.refresh, logger },
+    diagnostics: { unit, overview, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     security: { ...common, unit, hasher, crypto: mfaCrypto },
     announce: options.announce ?? hub.publish,
     stream: { unit, hub, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, pingIntervalMs: options.pingIntervalMs ?? 25_000, logger },
@@ -218,6 +233,10 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     structure,
     /** The maintenance gate of the harness, to read the operations the routes record. */
     gate: gate.gate,
+    /** The folder of the technical log the diagnostics read (D44). */
+    logsDir,
+    /** The folder of the harness, which is its installation. */
+    installationDir: dir,
     /** The folder of the copies the routes take (D29). */
     backupsDir: workingPaths.backups,
     /** The session token a `name=value` cookie of this app carries, or null. */
