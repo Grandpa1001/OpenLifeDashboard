@@ -239,6 +239,9 @@ jobs:
       - name: Verify D43.1 (the sessions of the owner, the list, the end of one and of all the others)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D43.1
+      - name: Verify D43.2 (the trusted devices, the list, revoking one and revoking all)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D43.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

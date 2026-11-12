@@ -4,13 +4,27 @@
 // An answer names a session by its id and never carries a token. Nothing is cached.
 import {
   revokeSessionRequestSchema,
+  SECURITY_DEVICE_PATH,
+  SECURITY_DEVICES_PATH,
+  SECURITY_DEVICES_REVOKE_ALL_PATH,
+  type DevicesRevokedDto,
+  type TrustedDeviceListDto,
   SECURITY_SESSIONS_PATH,
   SECURITY_SESSION_PATH,
   SECURITY_SESSIONS_REVOKE_OTHERS_PATH,
   type SecuritySessionListDto,
   type SessionsRevokedDto,
 } from "@openlife/contracts/http/security";
-import { listOwnerSessions, revokeOtherSessions, revokeOwnerSession, type SessionManagementDependencies } from "@openlife/core/identity";
+import {
+  listOwnerSessions,
+  listTrustedDevices,
+  revokeAllTrustedDevices,
+  revokeOtherSessions,
+  revokeOwnerSession,
+  revokeTrustedDevice,
+  type DeviceManagementDependencies,
+  type SessionManagementDependencies,
+} from "@openlife/core/identity";
 import type { Hono } from "hono";
 import type { SignedCookie } from "../../adapters/auth/session-cookie.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
@@ -18,7 +32,7 @@ import type { AppEnv } from "../app-env.js";
 import { createSessionOperationKit } from "../session-operation.js";
 
 export type SecurityRouteDependencies = Readonly<{
-  unit: SessionManagementDependencies["unit"];
+  unit: SessionManagementDependencies["unit"] & DeviceManagementDependencies["unit"];
   cookies: SignedCookie;
   allowedOrigin: string;
   /** Wall clock in milliseconds. */
@@ -28,6 +42,7 @@ export type SecurityRouteDependencies = Readonly<{
 
 export function registerSecurityRoutes(app: Hono<AppEnv>, deps: SecurityRouteDependencies): void {
   const sessions: SessionManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs };
+  const devices: DeviceManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs };
   const { guard, operation, read, refused } = createSessionOperationKit({ allowedOrigin: deps.allowedOrigin, cookies: deps.cookies, logger: deps.logger });
 
   app.get(
@@ -67,6 +82,43 @@ export function registerSecurityRoutes(app: Hono<AppEnv>, deps: SecurityRouteDep
     ...guard,
     operation(revokeSessionRequestSchema, async (c, token) => {
       const result = revokeOwnerSession(sessions, token, c.req.param("id") ?? "", c.get("requestId"));
+      return result.ok ? c.body(null, 204) : refused(c, result.error);
+    }),
+  );
+
+  app.get(
+    SECURITY_DEVICES_PATH,
+    read((c, token) => {
+      const result = listTrustedDevices(devices, token, c.get("requestId"));
+      if (!result.ok) return refused(c, result.error);
+      const dto: TrustedDeviceListDto = {
+        devices: result.value.map((device) => ({
+          id: device.deviceId,
+          label: device.label,
+          createdAt: new Date(device.createdAtMs).toISOString(),
+          expiresAt: new Date(device.expiresAtMs).toISOString(),
+        })),
+      };
+      return c.json(dto);
+    }),
+  );
+
+  app.post(
+    SECURITY_DEVICES_REVOKE_ALL_PATH,
+    ...guard,
+    operation(revokeSessionRequestSchema, async (c, token) => {
+      const result = revokeAllTrustedDevices(devices, token, c.get("requestId"));
+      if (!result.ok) return refused(c, result.error);
+      const dto: DevicesRevokedDto = { revoked: result.value.revoked };
+      return c.json(dto);
+    }),
+  );
+
+  app.delete(
+    SECURITY_DEVICE_PATH,
+    ...guard,
+    operation(revokeSessionRequestSchema, async (c, token) => {
+      const result = revokeTrustedDevice(devices, token, c.req.param("id") ?? "", c.get("requestId"));
       return result.ok ? c.body(null, 204) : refused(c, result.error);
     }),
   );

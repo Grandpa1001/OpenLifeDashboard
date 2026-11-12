@@ -4711,6 +4711,40 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.40: the trusted devices of the owner over HTTP.
+    id: "D43.2",
+    ready: true,
+    title: "The trusted devices of the owner: the name of the browser kept, the list, revoking one and revoking all with a fresh second factor",
+    criteria: ["D43.2-AC1", "D43.2-AC2", "D43.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the in-process app on the built packages.
+        id: "workspace-build",
+        criteria: ["D43.2-AC1", "D43.2-AC2"],
+        description: "pnpm -r build: migration 17, the store of devices, the use cases and the routes",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/sqlite/src/migrations/0017-trusted-device-label.ts", "packages/core/src/modules/identity/application/manage-devices.ts", "packages/sqlite/src/adapters/identity/trusted-device-store.ts", "apps/server/src/http/routes/security.routes.ts"],
+      },
+      {
+        id: "devices-http",
+        criteria: ["D43.2-AC1", "D43.2-AC2"],
+        description:
+          "HTTP: no session is 401 and a foreign Origin 403 on each route; the list holds the valid devices newest first with the name of the browser trusted (none for one trusted before names), leaves out an expired and a revoked one, shows a lifetime of 30 days and carries no token or hash; revoking a device takes the data from the session admitted by it (MFA_REQUIRED), an unknown or revoked id is not found; revoking all is refused STEP_UP_REQUIRED to a session admitted by a recovery code and revokes every device for a fresh TOTP; every revoking is audited without a token",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/security/devices-http.test.ts"],
+        requires: ["tests/integration/security/devices-http.test.ts", "tests/support/app-harness.ts", "tests/support/auth-http.ts"],
+      },
+      {
+        id: "migrations-and-routes",
+        criteria: ["D43.2-AC1", "D43.2-AC2"],
+        description: "The migration plan with its seventeenth migration on an empty and an upgraded database, the route inventory and the access table of D13.1 and D20.2 with the three new routes, and the trusted devices of D11.2 as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/sqlite/migrations.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/integration/auth/mfa-verify-http.test.ts"],
+        requires: ["tests/integration/sqlite/migrations.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/integration/auth/mfa-verify-http.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D43.2-regression"),
+    ],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

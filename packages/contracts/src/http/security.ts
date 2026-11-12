@@ -12,6 +12,13 @@ export const securitySessionPath = (id: string): string => `${SECURITY_SESSIONS_
 /** `POST` ends every session but the caller's; asks for a fresh second factor. */
 export const SECURITY_SESSIONS_REVOKE_OTHERS_PATH = `${SECURITY_SESSIONS_PATH}/revoke-others` as const;
 
+export const SECURITY_DEVICES_PATH = "/api/v1/security/devices";
+/** One trusted device: `DELETE` revokes it. */
+export const SECURITY_DEVICE_PATH = `${SECURITY_DEVICES_PATH}/:id` as const;
+export const securityDevicePath = (id: string): string => `${SECURITY_DEVICES_PATH}/${id}`;
+/** `POST` revokes every trusted device; asks for a fresh second factor. */
+export const SECURITY_DEVICES_REVOKE_ALL_PATH = `${SECURITY_DEVICES_PATH}/revoke-all` as const;
+
 export const SESSION_ASSURANCES = ["password", "totp", "trusted", "recovery"] as const;
 
 export const securitySessionSchema = z
@@ -40,3 +47,22 @@ export const revokeSessionRequestSchema = z.object({}).strict();
 
 export const sessionsRevokedSchema = z.object({ revoked: z.number().int().min(0) }).strict();
 export type SessionsRevokedDto = z.infer<typeof sessionsRevokedSchema>;
+
+/** A device the owner trusted: the token and its hash are never in an answer. */
+export const trustedDeviceSchema = z
+  .object({
+    id: z.string().min(1).max(64),
+    /** The browser as it called itself when trusted; null for a device trusted before names were kept. */
+    label: z.string().min(1).max(200).nullable(),
+    createdAt: z.iso.datetime(),
+    expiresAt: z.iso.datetime(),
+  })
+  .strict();
+export type TrustedDeviceDto = z.infer<typeof trustedDeviceSchema>;
+
+/** The devices that are neither revoked nor expired, the newest first. */
+export const trustedDeviceListSchema = z.object({ devices: z.array(trustedDeviceSchema) }).strict();
+export type TrustedDeviceListDto = z.infer<typeof trustedDeviceListSchema>;
+
+export const devicesRevokedSchema = z.object({ revoked: z.number().int().min(0) }).strict();
+export type DevicesRevokedDto = z.infer<typeof devicesRevokedSchema>;

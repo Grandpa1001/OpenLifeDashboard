@@ -195,11 +195,24 @@ export interface RecoveryCodeStore {
   discardAll(): void;
 }
 
+/** A trusted device as the owner sees it in the list; the token and its hash never leave the store. */
+export type TrustedDeviceSummary = Readonly<{
+  deviceId: string;
+  /** The browser as it called itself when the owner trusted it; null for a device trusted before names existed. */
+  label: string | null;
+  createdAtMs: number;
+  expiresAtMs: number;
+}>;
+
 /** Trusted devices (Architektura §9.3): a long-lived token whose hash is stored, expiring 30 days after creation. */
 export interface TrustedDeviceStore {
-  create(device: Readonly<{ deviceId: string; tokenHash: string; createdAtMs: number; expiresAtMs: number }>): void;
+  create(device: Readonly<{ deviceId: string; tokenHash: string; label: string | null; createdAtMs: number; expiresAtMs: number }>): void;
   /** The device of this token hash if it is not revoked and has not expired. Writes nothing. */
   findValid(tokenHash: string, nowMs: number): Readonly<{ deviceId: string }> | null;
+  /** The devices that are neither revoked nor expired, the newest first. Writes nothing. */
+  listValid(nowMs: number): readonly TrustedDeviceSummary[];
+  /** Revokes one valid device; false if there is none with this id (unknown, revoked or expired). */
+  revokeOne(deviceId: string, nowMs: number): boolean;
   /** Revokes every device (password reset, MFA reset); returns how many were still valid. */
   revokeAll(nowMs: number): number;
 }
@@ -301,6 +314,14 @@ export type ResetMfaPorts = Readonly<{
 /** The ports of the sessions page: the list, ending one session and ending all the others. */
 export type SessionManagementPorts = Readonly<{
   sessions: Pick<SessionStore, "findActive" | "listActiveOfOwner" | "deleteById" | "deleteAllButOne">;
+  access: IdentityAccessReader;
+  audit: AppendAudit;
+}>;
+
+/** The ports of the trusted devices page: the list, revoking one and revoking all. */
+export type DeviceManagementPorts = Readonly<{
+  sessions: Pick<SessionStore, "findActive">;
+  trusted: Pick<TrustedDeviceStore, "listValid" | "revokeOne" | "revokeAll">;
   access: IdentityAccessReader;
   audit: AppendAudit;
 }>;

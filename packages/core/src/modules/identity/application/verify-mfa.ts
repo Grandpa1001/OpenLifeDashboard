@@ -115,7 +115,7 @@ async function proveTotp(
     }
     const deviceExpiresAtMs = nowMs + TRUSTED_DEVICE_LIFETIME_MS;
     if (deviceToken !== null) {
-      ports.trusted.create({ deviceId: deps.newId(), tokenHash: deps.crypto.hashTrustedDeviceToken(deviceToken), createdAtMs: nowMs, expiresAtMs: deviceExpiresAtMs });
+      ports.trusted.create({ deviceId: deps.newId(), tokenHash: deps.crypto.hashTrustedDeviceToken(deviceToken), label: attempt.deviceLabel ?? null, createdAtMs: nowMs, expiresAtMs: deviceExpiresAtMs });
     }
     clearAccountBucket(ports, keys);
     ports.audit.append({

@@ -14,6 +14,9 @@ import type { AppEnv } from "../app-env.js";
 import { createSessionOperationKit } from "../session-operation.js";
 import { setSessionCookie } from "../session-cookie-http.js";
 
+/** The longest name kept for a trusted device (the column allows 200). */
+const DEVICE_LABEL_MAX_LENGTH = 200;
+
 export type MfaVerificationRouteDependencies = Readonly<{
   unit: UnitOfWork<VerificationPorts> & ReadUnit<VerificationPorts>;
   crypto: MfaCrypto;
@@ -42,7 +45,11 @@ export function registerMfaVerificationRoutes(app: Hono<AppEnv>, deps: MfaVerifi
     mfaAccountKey: deps.keys.mfaAccount,
   };
   /** Who is asking, for the audit and for the bucket of the client address. */
-  const attemptOf = (c: Context<AppEnv>) => ({ requestId: c.get("requestId"), ipKey: deps.keys.mfaIp(deps.clientIp(c)) });
+  const attemptOf = (c: Context<AppEnv>) => ({
+    requestId: c.get("requestId"),
+    ipKey: deps.keys.mfaIp(deps.clientIp(c)),
+    deviceLabel: c.req.header("User-Agent")?.trim().slice(0, DEVICE_LABEL_MAX_LENGTH) || null,
+  });
   const { guard, operation, refused } = createSessionOperationKit({ allowedOrigin: deps.allowedOrigin, cookies: deps.cookies, logger: deps.logger });
 
   /** The unit has committed: only now do the cookies of the proof reach the browser. */

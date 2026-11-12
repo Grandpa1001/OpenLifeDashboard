@@ -10,7 +10,7 @@ import { lockedFor, registerFailure, type BucketKeys } from "./lockout-buckets.j
 import type { EnrollmentPorts } from "../ports.js";
 
 /** What identifies a request beyond its session: the id for the audit, the hashed key of the client address. */
-export type RequestContext = Readonly<{ requestId: string; ipKey: string }>;
+export type RequestContext = Readonly<{ requestId: string; ipKey: string; /** The browser as it named itself, kept as the name of a device the owner trusts. */ deviceLabel?: string | null }>;
 
 export type FactorOperation = "enrollment_confirm" | "recovery_reissue" | "verify" | "recovery_code" | "step_up";
 
