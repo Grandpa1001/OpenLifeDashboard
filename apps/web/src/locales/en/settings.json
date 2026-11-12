@@ -282,6 +282,48 @@
       "passwordRefused": "The password is wrong.",
       "confirm": "Confirm",
       "cancel": "Cancel"
+    },
+    "password": {
+      "heading": "Password",
+      "hint": "Changing the password ends your other sessions and revokes the trusted devices. This session stays signed in.",
+      "current": "Current password",
+      "currentMissing": "Type the current password.",
+      "currentWrong": "The current password is not correct.",
+      "new": "New password",
+      "newHint": "At least {{min}} characters.",
+      "tooShort": "The new password needs at least {{min}} characters.",
+      "tooLong": "The new password can have at most {{max}} characters.",
+      "repeat": "New password again",
+      "mismatch": "The two new passwords are not the same.",
+      "submit": "Change password",
+      "changing": "Changing…",
+      "changed": "The password is changed. Your other sessions and the trusted devices were ended."
+    },
+    "recovery": {
+      "heading": "Recovery codes",
+      "hint": "Each recovery code signs you in once when you cannot use the authenticator app. New codes replace all the old ones at once.",
+      "remaining_one": "{{count}} recovery code is left.",
+      "remaining_other": "{{count}} recovery codes are left.",
+      "unavailable": "Recovery codes are used with the second factor, which is off.",
+      "generate": "Generate new codes",
+      "shown": "These are your new recovery codes. They are shown only now and the old ones no longer work.",
+      "listLabel": "New recovery codes",
+      "saved": "I have saved these codes in a safe place.",
+      "continue": "Continue",
+      "acknowledged": "The new recovery codes are saved."
+    },
+    "factor": {
+      "heading": "Second factor",
+      "on": "Sign-in asks for a TOTP code from the authenticator app.",
+      "off": "The second factor is off: the password alone protects the account.",
+      "restartHint": "Set TOTP up again if you changed phones or lost the app. The old secret, the recovery codes, the other sessions and the trusted devices stop working.",
+      "restart": "Set up TOTP again",
+      "turnOnHint": "Turn the second factor on by setting TOTP up.",
+      "turnOn": "Turn on the second factor",
+      "offWarning": "Without the second factor anyone who knows the password can sign in and read all of your data. Recovery codes and trusted devices are removed.",
+      "offRisk": "I understand that the password alone will protect the account.",
+      "turnOff": "Turn off the second factor",
+      "turnedOff": "The second factor is off. Your other sessions and the trusted devices were ended."
     }
   }
 }

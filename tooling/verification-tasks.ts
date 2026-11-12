@@ -4937,6 +4937,49 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.40: the protection of the account from the Security page.
+    id: "D43.8",
+    ready: true,
+    title: "The protection of the account in the interface: the password, the recovery codes and the second factor, and the path of the owner",
+    criteria: ["D43.8-AC1", "D43.8-AC2", "D43.8-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D43.8-AC1", "D43.8-AC2"],
+        description: "pnpm -r build: the sections of the password, the recovery codes and the second factor on the Security page",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/settings/components/password-section.tsx", "apps/web/src/features/settings/components/recovery-section.tsx", "apps/web/src/features/settings/components/factor-section.tsx"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D43.8-AC1", "D43.8-AC2"],
+        description: "pl and en have the same keys, including the texts of the three sections and their plural forms",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/settings.json", "apps/web/src/locales/en/settings.json"],
+      },
+      {
+        id: "settings-protection-e2e",
+        criteria: ["D43.8-AC1", "D43.8-AC2"],
+        description:
+          "Playwright on the built app: a mismatch, a short and a wrong current password are told at their fields and a right change ends the old password and the other sessions; new recovery codes are shown once, acknowledged on the page, the old ones stop and a new one signs in; setting TOTP up again leads to the enrollment; the factor is turned off only after the tick under the warning and the password is then the proof; the sections from the keyboard and axe",
+        command: ["node", "tests/verification/e2e.ts", "settings-protection.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/settings-protection.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D43.8-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the sessions, the devices, the password, the codes, the factor, the log, the page, the whole.
+  {
+    id: "D43",
+    ready: true,
+    title: "The security of the account: the sessions, the trusted devices, the password, the recovery codes, the second factor and the audit log, from the routes to the interface",
+    steps: ["D43.1", "D43.2", "D43.3", "D43.4", "D43.5", "D43.6", "D43.7", "D43.8"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

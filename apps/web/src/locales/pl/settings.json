@@ -286,6 +286,50 @@
       "passwordRefused": "Hasło jest nieprawidłowe.",
       "confirm": "Potwierdź",
       "cancel": "Anuluj"
+    },
+    "password": {
+      "heading": "Hasło",
+      "hint": "Zmiana hasła kończy pozostałe sesje i odwołuje zaufane urządzenia. Ta sesja pozostaje zalogowana.",
+      "current": "Obecne hasło",
+      "currentMissing": "Wpisz obecne hasło.",
+      "currentWrong": "Obecne hasło jest nieprawidłowe.",
+      "new": "Nowe hasło",
+      "newHint": "Co najmniej {{min}} znaków.",
+      "tooShort": "Nowe hasło musi mieć co najmniej {{min}} znaków.",
+      "tooLong": "Nowe hasło może mieć najwyżej {{max}} znaków.",
+      "repeat": "Nowe hasło jeszcze raz",
+      "mismatch": "Oba nowe hasła nie są takie same.",
+      "submit": "Zmień hasło",
+      "changing": "Zmieniam…",
+      "changed": "Hasło zostało zmienione. Pozostałe sesje i zaufane urządzenia zostały zakończone."
+    },
+    "recovery": {
+      "heading": "Kody zapasowe",
+      "hint": "Każdy kod zapasowy loguje jednorazowo, gdy nie możesz użyć aplikacji uwierzytelniającej. Nowe kody od razu zastępują wszystkie stare.",
+      "remaining_one": "Został {{count}} kod zapasowy.",
+      "remaining_few": "Zostały {{count}} kody zapasowe.",
+      "remaining_many": "Zostało {{count}} kodów zapasowych.",
+      "remaining_other": "Zostało {{count}} kodów zapasowych.",
+      "unavailable": "Kody zapasowe służą razem z drugim czynnikiem, który jest wyłączony.",
+      "generate": "Wygeneruj nowe kody",
+      "shown": "To są nowe kody zapasowe. Widać je tylko teraz, a stare przestały działać.",
+      "listLabel": "Nowe kody zapasowe",
+      "saved": "Zapisałem te kody w bezpiecznym miejscu.",
+      "continue": "Dalej",
+      "acknowledged": "Nowe kody zapasowe są zapisane."
+    },
+    "factor": {
+      "heading": "Drugi czynnik",
+      "on": "Logowanie pyta o kod TOTP z aplikacji uwierzytelniającej.",
+      "off": "Drugi czynnik jest wyłączony: konto chroni samo hasło.",
+      "restartHint": "Skonfiguruj TOTP od nowa, gdy zmieniasz telefon albo zgubiłeś aplikację. Stary sekret, kody zapasowe, pozostałe sesje i zaufane urządzenia przestają działać.",
+      "restart": "Skonfiguruj TOTP od nowa",
+      "turnOnHint": "Włącz drugi czynnik, konfigurując TOTP.",
+      "turnOn": "Włącz drugi czynnik",
+      "offWarning": "Bez drugiego czynnika każdy, kto zna hasło, może się zalogować i odczytać wszystkie dane. Kody zapasowe i zaufane urządzenia zostaną usunięte.",
+      "offRisk": "Rozumiem, że samo hasło będzie chronić konto.",
+      "turnOff": "Wyłącz drugi czynnik",
+      "turnedOff": "Drugi czynnik jest wyłączony. Pozostałe sesje i zaufane urządzenia zostały zakończone."
     }
   }
 }

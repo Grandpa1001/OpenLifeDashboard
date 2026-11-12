@@ -575,6 +575,9 @@ jobs:
       - name: Verify D42.3 (the translations of the catalog and the Settings walked from the keyboard)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D42.3
+      - name: Verify D43.8 (the password, the recovery codes and the second factor on the Security page)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D43.8
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1151,6 +1154,53 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: verification-stream
+          path: .artifacts/
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error
+
+  full-account:
+    # The security of the account: the parent D43 with its eight work orders, from the routes to the Security page.
+    name: verify:task (full tier, security of the account D43)
+    needs: changes
+    if: ${{ needs.changes.outputs.full == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
+      - name: Cache the Playwright browser
+        id: browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install the Playwright browser
+        if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install the system libraries of the cached browser
+        if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
+        run: pnpm exec playwright install-deps chromium
+      - name: Verify D43 (the parent, D43.1–D43.8 together)
+        run: pnpm verify:task -- D43
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-account
           path: .artifacts/
           include-hidden-files: true
           retention-days: 14
