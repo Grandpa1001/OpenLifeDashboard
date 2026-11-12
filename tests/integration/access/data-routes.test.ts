@@ -173,6 +173,7 @@ describe("D20.2 the table is the inventory", () => {
       "GET /api/v1/screens/:id",
       "GET /api/v1/security/audit",
       "GET /api/v1/security/devices",
+      "GET /api/v1/security/factor",
       "GET /api/v1/security/sessions",
       "GET /api/v1/settings",
       "GET /api/v1/stream",
@@ -283,6 +284,7 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     execute(setup.instance, `INSERT INTO trusted_device (id, token_hash, label, created_at_ms, expires_at_ms) VALUES ('${ids.device}', '${"a".repeat(64)}', 'Browser', ${Date.now()}, ${Date.now() + 86_400_000})`);
     await run(route("GET", "/security/devices"), ids);
     expect((await run(route("GET", "/security/audit"), ids)).status).toBe(200);
+    expect((await run(route("GET", "/security/factor"), ids)).status).toBe(200);
     expect((await run(route("DELETE", "/security/devices/:id"), ids)).status).toBe(204);
     expect((await run(route("POST", "/security/devices/revoke-all"), ids)).status).toBe(200);
     await run(route("GET", "/screens"), ids);

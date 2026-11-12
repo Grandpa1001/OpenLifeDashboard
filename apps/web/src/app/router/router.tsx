@@ -11,6 +11,7 @@ import { ScreensPage } from "../../features/dashboard/pages/screens-page.js";
 import { AppSettingsPage } from "../../features/settings/pages/app-page.js";
 import { AccountPage } from "../../features/settings/pages/account-page.js";
 import { SettingsLayout } from "../../features/settings/pages/settings-layout.js";
+import { SecurityPage } from "../../features/settings/pages/security-page.js";
 import { StylePage } from "../../features/settings/pages/style-page.js";
 import { RegistryPage } from "../../features/registers/pages/registry-page.js";
 import { StructurePage } from "../../features/registers/pages/structure-page.js";
@@ -203,6 +204,12 @@ const styleRoute = createRoute({
   component: StylePage,
 });
 
+const securityRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: "/security",
+  component: SecurityPage,
+});
+
 const appSettingsRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "/app",
@@ -282,7 +289,7 @@ export function createAppRouter(queryClient: QueryClient) {
       mfaRoute,
       setupRoute,
       designerRoute,
-      appRoute.addChildren([screensRoute, registersRoute, registryRoute, structureRoute, systemTableRoute, dictionariesRoute, configRoute, settingsRoute.addChildren([settingsIndexRoute, accountRoute, styleRoute, appSettingsRoute])]),
+      appRoute.addChildren([screensRoute, registersRoute, registryRoute, structureRoute, systemTableRoute, dictionariesRoute, configRoute, settingsRoute.addChildren([settingsIndexRoute, accountRoute, styleRoute, securityRoute, appSettingsRoute])]),
     ]),
     context: { queryClient },
     defaultPreload: false,

@@ -4,6 +4,7 @@
   "tabs": {
     "account": "Konto",
     "style": "Styl",
+    "security": "Bezpieczeństwo",
     "app": "Aplikacja"
   },
   "locale": {
@@ -136,5 +137,155 @@
     "warn": "Ostrzeżenia i błędy",
     "info": "Informacje (domyślnie)",
     "debug": "Szczegółowy (debug)"
+  },
+  "security": {
+    "heading": "Bezpieczeństwo",
+    "loadFailed": "Nie udało się wczytać tej sekcji.",
+    "unknown": "nieznane",
+    "actions": "Działania",
+    "sessions": {
+      "heading": "Sesje",
+      "hint": "Przeglądarki, w których jesteś zalogowany. Wylogowanie innej sesji działa od razu.",
+      "browser": "Przeglądarka",
+      "address": "Adres IP",
+      "admitted": "Przyjęta przez",
+      "started": "Rozpoczęta",
+      "lastProof": "Ostatnie potwierdzenie",
+      "current": "(ta sesja)",
+      "end": "Wyloguj",
+      "endOthers": "Wyloguj wszystkie inne",
+      "ended_one": "Zakończono {{count}} sesję.",
+      "ended_few": "Zakończono {{count}} sesje.",
+      "ended_many": "Zakończono {{count}} sesji.",
+      "ended_other": "Zakończono {{count}} sesji.",
+      "assurance": {
+        "password": "hasło",
+        "totp": "kod TOTP",
+        "trusted": "zaufane urządzenie",
+        "recovery": "kod zapasowy"
+      }
+    },
+    "devices": {
+      "heading": "Zaufane urządzenia",
+      "hint": "Na zaufanym urządzeniu logowanie nie pyta o kod TOTP. Odwołanie urządzenia wymaga kodu przy kolejnym logowaniu.",
+      "none": "Nie masz zaufanych urządzeń.",
+      "name": "Urządzenie",
+      "unnamed": "Urządzenie bez nazwy",
+      "created": "Zaufane od",
+      "expires": "Wygasa",
+      "revoke": "Odwołaj",
+      "revokeAll": "Odwołaj wszystkie",
+      "revoked_one": "Odwołano {{count}} urządzenie.",
+      "revoked_few": "Odwołano {{count}} urządzenia.",
+      "revoked_many": "Odwołano {{count}} urządzeń.",
+      "revoked_other": "Odwołano {{count}} urządzeń."
+    },
+    "audit": {
+      "heading": "Dziennik zdarzeń",
+      "hint": "Zdarzenia od najnowszych, po 50 na stronie. Zawiera rodzaje czynności i dozwolony kontekst, nigdy haseł, kodów ani tokenów.",
+      "kind": "Rodzaj zdarzeń",
+      "kinds": {
+        "all": "Wszystkie",
+        "logins": "Logowania",
+        "security": "Bezpieczeństwo",
+        "structure": "Struktura i konfiguracja",
+        "updates": "Aktualizacje"
+      },
+      "none": "Brak zdarzeń tego rodzaju.",
+      "when": "Kiedy",
+      "event": "Zdarzenie",
+      "address": "Adres IP",
+      "browser": "Przeglądarka",
+      "request": "Żądanie",
+      "pages": "Strony dziennika",
+      "previous": "Poprzednia",
+      "next": "Następna",
+      "pageOf": "Strona {{page}} z {{pages}}",
+      "actions": {
+        "login": {
+          "succeeded": "Zalogowano",
+          "failed": "Nieudane logowanie"
+        },
+        "mfa": {
+          "verified": "Drugi czynnik potwierdzony",
+          "step_up": "Potwierdzenie kodem TOTP",
+          "failed": "Błędny kod drugiego czynnika",
+          "recovery_used": "Użyto kodu zapasowego",
+          "enrollment_started": "Rozpoczęto konfigurację TOTP",
+          "enrolled": "Skonfigurowano TOTP",
+          "recovery_acknowledged": "Potwierdzono zapisanie kodów zapasowych",
+          "recovery_reissued": "Wydano kody zapasowe ponownie",
+          "recovery_regenerated": "Wygenerowano nowe kody zapasowe",
+          "restarted": "Skonfigurowano drugi czynnik od nowa",
+          "disabled": "Wyłączono drugi czynnik"
+        },
+        "password": {
+          "confirmed": "Potwierdzono hasło",
+          "confirm_failed": "Błędne potwierdzenie hasła",
+          "change_failed": "Nieudana zmiana hasła"
+        },
+        "owner": {
+          "created": "Utworzono konto właściciela",
+          "password_reset": "Zresetowano hasło (polecenie)",
+          "password_changed": "Zmieniono hasło",
+          "mfa_reset": "Zresetowano drugi czynnik (polecenie)"
+        },
+        "session": {
+          "revoked": "Zakończono sesję",
+          "revoked_others": "Zakończono pozostałe sesje"
+        },
+        "device": {
+          "revoked": "Odwołano zaufane urządzenie",
+          "revoked_all": "Odwołano wszystkie zaufane urządzenia"
+        },
+        "setup": {
+          "data_chosen": "Wybrano dane początkowe"
+        },
+        "settings": {
+          "preferences_saved": "Zapisano preferencje"
+        },
+        "setting": {
+          "changed": "Zmieniono opcję",
+          "reset": "Przywrócono domyślną opcję"
+        },
+        "registry": {
+          "created": "Utworzono rejestr",
+          "deleted": "Usunięto rejestr",
+          "restored": "Przywrócono rejestr",
+          "column_added": "Dodano kolumnę",
+          "column_removed": "Usunięto kolumnę",
+          "column_renamed": "Zmieniono nazwę kolumny",
+          "column_required_changed": "Zmieniono wymagalność kolumny",
+          "column_type_changed": "Zmieniono typ kolumny"
+        },
+        "dictionary": {
+          "created": "Utworzono słownik",
+          "updated": "Zmieniono słownik",
+          "deleted": "Usunięto słownik"
+        },
+        "config": {
+          "created": "Dodano wpis ConfigTable",
+          "updated": "Zmieniono wpis ConfigTable",
+          "deleted": "Usunięto wpis ConfigTable"
+        },
+        "screen": {
+          "created": "Utworzono pulpit",
+          "design_saved": "Zapisano projekt pulpitu"
+        }
+      }
+    },
+    "stepUp": {
+      "codeHeading": "Potwierdź kodem TOTP",
+      "codeText": "To działanie wymaga świeżego kodu z aplikacji uwierzytelniającej. Kod użyty wcześniej nie zadziała: poczekaj na następny.",
+      "codeLabel": "Kod TOTP",
+      "codeMalformed": "Wpisz sześć cyfr.",
+      "codeRefused": "Kod jest nieprawidłowy albo został już użyty.",
+      "passwordHeading": "Potwierdź hasłem",
+      "passwordText": "Drugi czynnik jest wyłączony, więc to działanie wymaga hasła wpisanego przed chwilą.",
+      "passwordLabel": "Hasło",
+      "passwordRefused": "Hasło jest nieprawidłowe.",
+      "confirm": "Potwierdź",
+      "cancel": "Anuluj"
+    }
   }
 }

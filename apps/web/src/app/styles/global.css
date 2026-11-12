@@ -1749,3 +1749,61 @@ main.pulpit {
   align-items: flex-start;
   max-width: 32rem;
 }
+
+/* The Security page (D43.7): the tables of sessions, devices and the audit log, the pages of the log and the step-up dialog. */
+.table-scroll {
+  overflow-x: auto;
+}
+
+.security-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-block: var(--space-3);
+  font-size: var(--text-small, 0.875rem);
+}
+
+.security-table th,
+.security-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+  font-weight: inherit;
+}
+
+.security-table thead th {
+  font-weight: 600;
+}
+
+.security-table code {
+  font-size: 0.8em;
+  word-break: break-all;
+}
+
+.security-current {
+  color: var(--color-accent);
+}
+
+.security-pages {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  margin-block: var(--space-3);
+}
+
+.step-up {
+  max-width: 28rem;
+  margin: auto;
+  /* A dialog element brings the colours of the system: the text of the app, not its own. */
+  color: var(--color-text);
+}
+
+.step-up::backdrop {
+  background: rgb(0 0 0 / 60%);
+}
+
+.step-up-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}

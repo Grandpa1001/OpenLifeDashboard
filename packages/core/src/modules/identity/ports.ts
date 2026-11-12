@@ -199,6 +199,8 @@ export interface RecoveryCodeStore {
   consume(request: Readonly<{ hash: string; nowMs: number }>): Readonly<{ remaining: number }> | null;
   /** Removes every code, used or not (`reset-mfa`). */
   discardAll(): void;
+  /** How many codes of the current batch are still unused. Writes nothing. */
+  remaining(): number;
 }
 
 /** A trusted device as the owner sees it in the list; the token and its hash never leave the store. */
@@ -372,4 +374,12 @@ export type ConfirmPasswordPorts = Readonly<{
   mfa: Pick<MfaStore, "read">;
   access: IdentityAccessReader;
   audit: AppendAudit;
+}>;
+
+/** The ports of reading the state of the second factor for the Security page (Scope §5.9; D43.7). */
+export type FactorStatusPorts = Readonly<{
+  sessions: Pick<SessionStore, "findActive">;
+  mfa: Pick<MfaStore, "read">;
+  recovery: Pick<RecoveryCodeStore, "remaining">;
+  access: IdentityAccessReader;
 }>;

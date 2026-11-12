@@ -4,6 +4,7 @@
   "tabs": {
     "account": "Account",
     "style": "Style",
+    "security": "Security",
     "app": "Application"
   },
   "locale": {
@@ -136,5 +137,151 @@
     "warn": "Warnings and errors",
     "info": "Information (default)",
     "debug": "Detailed (debug)"
+  },
+  "security": {
+    "heading": "Security",
+    "loadFailed": "This section could not be loaded.",
+    "unknown": "unknown",
+    "actions": "Actions",
+    "sessions": {
+      "heading": "Sessions",
+      "hint": "The browsers you are signed in on. Ending another session takes effect at once.",
+      "browser": "Browser",
+      "address": "IP address",
+      "admitted": "Admitted by",
+      "started": "Started",
+      "lastProof": "Last confirmation",
+      "current": "(this session)",
+      "end": "Sign out",
+      "endOthers": "Sign out all others",
+      "ended_one": "Ended {{count}} session.",
+      "ended_other": "Ended {{count}} sessions.",
+      "assurance": {
+        "password": "password",
+        "totp": "TOTP code",
+        "trusted": "trusted device",
+        "recovery": "recovery code"
+      }
+    },
+    "devices": {
+      "heading": "Trusted devices",
+      "hint": "On a trusted device sign-in does not ask for a TOTP code. After a device is revoked the code is asked for again.",
+      "none": "You have no trusted devices.",
+      "name": "Device",
+      "unnamed": "Unnamed device",
+      "created": "Trusted since",
+      "expires": "Expires",
+      "revoke": "Revoke",
+      "revokeAll": "Revoke all",
+      "revoked_one": "Revoked {{count}} device.",
+      "revoked_other": "Revoked {{count}} devices."
+    },
+    "audit": {
+      "heading": "Audit log",
+      "hint": "Events newest first, fifty to a page. It holds kinds of actions and permitted context, never passwords, codes or tokens.",
+      "kind": "Kind of events",
+      "kinds": {
+        "all": "All",
+        "logins": "Sign-ins",
+        "security": "Security",
+        "structure": "Structure and configuration",
+        "updates": "Updates"
+      },
+      "none": "No events of this kind.",
+      "when": "When",
+      "event": "Event",
+      "address": "IP address",
+      "browser": "Browser",
+      "request": "Request",
+      "pages": "Log pages",
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {{page}} of {{pages}}",
+      "actions": {
+        "login": {
+          "succeeded": "Signed in",
+          "failed": "Failed sign-in"
+        },
+        "mfa": {
+          "verified": "Second factor confirmed",
+          "step_up": "Confirmed with a TOTP code",
+          "failed": "Wrong second-factor code",
+          "recovery_used": "Recovery code used",
+          "enrollment_started": "TOTP setup started",
+          "enrolled": "TOTP set up",
+          "recovery_acknowledged": "Recovery codes saved",
+          "recovery_reissued": "Recovery codes issued again",
+          "recovery_regenerated": "New recovery codes generated",
+          "restarted": "Second factor set up again",
+          "disabled": "Second factor turned off"
+        },
+        "password": {
+          "confirmed": "Password confirmed",
+          "confirm_failed": "Wrong password confirmation",
+          "change_failed": "Failed password change"
+        },
+        "owner": {
+          "created": "Owner account created",
+          "password_reset": "Password reset (command)",
+          "password_changed": "Password changed",
+          "mfa_reset": "Second factor reset (command)"
+        },
+        "session": {
+          "revoked": "Session ended",
+          "revoked_others": "Other sessions ended"
+        },
+        "device": {
+          "revoked": "Trusted device revoked",
+          "revoked_all": "All trusted devices revoked"
+        },
+        "setup": {
+          "data_chosen": "Starting data chosen"
+        },
+        "settings": {
+          "preferences_saved": "Preferences saved"
+        },
+        "setting": {
+          "changed": "Option changed",
+          "reset": "Option reset to its default"
+        },
+        "registry": {
+          "created": "Registry created",
+          "deleted": "Registry deleted",
+          "restored": "Registry restored",
+          "column_added": "Column added",
+          "column_removed": "Column removed",
+          "column_renamed": "Column renamed",
+          "column_required_changed": "Column requirement changed",
+          "column_type_changed": "Column type changed"
+        },
+        "dictionary": {
+          "created": "Dictionary created",
+          "updated": "Dictionary changed",
+          "deleted": "Dictionary deleted"
+        },
+        "config": {
+          "created": "ConfigTable entry added",
+          "updated": "ConfigTable entry changed",
+          "deleted": "ConfigTable entry deleted"
+        },
+        "screen": {
+          "created": "Dashboard created",
+          "design_saved": "Dashboard design saved"
+        }
+      }
+    },
+    "stepUp": {
+      "codeHeading": "Confirm with a TOTP code",
+      "codeText": "This action needs a fresh code from your authenticator app. A code used before will not work: wait for the next one.",
+      "codeLabel": "TOTP code",
+      "codeMalformed": "Enter six digits.",
+      "codeRefused": "The code is wrong or has already been used.",
+      "passwordHeading": "Confirm with your password",
+      "passwordText": "The second factor is off, so this action needs the password typed just now.",
+      "passwordLabel": "Password",
+      "passwordRefused": "The password is wrong.",
+      "confirm": "Confirm",
+      "cancel": "Cancel"
+    }
   }
 }

@@ -41,6 +41,10 @@ export const SECURITY_AUDIT_PATH = "/api/v1/security/audit";
 /** The kinds the log is filtered by; the core module of the audit holds the same list and a test keeps them equal. */
 export const AUDIT_KIND_NAMES = ["logins", "security", "structure", "updates"] as const;
 
+/** `GET` reads the state of the second factor: in force, off, or to be set up again; and the recovery codes left. */
+export const SECURITY_FACTOR_PATH = "/api/v1/security/factor";
+export const MFA_POLICIES = ["required", "disabled", "reset_required"] as const;
+
 export const SESSION_ASSURANCES = ["password", "totp", "trusted", "recovery"] as const;
 
 export const securitySessionSchema = z
@@ -142,3 +146,6 @@ export const auditLogSchema = z
   .object({ entries: z.array(auditEntrySchema), page: z.number().int().min(1), pageSize: z.number().int().min(1), total: z.number().int().min(0) })
   .strict();
 export type AuditLogDto = z.infer<typeof auditLogSchema>;
+
+export const factorStatusSchema = z.object({ policy: z.enum(MFA_POLICIES), recoveryCodesRemaining: z.number().int().min(0) }).strict();
+export type FactorStatusDto = z.infer<typeof factorStatusSchema>;

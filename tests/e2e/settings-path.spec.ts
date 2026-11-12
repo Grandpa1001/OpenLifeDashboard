@@ -44,7 +44,7 @@ test.describe("D42.3-AC2 the owner walks the three pages of the Settings with th
     await follow(page, page.getByRole("navigation", { name: text(common, "appBar.navigation") }).getByRole("link", { name: text(common, "appBar.settings") }));
     await expect(page).toHaveURL(`${owner.baseUrl}/settings/account`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(text(settings, "title"));
-    await expect(sections(page).getByRole("link")).toHaveCount(3);
+    await expect(sections(page).getByRole("link")).toHaveCount(4);
 
     // Account: the zone is typed, Tab leaves the field for the language, Enter saves the form.
     const zone = page.getByLabel(text(settings, "account.timezoneLabel"), { exact: true });

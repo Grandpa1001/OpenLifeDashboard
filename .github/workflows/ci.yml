@@ -569,6 +569,9 @@ jobs:
       - name: Verify D42.2 (the format of dates and the advanced options of the application)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D42.2
+      - name: Verify D43.7 (the Security page, the sessions, the devices, the audit log and the dialog of the proof)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D43.7
       - name: Verify D42.3 (the translations of the catalog and the Settings walked from the keyboard)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D42.3

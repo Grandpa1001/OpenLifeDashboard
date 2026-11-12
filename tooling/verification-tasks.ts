@@ -4895,6 +4895,48 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.40: the Security page of the settings.
+    id: "D43.7",
+    ready: true,
+    title: "The Security page: the sessions, the trusted devices and the audit log, and the dialog of the proof of a fresh second factor",
+    criteria: ["D43.7-AC1", "D43.7-AC2", "D43.7-regression"],
+    checks: [
+      {
+        // Runs first: the tests import the built packages and the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D43.7-AC1", "D43.7-AC2"],
+        description: "pnpm -r build: the state of the factor on the server, and the Security page, its sections and the dialog of the proof",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/identity/application/read-factor-status.ts", "apps/web/src/features/settings/pages/security-page.tsx", "apps/web/src/features/settings/components/step-up.tsx"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D43.7-AC1", "D43.7-AC2"],
+        description: "pl and en have the same keys, including the texts of the page, the names of the events of the log and the dialog",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/settings.json", "apps/web/src/locales/en/settings.json"],
+      },
+      {
+        id: "factor-status-http",
+        criteria: ["D43.7-AC2"],
+        description: "HTTP: the state of the second factor is private, tells in force, off or to be set up again with the recovery codes left and holds no secret; the route inventory and the access table with the new route",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/security/mfa-management-http.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts"],
+        requires: ["tests/integration/security/mfa-management-http.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "settings-security-e2e",
+        criteria: ["D43.7-AC1", "D43.7-AC2"],
+        description:
+          "Playwright on the built app: the sessions with their browser, address and admission, the own one marked and without a button, another ended at once with its cookie dead; a trusted device listed and revoked; the audit log fifty to a page with the address and the browser, filtered by kind from the first page; the dialog of the proof (Escape leaves the action undone, a malformed and a wrong code are told at the field, the right one does the action and the page keeps its choice); axe on the page and the dialog; the keyboard",
+        command: ["node", "tests/verification/e2e.ts", "settings-security.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/settings-security.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D43.7-regression"),
+    ],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

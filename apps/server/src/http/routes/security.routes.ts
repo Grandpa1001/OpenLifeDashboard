@@ -10,6 +10,7 @@ import {
   confirmPasswordRequestSchema,
   disableMfaRequestSchema,
   factorChangedSchema,
+  factorStatusSchema,
   factorRestartedSchema,
   SECURITY_MFA_DISABLE_PATH,
   SECURITY_MFA_RESTART_PATH,
@@ -17,6 +18,7 @@ import {
   passwordChangedSchema,
   revokeSessionRequestSchema,
   SECURITY_AUDIT_PATH,
+  SECURITY_FACTOR_PATH,
   SECURITY_PASSWORD_PATH,
   SECURITY_RECOVERY_CODES_PATH,
   SECURITY_DEVICE_PATH,
@@ -35,6 +37,7 @@ import {
   confirmOwnerPassword,
   disableSecondFactor,
   readAuditLog,
+  readFactorStatus,
   restartSecondFactor,
   regenerateRecoveryCodes,
   listOwnerSessions,
@@ -45,6 +48,7 @@ import {
   revokeTrustedDevice,
   type ChangePasswordDependencies,
   type AuditLogDependencies,
+  type FactorStatusDependencies,
   type ConfirmPasswordDependencies,
   type FactorManagementDependencies,
   type DeviceManagementDependencies,
@@ -61,7 +65,7 @@ import { createSessionOperationKit } from "../session-operation.js";
 import { setSessionCookie } from "../session-cookie-http.js";
 
 export type SecurityRouteDependencies = Readonly<{
-  unit: SessionManagementDependencies["unit"] & DeviceManagementDependencies["unit"] & ChangePasswordDependencies["unit"] & RegenerateRecoveryDependencies["unit"] & FactorManagementDependencies["unit"] & ConfirmPasswordDependencies["unit"] & AuditLogDependencies["unit"];
+  unit: SessionManagementDependencies["unit"] & DeviceManagementDependencies["unit"] & ChangePasswordDependencies["unit"] & RegenerateRecoveryDependencies["unit"] & FactorManagementDependencies["unit"] & ConfirmPasswordDependencies["unit"] & AuditLogDependencies["unit"] & FactorStatusDependencies["unit"];
   cookies: SignedCookie;
   allowedOrigin: string;
   secureCookies: boolean;
@@ -84,6 +88,7 @@ export function registerSecurityRoutes(app: Hono<AppEnv>, deps: SecurityRouteDep
   const sessions: SessionManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs };
   const devices: DeviceManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs };
   const recovery: RegenerateRecoveryDependencies = { unit: deps.unit, crypto: deps.crypto, nowMs: deps.nowMs, newId: deps.newId };
+  const factorStatus: FactorStatusDependencies = { unit: deps.unit, nowMs: deps.nowMs };
   const trail: AuditLogDependencies = { unit: deps.unit, nowMs: deps.nowMs };
   const factor: FactorManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs, newSessionId: deps.newId, newSessionToken: deps.newSessionToken };
   const confirmation: ConfirmPasswordDependencies = {
@@ -244,6 +249,14 @@ export function registerSecurityRoutes(app: Hono<AppEnv>, deps: SecurityRouteDep
       if (!query.success) return apiErrorResponse(c, 422, "VALIDATION_FAILED");
       const result = readAuditLog(trail, token, { page: query.data.page, ...(query.data.kind === undefined ? {} : { kind: query.data.kind }) }, c.get("requestId"));
       return result.ok ? c.json(auditLogSchema.parse(result.value)) : refused(c, result.error);
+    }),
+  );
+
+  app.get(
+    SECURITY_FACTOR_PATH,
+    read((c, token) => {
+      const result = readFactorStatus(factorStatus, token, c.get("requestId"));
+      return result.ok ? c.json(factorStatusSchema.parse(result.value)) : refused(c, result.error);
     }),
   );
 }

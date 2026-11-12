@@ -13,6 +13,8 @@ import { issuedRecoveryCodesSchema } from "@openlife/contracts/http/mfa";
 import {
   factorChangedSchema,
   factorRestartedSchema,
+  factorStatusSchema,
+  SECURITY_FACTOR_PATH,
   SECURITY_DEVICES_PATH,
   SECURITY_MFA_DISABLE_PATH,
   SECURITY_MFA_RESTART_PATH,
@@ -50,6 +52,27 @@ async function owner() {
 }
 
 const DISABLE = { acknowledgeRisk: true };
+
+describe("D43.7 the state of the factor the Security page reads", () => {
+  it("is private, tells in force, off and to be set up again with the recovery codes left, and holds no secret", async () => {
+    const { h, a, issued, post } = await owner();
+    expect((await h.request("GET", SECURITY_FACTOR_PATH, undefined, { cookie: null })).status).toBe(401);
+    const read = async (cookie: string) => factorStatusSchema.parse((await h.request("GET", SECURITY_FACTOR_PATH, undefined, { cookie })).json());
+    expect(await read(a)).toEqual({ policy: "required", recoveryCodesRemaining: 9 });
+    expect(issued.recoveryCodes).toHaveLength(10);
+    expect(JSON.stringify(await read(a))).not.toMatch(/secret|code[^s]/i);
+
+    const restarted = await post(SECURITY_MFA_RESTART_PATH, a);
+    // After a restart the session has no factor: the state is not for it until the enrollment is done.
+    expect((await h.request("GET", SECURITY_FACTOR_PATH, undefined, { cookie: restarted.cookie })).status).toBe(403);
+  });
+
+  it("tells a factor that is off with no codes", async () => {
+    const { h, a, post } = await owner();
+    expect((await post(SECURITY_MFA_DISABLE_PATH, a, DISABLE)).status).toBe(200);
+    expect(factorStatusSchema.parse((await h.request("GET", SECURITY_FACTOR_PATH, undefined, { cookie: a })).json())).toEqual({ policy: "disabled", recoveryCodesRemaining: 0 });
+  });
+});
 
 describe("D43.5-AC1 setting the factor up again", () => {
   it("answers 401 without a session and 403 for a foreign Origin, and turning off needs the acknowledgment of the risk", async () => {
