@@ -5098,6 +5098,32 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.41: the `doctor` command.
+    id: "D44.4",
+    ready: true,
+    title: "The doctor command: offline and online checks that repair and publish nothing",
+    criteria: ["D44.4-AC1", "D44.4-AC2", "D44.4-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the built command and the built server.
+        id: "workspace-build",
+        criteria: ["D44.4-AC1", "D44.4-AC2"],
+        description: "pnpm -r build: the checks of doctor and its entry",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/cli/doctor.ts", "apps/server/src/cli/doctor-checks.ts", "apps/server/src/cli/doctor-constants.ts"],
+      },
+      {
+        id: "doctor-cli",
+        criteria: ["D44.4-AC1", "D44.4-AC2"],
+        description: "The built command: a healthy installation passes and nothing changes, also with the app running; the online check tells an app that is gone, unavailable, answering otherwise and a wrong address; a missing environment, metadata, database, folder, a foreign database are failures with a code and field names, the log folder a warning, nothing is repaired, no value is printed, a wrong command line is 2",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/diagnostics/doctor-cli.test.ts"],
+        requires: ["tests/integration/diagnostics/doctor-cli.test.ts", "tests/support/server-process.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D44.4-regression"),
+    ],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",
