@@ -11,6 +11,7 @@
 //      the planned route (export) is not registered and are reported as not_run.
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { issuedRecoveryCodesSchema } from "@openlife/contracts/http/mfa";
 import { securitySessionListSchema } from "@openlife/contracts/http/security";
 import { apiErrorSchema } from "@openlife/contracts/http/errors";
 import { registryListSchema, REGISTRIES_PATH, structurePath, structurePreviewPath, structurePreviewSchema } from "@openlife/contracts/http/registries";
@@ -77,6 +78,7 @@ function requestOf(route: RouteEntry, design: unknown, planToken = "a-plan-that-
     case "DELETE /api/v1/settings/:key":
     case "DELETE /api/v1/security/sessions/:id":
     case "DELETE /api/v1/security/devices/:id":
+    case "POST /api/v1/security/recovery-codes":
     case "POST /api/v1/security/devices/revoke-all":
     case "POST /api/v1/security/sessions/revoke-others":
       return { body: {}, headers: {} };
@@ -183,6 +185,7 @@ describe("D20.2 the table is the inventory", () => {
       "POST /api/v1/screens",
       "POST /api/v1/security/devices/revoke-all",
       "POST /api/v1/security/password",
+      "POST /api/v1/security/recovery-codes",
       "POST /api/v1/security/sessions/revoke-others",
       "PUT /api/v1/config/:symbol",
       "PUT /api/v1/dictionaries/:symbol",
@@ -289,6 +292,10 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     const renamed = await send(server, "POST", structurePath("waga"), { change: kg, planToken }, { cookie: session });
     answered.set("POST /api/v1/registries/:symbol/structure", renamed.status);
     expect(renamed.status).toBe(200);
+    // The recovery codes: a new batch is made and acknowledged at once, so the states below are as they were.
+    const regenerated = await run(route("POST", "/security/recovery-codes"), ids);
+    expect(regenerated.status).toBe(200);
+    expect((await ack(server, session, issuedRecoveryCodesSchema.parse(regenerated.json()).batchId)).status).toBe(200);
     // The password: changed to the same one so that the sign-ins below still work; the session of the change is replaced.
     expect((await run(route("POST", "/security/password"), ids)).status).toBe(200);
     expect([...answered.keys()].sort(), "every data route has its positive control").toEqual(DATA_ROUTES.map(keyOf).sort());

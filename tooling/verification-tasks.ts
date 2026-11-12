@@ -4779,6 +4779,47 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.40: the recovery codes of a complete enrollment and the options that ask for a second factor.
+    id: "D43.4",
+    ready: true,
+    title: "Regenerating the recovery codes with a fresh second factor, and the application options that ask for one",
+    criteria: ["D43.4-AC1", "D43.4-AC2", "D43.4-regression"],
+    checks: [
+      {
+        // Runs first: the tests run the in-process app on the built packages.
+        id: "workspace-build",
+        criteria: ["D43.4-AC1", "D43.4-AC2"],
+        description: "pnpm -r build: the use case of the new batch, its route, and the options that ask for a second factor",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/identity/application/regenerate-recovery.ts", "packages/core/src/modules/settings/application/app-settings.ts", "apps/server/src/http/routes/security.routes.ts"],
+      },
+      {
+        id: "recovery-codes-http",
+        criteria: ["D43.4-AC1", "D43.4-AC2"],
+        description:
+          "HTTP: no session is 401 and a foreign Origin 403; a session admitted by a recovery code is refused STEP_UP_REQUIRED and its codes keep working; with the second factor off there are no codes to make; with a fresh TOTP ten new codes are shown once and every old one dies, the data wait for the acknowledgment of the new batch (a late acknowledgment of the old one is RECOVERY_BATCH_CHANGED), the new codes work, only hashes are stored and the audit and the log hold no code",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/security/recovery-codes-http.test.ts"],
+        requires: ["tests/integration/security/recovery-codes-http.test.ts", "tests/support/app-harness.ts", "tests/support/auth-http.ts"],
+      },
+      {
+        id: "settings-step-up",
+        criteria: ["D43.4-AC2"],
+        description: "HTTP: an option that asks for a second factor is changed and reset with a fresh TOTP and refused STEP_UP_REQUIRED, with nothing written, when the factor was proven ten minutes ago; the locks of the environment, the read-only options and the limits as before",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/settings/settings-http.test.ts"],
+        requires: ["tests/integration/settings/settings-http.test.ts", "tests/support/harness-owner.ts", "tests/support/app-harness.ts"],
+      },
+      {
+        id: "data-routes",
+        criteria: ["D43.4-AC1"],
+        description: "The route inventory and the access table of D13.1 and D20.2 with the new route: refused in every state before the gate and answering the owner past it",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts"],
+        requires: ["tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D43.4-regression"),
+    ],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

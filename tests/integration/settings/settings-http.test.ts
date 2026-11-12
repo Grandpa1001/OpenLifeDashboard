@@ -79,7 +79,9 @@ describe("D41.3-AC1 the routes of the options", () => {
   });
 
   it("refuses an option locked by the environment, a read-only one and one that asks for a second factor, and a reset does not get round the lock", async () => {
-    const { call, optionOf } = await owner({ environment: { "limits.importMaxMiB": 200 } });
+    const { h, call, optionOf } = await owner({ environment: { "limits.importMaxMiB": 200 } });
+    // The second factor of this session was proven ten minutes ago: no longer fresh (D43.4).
+    h.sql("UPDATE session_ext SET totp_verified_at_ms = totp_verified_at_ms - 600000");
     const locked = await call("PATCH", SETTINGS_PATH, { values: { "limits.importMaxMiB": 300 } });
     expect([locked.status, issuesOf(locked).details]).toEqual([422, { issues: [{ path: "values.limits.importMaxMiB", code: "SETTING_LOCKED_BY_ENV" }] }]);
     const readOnly = await call("PATCH", SETTINGS_PATH, { values: { "limits.jsonBodyKiB": 512 } });
@@ -93,6 +95,30 @@ describe("D41.3-AC1 the routes of the options", () => {
     expect(reset.json()).toMatchObject({ key: "limits.importMaxMiB", value: 200, source: "env", editable: false });
     expect((await call("DELETE", settingPath("no.such.option"), {})).status).toBe(404);
     expect((await call("DELETE", settingPath("audit.retentionDays"), {})).status).toBe(403);
+  });
+
+  it("an option that asks for a second factor changes and resets with a fresh one, and with an old one nothing is written", async () => {
+    const { h, call, optionOf } = await owner();
+    expect(await optionOf("backup.nightlyKeep")).toMatchObject({ stepUp: true, source: "default" });
+    const changed = await call("PATCH", SETTINGS_PATH, { values: { "backup.nightlyKeep": 20 } });
+    expect(changed.status).toBe(200);
+    expect(await optionOf("backup.nightlyKeep")).toMatchObject({ value: 20, source: "db" });
+    const audit = h.rows<{ action: string; details: string }>("SELECT action, details FROM audit_log WHERE action = 'setting.changed' AND entity_id = 'backup.nightlyKeep'");
+    expect(audit).toHaveLength(1);
+
+    // The factor is proven ten minutes ago: the change and the reset are refused and the value stays.
+    h.sql("UPDATE session_ext SET totp_verified_at_ms = totp_verified_at_ms - 600000");
+    for (const [method, route, body] of [["PATCH", SETTINGS_PATH, { values: { "backup.nightlyKeep": 30 } }], ["DELETE", settingPath("backup.nightlyKeep"), {}]] as const) {
+      const refused = await call(method, route, body);
+      expect([method, refused.status, issuesOf(refused).code]).toEqual([method, 403, "STEP_UP_REQUIRED"]);
+    }
+    expect(await optionOf("backup.nightlyKeep")).toMatchObject({ value: 20, source: "db" });
+
+    // Fresh again: the reset gives the default back.
+    h.sql("UPDATE session_ext SET totp_verified_at_ms = totp_verified_at_ms + 600000");
+    const reset = await call("DELETE", settingPath("backup.nightlyKeep"), {});
+    expect(reset.status).toBe(200);
+    expect(await optionOf("backup.nightlyKeep")).toMatchObject({ source: "default" });
   });
 
   it("a reset gives the default back", async () => {

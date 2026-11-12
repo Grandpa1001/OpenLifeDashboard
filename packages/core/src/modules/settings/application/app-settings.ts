@@ -5,7 +5,7 @@
 // wants or nothing is written.
 import { DomainFault, type Commit, type ReadUnit, type Result, type UnitOfWork } from "../../../foundation/public.js";
 import type { AppendAudit } from "../../audit/public.js";
-import { decideAccess, resolveSessionAccess, type IdentityAccessReader, type SessionStore } from "../../identity/public.js";
+import { decideAccess, resolveSessionAccess, type AccessOperation, type IdentityAccessReader, type SessionStore } from "../../identity/public.js";
 import { acceptsSettingValue, resolveSettings } from "../domain/resolve-settings.js";
 import type { EffectiveSetting, SettingDefinition, SettingOverrides } from "../domain/types.js";
 import type { AppSettingStore } from "../ports.js";
@@ -27,15 +27,15 @@ export type AppSettingsDependencies = Readonly<{
 
 type Gate = Pick<AppSettingsPorts, "sessions" | "access">;
 
-function ownerOf(ports: Gate, token: string, nowMs: number, requestId: string): Result<string> {
+function ownerOf(ports: Gate, token: string, nowMs: number, requestId: string, operation: AccessOperation = "data"): Result<string> {
   const access = resolveSessionAccess(ports, token, nowMs, requestId);
   if (access === null) return { ok: false, error: { code: "AUTH_REQUIRED" } };
-  const decision = decideAccess(access.snapshot, "data", nowMs);
+  const decision = decideAccess(access.snapshot, operation, nowMs);
   return decision.allow ? { ok: true, value: access.session.ownerId } : { ok: false, error: { code: decision.code } };
 }
 
-function writerOf(ports: Gate, token: string, nowMs: number, requestId: string): string {
-  const owner = ownerOf(ports, token, nowMs, requestId);
+function writerOf(ports: Gate, token: string, nowMs: number, requestId: string, operation: AccessOperation = "data"): string {
+  const owner = ownerOf(ports, token, nowMs, requestId, operation);
   if (!owner.ok) throw new DomainFault(owner.error);
   return owner.value;
 }
@@ -66,8 +66,9 @@ const issue = (key: string, code: string) => ({ path: `values.${key}`, code });
  * Changes one or more options at once. Unknown keys, a value of the wrong type or outside the range,
  * an option the owner may not change and one locked by the environment are all reported with their
  * paths and codes and nothing is written. A set that breaks a rule between options (the record limit
- * and the body limit) is refused as a whole. An option that asks for a fresh second factor is refused
- * with `STEP_UP_REQUIRED` until the step-up exists (D43). The audit keeps the old and the new value.
+ * and the body limit) is refused as a whole. An option that asks for a fresh second factor changes only
+ * for a session that has one (the policy's `step_up`, D43.4): any other session is refused with the
+ * policy's code, `STEP_UP_REQUIRED`, and nothing is written. The audit keeps the old and the new value.
  */
 export function patchAppSettings(deps: AppSettingsDependencies, token: string, input: unknown, requestId: string): Result<readonly EffectiveSetting[]> {
   const nowMs = deps.nowMs();
@@ -96,7 +97,7 @@ export function patchAppSettings(deps: AppSettingsDependencies, token: string, i
       const named = fields.length > 0 ? fields : Object.keys(values);
       throw new DomainFault({ code: "VALIDATION_FAILED", fields: named.map((key) => `values.${key}`), issues: named.map((key) => issue(key, "SETTING_CONFLICT")) });
     }
-    if (Object.keys(values).some((key) => byKey.get(key)?.stepUp === true)) throw new DomainFault({ code: "STEP_UP_REQUIRED" });
+    if (Object.keys(values).some((key) => byKey.get(key)?.stepUp === true)) writerOf(ports, token, nowMs, requestId, "step_up");
 
     const nowIso = new Date(nowMs).toISOString();
     ports.appSettings.writeMany(values, nowMs);
@@ -113,7 +114,7 @@ export function patchAppSettings(deps: AppSettingsDependencies, token: string, i
  * Takes the stored value of an option away, so it is the default again. An option locked by the
  * environment stays at the value of the environment: the reset removes the stored override and does
  * not get round the lock, and the answer shows the lock. An option that asks for a fresh second factor
- * is refused like its change.
+ * is reset only with the same fresh second factor as its change.
  */
 export function resetAppSetting(deps: AppSettingsDependencies, token: string, key: string, requestId: string): Result<EffectiveSetting> {
   const nowMs = deps.nowMs();
@@ -121,7 +122,7 @@ export function resetAppSetting(deps: AppSettingsDependencies, token: string, ke
     const ownerId = writerOf(ports, token, nowMs, requestId);
     const definition = deps.catalog.find((candidate) => candidate.key === key);
     if (definition === undefined) throw new DomainFault({ code: "NOT_FOUND" });
-    if (definition.stepUp === true) throw new DomainFault({ code: "STEP_UP_REQUIRED" });
+    if (definition.stepUp === true) writerOf(ports, token, nowMs, requestId, "step_up");
     const before = effective(deps, ports.appSettings.readAll()).find((setting) => setting.key === key);
     if (ports.appSettings.remove(key)) {
       ports.audit.append({ ownerId, action: "setting.reset", entityId: key, at: new Date(nowMs).toISOString(), requestId, details: { key, oldValue: before?.value ?? null } });

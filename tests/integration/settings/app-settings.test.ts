@@ -5,7 +5,8 @@
 //      database is opened again; a reset takes the stored value away.
 // AC2: an unknown key, a wrong type, a value outside the range, an option read-only or locked by the
 //      environment and a set that breaks the rule between the record and the body limits each give a
-//      stable code with paths and write nothing; an option that asks for a fresh second factor is refused.
+//      stable code with paths and write nothing; an option that asks for a fresh second factor changes with one and
+//      is refused with an older one (D43.4).
 import { SETTINGS_CATALOG } from "@openlife/contracts/settings";
 import { afterEach, describe, expect, it } from "vitest";
 import { patchAppSettings, readAppSettings, resetAppSetting } from "../../../packages/core/dist/modules/settings/public.js";
@@ -131,14 +132,24 @@ describe("D41.2-AC2 what is refused, and why", () => {
     expect(ok(patchAppSettings(deps, TOKEN, { values: { "limits.recordMaxKiB": 248 } }, "r-2")).find((setting) => setting.key === "limits.recordMaxKiB")).toMatchObject({ value: 248 });
   });
 
-  it("an option that asks for a fresh second factor is refused until the step-up exists, valid or not, and its reset too", async () => {
+  it("an option that asks for a fresh second factor changes and resets while the factor is fresh, and is refused with nothing written when it is older than five minutes", async () => {
     const rig = await createIdentityRig();
     const { deps } = setup(rig);
-    expect(code(patchAppSettings(deps, TOKEN, { values: { "backup.nightlyKeep": 20 } }, "r-1"))).toEqual(["STEP_UP_REQUIRED"]);
-    expect(code(patchAppSettings(deps, TOKEN, { values: { "backup.nightlyKeep": 20, "limits.registries": 50 } }, "r-2"))).toEqual(["STEP_UP_REQUIRED"]);
-    expect(code(resetAppSetting(deps, TOKEN, "audit.retentionDays", "r-3"))).toEqual(["STEP_UP_REQUIRED"]);
-    expect(code(resetAppSetting(deps, TOKEN, "no.such.option", "r-4"))).toEqual(["NOT_FOUND"]);
-    expect(stored(rig)).toEqual([]);
+    // Fresh: the change and the reset go through (D43.4).
+    expect(valueOf(ok(patchAppSettings(deps, TOKEN, { values: { "backup.nightlyKeep": 20 } }, "r-1")), "backup.nightlyKeep")).toMatchObject({ value: 20, source: "db" });
+    expect(valueOf([ok(resetAppSetting(deps, TOKEN, "backup.nightlyKeep", "r-2"))], "backup.nightlyKeep")).toMatchObject({ source: "default" });
+    expect(valueOf(ok(patchAppSettings(deps, TOKEN, { values: { "backup.nightlyKeep": 20, "limits.registries": 50 } }, "r-3")), "limits.registries")).toMatchObject({ value: 50 });
+
+    // The factor was proven six minutes ago: all three are refused whole, and the stored values stay.
+    rig.clock.now += 6 * 60 * 1000;
+    const before = stored(rig);
+    expect(code(patchAppSettings(deps, TOKEN, { values: { "backup.nightlyKeep": 30 } }, "r-4"))).toEqual(["STEP_UP_REQUIRED"]);
+    expect(code(patchAppSettings(deps, TOKEN, { values: { "backup.nightlyKeep": 30, "limits.registries": 60 } }, "r-5"))).toEqual(["STEP_UP_REQUIRED"]);
+    expect(code(resetAppSetting(deps, TOKEN, "audit.retentionDays", "r-6"))).toEqual(["STEP_UP_REQUIRED"]);
+    expect(code(resetAppSetting(deps, TOKEN, "no.such.option", "r-7"))).toEqual(["NOT_FOUND"]);
+    expect(stored(rig)).toEqual(before);
+    // An option that asks for nothing still changes with the old factor.
+    expect(valueOf(ok(patchAppSettings(deps, TOKEN, { values: { "limits.registries": 70 } }, "r-8")), "limits.registries")).toMatchObject({ value: 70 });
   });
 
   it("no session is no access, for a read, a change and a reset", async () => {

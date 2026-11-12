@@ -337,3 +337,12 @@ export type ChangePasswordPorts = Readonly<{
   access: IdentityAccessReader;
   audit: AppendAudit;
 }>;
+
+/** The ports of regenerating the recovery codes of a complete enrollment (Scope §5.9; D43.4). */
+export type RegenerateRecoveryPorts = Readonly<{
+  sessions: Pick<SessionStore, "findActive">;
+  mfa: Pick<MfaStore, "read">;
+  recovery: Pick<RecoveryCodeStore, "issueBatch">;
+  access: IdentityAccessReader;
+  audit: AppendAudit;
+}>;

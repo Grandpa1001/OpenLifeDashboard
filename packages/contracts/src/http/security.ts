@@ -23,6 +23,12 @@ export const SECURITY_DEVICES_REVOKE_ALL_PATH = `${SECURITY_DEVICES_PATH}/revoke
 /** `POST` changes the password: the current one and the new one, with a fresh second factor. */
 export const SECURITY_PASSWORD_PATH = "/api/v1/security/password";
 
+/**
+ * `POST` makes a new batch of recovery codes, shown once (the answer is the `issuedRecoveryCodesSchema` of
+ * the enrollment); needs a fresh second factor. The old codes stop working at once.
+ */
+export const SECURITY_RECOVERY_CODES_PATH = "/api/v1/security/recovery-codes";
+
 export const SESSION_ASSURANCES = ["password", "totp", "trusted", "recovery"] as const;
 
 export const securitySessionSchema = z

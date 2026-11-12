@@ -245,6 +245,9 @@ jobs:
       - name: Verify D43.3 (changing the password, the other sessions and the trusted devices ended)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D43.3
+      - name: Verify D43.4 (new recovery codes and the options that ask for a second factor)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D43.4
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

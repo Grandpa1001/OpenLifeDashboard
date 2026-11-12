@@ -2,11 +2,13 @@
 // owner. The list and the end of one other session are private data of the owner; ending all the others
 // asks for a fresh second factor, so without one the answer is `STEP_UP_REQUIRED` and nothing is ended.
 // An answer names a session by its id and never carries a token. Nothing is cached.
+import { issuedRecoveryCodesSchema } from "@openlife/contracts/http/mfa";
 import {
   changePasswordRequestSchema,
   passwordChangedSchema,
   revokeSessionRequestSchema,
   SECURITY_PASSWORD_PATH,
+  SECURITY_RECOVERY_CODES_PATH,
   SECURITY_DEVICE_PATH,
   SECURITY_DEVICES_PATH,
   SECURITY_DEVICES_REVOKE_ALL_PATH,
@@ -20,6 +22,7 @@ import {
 } from "@openlife/contracts/http/security";
 import {
   changeOwnerPassword,
+  regenerateRecoveryCodes,
   listOwnerSessions,
   listTrustedDevices,
   revokeAllTrustedDevices,
@@ -28,6 +31,7 @@ import {
   revokeTrustedDevice,
   type ChangePasswordDependencies,
   type DeviceManagementDependencies,
+  type RegenerateRecoveryDependencies,
   type SessionManagementDependencies,
 } from "@openlife/core/identity";
 import type { Context, Hono } from "hono";
@@ -39,12 +43,14 @@ import { createSessionOperationKit } from "../session-operation.js";
 import { setSessionCookie } from "../session-cookie-http.js";
 
 export type SecurityRouteDependencies = Readonly<{
-  unit: SessionManagementDependencies["unit"] & DeviceManagementDependencies["unit"] & ChangePasswordDependencies["unit"];
+  unit: SessionManagementDependencies["unit"] & DeviceManagementDependencies["unit"] & ChangePasswordDependencies["unit"] & RegenerateRecoveryDependencies["unit"];
   cookies: SignedCookie;
   allowedOrigin: string;
   secureCookies: boolean;
   /** The shared hasher of the password: the current one is verified and the new one hashed outside a unit of work. */
   hasher: ChangePasswordDependencies["hasher"];
+  /** The generator of recovery codes and their hashes. */
+  crypto: RegenerateRecoveryDependencies["crypto"];
   /** Keys of the buckets of the password: a wrong current password counts like a wrong password at sign-in. */
   keys: AttemptKeys;
   /** The peer of the connection; X-Forwarded-For is not read until the trusted proxy exists. */
@@ -59,6 +65,7 @@ export type SecurityRouteDependencies = Readonly<{
 export function registerSecurityRoutes(app: Hono<AppEnv>, deps: SecurityRouteDependencies): void {
   const sessions: SessionManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs };
   const devices: DeviceManagementDependencies = { unit: deps.unit, nowMs: deps.nowMs };
+  const recovery: RegenerateRecoveryDependencies = { unit: deps.unit, crypto: deps.crypto, nowMs: deps.nowMs, newId: deps.newId };
   const passwords: ChangePasswordDependencies = {
     unit: deps.unit,
     hasher: deps.hasher,
@@ -156,6 +163,15 @@ export function registerSecurityRoutes(app: Hono<AppEnv>, deps: SecurityRouteDep
       // The change has committed: only now does the browser get the cookie of the session that replaces its own.
       await setSessionCookie(c, deps.cookies, deps.secureCookies, { token: result.value.token, expiresAtMs: result.value.expiresAtMs }, deps.nowMs());
       return c.json(passwordChangedSchema.parse({ revokedSessions: result.value.revokedSessions, revokedDevices: result.value.revokedDevices }));
+    }),
+  );
+
+  app.post(
+    SECURITY_RECOVERY_CODES_PATH,
+    ...guard,
+    operation(revokeSessionRequestSchema, async (c, token) => {
+      const result = regenerateRecoveryCodes(recovery, token, c.get("requestId"));
+      return result.ok ? c.json(issuedRecoveryCodesSchema.parse(result.value)) : refused(c, result.error);
     }),
   );
 }

@@ -7,6 +7,8 @@ export { authorizeLiveStream } from "./application/live-stream-access.js";
 export type { LiveStreamDependencies, LiveStreamHolder, LiveStreamPorts } from "./application/live-stream-access.js";
 export { changeOwnerPassword } from "./application/change-password.js";
 export type { ChangePasswordDependencies, ChangePasswordRequest, PasswordChanged, PasswordHasherPort } from "./application/change-password.js";
+export { regenerateRecoveryCodes } from "./application/regenerate-recovery.js";
+export type { RegenerateRecoveryDependencies, RegeneratedRecoveryCodes } from "./application/regenerate-recovery.js";
 export { listTrustedDevices, revokeAllTrustedDevices, revokeTrustedDevice } from "./application/manage-devices.js";
 export type { DeviceManagementDependencies } from "./application/manage-devices.js";
 export { listOwnerSessions, revokeOtherSessions, revokeOwnerSession } from "./application/manage-sessions.js";
@@ -65,6 +67,7 @@ export type {
   NewSession,
   OwnerCredential,
   RecoveryCodeStore,
+  RegenerateRecoveryPorts,
   ResetMfaPorts,
   SessionFacts,
   SessionManagementPorts,

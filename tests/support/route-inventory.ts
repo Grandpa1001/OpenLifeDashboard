@@ -71,6 +71,7 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "PATCH", path: settings.SETTINGS_PATH, access: "data", note: "changes one or more application options at once, all or none" },
   { method: "DELETE", path: settings.SETTING_PATH, access: "data", note: "takes the stored value of an option away, so it is the default again" },
   { method: "POST", path: security.SECURITY_PASSWORD_PATH, access: "data", note: "changes the password: the current one and a fresh second factor; ends the other sessions and revokes the trusted devices" },
+  { method: "POST", path: security.SECURITY_RECOVERY_CODES_PATH, access: "data", note: "a new batch of recovery codes shown once, the old ones dead; asks for a fresh second factor and the acknowledgment of the new batch" },
   { method: "GET", path: security.SECURITY_DEVICES_PATH, access: "data", note: "the trusted devices that are valid, with the name of their browser; never a token" },
   { method: "POST", path: security.SECURITY_DEVICES_REVOKE_ALL_PATH, access: "data", note: "revokes every trusted device; asks for a fresh second factor" },
   { method: "DELETE", path: security.SECURITY_DEVICE_PATH, access: "data", note: "revokes one trusted device by its id" },
