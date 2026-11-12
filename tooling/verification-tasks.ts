@@ -5157,6 +5157,57 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.41: the Diagnostics page.
+    id: "D44.6",
+    ready: true,
+    title: "The Diagnostics page: the state, the paths, the latest errors, the log files, the report and the search by request id",
+    criteria: ["D44.6-AC1", "D44.6-AC2", "D44.6-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA, and the scan reads the build.
+        id: "workspace-build",
+        criteria: ["D44.6-AC1", "D44.6-AC2"],
+        description: "pnpm -r build: the page and its sections",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/settings/pages/diagnostics-page.tsx", "apps/web/src/features/settings/components/diagnostics-search.tsx", "apps/web/src/features/settings/components/diagnostics-files.tsx"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D44.6-AC1", "D44.6-AC2"],
+        description: "pl and en have the same keys, including the texts of the page and the plural forms",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/settings.json", "apps/web/src/locales/en/settings.json"],
+      },
+      {
+        id: "bundle-secret-scan",
+        criteria: ["D44.6-AC2"],
+        description: "The single page application holds no secret: no file of the build names a secret variable, and the documents and public facts the running server serves hold no value of one",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/diagnostics/bundle-secret-scan.test.ts"],
+        requires: ["tests/integration/diagnostics/bundle-secret-scan.test.ts", "tests/support/auth-http.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "settings-diagnostics-e2e",
+        criteria: ["D44.6-AC1", "D44.6-AC2"],
+        description:
+          "Playwright on the built app: the state, the full paths of the host and the container, a path and the command copied, no button that opens a folder, the log file and the report downloaded without a secret, the lines of a request found by the id of its answer, a malformed and an unknown id told, no errors shown when there are none; the page from the keyboard, axe, and a phone without sideways scrolling",
+        command: ["node", "tests/verification/e2e.ts", "settings-diagnostics.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/settings-diagnostics.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D44.6-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the overview, the files, the report, doctor, the retention, the page.
+  {
+    id: "D44",
+    ready: true,
+    title: "The diagnostics in the settings: the overview, the log files, the report, doctor, the audit retention and the page",
+    steps: ["D44.1", "D44.2", "D44.3", "D44.4", "D44.5", "D44.6"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

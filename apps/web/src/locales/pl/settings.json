@@ -5,7 +5,8 @@
     "account": "Konto",
     "style": "Styl",
     "security": "Bezpieczeństwo",
-    "app": "Aplikacja"
+    "app": "Aplikacja",
+    "diagnostics": "Diagnostyka"
   },
   "locale": {
     "pl": "Polski",
@@ -333,6 +334,89 @@
       "offRisk": "Rozumiem, że samo hasło będzie chronić konto.",
       "turnOff": "Wyłącz drugi czynnik",
       "turnedOff": "Drugi czynnik jest wyłączony. Pozostałe sesje i zaufane urządzenia zostały zakończone."
+    }
+  },
+  "diagnostics": {
+    "heading": "Diagnostyka",
+    "unknown": "nieznane",
+    "overview": {
+      "heading": "Stan instalacji",
+      "version": "Wersja aplikacji",
+      "revision": "Rewizja builda",
+      "schema": "Wersja schematu bazy",
+      "mode": "Tryb instalacji",
+      "modes": {
+        "local": "Na tym komputerze",
+        "server": "Na serwerze"
+      },
+      "instance": "Identyfikator instalacji",
+      "database": "Rozmiar bazy",
+      "wal": "Rozmiar dziennika (WAL)",
+      "free": "Wolne miejsce na dane",
+      "streams": "Otwarte strumienie na żywo",
+      "logger": "Log techniczny",
+      "loggerOk": "działa",
+      "loggerDegraded": "nie zapisuje do pliku (utracone linie: {{lost}})",
+      "loggerAlert": "Log techniczny nie może zapisywać do swojego pliku. Aplikacja działa dalej, a log trafia na standardowe wyjście; sprawdź folder logów.",
+      "missing": "Kopie zapasowe, aktualizacje i zadania cykliczne nie należą do tej wersji, więc nie pokazują tu stanu."
+    },
+    "paths": {
+      "heading": "Gdzie są dane",
+      "hint": "Pełne ścieżki na komputerze, na którym działa aplikacja, i ścieżki widziane przez aplikację w kontenerze. Przeglądarka nie otworzy folderu innej maszyny, więc ścieżkę pokazujemy i kopiujemy.",
+      "role": "Folder",
+      "host": "Na hoście",
+      "container": "W kontenerze",
+      "copy": "Kopiuj ścieżkę",
+      "copyCommand": "Kopiuj komendę",
+      "command": "komenda podglądu logu",
+      "commandHint": "Aby zobaczyć log aplikacji, uruchom w folderze instalacji:",
+      "copied": "Skopiowano: {{what}}.",
+      "copyFailed": "Przeglądarka nie pozwoliła skopiować. Zaznacz tekst i skopiuj go ręcznie.",
+      "roles": {
+        "installation": "Folder instalacji",
+        "database": "Baza danych",
+        "backups": "Kopie zapasowe",
+        "logs": "Log aplikacji",
+        "tmp": "Pliki tymczasowe",
+        "instanceFile": "Plik instalacji",
+        "maintenance": "Stan utrzymania"
+      }
+    },
+    "errors": {
+      "heading": "Ostatnie błędy",
+      "none": "W logu nie ma błędów.",
+      "when": "Kiedy",
+      "event": "Zdarzenie",
+      "code": "Kod",
+      "request": "Żądanie",
+      "find": "Znajdź w logu"
+    },
+    "files": {
+      "heading": "Pliki logu",
+      "hint": "Pliki logu technicznego aplikacji, od najnowszego. Log zawiera kody i identyfikatory, nigdy haseł, kodów, tokenów ani treści rekordów.",
+      "none": "Nie ma jeszcze plików logu.",
+      "name": "Plik",
+      "size": "Rozmiar",
+      "modified": "Ostatnia zmiana",
+      "active": "(zapisywany)",
+      "download": "Pobierz",
+      "reportHint": "Raport diagnostyczny zawiera stan powyżej, obowiązujące opcje i listę plików. Nie zawiera danych, sekretów ani linii logu i nigdzie nie jest wysyłany.",
+      "report": "Pobierz raport diagnostyczny"
+    },
+    "search": {
+      "heading": "Znajdź żądanie w logu",
+      "hint": "Wklej identyfikator żądania z komunikatu o błędzie, aby zobaczyć linie logu o tym żądaniu. W logu pojawiają się chwilę po żądaniu.",
+      "label": "Identyfikator żądania",
+      "malformed": "Identyfikator żądania ma litery, cyfry i myślniki, najwyżej 64 znaki.",
+      "submit": "Znajdź",
+      "searching": "Szukam…",
+      "none": "Brak linii dla tego identyfikatora żądania.",
+      "found_one": "Znaleziono {{count}} linię.",
+      "found_few": "Znaleziono {{count}} linie.",
+      "found_many": "Znaleziono {{count}} linii.",
+      "found_other": "Znaleziono {{count}} linii.",
+      "linesLabel": "Linie logu",
+      "truncated": "Linii jest więcej, niż pokazano, albo plików jest więcej, niż przeszukano."
     }
   }
 }

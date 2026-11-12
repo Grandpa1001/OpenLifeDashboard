@@ -593,6 +593,9 @@ jobs:
       - name: Verify D43.8 (the password, the recovery codes and the second factor on the Security page)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D43.8
+      - name: Verify D44.6 (the Diagnostics page)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D44.6
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1175,8 +1178,8 @@ jobs:
           if-no-files-found: error
 
   full-account:
-    # The security of the account: the parent D43 with its eight work orders, from the routes to the Security page.
-    name: verify:task (full tier, security of the account D43)
+    # The security of the account and the diagnostics: the parents D43 (eight work orders) and D44 (six), from the routes to their pages.
+    name: verify:task (full tier, security of the account D43 and diagnostics D44)
     needs: changes
     if: ${{ needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
@@ -1211,6 +1214,8 @@ jobs:
         run: pnpm exec playwright install-deps chromium
       - name: Verify D43 (the parent, D43.1–D43.8 together)
         run: pnpm verify:task -- D43
+      - name: Verify D44 (the parent, D44.1–D44.6 together)
+        run: pnpm verify:task -- D44
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

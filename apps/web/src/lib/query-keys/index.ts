@@ -9,6 +9,7 @@ export const queryKeys = {
   dictionaries: { list: ["dictionaries", "list"] as const },
   config: { list: ["config", "list"] as const },
   appSettings: { list: ["app-settings", "list"] as const },
+  diagnostics: { overview: ["diagnostics", "overview"] as const, logFiles: ["diagnostics", "log-files"] as const },
   security: {
     sessions: ["security", "sessions"] as const,
     devices: ["security", "devices"] as const,

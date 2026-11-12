@@ -5,7 +5,8 @@
     "account": "Account",
     "style": "Style",
     "security": "Security",
-    "app": "Application"
+    "app": "Application",
+    "diagnostics": "Diagnostics"
   },
   "locale": {
     "pl": "Polski",
@@ -327,6 +328,87 @@
       "offRisk": "I understand that the password alone will protect the account.",
       "turnOff": "Turn off the second factor",
       "turnedOff": "The second factor is off. Your other sessions and the trusted devices were ended."
+    }
+  },
+  "diagnostics": {
+    "heading": "Diagnostics",
+    "unknown": "unknown",
+    "overview": {
+      "heading": "State of the installation",
+      "version": "Application version",
+      "revision": "Build revision",
+      "schema": "Database schema version",
+      "mode": "Installation mode",
+      "modes": {
+        "local": "On this computer",
+        "server": "On a server"
+      },
+      "instance": "Installation ID",
+      "database": "Database size",
+      "wal": "Journal size (WAL)",
+      "free": "Free space for the data",
+      "streams": "Open live streams",
+      "logger": "Technical log",
+      "loggerOk": "working",
+      "loggerDegraded": "not writing to its file ({{lost}} lines lost)",
+      "loggerAlert": "The technical log cannot be written to its file. The application keeps working and the log goes on to the standard output; check the log folder.",
+      "missing": "Backups, updates and scheduled jobs are not part of this version, so they show no state here."
+    },
+    "paths": {
+      "heading": "Where the data are",
+      "hint": "Full paths on the computer that runs the application, and the paths the application sees inside its container. A browser cannot open a folder of another machine, so the path is shown and copied.",
+      "role": "Folder",
+      "host": "On the host",
+      "container": "In the container",
+      "copy": "Copy path",
+      "copyCommand": "Copy command",
+      "command": "command to view the log",
+      "commandHint": "To see the log of the application, run in the installation folder:",
+      "copied": "Copied: {{what}}.",
+      "copyFailed": "The browser did not allow copying. Select the text and copy it by hand.",
+      "roles": {
+        "installation": "Installation folder",
+        "database": "Database",
+        "backups": "Backups",
+        "logs": "Application log",
+        "tmp": "Temporary files",
+        "instanceFile": "Installation file",
+        "maintenance": "Maintenance state"
+      }
+    },
+    "errors": {
+      "heading": "Latest errors",
+      "none": "The log shows no errors.",
+      "when": "When",
+      "event": "Event",
+      "code": "Code",
+      "request": "Request",
+      "find": "Find in the log"
+    },
+    "files": {
+      "heading": "Log files",
+      "hint": "The files of the technical log of the application, newest first. The log holds codes and identifiers, never passwords, codes, tokens or the content of records.",
+      "none": "There are no log files yet.",
+      "name": "File",
+      "size": "Size",
+      "modified": "Last change",
+      "active": "(being written)",
+      "download": "Download",
+      "reportHint": "The diagnostic report holds the state above, the effective options and the list of files. It holds no data, no secrets and no log lines, and is not sent anywhere.",
+      "report": "Download the diagnostic report"
+    },
+    "search": {
+      "heading": "Find a request in the log",
+      "hint": "Paste the request ID from an error message to see the lines of the log about that request. They appear in the log a moment after the request.",
+      "label": "Request ID",
+      "malformed": "A request ID has letters, digits and hyphens, up to 64 characters.",
+      "submit": "Find",
+      "searching": "Searching…",
+      "none": "No lines for this request ID.",
+      "found_one": "{{count}} line found.",
+      "found_other": "{{count}} lines found.",
+      "linesLabel": "Lines of the log",
+      "truncated": "There are more lines than are shown, or more files than were searched."
     }
   }
 }

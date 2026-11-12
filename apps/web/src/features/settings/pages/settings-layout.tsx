@@ -15,6 +15,7 @@ export function SettingsLayout() {
         <Link to="/settings/style">{t("tabs.style")}</Link>
         <Link to="/settings/security">{t("tabs.security")}</Link>
         <Link to="/settings/app">{t("tabs.app")}</Link>
+        <Link to="/settings/diagnostics">{t("tabs.diagnostics")}</Link>
       </nav>
       <Outlet />
     </main>
