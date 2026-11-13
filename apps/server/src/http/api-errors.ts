@@ -40,6 +40,7 @@ const FALLBACK_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   MAINTENANCE: "A maintenance operation is in progress; try again when it ends",
   SNAPSHOT_LOW_SPACE: "There is not enough free space for the copy the change needs; nothing was changed",
   SNAPSHOT_FAILED: "The copy the change needs could not be made; nothing was changed",
+  EXPORT_UNAVAILABLE: "The export could not be made now",
 };
 
 export function apiErrorResponse(

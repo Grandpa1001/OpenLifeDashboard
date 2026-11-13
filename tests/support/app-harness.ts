@@ -40,6 +40,7 @@ import { sha256Hex } from "../../apps/server/dist/adapters/crypto/sha256-hex.js"
 import { createUuidV7 } from "../../apps/server/dist/adapters/ids/uuid-v7.js";
 import type { LiveEvent } from "@openlife/contracts/http/stream";
 import { createLogFiles } from "../../apps/server/dist/adapters/diagnostics/log-files.js";
+import { createExportService } from "../../apps/server/dist/portability/export-stream.js";
 import { createReportBuilder } from "../../apps/server/dist/adapters/diagnostics/report-builder.js";
 import { createOverviewReader } from "../../apps/server/dist/adapters/diagnostics/overview-reader.js";
 import { describeInstallation, installationWorkingPaths } from "../../apps/server/dist/adapters/filesystem/installation-paths.js";
@@ -82,6 +83,12 @@ export type HarnessOptions = Readonly<{
   logFileMaxBytes?: number;
   /** Narrows the bytes one search by request id reads in all (D44.2). */
   logSearchMaxBytes?: number;
+  /** Narrows the records the export reads at a time (D45.2). */
+  exportRecordsPerPage?: number;
+  /** A file the export reads instead of the database of the harness, to try an export that cannot start (D45.2). */
+  exportDatabaseFile?: string;
+  /** The version of the application the export names; the same as the file it is compared with (D45.2). */
+  exportAppVersion?: string;
 }>;
 
 export async function createAppHarness(options: HarnessOptions = {}) {
@@ -205,6 +212,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
     settings: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, environment, refresh: effectiveSettings.refresh, logger },
     diagnostics: { unit, overview, logs: diagnosticsLogs, report: createReportBuilder({ overview, logs: diagnosticsLogs, options: effectiveSettings.current, catalog: SETTINGS_CATALOG, now: () => new Date() }), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
+    export: { unit, export: createExportService({ databaseFile: options.exportDatabaseFile ?? workingPaths.database, busyTimeoutMs: 5000, appVersion: options.exportAppVersion ?? "0.0.0", now: () => new Date(), logger, ...(options.exportRecordsPerPage === undefined ? {} : { recordsPerPage: options.exportRecordsPerPage }) }), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     security: { ...common, unit, hasher, crypto: mfaCrypto },
     announce: options.announce ?? hub.publish,
     stream: { unit, hub, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, pingIntervalMs: options.pingIntervalMs ?? 25_000, logger },

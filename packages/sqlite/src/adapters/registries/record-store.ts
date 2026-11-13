@@ -133,6 +133,16 @@ export function bindRecordStore(tx: TransactionHandle): RecordStore {
       return { records: rows.map((row) => recordOf(registry, row)), total };
     },
 
+    pageAfter(registry, afterId, limit): readonly StoredRecord[] {
+      if (!Number.isInteger(limit) || limit < 1) throw new RangeError("the size of a page is a positive integer");
+      const table = tableOf(registry);
+      const rows =
+        afterId === null
+          ? (prepared(`SELECT ${selectList(registry)} FROM ${table} WHERE user_id = ? ORDER BY "id" ASC LIMIT ?`).all(registry.ownerId, limit) as Row[])
+          : (prepared(`SELECT ${selectList(registry)} FROM ${table} WHERE user_id = ? AND "id" > ? ORDER BY "id" ASC LIMIT ?`).all(registry.ownerId, afterId, limit) as Row[]);
+      return rows.map((row) => recordOf(registry, row));
+    },
+
     count(registry): number {
       return (prepared(`SELECT count(*) AS n FROM ${tableOf(registry)} WHERE user_id = ?`).get(registry.ownerId) as { n: number }).n;
     },

@@ -5234,6 +5234,47 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.42: the exporter and the route of the export.
+    id: "D45.2",
+    ready: true,
+    title: "The export of the domain data: a file streamed from a consistent view, behind the gate of the data",
+    criteria: ["D45.2-AC1", "D45.2-AC2", "D45.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests import the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D45.2-AC1", "D45.2-AC2"],
+        description: "pnpm -r build: the reader of the view, the page of records, the document of the export, its stream and the route",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/sqlite/src/connection/snapshot-reader.ts", "apps/server/src/portability/export-document.ts", "apps/server/src/portability/export-stream.ts", "apps/server/src/http/routes/export.routes.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D45.2-AC2"],
+        description: "pl and en have the text of the error answer of the export",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/errors.json", "apps/web/src/locales/en/errors.json"],
+      },
+      {
+        id: "export-http",
+        criteria: ["D45.2-AC1", "D45.2-AC2"],
+        description: "HTTP over a real SQLite file: 401 and the code of the gate, the file as an attachment named by the day, the F01 state exported equal to the fixture in canonical form and accepted by the parser, nothing of the authentication, the audit or the owner's identifier, a removed column left out, a large registry written a page at a time, a write during the export not blocked and not in the file, a cancelled transfer closing its reader, a failure after the first byte ending the transfer with an error, an export that cannot start answered 503",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/export/export-http.test.ts"],
+        requires: ["tests/integration/export/export-http.test.ts", "tests/support/export-fixture.ts", "tests/fixtures/books/books-v1.export.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "data-routes",
+        criteria: ["D45.2-AC1"],
+        description: "The route is in the inventory and the table of the access: refused in every state before the gate, 200 for the owner past it, on the running server",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/access/data-routes.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/integration/http/server.test.ts"],
+        requires: ["tests/integration/access/data-routes.test.ts", "tests/integration/auth/route-inventory.test.ts", "tests/integration/http/server.test.ts", "tests/support/route-inventory.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D45.2-regression"),
+    ],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

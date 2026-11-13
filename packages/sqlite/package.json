@@ -44,6 +44,16 @@
       "types": "./dist/adapters/settings/public.d.ts",
       "default": "./dist/adapters/settings/public.js"
     },
+    "./adapters/portability": {
+      "@openlife/source": "./src/adapters/portability/public.ts",
+      "types": "./dist/adapters/portability/public.d.ts",
+      "default": "./dist/adapters/portability/public.js"
+    },
+    "./snapshot-reader": {
+      "@openlife/source": "./src/connection/snapshot-reader.ts",
+      "types": "./dist/connection/snapshot-reader.d.ts",
+      "default": "./dist/connection/snapshot-reader.js"
+    },
     "./connection": {
       "@openlife/source": "./src/connection/open-database.ts",
       "types": "./dist/connection/open-database.d.ts",

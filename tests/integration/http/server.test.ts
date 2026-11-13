@@ -13,11 +13,10 @@ import { runServerEntry, SERVER_ENTRY, startBuiltServer, waitForExit, WEB_INDEX,
 const SHUTDOWN_LIMIT_MS = 15_000;
 const UI_ROUTES = ["/", "/main", "/registers/ksiazki"];
 // Endpoints that later tasks protect; until they exist nothing may answer them with data.
-// Sign-in, sign-out and the identity status exist since D09.3, the setup status since D11.4;
-// they have their own tests.
+// Sign-in, sign-out and the identity status exist since D09.3, the setup status since D11.4 and the export
+// since D45.2 (its gate is in the access table of D20.2); they have their own tests.
 const FUTURE_PRIVATE_ENDPOINTS = [
   ["POST", "/api/auth/sign-up/email"],
-  ["GET", "/api/v1/export"],
 ] as const;
 
 type Evidence = { method: string; path: string; status: number; contentType: string | null; cacheControl: string | null; body: string };

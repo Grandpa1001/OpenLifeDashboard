@@ -104,7 +104,7 @@ export const MANDATORY_EVIDENCE: readonly HandoverItem[] = [
 /** Environments and parts the handover does not claim (DEV §9.6): each stays not_run in its own task. */
 export const NOT_RUN: readonly Readonly<{ item: string; task: string; reason: string }>[] = [
   { item: "auth and setup flows against the container image", task: "G-gate of D58+", reason: "the flows ran on the built server and SPA; no Docker image run exists for them and Docker is not available locally" },
-  { item: "SSE and export under the session policy", task: "D37.3 / D45", reason: "the stream exists since D37.1 and is proved on the built server (its gate in D20.2), not yet behind Caddy or on a phone; the export does not exist yet" },
+  { item: "SSE and export under the session policy", task: "D37.3 / D45", reason: "the stream exists since D37.1 and the export since D45.2; both are proved on the built server (their gate in D20.2), not yet behind Caddy or on a phone" },
   { item: "import offered or disabled in the UI", task: "D46", reason: "the import does not exist; the setup offers only the empty start" },
   { item: "Designer and guided onboarding", task: "D18", reason: "not part of the minimal setup" },
   { item: "security panel: step-up UI, trusted devices, new recovery batch", task: "D43", reason: "the backend exists, the panel does not" },

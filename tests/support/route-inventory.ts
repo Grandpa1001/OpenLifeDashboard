@@ -9,6 +9,7 @@
 //         "setup"    — gate; the choice of the starting data itself
 import * as bootstrap from "@openlife/contracts/http/bootstrap";
 import * as config from "@openlife/contracts/http/config";
+import * as exportRoute from "@openlife/contracts/http/export";
 import * as diagnostics from "@openlife/contracts/http/diagnostics";
 import * as dictionaries from "@openlife/contracts/http/dictionaries";
 import * as healthStatus from "@openlife/contracts/http/health-status";
@@ -28,7 +29,7 @@ export type RouteEntry = Readonly<{ method: "GET" | "POST" | "PUT" | "PATCH" | "
 
 /** Every exported path constant of the contracts, by name. */
 export const PATH_CONSTANTS: Readonly<Record<string, string>> = Object.fromEntries(
-  [bootstrap, config, diagnostics, dictionaries, healthStatus, identity, mfa, records, registries, screens, security, settings, setup, stream, systemTables].flatMap((module) =>
+  [bootstrap, config, diagnostics, dictionaries, exportRoute, healthStatus, identity, mfa, records, registries, screens, security, settings, setup, stream, systemTables].flatMap((module) =>
     Object.entries(module).filter((entry): entry is [string, string] => entry[0].endsWith("_PATH") && typeof entry[1] === "string"),
   ),
 );
@@ -73,6 +74,7 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "GET", path: diagnostics.DIAGNOSTICS_LOG_PATH, access: "data", note: "downloads one file of that list as an attachment; any other name is not found" },
   { method: "GET", path: diagnostics.DIAGNOSTICS_REQUEST_PATH, access: "data", note: "the lines of the log that belong to one request id" },
   { method: "GET", path: diagnostics.DIAGNOSTICS_REPORT_PATH, access: "data", note: "the diagnostic report as one file to download: the overview, the options of the catalog and the log files, from a list of fields" },
+  { method: "GET", path: exportRoute.EXPORT_PATH, access: "data", note: "the whole domain data as one file of the export format, streamed from a consistent view; no step-up (Załącznik G)" },
   { method: "GET", path: settings.SETTINGS_PATH, access: "data", note: "the effective application options with their source and what the owner may change" },
   { method: "PATCH", path: settings.SETTINGS_PATH, access: "data", note: "changes one or more application options at once, all or none" },
   { method: "DELETE", path: settings.SETTING_PATH, access: "data", note: "takes the stored value of an option away, so it is the default again" },
@@ -107,6 +109,4 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
  * adds them, and the route is then moved into ROUTE_INVENTORY with the access it asks for.
  */
 export type PlannedRoute = Readonly<{ method: "GET"; path: string; task: string; note: string }>;
-export const PLANNED_ROUTES: readonly PlannedRoute[] = [
-  { method: "GET", path: "/api/v1/export", task: "D45", note: "the export of the owner's data; asks for a fresh second factor" },
-];
+export const PLANNED_ROUTES: readonly PlannedRoute[] = [];

@@ -10,6 +10,7 @@ import { publicBootstrap } from "../http/routes/bootstrap.routes.js";
 import { health } from "../http/routes/health.routes.js";
 import { registerDictionaryRoutes, type DictionaryRouteDependencies } from "../http/routes/dictionaries.routes.js";
 import { registerConfigRoutes, type ConfigRouteDependencies } from "../http/routes/config.routes.js";
+import { registerExportRoutes, type ExportRouteDependencies } from "../http/routes/export.routes.js";
 import { registerDiagnosticsRoutes, type DiagnosticsRouteDependencies } from "../http/routes/diagnostics.routes.js";
 import { registerSettingsRoutes, type SettingsRouteDependencies } from "../http/routes/settings.routes.js";
 import { registerIdentityRoutes, type IdentityRouteDependencies } from "../http/routes/identity.routes.js";
@@ -47,6 +48,7 @@ export type AppDependencies = Readonly<{
   config: ConfigRouteDependencies;
   settings: SettingsRouteDependencies;
   diagnostics: DiagnosticsRouteDependencies;
+  export: ExportRouteDependencies;
   security: SecurityRouteDependencies;
   screens: ScreenRouteDependencies;
   systemTables: SystemTableRouteDependencies;
@@ -83,6 +85,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   registerConfigRoutes(app, dependencies.config, announce);
   registerSettingsRoutes(app, dependencies.settings);
   registerDiagnosticsRoutes(app, dependencies.diagnostics);
+  registerExportRoutes(app, dependencies.export);
   registerSecurityRoutes(app, dependencies.security);
   registerScreenRoutes(app, dependencies.screens, announce);
   registerSystemTableRoutes(app, dependencies.systemTables);

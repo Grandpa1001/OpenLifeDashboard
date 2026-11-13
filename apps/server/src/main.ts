@@ -43,6 +43,7 @@ import { createTechnicalLogger, LOG_LEVELS, type LogLevel } from "./adapters/log
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
 import { createLogFiles } from "./adapters/diagnostics/log-files.js";
+import { createExportService } from "./portability/export-stream.js";
 import { createAuditRetentionJob } from "./workers/audit-retention.js";
 import { createReportBuilder } from "./adapters/diagnostics/report-builder.js";
 import { createOverviewReader } from "./adapters/diagnostics/overview-reader.js";
@@ -308,6 +309,14 @@ const app = createApp({
     overview: diagnosticsOverview,
     logs: diagnosticsLogs,
     report: createReportBuilder({ overview: diagnosticsOverview, logs: diagnosticsLogs, options: effectiveSettings.current, catalog: SETTINGS_CATALOG, now: () => new Date() }),
+    cookies,
+    allowedOrigin: environment.baseUrl,
+    nowMs: Date.now,
+    logger,
+  },
+  export: {
+    unit: identityUnit,
+    export: createExportService({ databaseFile: workingPaths.database, busyTimeoutMs: environment.dbBusyTimeoutMs, appVersion: build.appVersion, now: () => new Date(), logger }),
     cookies,
     allowedOrigin: environment.baseUrl,
     nowMs: Date.now,

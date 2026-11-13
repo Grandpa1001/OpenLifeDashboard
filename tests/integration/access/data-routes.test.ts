@@ -170,6 +170,7 @@ describe("D20.2 the table is the inventory", () => {
       "GET /api/v1/diagnostics/requests/:requestId",
       "GET /api/v1/dictionaries",
       "GET /api/v1/dictionaries/:symbol",
+      "GET /api/v1/export",
       "GET /api/v1/registries",
       "GET /api/v1/registries/:symbol/records",
       "GET /api/v1/registries/:symbol/records/:recordId",
@@ -281,6 +282,8 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     expect((await run(route("GET", "/diagnostics/logs/:file"), withRecord)).status).toBe(200);
     expect((await run(route("GET", "/diagnostics/requests/:requestId"), withRecord)).status).toBe(200);
     expect((await run(route("GET", "/diagnostics/report"), withRecord)).status).toBe(200);
+    // The export: a file made from a view of the database of its own; the body is read to the end so that the reader is closed.
+    expect((await run(route("GET", "/export"), withRecord)).status).toBe(200);
     expect((await run(route("PATCH", "/settings"), withRecord)).status).toBe(200);
     expect((await run(route("DELETE", "/settings/:key"), withRecord)).status).toBe(200);
     const screenReply = await run(route("POST", "/screens"), withRecord);
@@ -391,7 +394,8 @@ describe("D20.2-AC2 what a request may not decide, and the routes that do not ex
   it("the planned routes are not registered, are listed with the task that owns them, and are reported as not_run", () => {
     const registered = new Set(ROUTE_INVENTORY.map(keyOf));
     const sources = [path.join(repoRoot, "apps/server/src/bootstrap/create-app.ts"), ...readdirSync(path.join(repoRoot, "apps/server/src/http/routes")).map((name) => path.join(repoRoot, "apps/server/src/http/routes", name))].map((file) => readFileSync(file, "utf8")).join("\n");
-    expect(PLANNED_ROUTES.map((planned) => planned.task).sort()).toEqual(["D45"]);
+    // Every route that was planned has been added with its access test; a new plan is listed here with the task that owns it.
+    expect(PLANNED_ROUTES.map((planned) => planned.task).sort()).toEqual([]);
     for (const planned of PLANNED_ROUTES) {
       expect(registered.has(keyOf(planned)), `${keyOf(planned)} is planned, so it is not in the inventory yet`).toBe(false);
       expect(sources.includes(planned.path), `${keyOf(planned)} is planned, so the server does not register it yet`).toBe(false);

@@ -34,5 +34,6 @@
   "INVALID_RESPONSE": "The server answered in an unexpected way. Try again.",
   "UNKNOWN": "The operation could not be completed. Try again.",
   "requestReference": "Reference code: {{requestId}}",
-  "STEP_UP_REQUIRED": "This change needs a fresh TOTP code."
+  "STEP_UP_REQUIRED": "This change needs a fresh TOTP code.",
+  "EXPORT_UNAVAILABLE": "The export could not be made now. Try again in a moment."
 }

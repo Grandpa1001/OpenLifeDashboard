@@ -54,6 +54,11 @@
       "types": "./dist/http/health-status.d.ts",
       "default": "./dist/http/health-status.js"
     },
+    "./http/export": {
+      "@openlife/source": "./src/http/export.ts",
+      "types": "./dist/http/export.d.ts",
+      "default": "./dist/http/export.js"
+    },
     "./http/identity": {
       "@openlife/source": "./src/http/identity.ts",
       "types": "./dist/http/identity.d.ts",

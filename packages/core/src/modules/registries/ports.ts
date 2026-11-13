@@ -107,6 +107,11 @@ export interface RecordStore {
   deleteIfRevision(registry: StoredRegistry, recordId: string, expectedRevision: number): boolean;
   /** Sorted by the requested column, then by `id` in the same direction; empty values last. The count is of the records the search matches. */
   page(registry: StoredRegistry, query: RecordPageQuery): RecordPage;
+  /**
+   * The next `limit` records in the order of their identifiers, those after `afterId` (all from the first when it is null). A scan that reads a
+   * whole registry page by page, such as the export (D45.2), costs the same for the last page as for the first.
+   */
+  pageAfter(registry: StoredRegistry, afterId: string | null, limit: number): readonly StoredRecord[];
   /** The number of records of the registry. */
   count(registry: StoredRegistry): number;
   /** How many records have a value in the column and how many have none. */
