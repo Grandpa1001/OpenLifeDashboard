@@ -299,6 +299,12 @@ export interface SetupStateStore {
    * "already_empty" when repeated (idempotent), "imported" when it was refused.
    */
   chooseEmpty(): "chosen" | "already_empty" | "imported";
+  /**
+   * Compare-and-set for the import (D46): records "imported" only while nothing was chosen. "chosen" the
+   * first time; "empty" when the owner started from zero (which closes the import for good) and "imported"
+   * when data were imported already (an import is never repeated).
+   */
+  chooseImported(): "chosen" | "empty" | "imported";
 }
 
 /** The ports of choosing the starting data. */

@@ -44,6 +44,11 @@
       "types": "./dist/modules/maintenance/public.d.ts",
       "default": "./dist/modules/maintenance/public.js"
     },
+    "./portability": {
+      "@openlife/source": "./src/modules/portability/public.ts",
+      "types": "./dist/modules/portability/public.d.ts",
+      "default": "./dist/modules/portability/public.js"
+    },
     "./registries": {
       "@openlife/source": "./src/modules/registries/public.ts",
       "types": "./dist/modules/registries/public.d.ts",

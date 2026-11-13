@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -5316,6 +5316,39 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D45.1", "D45.2", "D45.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.43: the import of the owner's data into an empty installation.
+    id: "D46.1",
+    ready: true,
+    title: "The import of the owner's data: one unit of work that keeps the identifiers, revisions and times, and takes the one-time choice of the data",
+    criteria: ["D46.1-AC1", "D46.1-AC2", "D46.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests import the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D46.1-AC1", "D46.1-AC2"],
+        description: "pnpm -r build: the module of the import, the new ports of the stores and the mapper of the file",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/portability/application/import-data.ts", "packages/sqlite/src/adapters/identity/setup-state.ts", "apps/server/src/portability/imported-data.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D46.1-AC2"],
+        description: "pl and en have the name of the audit action of the import",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/settings.json", "apps/web/src/locales/en/settings.json"],
+      },
+      {
+        id: "import-data",
+        criteria: ["D46.1-AC1", "D46.1-AC2"],
+        description: "Over a real SQLite file: F01 imported with its identifiers, revisions and times and exported equal to the file in canonical form; the audit holds counts only; an empty file is a valid start; F04 needs rebinding and F05 needs a refresh with its configuration kept; a failure at each of eight stages leaves the domain, the tables and the choice as they were; a second import, an import after a start from zero and a session before the gate are refused",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/import/import-data.test.ts"],
+        requires: ["tests/integration/import/import-data.test.ts", "tests/support/export-fixture.ts", "tests/fixtures/books/books-v1.export.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D46.1-regression"),
+    ],
   },
   {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of

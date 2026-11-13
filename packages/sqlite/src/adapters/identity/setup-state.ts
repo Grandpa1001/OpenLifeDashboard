@@ -6,6 +6,7 @@ import type { TransactionHandle } from "../../transactions/unit-of-work.js";
 
 export function bindSetupStateStore(tx: TransactionHandle): SetupStateStore {
   const choose = tx.prepare("UPDATE instance_state SET data_choice = 'empty' WHERE singleton = 1 AND data_choice = 'unselected'");
+  const chooseImported = tx.prepare("UPDATE instance_state SET data_choice = 'imported' WHERE singleton = 1 AND data_choice = 'unselected'");
   const current = tx.prepare("SELECT data_choice AS choice FROM instance_state WHERE singleton = 1");
   return {
     chooseEmpty: () => {
@@ -13,6 +14,12 @@ export function bindSetupStateStore(tx: TransactionHandle): SetupStateStore {
         return "chosen";
       }
       return (current.get() as { choice: string } | undefined)?.choice === "empty" ? "already_empty" : "imported";
+    },
+    chooseImported: () => {
+      if (chooseImported.run().changes === 1) {
+        return "chosen";
+      }
+      return (current.get() as { choice: string } | undefined)?.choice === "empty" ? "empty" : "imported";
     },
   };
 }

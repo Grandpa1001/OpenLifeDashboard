@@ -51,6 +51,12 @@ export interface RegistryStore {
   /** Registries that are not deleted, in the order they were created. */
   list(ownerId: string): readonly StoredRegistry[];
   /**
+   * Sets the revisions a registry had where it came from (the import, D46): an import adds a registry and its
+   * records, which counts one revision for each, and the file says what the revisions were. Only for a
+   * registry made in the same unit of work.
+   */
+  restoreRevisions(registry: StoredRegistry, schemaRevision: number, dataRevision: number): void;
+  /**
    * Writes the new definition of one column and raises the schema revision, only while the registry
    * still has the revision it was read with; anything else is a bug upstream and throws, so the whole
    * unit (the rebuilt table among it) is taken back.

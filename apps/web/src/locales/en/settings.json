@@ -244,7 +244,8 @@
           "revoked_all": "All trusted devices revoked"
         },
         "setup": {
-          "data_chosen": "Starting data chosen"
+          "data_chosen": "Starting data chosen",
+          "data_imported": "Starting data imported from a file"
         },
         "settings": {
           "preferences_saved": "Preferences saved"

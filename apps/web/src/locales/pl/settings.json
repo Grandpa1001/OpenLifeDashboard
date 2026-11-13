@@ -248,7 +248,8 @@
           "revoked_all": "Odwołano wszystkie zaufane urządzenia"
         },
         "setup": {
-          "data_chosen": "Wybrano dane początkowe"
+          "data_chosen": "Wybrano dane początkowe",
+          "data_imported": "Zaimportowano dane początkowe z pliku"
         },
         "settings": {
           "preferences_saved": "Zapisano preferencje"
