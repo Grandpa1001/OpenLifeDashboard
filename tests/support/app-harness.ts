@@ -49,6 +49,7 @@ import { bindSystemTableReader } from "../../apps/server/dist/adapters/system-ta
 import { bindOwnerPreferencesStore } from "../../packages/sqlite/dist/adapters/settings/owner-preferences.js";
 import { bindAppSettingStore } from "../../packages/sqlite/dist/adapters/settings/app-settings.js";
 import { createEffectiveSettings } from "../../apps/server/dist/bootstrap/effective-settings.js";
+import { giveBackLoop } from "../../apps/server/dist/portability/give-back-loop.js";
 import { liveLimits } from "../../apps/server/dist/bootstrap/live-limits.js";
 import { resolveSettings } from "../../packages/core/dist/modules/settings/public.js";
 import { SETTINGS_CATALOG } from "@openlife/contracts/settings";
@@ -202,7 +203,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     identity: { ...common, onSessionEnded: hub.closeToken, unit, verifier: hasher, decoyHash: await hasher.hash("decoy"), trustedDevice: { cookies: trustedDeviceCookies, hash: mfaCrypto.hashTrustedDeviceToken }, loginLimiter: createRateLimiter({ limit: 1000, windowMs: 60_000, nowMs: Date.now }) },
     mfaEnrollment: { ...common, unit, crypto: mfaCrypto },
     mfaVerification: { ...common, unit, crypto: mfaCrypto, trustedDeviceCookies },
-    setup: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
+    setup: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, maintenanceActive: () => gate.gate.current().activeOperation !== null, logger },
     registries: { unit, summaries: unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: limits.registry, logger },
     records: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: limits.registry, recordMaxBytes: limits.recordMaxBytes, logger },
     structure: { ...structure, gate: gate.gate, snapshots, newId: createUuidV7(), newOperationId: randomUUID, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
@@ -212,7 +213,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
     settings: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, environment, refresh: effectiveSettings.refresh, logger },
     diagnostics: { unit, overview, logs: diagnosticsLogs, report: createReportBuilder({ overview, logs: diagnosticsLogs, options: effectiveSettings.current, catalog: SETTINGS_CATALOG, now: () => new Date() }), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
-    import: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, limits, policy: DESIGN_POLICY, widgets: createWidgetCatalog(), logger },
+    import: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, limits, policy: DESIGN_POLICY, widgets: createWidgetCatalog(), gate: gate.gate, newOperationId: randomUUID, pause: giveBackLoop, logger },
     export: { unit, export: createExportService({ databaseFile: options.exportDatabaseFile ?? workingPaths.database, busyTimeoutMs: 5000, appVersion: options.exportAppVersion ?? "0.0.0", now: () => new Date(), logger, ...(options.exportRecordsPerPage === undefined ? {} : { recordsPerPage: options.exportRecordsPerPage }) }), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     security: { ...common, unit, hasher, crypto: mfaCrypto },
     announce: options.announce ?? hub.publish,

@@ -5384,6 +5384,40 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.43: the import as an operation of the gate.
+    id: "D46.3",
+    ready: true,
+    title: "The import under the gate operation `import`: the parser gives the event loop back, nothing else chooses the data meanwhile, a crash only closes the operation",
+    criteria: ["D46.3-AC1", "D46.3-AC2", "D46.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D46.3-AC1", "D46.3-AC2"],
+        description: "pnpm -r build: the operation `import` of the contract of the gate, the parser as steps and the reconciliation at the start",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/portability/parse-export.ts", "apps/server/src/portability/give-back-loop.ts", "packages/contracts/src/workers/maintenance-state.ts"],
+      },
+      {
+        id: "import-operation",
+        criteria: ["D46.3-AC1", "D46.3-AC2"],
+        description: "The gate records `import` in its phases and closes it after every outcome; a second import and the start from zero meanwhile are MAINTENANCE; health is answered while 50,000 records are imported, with the longest gap measured; the parser judges the same in one go and with pauses; an import left active by a crash is closed at the start in both phases",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/import/import-operation.test.ts"],
+        requires: ["tests/integration/import/import-operation.test.ts", "tests/support/export-fixture.ts", "tests/fixtures/books/books-v1.export.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "import-http",
+        criteria: ["D46.3-AC1"],
+        description: "The route keeps its refusals and the roundtrip with the gate in place",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/import/import-http.test.ts"],
+        requires: ["tests/integration/import/import-http.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D46.3-regression"),
+    ],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

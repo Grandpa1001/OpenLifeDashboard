@@ -55,11 +55,19 @@ const rebuildOperationSchema = z
   })
   .strict();
 
+/**
+ * The import of the owner's data (D46.3). Nothing of the file is written before its one unit of work, so a crash in
+ * either phase leaves the installation as it was (nothing chosen) and a crash after the unit leaves it imported:
+ * either way the operation only closes. It exists so that nothing else chooses the starting data meanwhile.
+ */
+const importOperationSchema = z.object({ ...operationFields, reason: z.literal("import"), phase: z.enum(["validating", "writing"]) }).strict();
+
 export const maintenanceOperationSchema = z.discriminatedUnion("reason", [
   initOperationSchema,
   migrateOperationSchema,
   snapshotOperationSchema,
   rebuildOperationSchema,
+  importOperationSchema,
 ]);
 
 export const maintenanceStateSchema = z

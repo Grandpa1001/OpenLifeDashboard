@@ -5,7 +5,7 @@
 //      422 with the paths and the codes and nothing of the values; after any refusal nothing is written and
 //      the choice of the data is still open, so the same installation takes a good file afterwards.
 // AC2: the export of installation A, imported into the empty installation B, is equal to it in canonical form;
-//      two imports at once leave one winner and the other is 409; an import after a start from zero, a start
+//      two imports at once leave one winner and the other is refused (MAINTENANCE while the first runs); an import after a start from zero, a start
 //      from zero after an import and a second import are refused; a failure inside the write is 503 and
 //      takes everything back.
 import { apiErrorSchema } from "@openlife/contracts/http/errors";
@@ -146,13 +146,12 @@ describe("D46.2-AC2 the import is one choice, made once", () => {
     expect(canonicalOf(exportedB.text)).toBe(canonicalOf(exportedA.text));
   });
 
-  it("lets one of two imports at once win and answers the other 409", async () => {
+  it("lets one of two imports at once win and refuses the other while the operation runs", async () => {
     const { send, h } = await installation();
     const replies = await Promise.all([send(F01_TEXT), send(F01_TEXT)]);
-    const statuses = replies.map((reply) => reply.status).sort();
-    expect(statuses).toEqual([200, 409]);
-    const loser = replies.find((reply) => reply.status === 409);
-    expect(errorOf(loser ?? replies[0]!).code).toBe("SETUP_DATA_ALREADY_CHOSEN");
+    expect(replies.map((reply) => reply.status).sort()).toEqual([200, 503]);
+    const loser = replies.find((reply) => reply.status === 503) ?? replies[0]!;
+    expect(errorOf(loser).code).toBe("MAINTENANCE");
     expect(count(h, "registry")).toBe(1);
   });
 

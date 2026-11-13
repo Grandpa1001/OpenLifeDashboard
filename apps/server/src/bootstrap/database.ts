@@ -92,7 +92,7 @@ async function open(inputs: DatabaseOpenInputs): Promise<DatabaseOpenResult> {
   // snapshot operation has no owner before the backup jobs (D48/D49).
   const reconcilable =
     active !== null &&
-    ((active.reason === "init" && active.targetSchemaVersion === target) || (active.reason === "migrate" && active.toSchemaVersion === target) || active.reason === "rebuild");
+    ((active.reason === "init" && active.targetSchemaVersion === target) || (active.reason === "migrate" && active.toSchemaVersion === target) || active.reason === "rebuild" || active.reason === "import");
   if (active !== null && !reconcilable) {
     return RECOVERY_REQUIRED;
   }
@@ -103,6 +103,9 @@ async function open(inputs: DatabaseOpenInputs): Promise<DatabaseOpenResult> {
   }
   if (active?.reason === "rebuild") {
     return closeRebuild(inputs, active, state.generation, inspection);
+  }
+  if (active?.reason === "import") {
+    return closeImport(inputs, active, state.generation, inspection);
   }
   if (active !== null) {
     if (inspection.kind === "empty") {
@@ -162,6 +165,18 @@ async function resumeMigration(
     return upgrade(inputs, operation, generation, true);
   }
   return RECOVERY_REQUIRED;
+}
+
+type ImportOperation = Extract<MaintenanceOperation, { reason: "import" }>;
+
+/**
+ * The import writes in one unit of work after the file is judged, so there is nothing to undo or to finish:
+ * the database is current and the choice of the starting data says which way it went. Only the operation closes.
+ */
+function closeImport(inputs: DatabaseOpenInputs, operation: ImportOperation, generation: number, inspection: ReturnType<typeof inspectDatabase>): DatabaseOpenResult {
+  if (inspection.kind !== "current") return RECOVERY_REQUIRED;
+  const connection = withWriter(inputs, () => inputs.gate.complete(operation.operationId, generation));
+  return { ok: true, connection, schemaVersion: inspection.schemaVersion, created: false };
 }
 
 type RebuildOperation = Extract<MaintenanceOperation, { reason: "rebuild" }>;

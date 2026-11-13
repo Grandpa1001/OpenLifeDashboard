@@ -3,6 +3,7 @@
 // gives the event loop back, so the requests of the owner are served; it does nothing while a maintenance
 // operation holds the gate, never runs twice at once, and ends at the next batch when the server stops. A
 // failure is logged with its code and never reaches a request.
+import { giveBackLoop } from "../portability/give-back-loop.js";
 import { pruneAuditLog, type AuditPruneDependencies } from "@openlife/core/audit";
 import type { TechnicalLogger } from "../adapters/logging/technical-logger.js";
 import { AUDIT_RETENTION_BATCH_ROWS, AUDIT_RETENTION_FIRST_RUN_DELAY_MS, AUDIT_RETENTION_INTERVAL_MS, AUDIT_RETENTION_MAX_BATCHES_PER_RUN } from "./audit-retention-limits.js";
@@ -30,7 +31,6 @@ export type AuditRetentionJob = Readonly<{
   stop: () => Promise<void>;
 }>;
 
-const yieldToRequests = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 export function createAuditRetentionJob(options: AuditRetentionJobOptions): AuditRetentionJob {
   const batchRows = options.batchRows ?? AUDIT_RETENTION_BATCH_ROWS;
@@ -58,7 +58,7 @@ export function createAuditRetentionJob(options: AuditRetentionJobOptions): Audi
       removed += result.value.deleted;
       if (result.value.deleted > 0) options.logger.log({ level: "info", event: "audit.retention_pruned", operationId, durationMs: 0 });
       if (result.value.deleted < batchRows) break;
-      await yieldToRequests();
+      await giveBackLoop();
     }
     return removed;
   }

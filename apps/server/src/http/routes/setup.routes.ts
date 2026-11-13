@@ -17,6 +17,7 @@ import { readOwnerPreferences, readSetupStatus, saveOwnerPreferences, type Setup
 import type { Hono } from "hono";
 import type { SignedCookie } from "../../adapters/auth/session-cookie.js";
 import type { TechnicalLogger } from "../../adapters/logging/technical-logger.js";
+import { apiErrorResponse } from "../api-errors.js";
 import type { AppEnv } from "../app-env.js";
 import { createSessionOperationKit } from "../session-operation.js";
 
@@ -28,6 +29,8 @@ export type SetupRouteDependencies = Readonly<{
   allowedOrigin: string;
   /** Wall clock in milliseconds. */
   nowMs: () => number;
+  /** True while an operation of the gate runs (the import among them): the starting data is not chosen meanwhile. */
+  maintenanceActive: () => boolean;
   logger: TechnicalLogger;
 }>;
 
@@ -51,6 +54,7 @@ export function registerSetupRoutes(app: Hono<AppEnv>, deps: SetupRouteDependenc
     SETUP_CHOOSE_EMPTY_PATH,
     ...guard,
     operation(chooseEmptyRequestSchema, async (c, token) => {
+      if (deps.maintenanceActive()) return apiErrorResponse(c, 503, "MAINTENANCE");
       const chosen = chooseEmptyData({ unit: deps.unit, nowMs: deps.nowMs }, token, c.get("requestId"));
       if (!chosen.ok) {
         return refused(c, chosen.error);

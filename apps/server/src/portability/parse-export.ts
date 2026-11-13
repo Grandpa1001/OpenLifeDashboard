@@ -14,7 +14,7 @@ import { isValidScreenName, SCREENS_PER_OWNER } from "@openlife/core/dashboard";
 import { validateNewDictionary, type DictionaryLimits } from "@openlife/core/dictionaries";
 import { checkColumn, checkDisplayName, checkSymbol, validateRecordValues, type RecordColumn, type RecordIssue, type RegistryIssue, type RegistryLimits } from "@openlife/core/registries";
 import type { z } from "zod";
-import { EXPORT_ISSUES_MAX } from "./limits.js";
+import { EXPORT_ISSUES_MAX, PARSE_RECORDS_PER_SLICE } from "./limits.js";
 import { EXPORT_MIGRATIONS, migrationSteps, type ExportMigrations } from "./migrations.js";
 
 export type ExportIssue = Readonly<{ path: string; code: string }>;
@@ -123,10 +123,11 @@ function checkDictionaries(file: ExportFile, options: ParseExportOptions, ids: U
   });
 }
 
-function checkRegistries(file: ExportFile, options: ParseExportOptions, ids: UniqueIds, issues: Issues): void {
+/** Gives the event loop back between slices of records: the parser is a generator and whoever drives it decides what a pause is. */
+function* checkRegistries(file: ExportFile, options: ParseExportOptions, ids: UniqueIds, issues: Issues): Generator<void, void> {
   const dictionaryIds = new Set(file.dictionaries.map((dictionary) => dictionary.id));
   const takenRegistrySymbols = new Set<string>();
-  file.registries.forEach((registry, index) => {
+  for (const [index, registry] of file.registries.entries()) {
     const at = `registries[${index}]`;
     ids.check(registry.id, `${at}.id`, issues);
     if (index >= options.registry.maxRegistries) issues.add(at, "LIMIT_REGISTRIES");
@@ -153,18 +154,19 @@ function checkRegistries(file: ExportFile, options: ParseExportOptions, ids: Uni
     // The identifiers of the records are unique in the file whatever else is wrong with the registry.
     registry.records.forEach((record, recordIndex) => ids.check(record.id, `${at}.records[${recordIndex}].id`, issues));
     // The values are checked against the columns only when every column is sound: against a broken one every value would be an issue.
-    if (columnIssues.length > 0 || recordColumns.length !== registry.columns.length) return;
+    if (columnIssues.length > 0 || recordColumns.length !== registry.columns.length) continue;
     const schema = { schemaRevision: registry.schemaRevision, columns: recordColumns };
     const policy = { maxTextCodePoints: options.registry.textMaxChars, maxRecordBytes: options.recordMaxBytes };
-    registry.records.forEach((record, recordIndex) => {
+    for (const [recordIndex, record] of registry.records.entries()) {
+      if (recordIndex > 0 && recordIndex % PARSE_RECORDS_PER_SLICE === 0) yield;
       const recordAt = `${at}.records[${recordIndex}]`;
       if (instantMs(record.updatedAt) < instantMs(record.createdAt)) issues.add(`${recordAt}.updatedAt`, "TIMESTAMPS_ORDER");
       // An export holds every column of the registry, an empty one as null: a missing one is a file that was cut or made by hand.
       for (const column of recordColumns) if (!Object.hasOwn(record.values, column.symbol)) issues.add(`${recordAt}.values.${column.symbol}`, "VALUE_MISSING");
       const checked = validateRecordValues(schema, record.values, policy);
       if (!checked.ok) for (const issue of checked.issues as readonly RecordIssue[]) issues.addWithin(recordAt, issue);
-    });
-  });
+    }
+  }
 }
 
 function checkScreens(file: ExportFile, ids: UniqueIds, issues: Issues): void {
@@ -188,10 +190,15 @@ function checkScreens(file: ExportFile, ids: UniqueIds, issues: Issues): void {
   });
 }
 
-export function parseExportFile(input: string | Uint8Array, options: ParseExportOptions): ParseExportResult {
+/**
+ * The parser as steps: it yields between its stages and between slices of records, so a caller that serves other
+ * requests (the import) can give the event loop back there. One implementation serves both callers.
+ */
+export function* parseExportSteps(input: string | Uint8Array, options: ParseExportOptions): Generator<void, ParseExportResult> {
   const bytes = typeof input === "string" ? Buffer.byteLength(input, "utf8") : input.byteLength;
   if (bytes > options.maxBytes) return fail("EXPORT_TOO_LARGE", [{ path: "", code: "EXPORT_TOO_LARGE" }]);
 
+  yield;
   let parsed: unknown;
   try {
     // A byte order mark in front of the text is not part of it.
@@ -213,6 +220,7 @@ export function parseExportFile(input: string | Uint8Array, options: ParseExport
     for (const step of steps) document = step(document);
   }
 
+  yield;
   const shape = exportFileSchema.safeParse(document);
   if (!shape.success) return fail("EXPORT_INVALID", shapeIssues(shape.error).slice(0, EXPORT_ISSUES_MAX));
 
@@ -221,8 +229,28 @@ export function parseExportFile(input: string | Uint8Array, options: ParseExport
   const ids = new UniqueIds();
   checkConfigEntries(file, options, ids, issues);
   checkDictionaries(file, options, ids, issues);
-  checkRegistries(file, options, ids, issues);
+  yield;
+  yield* checkRegistries(file, options, ids, issues);
   checkScreens(file, ids, issues);
   if (issues.list.length > 0) return fail("EXPORT_INVALID", issues.list);
   return { ok: true, file, migratedFrom: version < EXPORT_FORMAT_VERSION ? version : null };
+}
+
+/** The whole file judged in one go: for callers that have nothing else to serve (tests, tools). */
+export function parseExportFile(input: string | Uint8Array, options: ParseExportOptions): ParseExportResult {
+  const steps = parseExportSteps(input, options);
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+  }
+}
+
+/** The same judgment that gives the event loop back at each pause of the steps. */
+export async function parseExportFileYielding(input: string | Uint8Array, options: ParseExportOptions, pause: () => Promise<void>): Promise<ParseExportResult> {
+  const steps = parseExportSteps(input, options);
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+    await pause();
+  }
 }

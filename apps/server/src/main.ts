@@ -56,6 +56,7 @@ import type { AppEnv } from "./http/app-env.js";
 import { createRateLimiter } from "./http/middleware/fixed-window-limit.js";
 import { LOGIN_LIMIT_WINDOW_MS, LOGIN_REQUESTS_PER_MINUTE } from "./http/security-limits.js";
 import { createEffectiveSettings } from "./bootstrap/effective-settings.js";
+import { giveBackLoop } from "./portability/give-back-loop.js";
 import { liveLimits } from "./bootstrap/live-limits.js";
 import { logLimitsFrom } from "./bootstrap/log-limits.js";
 import { readBuildInfo } from "./bootstrap/build-info.js";
@@ -296,7 +297,7 @@ const app = createApp({
     newSessionToken,
     logger,
   },
-  setup: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
+  setup: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, maintenanceActive: () => gate.gate.current().activeOperation !== null, logger },
   registries: { unit: identityUnit, summaries: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: limits.registry, logger },
   records: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), hash: sha256Hex, limits: limits.registry, recordMaxBytes: limits.recordMaxBytes, logger },
   structure: { unit: identityUnit, gate: gate.gate, snapshots: createDatabaseSnapshots(database.connection, snapshotOptions), cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), newOperationId: randomUUID, signer: planSigner, limits: limits.registry, logger },
@@ -322,7 +323,7 @@ const app = createApp({
     nowMs: Date.now,
     logger,
   },
-  import: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, limits, policy: DESIGN_POLICY, widgets: createWidgetCatalog(), logger },
+  import: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, limits, policy: DESIGN_POLICY, widgets: createWidgetCatalog(), gate: gate.gate, newOperationId: randomUUID, pause: giveBackLoop, logger },
   security: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, secureCookies, hasher, crypto: mfaCrypto, keys: attemptKeys, clientIp, newId: randomUUID, newSessionToken, nowMs: Date.now, logger },
   announce: liveHub.publish,
   stream: { unit: identityUnit, hub: liveHub, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, pingIntervalMs: STREAM_PING_INTERVAL_MS, logger },

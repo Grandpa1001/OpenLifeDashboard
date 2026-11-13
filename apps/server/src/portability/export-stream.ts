@@ -4,6 +4,7 @@
 // not a file that stops in the middle. A failure after the first byte ends the stream with an error: the
 // client gets a transfer that did not finish, never a valid-looking file that is short. The reader is closed
 // whenever the stream ends, is cancelled or fails.
+import { giveBackLoop } from "./give-back-loop.js";
 import { exportFileName } from "@openlife/contracts/export/format";
 import { bindConfigStore } from "@openlife/sqlite/adapters/configuration";
 import { bindDashboardStore } from "@openlife/sqlite/adapters/dashboard";
@@ -32,7 +33,6 @@ export type ExportStream = Readonly<{ fileName: string; body: ReadableStream<Uin
 /** Starts an export for a request; throws when the database cannot be read at all (the route answers 503). */
 export type ExportService = (requestId: string) => Promise<ExportStream>;
 
-const yieldNow = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 export function createExportService(options: ExportServiceOptions): ExportService {
   return async (requestId) => {
@@ -51,7 +51,7 @@ export function createExportService(options: ExportServiceOptions): ExportServic
         dashboard: bindDashboardStore(reader.tx),
       };
       const exportedAt = options.now();
-      const chunks = exportDocument(ports, { appVersion: options.appVersion, exportedAt, recordsPerPage: options.recordsPerPage ?? EXPORT_RECORDS_PER_PAGE, yieldToLoop: options.yieldToLoop ?? yieldNow });
+      const chunks = exportDocument(ports, { appVersion: options.appVersion, exportedAt, recordsPerPage: options.recordsPerPage ?? EXPORT_RECORDS_PER_PAGE, yieldToLoop: options.yieldToLoop ?? giveBackLoop });
       const encoder = new TextEncoder();
       // The first part is made now: its failure is the failure of the request.
       const first = await chunks.next();

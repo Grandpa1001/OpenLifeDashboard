@@ -5,3 +5,6 @@ export const EXPORT_ISSUES_MAX = 100;
 
 /** Records the export reads and writes at a time: one short read of the database, then the event loop is given back. */
 export const EXPORT_RECORDS_PER_PAGE = 500;
+
+/** Records the parser checks between two pauses that give the event loop back (D46.3). */
+export const PARSE_RECORDS_PER_SLICE = 2000;
