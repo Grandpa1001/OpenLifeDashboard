@@ -11,7 +11,10 @@ export const WEB_INDEX = path.join(repoRoot, "apps/web/dist/index.html");
 export const CONFIG_CHECK_ENTRY = path.join(repoRoot, "apps/server/dist/cli/config-check.js");
 const WRITER_HOLDER = path.join(repoRoot, "tests/support/writer-holder.ts");
 
-const STARTUP_TIMEOUT_MS = 10_000;
+// A cold start on a loaded runner (the first server of a run: Node, 17 migrations, the first listen) has taken more than 10 s
+// with no output at all (run 43378756226); a slower start is not a failure, a start that never reports is, and 25 s still
+// ends inside the 30 s of a test.
+const STARTUP_TIMEOUT_MS = 25_000;
 
 export type ServerProcess = Readonly<{
   baseUrl: string;
