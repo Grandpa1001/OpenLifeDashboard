@@ -44,10 +44,10 @@ test.describe("the first setup from an empty installation", () => {
     await page.getByLabel(text(setup, "recovery.saved")).check();
     await page.getByRole("button", { name: text(setup, "recovery.continue") }).click();
 
-    // The starting data: only the empty start, no import and no guided start are offered or implied.
+    // The starting data: the empty start and the import of a file (D46.4), no guided start is offered or implied.
     await expect(heading(page)).toHaveText(text(setup, "data.heading"));
-    await expect(page.getByRole("button")).toHaveCount(2); // the choice and the sign-out
-    expect((await page.locator("main").innerText()).toLowerCase()).not.toMatch(/import|designer|wizard|guide/);
+    await expect(page.getByRole("button")).toHaveCount(4); // the empty start, the file chooser, the import and the sign-out
+    expect((await page.locator("main").innerText()).toLowerCase()).not.toMatch(/designer|wizard|guide/);
     await expectNoViolations(page);
     await page.goto(`${owner.baseUrl}/`);
     await expect(page).toHaveURL(`${owner.baseUrl}/setup`);

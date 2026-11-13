@@ -35,7 +35,27 @@
     "heading": "Dane początkowe",
     "description": "Zacznij od pustego pulpitu. Własne ekrany i dane dodasz później.",
     "chooseEmpty": "Zacznij od pustych danych",
-    "choosing": "Zapisuję…"
+    "choosing": "Zapisuję…",
+    "import": {
+      "heading": "Import z pliku",
+      "description": "Zacznij od danych z pliku eksportu OpenLifeDashboard. Plik jest sprawdzany w całości, zanim cokolwiek zostanie zapisane; wybór jest ostateczny, tak jak pusty start.",
+      "fileLabel": "Plik eksportu (JSON)",
+      "submit": "Zaimportuj plik",
+      "sending": "Importuję…",
+      "working": "Wysyłam i sprawdzam plik, potem zapisuję dane. Nie zamykaj tej strony.",
+      "issuesHeading_one": "Plik ma {{count}} miejsce do poprawy:",
+      "issuesHeading_few": "Plik ma {{count}} miejsca do poprawy:",
+      "issuesHeading_many": "Plik ma {{count}} miejsc do poprawy:",
+      "issuesHeading_other": "Plik ma {{count}} miejsca do poprawy:",
+      "issuesLabel": "Miejsca w pliku do poprawy",
+      "wholeFile": "cały plik",
+      "reasons": {
+        "EXPORT_NOT_JSON": "To nie jest poprawny plik JSON.",
+        "EXPORT_FORMAT_UNKNOWN": "To nie jest plik eksportu OpenLifeDashboard.",
+        "EXPORT_VERSION_NEWER": "Plik pochodzi z nowszej wersji aplikacji. Zaktualizuj tę instalację i spróbuj ponownie.",
+        "EXPORT_VERSION_UNSUPPORTED": "Ta wersja formatu eksportu nie jest obsługiwana."
+      }
+    }
   },
   "preferences": {
     "heading": "Twoje preferencje",

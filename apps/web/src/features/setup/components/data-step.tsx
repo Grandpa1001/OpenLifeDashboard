@@ -3,11 +3,12 @@ import { useTranslation } from "react-i18next";
 import { describeFailure, type ErrorMessage } from "../../../lib/failures/error-message.js";
 import { FailureAlert } from "../../../lib/failures/failure-alert.js";
 import { chooseEmptyData } from "../api/setup.js";
+import { ImportSection } from "./import-section.js";
 
 /**
- * The starting data. Only the empty start exists in this version: no import is offered before it
- * works (D46) and no guided start before the Designer (D18). The choice is final and the server
- * repeats it harmlessly, so a lost answer is simply asked again.
+ * The starting data: the empty start, or an export file (D46). No guided start is offered before the Designer
+ * (D18). The choice is final and the server repeats the empty one harmlessly, so a lost answer is simply asked again;
+ * a file is judged whole by the server and a refusal leaves the choice open.
  */
 export function DataStep({ onChosen, onChanged }: Readonly<{ onChosen: () => void; onChanged: () => void }>) {
   const { t } = useTranslation("setup");
@@ -45,6 +46,7 @@ export function DataStep({ onChosen, onChanged }: Readonly<{ onChosen: () => voi
       <button type="button" disabled={submitting} onClick={() => void choose()}>
         {submitting ? t("data.choosing") : t("data.chooseEmpty")}
       </button>
+      <ImportSection onImported={onChosen} onChanged={onChanged} />
     </section>
   );
 }

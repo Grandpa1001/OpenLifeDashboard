@@ -35,7 +35,25 @@
     "heading": "Starting data",
     "description": "Start with an empty dashboard. You will add your own screens and data later.",
     "chooseEmpty": "Start with empty data",
-    "choosing": "Saving…"
+    "choosing": "Saving…",
+    "import": {
+      "heading": "Import from a file",
+      "description": "Start from the data in an OpenLifeDashboard export file. The whole file is checked before anything is written; the choice is final, like the empty start.",
+      "fileLabel": "Export file (JSON)",
+      "submit": "Import the file",
+      "sending": "Importing…",
+      "working": "Sending and checking the file, then saving the data. Do not close this page.",
+      "issuesHeading_one": "The file has {{count}} place to fix:",
+      "issuesHeading_other": "The file has {{count}} places to fix:",
+      "issuesLabel": "Places in the file to fix",
+      "wholeFile": "whole file",
+      "reasons": {
+        "EXPORT_NOT_JSON": "This is not a valid JSON file.",
+        "EXPORT_FORMAT_UNKNOWN": "This is not an OpenLifeDashboard export file.",
+        "EXPORT_VERSION_NEWER": "The file comes from a newer version of the application. Update this installation and try again.",
+        "EXPORT_VERSION_UNSUPPORTED": "This version of the export format is not supported."
+      }
+    }
   },
   "preferences": {
     "heading": "Your preferences",

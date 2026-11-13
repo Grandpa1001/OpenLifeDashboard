@@ -1854,3 +1854,31 @@ main.pulpit {
   background: var(--color-warning-surface);
   color: var(--color-text);
 }
+
+/* The import in the setup: a group under the empty start, and the places a refused file is wrong at (D46.4). */
+.import-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.import-section input[type="file"] {
+  max-width: 100%;
+}
+
+.import-issues {
+  display: grid;
+  gap: var(--space-2);
+  max-height: 16rem;
+  margin: 0;
+  padding-left: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.import-issues code {
+  overflow-wrap: anywhere;
+}

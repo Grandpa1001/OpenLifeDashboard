@@ -1541,7 +1541,7 @@ const definedLater: readonly TaskDefinition[] = [
         id: "setup-e2e",
         criteria: ["D12.3-AC1", "D12.3-AC2"],
         description:
-          "Playwright on a fresh installation (F09 minimal-setup-resumes-after-restart): enrollment, recovery codes, empty data, preferences, empty /main in the saved language, no import or guide offered; three real restarts resume the right stage without a second enrollment and keep the choice and the preferences; unsaved preferences keep /main closed; a refused zone keeps the form; a lost choice is asked again; sign-out ends the other tab at once (and by the next request without a broadcast), the old cookie opens nothing; PL; axe",
+          "Playwright on a fresh installation (F09 minimal-setup-resumes-after-restart): enrollment, recovery codes, empty data, preferences, empty /main in the saved language, the import offered next to the empty start and no guide (D46.4); three real restarts resume the right stage without a second enrollment and keep the choice and the preferences; unsaved preferences keep /main closed; a refused zone keeps the form; a lost choice is asked again; sign-out ends the other tab at once (and by the next request without a broadcast), the old cookie opens nothing; PL; axe",
         command: ["node", "tests/verification/e2e.ts", "setup", "enrollment", "gate", "sign-in"],
         requires: ["tests/verification/e2e.ts", "tests/e2e/setup.spec.ts", "tests/e2e/fixtures.ts", "tests/support/auth-http.ts"],
         timeoutMs: 15 * 60 * 1000,
@@ -5416,6 +5416,57 @@ const definedLater: readonly TaskDefinition[] = [
       },
       ...regressionChecks("D46.3-regression"),
     ],
+  },
+  {
+    // DEV §9.43: the import in the setup.
+    id: "D46.4",
+    ready: true,
+    title: "The import in the setup: the file chosen on the page of the starting data, the reason and the places of a refusal, the end of the setup",
+    criteria: ["D46.4-AC1", "D46.4-AC2", "D46.4-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D46.4-AC1", "D46.4-AC2"],
+        description: "pnpm -r build: the section of the import on the page of the starting data and the raw body of the API client",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/setup/components/import-section.tsx", "apps/web/src/features/setup/components/data-step.tsx", "apps/web/src/lib/api-client/request.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D46.4-AC1", "D46.4-AC2"],
+        description: "pl and en have the same keys, including the texts of the import",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/setup.json", "apps/web/src/locales/en/setup.json"],
+      },
+      {
+        id: "setup-import-e2e",
+        criteria: ["D46.4-AC1", "D46.4-AC2"],
+        description:
+          "Playwright on the built app: a file that is not JSON, a file of a newer version and a file with a wrong value are refused with their reason and the places in the file (no value), nothing is chosen and the form stays; the file of F01 from the same page ends the setup, opens the private screen in the language of the file and leaves the registry with its 25 records and the choice imported; the import is reached and used from the keyboard on a phone width without a horizontal scroll; axe before and after a refusal",
+        command: ["node", "tests/verification/e2e.ts", "setup-import.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/setup-import.spec.ts", "tests/fixtures/books/books-v1.export.json"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      {
+        id: "setup-e2e",
+        criteria: ["D46.4-AC2"],
+        description: "The first setup still ends in the empty private screen with the import offered next to the empty start",
+        command: ["node", "tests/verification/e2e.ts", "setup.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/setup.spec.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D46.4-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the writer, the route, the operation of the gate, the page.
+  {
+    id: "D46",
+    ready: true,
+    title: "The import of the owner's data into an empty installation: the writer, the route, the operation of the gate and the setup",
+    steps: ["D46.1", "D46.2", "D46.3", "D46.4"],
+    criteria: [],
+    checks: [],
   },
   {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of

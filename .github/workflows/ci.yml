@@ -424,6 +424,9 @@ jobs:
         run: pnpm exec playwright install-deps chromium
       - name: Verify D12 (D12.1–D12.3, sign-in, enrollment and first setup in a real browser)
         run: pnpm verify:task -- D12
+      - name: Verify D46.4 (the import in the setup)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D46.4
       - name: Verify D16.1 (the list of registries in a real browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D16.1
@@ -1034,6 +1037,9 @@ jobs:
       - name: Verify D45 (the parent, D45.1–D45.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D45
+      - name: Verify D46 (the parent, D46.1–D46.4 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D46
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
