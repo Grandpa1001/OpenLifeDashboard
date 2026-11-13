@@ -88,11 +88,11 @@ const needs = (job: string): string[] => [jobs[job]?.needs ?? []].flat();
 check.expect(["fast-core", "fast-browser", "full-install"].every((job) => needs("g1").includes(job)) && (jobs["g1"]?.if ?? "").includes("needs.full-install.result != 'skipped'"), "G1 hangs on the fast tier and the installer job and never runs on a partial set");
 check.expect(needs("image").includes("full") && needs("g0").includes("full") && needs("g0").includes("image"), "the images and G0 hang on the full tier");
 check.expect(
-  ["changes", "fast-data", "fast-browser", "fast-records-browser", "fast-structure", "fast-structure-browser"].every((job) => needs("g2").includes(job)) && (jobs["g2"]?.if ?? "").includes("needs.changes.outputs.full == 'true'"),
+  ["changes", "fast-data", "fast-account", "fast-browser", "fast-records-browser", "fast-structure", "fast-structure-browser"].every((job) => needs("g2").includes(job)) && (jobs["g2"]?.if ?? "").includes("needs.changes.outputs.full == 'true'"),
   "G2 hangs on the fast jobs of KM2 and runs only with the full tier, never on a partial set",
 );
 check.expect(
-  ["changes", "fast-data", "fast-screens-browser", "fast-designer-browser"].every((job) => needs("g3").includes(job)) && (jobs["g3"]?.if ?? "").includes("needs.changes.outputs.full == 'true'"),
+  ["changes", "fast-data", "fast-account", "fast-screens-browser", "fast-designer-browser"].every((job) => needs("g3").includes(job)) && (jobs["g3"]?.if ?? "").includes("needs.changes.outputs.full == 'true'"),
   "G3 hangs on the fast jobs of KM3 and runs only with the full tier, never on a partial set",
 );
 check.expect((jobs["g0"]?.if ?? "").includes("needs.full.result != 'skipped'"), "G0 does not run when the full tier was skipped (never on a partial set)");

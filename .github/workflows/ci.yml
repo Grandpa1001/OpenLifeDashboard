@@ -236,6 +236,39 @@ jobs:
       - name: Verify D41.3 (the application options over HTTP, their effect on the limits and on the log)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D41.3
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-fast-data
+          path: .artifacts/
+          # The report directory is a dot-directory, which upload-artifact skips by default.
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+
+  fast-account:
+    # The account, the diagnostics and the portability (D43.1 on): split from the job of the data after run
+    # 43394912100, where the 30 minutes of the data ended in the step D46.1 (the job had grown to 26 minutes).
+    name: fast tier (account, diagnostics and portability, SQLite, HTTP)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
       - name: Verify D43.1 (the sessions of the owner, the list, the end of one and of all the others)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D43.1
@@ -285,7 +318,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: verification-fast-data
+          name: verification-fast-account
           path: .artifacts/
           # The report directory is a dot-directory, which upload-artifact skips by default.
           include-hidden-files: true
@@ -1388,7 +1421,7 @@ jobs:
     # and decides every item from their logs. Like the other gates it runs only with the full tier,
     # never on a partial set.
     name: verify:task G2 (full F01, dictionary, ConfigTable and structure reports)
-    needs: [changes, fast-data, fast-browser, fast-records-browser, fast-structure, fast-structure-browser]
+    needs: [changes, fast-data, fast-account, fast-browser, fast-records-browser, fast-structure, fast-structure-browser]
     if: ${{ !cancelled() && needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -1443,7 +1476,7 @@ jobs:
     # browser) and decides every item from their logs. Like the other gates it runs only with the full tier,
     # never on a partial set.
     name: verify:task G3 (the screen of F01, the Designer and the live events reports)
-    needs: [changes, fast-data, fast-screens-browser, fast-designer-browser]
+    needs: [changes, fast-data, fast-account, fast-screens-browser, fast-designer-browser]
     if: ${{ !cancelled() && needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
