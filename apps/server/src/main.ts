@@ -322,6 +322,7 @@ const app = createApp({
     nowMs: Date.now,
     logger,
   },
+  import: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, limits, policy: DESIGN_POLICY, widgets: createWidgetCatalog(), logger },
   security: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, secureCookies, hasher, crypto: mfaCrypto, keys: attemptKeys, clientIp, newId: randomUUID, newSessionToken, nowMs: Date.now, logger },
   announce: liveHub.publish,
   stream: { unit: identityUnit, hub: liveHub, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, pingIntervalMs: STREAM_PING_INTERVAL_MS, logger },

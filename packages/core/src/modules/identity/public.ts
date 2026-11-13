@@ -3,7 +3,7 @@ export { chooseEmptyData } from "./application/choose-data.js";
 export type { ChooseDataDependencies, DataChosen } from "./application/choose-data.js";
 export { resetOwnerMfa } from "./application/reset-mfa.js";
 export type { MfaReset, ResetMfaCommand } from "./application/reset-mfa.js";
-export { authorizeDataAccess } from "./application/data-access.js";
+export { authorizeDataAccess, authorizeDataChoice } from "./application/data-access.js";
 export type { DataAccessDependencies, DataAccessHolder, DataAccessPorts } from "./application/data-access.js";
 export { authorizeLiveStream } from "./application/live-stream-access.js";
 export type { LiveStreamDependencies, LiveStreamHolder, LiveStreamPorts } from "./application/live-stream-access.js";

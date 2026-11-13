@@ -240,10 +240,10 @@ describe("D11.4-AC2 the gate, imported data, outages and revocation", () => {
     expect((await putPreferences(setup.server, gate.cookie, PREFERENCES)).status).toBe(200);
   });
 
-  it("there is no import: its routes do not exist, and no production stub answers", async () => {
+  it("there is no other import route: `choose-imported` and `/api/v1/import` do not exist (the import is `setup/import`, D46.2)", async () => {
     const setup = await installation();
     const gate = await gated(setup);
-    for (const route of ["/api/v1/setup/import", "/api/v1/setup/choose-imported", "/api/v1/import"]) {
+    for (const route of ["/api/v1/setup/choose-imported", "/api/v1/import"]) {
       const reply = await post(setup.server, route, {}, { cookie: gate.cookie });
       expect(reply.status, route).toBe(404);
       expect(codeOf_(reply)).toBe("NOT_FOUND");

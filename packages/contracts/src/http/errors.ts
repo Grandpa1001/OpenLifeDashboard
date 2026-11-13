@@ -38,6 +38,9 @@ export const API_ERROR_CODES = [
   "SNAPSHOT_LOW_SPACE",
   "SNAPSHOT_FAILED",
   "EXPORT_UNAVAILABLE",
+  "IMPORT_TOO_LARGE",
+  "IMPORT_INVALID",
+  "IMPORT_UNAVAILABLE",
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

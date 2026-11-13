@@ -48,6 +48,7 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "POST", path: mfa.MFA_STEP_UP_PATH, access: "data", note: "a fresh TOTP for a sensitive action" },
   { method: "GET", path: setup.SETUP_STATUS_PATH, access: "identity", note: "stage of the setup" },
   { method: "POST", path: setup.SETUP_CHOOSE_EMPTY_PATH, access: "setup", note: "the empty start" },
+  { method: "POST", path: setup.SETUP_IMPORT_PATH, access: "setup", note: "the import of an export file as the starting data; the body is read only after the gate, up to limits.importMaxMiB" },
   { method: "GET", path: setup.SETUP_PREFERENCES_PATH, access: "data", note: "the owner's preferences" },
   { method: "PUT", path: setup.SETUP_PREFERENCES_PATH, access: "data", note: "saves the preferences" },
   { method: "GET", path: registries.REGISTRIES_PATH, access: "data", note: "the owner's registries that are not deleted" },

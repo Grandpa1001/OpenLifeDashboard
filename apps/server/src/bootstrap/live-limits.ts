@@ -7,6 +7,7 @@ import type { RegistryLimits } from "@openlife/core/registries";
 import type { EffectiveSettings } from "./effective-settings.js";
 
 const KIB = 1024;
+const MIB = 1024 * KIB;
 /** The longest description of an entry of ConfigTable: not an option, a rule of the entry. */
 const CONFIG_DESCRIPTION_MAX = 500;
 
@@ -16,6 +17,8 @@ export type LiveLimits = Readonly<{
   config: ConfigLimits;
   /** The largest record, in bytes of its values as JSON (`limits.recordMaxKiB`). */
   recordMaxBytes: () => number;
+  /** The largest file an import takes, in bytes (`limits.importMaxMiB`). */
+  importMaxBytes: () => number;
 }>;
 
 export function liveLimits(settings: EffectiveSettings): LiveLimits {
@@ -49,5 +52,6 @@ export function liveLimits(settings: EffectiveSettings): LiveLimits {
       descriptionMaxCodePoints: CONFIG_DESCRIPTION_MAX,
     },
     recordMaxBytes: () => settings.integer("limits.recordMaxKiB") * KIB,
+    importMaxBytes: () => settings.integer("limits.importMaxMiB") * MIB,
   };
 }

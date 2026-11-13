@@ -11,6 +11,17 @@ export type DataAccessPorts = Readonly<{ sessions: Pick<SessionStore, "findActiv
 export type DataAccessDependencies = Readonly<{ unit: ReadUnit<DataAccessPorts>; nowMs: () => number }>;
 export type DataAccessHolder = Readonly<{ sessionId: string }>;
 
+/** The session of this token when it may choose the starting data now (the import asks before it reads a large body); otherwise the code the policy refuses with. */
+export function authorizeDataChoice(deps: DataAccessDependencies, token: string, requestId: string): Result<DataAccessHolder> {
+  const nowMs = deps.nowMs();
+  return deps.unit.read((ports): Result<DataAccessHolder> => {
+    const access = resolveSessionAccess(ports, token, nowMs, requestId);
+    if (access === null) return { ok: false, error: { code: "AUTH_REQUIRED" } };
+    const decision = decideAccess(access.snapshot, "setup_data_choice", nowMs);
+    return decision.allow ? { ok: true, value: { sessionId: access.session.sessionId } } : { ok: false, error: { code: decision.code } };
+  });
+}
+
 /** The session of this token when it may read the data now; otherwise the code the gate refuses with. */
 export function authorizeDataAccess(deps: DataAccessDependencies, token: string, requestId: string): Result<DataAccessHolder> {
   const nowMs = deps.nowMs();

@@ -5351,6 +5351,39 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.43: the route of the import.
+    id: "D46.2",
+    ready: true,
+    title: "The route of the import: `POST /api/v1/setup/import` with the limit of the size, the parser with the limits of the installation, and refusals that leave nothing behind",
+    criteria: ["D46.2-AC1", "D46.2-AC2", "D46.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D46.2-AC1", "D46.2-AC2"],
+        description: "pnpm -r build: the route, the reader of a body up to a limit, the new error codes and the policy check of the choice of the data",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/routes/import.routes.ts", "apps/server/src/http/read-limited-body.ts", "packages/contracts/src/http/setup.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D46.2-AC1"],
+        description: "pl and en have the texts of the new error codes of the import",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/errors.json", "apps/web/src/locales/en/errors.json"],
+      },
+      {
+        id: "import-http",
+        criteria: ["D46.2-AC1", "D46.2-AC2"],
+        description: "Over HTTP on a real SQLite file: 401, 403 and 409 before the body is read, 413 over limits.importMaxMiB, 422 with paths and codes and none of the values, nothing written after a refusal; the export of A imported into B equals it in canonical form; two imports at once leave one winner; a failure of the write is 503 and takes everything back",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/import/import-http.test.ts"],
+        requires: ["tests/integration/import/import-http.test.ts", "tests/support/export-fixture.ts", "tests/fixtures/books/books-v1.export.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D46.2-regression"),
+    ],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

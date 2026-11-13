@@ -35,5 +35,8 @@
   "UNKNOWN": "The operation could not be completed. Try again.",
   "requestReference": "Reference code: {{requestId}}",
   "STEP_UP_REQUIRED": "This change needs a fresh TOTP code.",
-  "EXPORT_UNAVAILABLE": "The export could not be made now. Try again in a moment."
+  "EXPORT_UNAVAILABLE": "The export could not be made now. Try again in a moment.",
+  "IMPORT_TOO_LARGE": "The file is larger than the import allows. Nothing was changed.",
+  "IMPORT_INVALID": "This file is not an export that can be imported. Nothing was changed.",
+  "IMPORT_UNAVAILABLE": "The data could not be imported now. Nothing was changed; try again in a moment."
 }

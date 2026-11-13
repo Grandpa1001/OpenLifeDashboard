@@ -41,6 +41,9 @@ const FALLBACK_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   SNAPSHOT_LOW_SPACE: "There is not enough free space for the copy the change needs; nothing was changed",
   SNAPSHOT_FAILED: "The copy the change needs could not be made; nothing was changed",
   EXPORT_UNAVAILABLE: "The export could not be made now",
+  IMPORT_TOO_LARGE: "The file is larger than the import allows",
+  IMPORT_INVALID: "The file is not an export this installation can import",
+  IMPORT_UNAVAILABLE: "The import could not be made now; nothing was changed",
 };
 
 export function apiErrorResponse(

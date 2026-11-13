@@ -212,6 +212,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
     settings: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, environment, refresh: effectiveSettings.refresh, logger },
     diagnostics: { unit, overview, logs: diagnosticsLogs, report: createReportBuilder({ overview, logs: diagnosticsLogs, options: effectiveSettings.current, catalog: SETTINGS_CATALOG, now: () => new Date() }), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
+    import: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, limits, policy: DESIGN_POLICY, widgets: createWidgetCatalog(), logger },
     export: { unit, export: createExportService({ databaseFile: options.exportDatabaseFile ?? workingPaths.database, busyTimeoutMs: 5000, appVersion: options.exportAppVersion ?? "0.0.0", now: () => new Date(), logger, ...(options.exportRecordsPerPage === undefined ? {} : { recordsPerPage: options.exportRecordsPerPage }) }), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     security: { ...common, unit, hasher, crypto: mfaCrypto },
     announce: options.announce ?? hub.publish,

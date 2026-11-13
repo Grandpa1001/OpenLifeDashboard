@@ -9,6 +9,8 @@ import { NEXT_ACTIONS } from "./identity.js";
 export const SETUP_STATUS_PATH = "/api/v1/setup/status";
 export const SETUP_CHOOSE_EMPTY_PATH = "/api/v1/setup/choose-empty";
 export const SETUP_PREFERENCES_PATH = "/api/v1/setup/preferences";
+/** The body is an export file (`openlifedashboard-export`), not a JSON request of the setup; its size is `limits.importMaxMiB` (D46.2). */
+export const SETUP_IMPORT_PATH = "/api/v1/setup/import";
 
 export const DATA_CHOICES = ["unselected", "empty", "imported"] as const;
 /** Where the setup stands: the starting data, then the preferences, then done (the guide is D18). */
@@ -52,6 +54,16 @@ export type SetupStatusDto = z.infer<typeof setupStatusSchema>;
 
 export const chooseEmptyRequestSchema = z.object({}).strict();
 export const chooseEmptyResponseSchema = z.object({ dataChoice: z.literal("empty"), stage: z.enum(SETUP_STAGES) }).strict();
+
+/** What an import wrote: the choice it made and how much it holds, counts only (D46.2). */
+export const importResponseSchema = z
+  .object({
+    dataChoice: z.literal("imported"),
+    stage: z.enum(SETUP_STAGES),
+    imported: z.object({ configEntries: z.number().int().min(0), dictionaries: z.number().int().min(0), registries: z.number().int().min(0), records: z.number().int().min(0), screens: z.number().int().min(0), widgets: z.number().int().min(0) }).strict(),
+  })
+  .strict();
+export type ImportResponseDto = z.infer<typeof importResponseSchema>;
 
 /** `preferences` is null until the owner has saved them. */
 export const preferencesResponseSchema = z.object({ preferences: ownerPreferencesSchema.nullable(), stage: z.enum(SETUP_STAGES) }).strict();
