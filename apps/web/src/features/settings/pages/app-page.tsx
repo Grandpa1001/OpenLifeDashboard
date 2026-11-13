@@ -12,6 +12,7 @@ import { queryKeys } from "../../../lib/query-keys/index.js";
 import { fetchOwnerSetup, savePreferences } from "../../../lib/session/owner-setup.js";
 import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
 import { fetchAppSettings, patchAppSettings, resetAppSetting } from "../api/app-settings.js";
+import { ExportSection } from "../components/export-section.js";
 import { changesOf, draftOf, groupOf, parseDraft, type OptionDraft } from "../lib/option-drafts.js";
 
 /** The reason an option was refused, by the paths and codes the API lists (`values.<key>`), for each option. */
@@ -267,6 +268,8 @@ export function AppSettingsPage() {
           {t("app.options.save")}
         </button>
       </section>
+
+      <ExportSection />
 
       {blocker.status === "blocked" ? (
         <div className="card settings-leave" role="alertdialog" aria-labelledby="settings-leave-heading" aria-describedby="settings-leave-text">

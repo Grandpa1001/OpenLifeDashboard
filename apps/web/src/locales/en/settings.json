@@ -90,6 +90,14 @@
       "text": "You have unsaved changes in the options. Leaving discards them.",
       "stay": "Stay",
       "discard": "Discard the changes"
+    },
+    "export": {
+      "heading": "Export of the data",
+      "what": "The export is one file with everything you keep here: your settings, the entries of ConfigTable, the dictionaries, the registries with their records, and the screens. It does not hold your password, the codes of the second factor, sessions or the audit log.",
+      "warningLabel": "Warning.",
+      "warning": "The file is not encrypted and contains your personal data in plain text. Keep it somewhere safe and do not send it to anyone you do not trust.",
+      "download": "Download the export file",
+      "started": "The download has started. The browser saves the file with its other downloads; its name has today's date."
     }
   },
   "options": {

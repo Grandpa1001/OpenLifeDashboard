@@ -602,6 +602,9 @@ jobs:
       - name: Verify D44.6 (the Diagnostics page)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D44.6
+      - name: Verify D45.3 (the export from the Application page)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D45.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -935,7 +938,7 @@ jobs:
     # The data of the registries: column types, record changes and search, dictionaries,
     # ConfigTable and the preview of a change, every parent over its work orders. Its own job, as in
     # the fast tier, so no job runs out of its 30 minutes as the parents are added.
-    name: verify:task (full tier, data D22-D26 and settings D41)
+    name: verify:task (full tier, data D22-D26, settings D41 and export D45)
     needs: changes
     if: ${{ needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
@@ -986,6 +989,9 @@ jobs:
       - name: Verify D41 (the parent, D41.1–D41.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D41
+      - name: Verify D45 (the parent, D45.1–D45.3 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D45
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -1846,3 +1846,11 @@ main.pulpit {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
+
+.export-warning {
+  padding: var(--space-3);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-surface);
+  color: var(--color-text);
+}

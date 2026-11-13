@@ -5275,6 +5275,49 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.42: the export from the Application page.
+    id: "D45.3",
+    ready: true,
+    title: "The export from the Application page: the warning, the download and the path of the owner",
+    criteria: ["D45.3-AC1", "D45.3-AC2", "D45.3-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D45.3-AC1", "D45.3-AC2"],
+        description: "pnpm -r build: the section of the export on the Application page",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/settings/components/export-section.tsx", "apps/web/src/features/settings/pages/app-page.tsx"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D45.3-AC1", "D45.3-AC2"],
+        description: "pl and en have the same keys, including the texts of the export",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/settings.json", "apps/web/src/locales/en/settings.json"],
+      },
+      {
+        id: "settings-export-e2e",
+        criteria: ["D45.3-AC1", "D45.3-AC2"],
+        description:
+          "Playwright on the built app: the warning is on the page before the link and describes it, the click downloads a file named by the day that is the format of the export with the owner's registry and records and no password, code or secret; the download from the keyboard, axe, and a phone without sideways scrolling",
+        command: ["node", "tests/verification/e2e.ts", "settings-export.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/settings-export.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D45.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the format and the parser, the exporter, the page.
+  {
+    id: "D45",
+    ready: true,
+    title: "The export of the data: the format and its parser, the exporter and the page",
+    steps: ["D45.1", "D45.2", "D45.3"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM3 gate (DEV §8.4, §9.37): the screen of F01 on one installation in a browser, then the reports of
     // the fast tier for D33-D40 joined item by item for this exact code; does not run their tests again.
     id: "G3",

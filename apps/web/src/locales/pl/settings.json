@@ -90,6 +90,14 @@
       "text": "Masz niezapisane zmiany w opcjach. Wyjście je odrzuci.",
       "stay": "Zostań",
       "discard": "Odrzuć zmiany"
+    },
+    "export": {
+      "heading": "Eksport danych",
+      "what": "Eksport to jeden plik ze wszystkim, co tu trzymasz: ustawieniami, wpisami ConfigTable, słownikami, rejestrami z rekordami i ekranami. Nie zawiera hasła, kodów drugiego czynnika, sesji ani dziennika audytu.",
+      "warningLabel": "Uwaga.",
+      "warning": "Plik nie jest szyfrowany i zawiera Twoje dane osobowe jawnym tekstem. Przechowuj go w bezpiecznym miejscu i nie wysyłaj osobom, którym nie ufasz.",
+      "download": "Pobierz plik eksportu",
+      "started": "Pobieranie się rozpoczęło. Przeglądarka zapisze plik wśród innych pobranych; w nazwie ma dzisiejszą datę."
     }
   },
   "options": {
