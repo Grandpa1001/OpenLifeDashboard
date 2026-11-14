@@ -157,5 +157,32 @@
     "label": "Podgląd",
     "badge": "Podgląd — tak zobaczy to właściciel",
     "exit": "Wyjdź z podglądu"
+  },
+  "template": {
+    "open": "Szablon",
+    "heading": "Szablon ekranu",
+    "close": "Zamknij",
+    "exportHeading": "Eksport",
+    "exportText": "Pobierz układ tego ekranu jako plik: widgety, ich ustawienia i powiązania zapisane jako ścieżki. W pliku nie ma rekordów ani identyfikatorów.",
+    "exportButton": "Pobierz szablon",
+    "exporting": "Przygotowuję plik…",
+    "importHeading": "Import",
+    "importText": "Wybierz plik szablonu z tej lub innej instalacji. Powiązania są dopasowywane po nazwach rejestrów i kolumn; czego tu nie ma, zostaje do ponownego wyboru.",
+    "fileLabel": "Plik szablonu (JSON)",
+    "confirm_one": "Import zastąpi cały układ ekranu „{{name}}”: zniknie {{count}} widget i pojawią się widgety z pliku. Można to cofnąć w tej sesji Designera.",
+    "confirm_few": "Import zastąpi cały układ ekranu „{{name}}”: znikną {{count}} widgety i pojawią się widgety z pliku. Można to cofnąć w tej sesji Designera.",
+    "confirm_many": "Import zastąpi cały układ ekranu „{{name}}”: zniknie {{count}} widgetów i pojawią się widgety z pliku. Można to cofnąć w tej sesji Designera.",
+    "confirm_other": "Import zastąpi cały układ ekranu „{{name}}”: znikną {{count}} widgetu i pojawią się widgety z pliku. Można to cofnąć w tej sesji Designera.",
+    "replace": "Zastąp układ",
+    "replacing": "Importuję…",
+    "working": "Zapisuję bieżące zmiany i sprawdzam plik.",
+    "issuesHeading_one": "Plik ma {{count}} miejsce do poprawy:",
+    "issuesHeading_few": "Plik ma {{count}} miejsca do poprawy:",
+    "issuesHeading_many": "Plik ma {{count}} miejsc do poprawy:",
+    "issuesHeading_other": "Plik ma {{count}} miejsca do poprawy:",
+    "issuesLabel": "Miejsca w pliku do poprawy",
+    "wholeFile": "cały plik",
+    "unsaved": "Bieżących zmian nie udało się zapisać, więc import nie został wykonany.",
+    "applied": "Szablon zastosowany. „Cofnij” przywraca poprzedni układ."
   }
 }

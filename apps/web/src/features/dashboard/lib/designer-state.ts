@@ -16,6 +16,8 @@ export type DesignerState = Readonly<{
   future: readonly DesignSnapshotDto[];
   /** The field being typed into: its changes are one step until it is left (`settle`). */
   typing: string | null;
+  /** The design a template made, while nothing has changed since: undoing it cannot be redone, since the file is not kept (D47.3). */
+  imported: DesignSnapshotDto | null;
   /** Counts the undos and redos, so fields that keep what is typed take the design that came back. */
   restored: number;
 }>;
@@ -31,6 +33,8 @@ export type DesignerAction =
   | Readonly<{ kind: "saved"; sent: DesignSnapshotDto; received: DesignSnapshotDto }>
   /** The design another tab saved, taken in place of this one (D35.3): it is the new start, with no history behind it. */
   | Readonly<{ kind: "loaded"; design: DesignSnapshotDto }>
+  /** A template the server applied: its design is the new start, and the design before it is one step of the history. */
+  | Readonly<{ kind: "imported"; design: DesignSnapshotDto }>
   | Readonly<{ kind: "undo" }>
   | Readonly<{ kind: "redo" }>
   /** The field being typed into was left: its next change is a step of its own. */
@@ -48,7 +52,7 @@ export function toSnapshot(screen: ScreenDto): DesignSnapshotDto {
 
 export const startState = (screen: ScreenDto): DesignerState => {
   const snapshot = toSnapshot(screen);
-  return { baseline: snapshot, design: snapshot, selectedId: null, past: [], future: [], typing: null, restored: 0 };
+  return { baseline: snapshot, design: snapshot, selectedId: null, past: [], future: [], typing: null, imported: null, restored: 0 };
 };
 
 /** JSON with the keys in order, so two designs with the same content are the same text whatever built them. */
@@ -98,12 +102,16 @@ export function designerReducer(state: DesignerState, action: DesignerAction): D
       const widgets = state.design.widgets.filter((widget) => widget.id !== action.id);
       return widgets.length === state.design.widgets.length ? state : step(state, { ...state.design, widgets }, { selectedId: state.selectedId === action.id ? null : state.selectedId });
     }
+    case "imported":
+      return { ...state, baseline: action.design, design: action.design, past: [...state.past, state.design].slice(-HISTORY_LIMIT), future: [], typing: null, imported: action.design, selectedId: null, restored: state.restored + 1 };
     case "loaded":
-      return { ...state, baseline: action.design, design: action.design, past: [], future: [], typing: null, selectedId: selectionIn(action.design, state.selectedId), restored: state.restored + 1 };
+      return { ...state, baseline: action.design, design: action.design, past: [], future: [], typing: null, imported: null, selectedId: selectionIn(action.design, state.selectedId), restored: state.restored + 1 };
     case "undo": {
       const previous = state.past.at(-1);
       if (previous === undefined) return state;
-      return { ...state, design: previous, past: state.past.slice(0, -1), future: [...state.future, state.design], selectedId: selectionIn(previous, state.selectedId), typing: null, restored: state.restored + 1 };
+      // The design of an import is not kept to redo: its widgets are gone from the server once the older design is saved.
+      const undoingImport = state.imported !== null && canonicalJson(state.design) === canonicalJson(state.imported);
+      return { ...state, design: previous, past: state.past.slice(0, -1), future: undoingImport ? [] : [...state.future, state.design], imported: undoingImport ? null : state.imported, selectedId: selectionIn(previous, state.selectedId), typing: null, restored: state.restored + 1 };
     }
     case "redo": {
       const next = state.future.at(-1);

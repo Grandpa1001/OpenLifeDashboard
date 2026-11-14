@@ -433,6 +433,9 @@ jobs:
       - name: Verify D46.4 (the import in the setup)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D46.4
+      - name: Verify D47.3 (the template of a screen in the Designer)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D47.3
       - name: Verify D16.1 (the list of registries in a real browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D16.1

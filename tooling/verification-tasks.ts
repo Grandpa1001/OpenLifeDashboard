@@ -5525,6 +5525,46 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D47.2-regression"),
     ],
   },
+  {
+    // DEV §9.44: the template of a screen in the Designer.
+    id: "D47.3",
+    ready: true,
+    title: "The template of a screen in the Designer: the layout downloaded as a file, a file replacing it after the window says what goes, and Undo in the session",
+    criteria: ["D47.3-AC1", "D47.3-AC2", "D47.3-regression"],
+    checks: [
+      {
+        // Runs first: the browser test uses the built app.
+        id: "workspace-build",
+        criteria: ["D47.3-AC1", "D47.3-AC2"],
+        description: "pnpm -r build: the window of the template, the step of the import in the history of the Designer and the calls of the template",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/dashboard/components/template-dialog.tsx", "apps/web/src/features/dashboard/lib/designer-state.ts", "apps/web/src/features/dashboard/api/screens.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D47.3-AC2"],
+        description: "pl and en have the same texts of the window of the template, with the plural forms of each language",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/designer.json", "apps/web/src/locales/en/designer.json"],
+      },
+      {
+        id: "designer-history",
+        criteria: ["D47.3-AC1"],
+        description: "The history of the Designer: an import is one step that Undo takes back and that cannot be redone, and it clears what was undone before it",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/designer-history.test.ts"],
+        requires: ["tests/unit/web/designer-history.test.ts"],
+      },
+      {
+        id: "designer-template-e2e",
+        criteria: ["D47.3-AC1", "D47.3-AC2"],
+        description: "Playwright on the built app: the layout downloaded without one identifier; the file replaces a changed layout after the window says what goes, with new ids, and Undo brings the older layout back and saves it with no Redo; a file with a bad path is refused with the path and the code and the layout stays; a path that names nothing gives a widget that needs its binding updated; the keyboard, axe and no menu on a phone",
+        command: ["node", "tests/verification/e2e.ts", "designer-template.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/designer-template.spec.ts", "tests/fixtures/books/books-v1.export.json"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D47.3-regression"),
+    ],
+  },
   // The parent passes only through its work orders: the writer, the route, the operation of the gate, the page.
   {
     id: "D46",

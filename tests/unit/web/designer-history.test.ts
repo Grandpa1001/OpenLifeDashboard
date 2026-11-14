@@ -85,3 +85,37 @@ describe("D35.3 a layout saved in another tab", () => {
     expect(taken.selectedId).toBe(A);
   });
 });
+
+describe("D47.3 the history of an import of a template", () => {
+  const imported = { ...startState(screen).design, name: "From a template", widgets: [{ ...bound, id: B }] };
+
+  it("is one step: the design before it comes back by undo, which is saved as the older design, and the import itself is the new start", () => {
+    const start = run(startState(screen), move(2));
+    const after = run(start, { kind: "imported", design: imported });
+    expect(after.design).toEqual(imported);
+    expect(isDirty(after)).toBe(false);
+    expect(canUndo(after)).toBe(true);
+    const back = run(after, { kind: "undo" });
+    expect(back.design).toEqual(start.design);
+    expect(isDirty(back)).toBe(true);
+  });
+
+  it("cannot be redone, since the widgets of the file are gone from the server once the older design is saved", () => {
+    const after = run(startState(screen), { kind: "imported", design: imported });
+    const back = run(after, { kind: "undo" });
+    expect([canRedo(back), back.imported]).toEqual([false, null]);
+    // A step after the import is redone as any, and undoing down to the import then undoing it drops what was left to redo.
+    const edited = run(after, { kind: "placed", layout: "desktop", id: B, rect: r(2, 0, 4, 6), minimum: { w: 1, h: 1 } });
+    const undone = run(edited, { kind: "undo" });
+    expect(canRedo(undone)).toBe(true);
+    expect(canRedo(run(undone, { kind: "undo" }))).toBe(false);
+  });
+
+  it("clears what was undone before it and takes the design of another tab as a new start without the mark", () => {
+    const undone = run(startState(screen), move(2), { kind: "undo" });
+    expect(canRedo(undone)).toBe(true);
+    const after = run(undone, { kind: "imported", design: imported });
+    expect([canRedo(after), after.selectedId]).toEqual([false, null]);
+    expect(run(after, { kind: "loaded", design: imported }).imported).toBeNull();
+  });
+});

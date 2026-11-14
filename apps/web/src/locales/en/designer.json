@@ -155,5 +155,28 @@
     "label": "Preview",
     "badge": "Preview — this is how the owner will see it",
     "exit": "Exit the preview"
+  },
+  "template": {
+    "open": "Template",
+    "heading": "Screen template",
+    "close": "Close",
+    "exportHeading": "Export",
+    "exportText": "Download the layout of this screen as a file: the widgets, their settings and the bindings written as paths. The file has no records and no identifiers.",
+    "exportButton": "Download the template",
+    "exporting": "Preparing the file…",
+    "importHeading": "Import",
+    "importText": "Choose a template file from this or another installation. Bindings are matched by the names of registries and columns; what is not here stays to be chosen again.",
+    "fileLabel": "Template file (JSON)",
+    "confirm_one": "The import replaces the whole layout of the screen “{{name}}”: {{count}} widget goes and the widgets of the file take its place. You can undo it in this session of the Designer.",
+    "confirm_other": "The import replaces the whole layout of the screen “{{name}}”: {{count}} widgets go and the widgets of the file take their place. You can undo it in this session of the Designer.",
+    "replace": "Replace the layout",
+    "replacing": "Importing…",
+    "working": "Saving the current changes and checking the file.",
+    "issuesHeading_one": "The file has {{count}} place to fix:",
+    "issuesHeading_other": "The file has {{count}} places to fix:",
+    "issuesLabel": "Places in the file to fix",
+    "wholeFile": "whole file",
+    "unsaved": "The current changes could not be saved, so the import was not made.",
+    "applied": "Template applied. “Undo” brings back the previous layout."
   }
 }

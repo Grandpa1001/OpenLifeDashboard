@@ -1,5 +1,5 @@
 import type { RegistryDto } from "@openlife/contracts/http/registries";
-import { LAYOUT_NAMES, type DesignSnapshotDto, type LayoutName, type ScreenDto, type WidgetDesignDto, type WidgetTypesDto } from "@openlife/contracts/http/screens";
+import { LAYOUT_NAMES, type DesignSnapshotDto, type LayoutName, type ScreenDto, type WidgetDesignDto, type WidgetState, type WidgetTypesDto } from "@openlife/contracts/http/screens";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBlocker, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
@@ -28,6 +28,7 @@ import { DesignCanvas } from "./design-canvas.js";
 import { previewWidgets } from "../lib/preview-widgets.js";
 import type { AddRecordRenderer } from "./register-table-widget.js";
 import { ScreenGrid } from "./screen-grid.js";
+import { TemplateDialog } from "./template-dialog.js";
 import { UndoBar } from "./undo-bar.js";
 
 type WidgetType = WidgetTypesDto["types"][number];
@@ -161,6 +162,25 @@ export function DesignerEditor({ screen, renderAddRecord }: Readonly<{ screen: S
     layoutButtons.current[next]?.focus();
   }
 
+  // The template of the screen (D47.3): the window, the states the server worked out for the widgets a template made, and the word that it can be undone.
+  const [templating, setTemplating] = useState(false);
+  const templateButton = useRef<HTMLButtonElement>(null);
+  const [importedStates, setImportedStates] = useState<ReadonlyMap<string, WidgetState>>(new Map());
+  const [templateApplied, setTemplateApplied] = useState(false);
+  function applyTemplate(received: ScreenDto): void {
+    // The server saved the design, so this tab knows its time and the stream's echo of it is not another tab's work.
+    knownAt.current = Math.max(knownAt.current, Date.parse(received.updatedAt));
+    queryClient.setQueryData(queryKeys.screens.list, received);
+    queryClient.setQueryData(queryKeys.screens.screen(screen.id), received);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.screens.allWidgetData });
+    setImportedStates(new Map(received.widgets.map((widget) => [widget.id, widget.state])));
+    setElsewhere(null);
+    dispatch({ kind: "imported", design: toSnapshot(received) });
+    setTemplateApplied(true);
+    setTemplating(false);
+    setTimeout(() => templateButton.current?.focus(), 0);
+  }
+
   const [adding, setAdding] = useState(false);
   const registryField = useRef<HTMLSelectElement>(null);
   // A widget just added: once it is drawn, the focus goes to the field of its registry (makieta 45).
@@ -223,6 +243,7 @@ export function DesignerEditor({ screen, renderAddRecord }: Readonly<{ screen: S
   }, [removed, state.past.length]);
 
   function undo(): void {
+    setTemplateApplied(false);
     dispatch({ kind: "undo" });
   }
   function redo(): void {
@@ -319,6 +340,11 @@ export function DesignerEditor({ screen, renderAddRecord }: Readonly<{ screen: S
             {t("toolbar.preview")}
           </button>
         )}
+        {onPhone ? null : (
+          <button type="button" className="link-button" ref={templateButton} onClick={() => setTemplating(true)}>
+            {t("template.open")}
+          </button>
+        )}
         <div className="designer-history" role="group" aria-label={t("toolbar.history")}>
           <button type="button" className="link-button" disabled={!canUndo(state)} onClick={undo} aria-keyshortcuts="Control+Z Meta+Z">
             {t("toolbar.undo")}
@@ -334,6 +360,11 @@ export function DesignerEditor({ screen, renderAddRecord }: Readonly<{ screen: S
           {t("toolbar.finish")}
         </button>
       </header>
+      {templateApplied ? (
+        <p className="designer-notice" role="status">
+          {t("template.applied")}
+        </p>
+      ) : null}
       {refreshed ? (
         <p className="designer-notice" role="status">
           {t("elsewhere.refreshed")}
@@ -429,6 +460,20 @@ export function DesignerEditor({ screen, renderAddRecord }: Readonly<{ screen: S
           }}
         />
       )}
+      {templating ? (
+        <TemplateDialog
+          screenId={screen.id}
+          screenName={state.design.name}
+          widgetCount={state.design.widgets.length}
+          settle={() => autosave.flush()}
+          onImported={applyTemplate}
+          onGateLost={() => setGateLost(true)}
+          onClose={() => {
+            setTemplating(false);
+            setTimeout(() => templateButton.current?.focus(), 0);
+          }}
+        />
+      ) : null}
       {adding ? <AddWidgetDialog types={(types.data ?? []).filter((type) => CONFIGURABLE_TYPES.includes(type.type))} loading={types.isPending} failed={types.isError} onRetry={() => void types.refetch()} onPick={add} onClose={() => setAdding(false)} /> : null}
       <div className="designer-body">
         <DesignCanvas
@@ -438,7 +483,7 @@ export function DesignerEditor({ screen, renderAddRecord }: Readonly<{ screen: S
           registries={registries}
           selectedId={state.selectedId}
           minimumOf={(type) => typeOf(type)?.minSize ?? { w: 1, h: 1 }}
-          stateOf={(id) => screen.widgets.find((each) => each.id === id)?.state}
+          stateOf={(id) => importedStates.get(id) ?? screen.widgets.find((each) => each.id === id)?.state}
           onSelect={(id) => dispatch({ kind: "select", id })}
           onArranging={setArranging}
           onPlace={(id, rect) => {

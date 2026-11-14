@@ -1882,3 +1882,22 @@ main.pulpit {
 .import-issues code {
   overflow-wrap: anywhere;
 }
+
+/* The template of a screen in the Designer (D47.3): export and import as two sections of one window. */
+.template-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.template-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.template-section input[type="file"] {
+  max-width: 100%;
+}
