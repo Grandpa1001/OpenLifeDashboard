@@ -5633,6 +5633,55 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // KM4 gate (DEV §8.4, §9.45): the export of F01 imported into an empty installation B in a browser, then the
+    // reports of the fast tier for D41-D47 joined item by item for this exact code; does not run their tests again.
+    id: "G4",
+    ready: true,
+    title: "Gate G4: the settings, the diagnostics and the real import of F01 into an empty installation B",
+    criteria: ["G4-path", "G4-matrix", "G4-reports"],
+    checks: [
+      {
+        // Runs first: the path test uses the built server and SPA.
+        id: "workspace-build",
+        criteria: ["G4-path"],
+        description: "pnpm -r build: the server and the SPA the path of the import runs on",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/main.ts", "apps/web/src/app/router/router.tsx"],
+      },
+      {
+        id: "g4-path-e2e",
+        criteria: ["G4-path"],
+        description:
+          "Playwright on two fresh installations: A takes F01 in its setup and exports it; B refuses a broken copy of that export with the place of the defect and keeps its choice open, then takes the export of A; the export of B equals the export of A in canonical form, the table of F01 and its records are on B, neither export nor the diagnostic report of either installation holds a secret of either, and a second import into B is refused",
+        command: ["node", "tests/verification/e2e.ts", "g4-path"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/g4-path.spec.ts", "tests/fixtures/books/books-v1.export.json", "tests/fixtures/books/books-v1.expected.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "g4-matrix-static",
+        criteria: ["G4-matrix"],
+        description: "Every item of G4 names ready reports, checks of those tasks and test titles written as they stand in the sources the checks run; every report joined proves an item",
+        command: ["node", "tests/verification/g4-matrix-static.ts"],
+        requires: ["tests/verification/g4-matrix-static.ts", "tests/verification/g4-matrix.ts"],
+      },
+      {
+        id: "g4-gate-controls",
+        criteria: ["G4-matrix"],
+        description: "The G4 gate on synthetic reports: a complete set passes; a failed or renamed test line and a failed check fail; a missing report and a report of other code are blocked; the result always lists every item",
+        command: ["node", "tests/verification/g4-gate-controls.ts"],
+        requires: ["tests/verification/g4-gate-controls.ts", "tests/verification/gate-controls.ts", "tests/verification/g4-gate.ts", "tests/verification/gate-run.ts", "tests/verification/g4-matrix.ts"],
+      },
+      {
+        id: "g4-gate",
+        criteria: ["G4-reports"],
+        description:
+          "Joins the reports of D41.3, D42.2, D43.1, D43.5, D43.8, D44.3, D44.6, D45.2, D45.3, D46.1, D46.2, D46.3, D46.4, D47.2 and D47.3 for exactly this code and decides every item of G4 from the passed test that proves it: options kept and locked, the account protected, a report without a secret, the export equal to F01, the roundtrip A to B, F04 and F05, a broken file that leaves nothing, the choice made once, the instance answering during an import, the counts of the audit, the template of a screen; names what is not run. A missing report is blocked",
+        command: ["node", "tests/verification/g4-gate.ts"],
+        requires: ["tests/verification/g4-gate.ts", "tests/verification/g4-matrix.ts", "tests/verification/gate-run.ts", "tests/verification/report-join.ts"],
+      },
+    ],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",

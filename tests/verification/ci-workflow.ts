@@ -56,8 +56,8 @@ type Job = { needs?: string | string[]; if?: string; steps?: Step[] };
 const parsed = parseDocument(workflow).toJS() as { on?: Record<string, unknown>; concurrency?: Record<string, unknown>; jobs?: Record<string, Job> };
 const jobs = parsed.jobs ?? {};
 const tasksOf = (job: string): string[] => (jobs[job]?.steps ?? []).flatMap((step) => /^pnpm verify:task -- (\S+)$/.exec(step.run ?? "")?.slice(1) ?? []);
-const SLOW = ["D02.1", "D02.2", "D02.3", "D03", "D04", "D05", "D06", "D07", "D08", "D19.3", "D19", "D20", "D20.3", "G0", "G2", "G3"];
-const GATES = ["D13.3", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "G0", "G2", "G3"];
+const SLOW = ["D02.1", "D02.2", "D02.3", "D03", "D04", "D05", "D06", "D07", "D08", "D19.3", "D19", "D20", "D20.3", "G0", "G2", "G3", "G4"];
+const GATES = ["D13.3", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D20", "G0", "G2", "G3", "G4"];
 // The fast tier is every job named fast-*: the code in more than one job side by side, and the browser.
 const fastJobs = Object.keys(jobs).filter((job) => job.startsWith("fast-"));
 const fastTasks = fastJobs.flatMap(tasksOf);
@@ -94,6 +94,10 @@ check.expect(
 check.expect(
   ["changes", "fast-data", "fast-account", "fast-screens-browser", "fast-designer-browser"].every((job) => needs("g3").includes(job)) && (jobs["g3"]?.if ?? "").includes("needs.changes.outputs.full == 'true'"),
   "G3 hangs on the fast jobs of KM3 and runs only with the full tier, never on a partial set",
+);
+check.expect(
+  ["changes", "fast-data", "fast-account", "fast-browser", "fast-screens-browser"].every((job) => needs("g4").includes(job)) && (jobs["g4"]?.if ?? "").includes("needs.changes.outputs.full == 'true'"),
+  "G4 hangs on the fast jobs of KM4 and runs only with the full tier, never on a partial set",
 );
 check.expect((jobs["g0"]?.if ?? "").includes("needs.full.result != 'skipped'"), "G0 does not run when the full tier was skipped (never on a partial set)");
 check.expect(Object.keys(parsed.on ?? {}).sort().join() === ["pull_request", "push", "schedule", "workflow_dispatch"].sort().join(), "CI runs on pushes, pull requests, nightly and by hand");
