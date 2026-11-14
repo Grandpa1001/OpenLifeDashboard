@@ -5600,6 +5600,32 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D48.1-regression"),
     ],
   },
+  {
+    // DEV §9.46: the manual copy.
+    id: "D48.2",
+    ready: true,
+    title: "The command backup-create: a bundle of the whole installation on request",
+    criteria: ["D48.2-AC1", "D48.2-AC2", "D48.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D48.2-AC1", "D48.2-AC2"],
+        description: "pnpm -r build: the command and the session it runs in",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/cli/backup-create.ts", "apps/server/src/bootstrap/command-session.ts"],
+      },
+      {
+        id: "backup-create",
+        criteria: ["D48.2-AC1", "D48.2-AC2"],
+        description: "On a real installation with F01: the built command publishes one verified bundle with the reason manual holding the same 25 records in export.json and app.db, leaves the live database as it was and prints no value; a running server is INSTANCE_BUSY and an unknown argument USAGE, with no package and no staging left",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/backup-create.test.ts"],
+        requires: ["tests/integration/maintenance/backup-create.test.ts", "tests/support/books-http.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D48.2-regression"),
+    ],
+  },
   // The parent passes only through its work orders: the format and the export, the import, the Designer.
   {
     id: "D47",

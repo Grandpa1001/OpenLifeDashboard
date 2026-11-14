@@ -35,6 +35,10 @@ export type CommandSession = Readonly<{
   instanceId: string;
   schemaVersion: number;
   backupsDir: string;
+  /** backup.diskReserveMiB: the free space a copy must leave (backup-create, D48.2). */
+  reserveMiB: number;
+  /** DB_BUSY_TIMEOUT_MS, for the readers a command opens besides the writer. */
+  busyTimeoutMs: number;
   /** Closes the connection and releases the lease. */
   close: () => void;
 }>;
@@ -104,6 +108,8 @@ export function openCommandSession(inputs: CommandSessionInputs): CommandSession
         instanceId: paths.instanceId,
         schemaVersion: inspection.schemaVersion,
         backupsDir: workingPaths.backups,
+        reserveMiB,
+        busyTimeoutMs: environment.dbBusyTimeoutMs,
         close: () => {
           opened.close();
           writer.lease.release();
