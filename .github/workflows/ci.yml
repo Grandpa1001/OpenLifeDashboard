@@ -1049,6 +1049,9 @@ jobs:
       - name: Verify D46 (the parent, D46.1–D46.4 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D46
+      - name: Verify D47 (the parent, D47.1–D47.3 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D47
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

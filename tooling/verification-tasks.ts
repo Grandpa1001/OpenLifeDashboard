@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 4,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -5571,6 +5571,15 @@ const definedLater: readonly TaskDefinition[] = [
     ready: true,
     title: "The import of the owner's data into an empty installation: the writer, the route, the operation of the gate and the setup",
     steps: ["D46.1", "D46.2", "D46.3", "D46.4"],
+    criteria: [],
+    checks: [],
+  },
+  // The parent passes only through its work orders: the format and the export, the import, the Designer.
+  {
+    id: "D47",
+    ready: true,
+    title: "The template of a screen: the format and the export, the import with new identifiers, and the Designer",
+    steps: ["D47.1", "D47.2", "D47.3"],
     criteria: [],
     checks: [],
   },
