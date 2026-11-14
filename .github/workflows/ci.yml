@@ -329,6 +329,9 @@ jobs:
       - name: Verify D48.2 (the command backup-create)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D48.2
+      - name: Verify D48.3 (the catalog of the backup folder)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D48.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1058,6 +1061,9 @@ jobs:
       - name: Verify D47 (the parent, D47.1–D47.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D47
+      - name: Verify D48 (the parent, D48.1–D48.3 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D48
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -5626,6 +5626,41 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D48.2-regression"),
     ],
   },
+  {
+    // DEV §9.46: the catalog of the backup folder.
+    id: "D48.3",
+    ready: true,
+    title: "The catalog of the backup folder: completed, invalid and incomplete copies, read only",
+    criteria: ["D48.3-AC1", "D48.3-AC2", "D48.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D48.3-AC1", "D48.3-AC2"],
+        description: "pnpm -r build: the catalog and the command that lists it",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/adapters/filesystem/backup-catalog.ts", "apps/server/src/cli/backup-list.ts"],
+      },
+      {
+        id: "backup-catalog",
+        criteria: ["D48.3-AC1", "D48.3-AC2"],
+        description: "On a real installation with two bundles from the built command: both are completed, a directory with only app.db is invalid and a leftover of staging is incomplete, the listing changes nothing and works beside a running server; a changed byte of export.json shows as invalid and the package stays; a package of another installation is completed but not of this one",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/backup-catalog.test.ts"],
+        requires: ["tests/integration/maintenance/backup-catalog.test.ts", "tests/support/books-http.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D48.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the bundle, the command, the catalog.
+  {
+    id: "D48",
+    ready: true,
+    title: "The full backup package: the bundle of one state, the command on request and the catalog of the folder",
+    steps: ["D48.1", "D48.2", "D48.3"],
+    criteria: [],
+    checks: [],
+  },
   // The parent passes only through its work orders: the format and the export, the import, the Designer.
   {
     id: "D47",
