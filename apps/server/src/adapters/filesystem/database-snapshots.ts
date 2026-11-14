@@ -6,20 +6,24 @@
 // Staging left by a crash is discarded before the next snapshot and by discardUnpublished; a
 // package is found again only by findPublished, which verifies it anew (D05.3).
 import { createHash } from "node:crypto";
-import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statfsSync, statSync } from "node:fs";
+import { closeSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statfsSync, statSync } from "node:fs";
 import path from "node:path";
 import {
+  BUNDLE_EXPORT_FILE,
+  bundleSnapshotChecksumsSchema,
   DATABASE_SNAPSHOT_FILES,
   DATABASE_SNAPSHOT_META_VERSION,
   databaseSnapshotChecksumsSchema,
-  databaseSnapshotMetaSchema,
-  type DatabaseSnapshotChecksums,
-  type DatabaseSnapshotMeta,
+  snapshotFilesOf,
+  snapshotMetaSchema,
+  type SnapshotMeta,
+  type SnapshotScope,
 } from "@openlife/contracts/backups/database-snapshot";
+import { EXPORT_FORMAT, EXPORT_FORMAT_VERSION } from "@openlife/contracts/export/format";
 import type { DatabaseSnapshotPort, PublishedSnapshot, SnapshotResult } from "@openlife/core/maintenance";
 import type { SqliteConnection } from "@openlife/sqlite/connection";
 import { copyDatabase, examineDatabaseCopy } from "@openlife/sqlite/snapshots";
-import { syncDirectory, syncFile, writeNewFileDurably } from "./durable-files.js";
+import { syncDirectory, syncFile, writeNewFileDurably, writeNewFileFromChunks } from "./durable-files.js";
 
 /** Working area inside the backup folder; nothing in it is a usable snapshot. */
 export const SNAPSHOT_STAGING_DIR = ".staging";
@@ -40,10 +44,15 @@ export type SnapshotStoreOptions = Readonly<{
   build: AppBuild;
   now: () => string;
   newSnapshotId: () => string;
+  /**
+   * The export document of the copy of the database at that path (D48). Without it the store makes only
+   * `database` packages and a request for a `bundle` is SNAPSHOT_UNAVAILABLE.
+   */
+  exportOfCopy?: (copyFile: string, exportedAt: Date) => AsyncIterable<string>;
 }>;
 
 export type SnapshotVerification =
-  | Readonly<{ ok: true; meta: DatabaseSnapshotMeta }>
+  | Readonly<{ ok: true; meta: SnapshotMeta }>
   | Readonly<{ ok: false; code: "SNAPSHOT_INVALID"; fields: readonly string[] }>;
 
 const sha256File = (file: string): string => createHash("sha256").update(readFileSync(file)).digest("hex");
@@ -75,37 +84,52 @@ export function verifyDatabaseSnapshot(dir: string): SnapshotVerification {
   } catch {
     return invalid("directory");
   }
-  const expectedFiles = Object.values(DATABASE_SNAPSHOT_FILES).sort();
+  const at = (name: string): string => path.join(dir, name);
   const present = readdirSync(dir).sort();
-  const regular = present.every((name) => lstatSync(path.join(dir, name)).isFile());
-  if (JSON.stringify(present) !== JSON.stringify(expectedFiles) || !regular) {
+  // The set of files depends on the scope the meta names; when the meta cannot be read, an export.json beside
+  // app.db says the package meant to be a bundle, so its damage is reported on the meta and not on the file set.
+  const claimed = snapshotMetaSchema.safeParse(readJson(at(DATABASE_SNAPSHOT_FILES.meta)));
+  const scope: SnapshotScope = claimed.success ? claimed.data.scope : present.includes(BUNDLE_EXPORT_FILE) ? "bundle" : "database";
+  const regular = present.every((name) => lstatSync(at(name)).isFile());
+  if (JSON.stringify(present) !== JSON.stringify(snapshotFilesOf(scope)) || !regular) {
     return invalid("files");
   }
-  const at = (name: string): string => path.join(dir, name);
-  const checksums = databaseSnapshotChecksumsSchema.safeParse(readJson(at(DATABASE_SNAPSHOT_FILES.checksums)));
+  const checksums = (scope === "bundle" ? bundleSnapshotChecksumsSchema : databaseSnapshotChecksumsSchema).safeParse(readJson(at(DATABASE_SNAPSHOT_FILES.checksums)));
   if (!checksums.success) {
     return invalid(DATABASE_SNAPSHOT_FILES.checksums);
   }
-  const changed = [DATABASE_SNAPSHOT_FILES.database, DATABASE_SNAPSHOT_FILES.meta].filter(
-    (name) => sha256File(at(name)) !== checksums.data.files[name],
-  );
+  const named = checksums.data.files as Readonly<Record<string, string>>;
+  const changed = Object.keys(named).filter((name) => sha256File(at(name)) !== named[name]);
   if (changed.length > 0) {
     return invalid(...changed);
   }
-  const meta = databaseSnapshotMetaSchema.safeParse(readJson(at(DATABASE_SNAPSHOT_FILES.meta)));
-  if (!meta.success) {
+  if (!claimed.success) {
     return invalid(DATABASE_SNAPSHOT_FILES.meta);
   }
+  const meta = claimed.data;
   const copy = examineDatabaseCopy(at(DATABASE_SNAPSHOT_FILES.database));
   if (!copy.ok) {
     return invalid(copy.problem);
   }
   const disagreeing = [
-    copy.facts.schemaVersion === meta.data.schemaVersion ? [] : ["schemaVersion"],
-    copy.facts.instanceId === meta.data.instanceId ? [] : ["instanceId"],
-    copy.facts.bytes === meta.data.databaseBytes ? [] : ["databaseBytes"],
+    copy.facts.schemaVersion === meta.schemaVersion ? [] : ["schemaVersion"],
+    copy.facts.instanceId === meta.instanceId ? [] : ["instanceId"],
+    copy.facts.bytes === meta.databaseBytes ? [] : ["databaseBytes"],
+    meta.scope === "bundle" && !exportHeaderMatches(at(BUNDLE_EXPORT_FILE), meta.formatVersion) ? [BUNDLE_EXPORT_FILE] : [],
   ].flat();
-  return disagreeing.length > 0 ? invalid(...disagreeing) : { ok: true, meta: meta.data };
+  return disagreeing.length > 0 ? invalid(...disagreeing) : { ok: true, meta };
+}
+
+/** The first bytes of export.json name the format and its version (the document writes them first); a full parse is the restore's job. */
+function exportHeaderMatches(file: string, formatVersion: number): boolean {
+  const fd = openSync(file, "r");
+  try {
+    const head = Buffer.alloc(256);
+    const text = head.toString("utf8", 0, readSync(fd, head, 0, head.length, 0));
+    return text.includes(`"format": ${JSON.stringify(EXPORT_FORMAT)}`) && text.includes(`"formatVersion": ${formatVersion},`);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /** Database plus WAL: the conservative size of the new copy (Architektura §11.4). */
@@ -172,7 +196,7 @@ export function createDatabaseSnapshots(source: SqliteConnection, options: Snaps
       for (const dir of publishedPackages(options.backupsDir)) {
         // The cheap meta check first: the full verification (integrity_check) runs only for the
         // package that claims this operation, not for every package in the folder.
-        const claimed = databaseSnapshotMetaSchema.safeParse(readJson(path.join(dir, DATABASE_SNAPSHOT_FILES.meta)));
+        const claimed = snapshotMetaSchema.safeParse(readJson(path.join(dir, DATABASE_SNAPSHOT_FILES.meta)));
         if (!claimed.success || claimed.data.operationId !== operationId) {
           continue;
         }
@@ -188,6 +212,9 @@ export function createDatabaseSnapshots(source: SqliteConnection, options: Snaps
       return Promise.resolve();
     },
     async create(request): Promise<SnapshotResult> {
+      if (request.scope === "bundle" && options.exportOfCopy === undefined) {
+        return { ok: false, code: "SNAPSHOT_UNAVAILABLE" };
+      }
       let free: number;
       try {
         const stats = statfsSync(options.backupsDir);
@@ -214,9 +241,13 @@ export function createDatabaseSnapshots(source: SqliteConnection, options: Snaps
         if (!copy.ok || copy.facts.instanceId !== options.instanceId) {
           return { ok: false, code: "SNAPSHOT_FAILED" };
         }
-        const meta: DatabaseSnapshotMeta = {
+        // The export is made from the copy just taken, so it and app.db are one state (D48).
+        const exportFile = path.join(staging, BUNDLE_EXPORT_FILE);
+        if (request.scope === "bundle" && options.exportOfCopy !== undefined) {
+          await writeNewFileFromChunks(exportFile, options.exportOfCopy(databaseFile, new Date(options.now())));
+        }
+        const base = {
           metaVersion: DATABASE_SNAPSHOT_META_VERSION,
-          scope: "database",
           snapshotId,
           operationId: request.operationId,
           instanceId: options.instanceId,
@@ -227,12 +258,17 @@ export function createDatabaseSnapshots(source: SqliteConnection, options: Snaps
           completedAt: options.now(),
           databaseBytes: copy.facts.bytes,
           requiresOriginalKeys: true,
-        };
+        } as const;
+        const meta: SnapshotMeta = request.scope === "bundle" ? { ...base, scope: "bundle", formatVersion: EXPORT_FORMAT_VERSION } : { ...base, scope: "database" };
         const metaFile = path.join(staging, DATABASE_SNAPSHOT_FILES.meta);
         writeNewFileDurably(metaFile, `${JSON.stringify(meta, null, 2)}\n`);
-        const checksums: DatabaseSnapshotChecksums = {
+        const checksums = {
           algorithm: "sha256",
-          files: { [DATABASE_SNAPSHOT_FILES.database]: sha256File(databaseFile), [DATABASE_SNAPSHOT_FILES.meta]: sha256File(metaFile) },
+          files: {
+            [DATABASE_SNAPSHOT_FILES.database]: sha256File(databaseFile),
+            [DATABASE_SNAPSHOT_FILES.meta]: sha256File(metaFile),
+            ...(request.scope === "bundle" ? { [BUNDLE_EXPORT_FILE]: sha256File(exportFile) } : {}),
+          },
         };
         writeNewFileDurably(path.join(staging, DATABASE_SNAPSHOT_FILES.checksums), `${JSON.stringify(checksums, null, 2)}\n`);
         syncDirectory(staging);

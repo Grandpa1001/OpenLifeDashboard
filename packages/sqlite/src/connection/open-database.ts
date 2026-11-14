@@ -11,6 +11,11 @@ export type ConnectionOptions = Readonly<{
   role: ConnectionRole;
   /** DB_BUSY_TIMEOUT_MS, validated by the bootstrap parser (Architektura §14.5). */
   busyTimeoutMs: number;
+  /**
+   * The journal mode a READER expects the file to be in: `wal` for the live database (default), `delete` for a
+   * standalone copy of a snapshot, which is switched to a rollback journal so that it is one file (D05.1, D48).
+   */
+  journal?: "wal" | "delete";
 }>;
 
 export type SqliteConnection = Readonly<{
@@ -63,7 +68,7 @@ export function openDatabase(file: string, options: ConnectionOptions): SqliteCo
     confirm(db, "busy_timeout", String(options.busyTimeoutMs), options.busyTimeoutMs);
     confirm(db, "synchronous", "FULL", SYNCHRONOUS_FULL);
     // WAL is a property of the database file, set by the writer; a reader only observes it.
-    confirm(db, "journal_mode", options.role === "writer" ? "WAL" : undefined, "wal");
+    confirm(db, "journal_mode", options.role === "writer" ? "WAL" : undefined, options.role === "writer" ? "wal" : (options.journal ?? "wal"));
     db.function(TEXT_FOLD_FUNCTION, { deterministic: true }, (value: unknown) => (typeof value === "string" ? foldText(value) : value));
   } catch (error) {
     db.close();

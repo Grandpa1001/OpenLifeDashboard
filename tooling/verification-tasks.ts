@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -5573,6 +5573,32 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D46.1", "D46.2", "D46.3", "D46.4"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.46: the package of scope `bundle`.
+    id: "D48.1",
+    ready: true,
+    title: "The package of scope bundle: app.db and export.json of one state, verified as one",
+    criteria: ["D48.1-AC1", "D48.1-AC2", "D48.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D48.1-AC1", "D48.1-AC2"],
+        description: "pnpm -r build: the contract of the package, the store of the copies and the export of a copy",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/backups/database-snapshot.ts", "apps/server/src/adapters/filesystem/database-snapshots.ts", "apps/server/src/portability/bundle-export.ts"],
+      },
+      {
+        id: "bundle-snapshots",
+        criteria: ["D48.1-AC1", "D48.1-AC2"],
+        description: "On a real installation holding F01: a bundle is four files of one state, its export.json is the canonical export of F01 and is accepted by the parser, a record written after the copy is in neither file; a changed byte, a missing or extra file, a checksum missing for export.json and another format version make it invalid; a failing exporter publishes nothing; the packages of scope database are unchanged",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/bundle-snapshots.test.ts", "tests/integration/maintenance/database-snapshots.test.ts"],
+        requires: ["tests/integration/maintenance/bundle-snapshots.test.ts", "tests/integration/maintenance/database-snapshots.test.ts", "tests/fixtures/books/books-v1.export.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D48.1-regression"),
+    ],
   },
   // The parent passes only through its work orders: the format and the export, the import, the Designer.
   {

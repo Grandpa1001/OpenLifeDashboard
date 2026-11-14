@@ -6,15 +6,10 @@
 // whenever the stream ends, is cancelled or fails.
 import { giveBackLoop } from "./give-back-loop.js";
 import { exportFileName } from "@openlife/contracts/export/format";
-import { bindConfigStore } from "@openlife/sqlite/adapters/configuration";
-import { bindDashboardStore } from "@openlife/sqlite/adapters/dashboard";
-import { bindDictionaryStore } from "@openlife/sqlite/adapters/dictionaries";
-import { readInstallationOwner } from "@openlife/sqlite/adapters/portability";
-import { bindRecordStore, bindRegistryStore } from "@openlife/sqlite/adapters/registries";
-import { bindOwnerPreferencesStore } from "@openlife/sqlite/adapters/settings";
 import { openSnapshotReader } from "@openlife/sqlite/snapshot-reader";
 import type { TechnicalLogger } from "../adapters/logging/technical-logger.js";
-import { exportDocument, type ExportReadPorts } from "./export-document.js";
+import { exportDocument } from "./export-document.js";
+import { bindExportReadPorts } from "./export-ports.js";
 import { EXPORT_RECORDS_PER_PAGE } from "./limits.js";
 
 export type ExportServiceOptions = Readonly<{
@@ -39,17 +34,7 @@ export function createExportService(options: ExportServiceOptions): ExportServic
     const startedAt = Date.now();
     const reader = openSnapshotReader(options.databaseFile, { busyTimeoutMs: options.busyTimeoutMs });
     try {
-      const ownerId = readInstallationOwner(reader.tx);
-      if (ownerId === null) throw new Error("the installation has no owner");
-      const ports: ExportReadPorts = {
-        ownerId,
-        preferences: bindOwnerPreferencesStore(reader.tx).read(ownerId),
-        config: bindConfigStore(reader.tx),
-        dictionaries: bindDictionaryStore(reader.tx),
-        registries: bindRegistryStore(reader.tx),
-        records: bindRecordStore(reader.tx),
-        dashboard: bindDashboardStore(reader.tx),
-      };
+      const ports = bindExportReadPorts(reader.tx);
       const exportedAt = options.now();
       const chunks = exportDocument(ports, { appVersion: options.appVersion, exportedAt, recordsPerPage: options.recordsPerPage ?? EXPORT_RECORDS_PER_PAGE, yieldToLoop: options.yieldToLoop ?? giveBackLoop });
       const encoder = new TextEncoder();

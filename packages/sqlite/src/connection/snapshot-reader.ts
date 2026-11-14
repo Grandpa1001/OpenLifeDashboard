@@ -13,8 +13,8 @@ export type SnapshotReader = Readonly<{
   close: () => void;
 }>;
 
-export function openSnapshotReader(file: string, options: Readonly<{ busyTimeoutMs: number }>): SnapshotReader {
-  const connection = openDatabase(file, { role: "reader", busyTimeoutMs: options.busyTimeoutMs });
+export function openSnapshotReader(file: string, options: Readonly<{ busyTimeoutMs: number; journal?: "wal" | "delete" }>): SnapshotReader {
+  const connection = openDatabase(file, { role: "reader", busyTimeoutMs: options.busyTimeoutMs, ...(options.journal === undefined ? {} : { journal: options.journal }) });
   const db = connection.handle;
   let open = true;
   try {

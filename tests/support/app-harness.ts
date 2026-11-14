@@ -32,6 +32,7 @@ import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindR
 import { DEFAULT_REGISTRY_LIMITS } from "../../packages/core/dist/modules/registries/public.js";
 import { createWidgetCatalog } from "../../apps/server/dist/adapters/widget-catalog.js";
 import { createStructurePlanSigner } from "../../apps/server/dist/adapters/structure-plan-signer.js";
+import { exportOfCopy } from "../../apps/server/dist/portability/bundle-export.js";
 import { createDatabaseSnapshots } from "../../apps/server/dist/adapters/filesystem/database-snapshots.js";
 import { openMaintenanceGate } from "../../apps/server/dist/adapters/filesystem/maintenance-gate.js";
 import { acquireWriterLease } from "../../apps/server/dist/adapters/filesystem/writer-lease.js";
@@ -170,6 +171,8 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     build: { appVersion: "0.0.0", buildRevision: "harness", imageDigest: null },
     now: () => new Date().toISOString(),
     newSnapshotId: randomUUID,
+    // The same exporter of a copy as the server wires (D48), so a bundle of the harness is a real one.
+    exportOfCopy: (copyFile: string, exportedAt: Date) => exportOfCopy(copyFile, { busyTimeoutMs: 5000, appVersion: "0.0.0", exportedAt }),
   });
   // The effective options as the server composes them (D41.3): the limits below read them at each use.
   const environment = options.environment ?? {};
@@ -256,6 +259,9 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     logsDir,
     /** The folder of the harness, which is its installation. */
     installationDir: dir,
+    instanceId: INSTANCE_ID,
+    /** The store of the copies, as the routes and the bundle command have it (D29, D48). */
+    snapshots,
     /** The folder of the copies the routes take (D29). */
     backupsDir: workingPaths.backups,
     /** The session token a `name=value` cookie of this app carries, or null. */

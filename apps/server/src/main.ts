@@ -43,6 +43,7 @@ import { createTechnicalLogger, LOG_LEVELS, type LogLevel } from "./adapters/log
 import { runStoragePreflight } from "./adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease } from "./adapters/filesystem/writer-lease.js";
 import { createLogFiles } from "./adapters/diagnostics/log-files.js";
+import { exportOfCopy } from "./portability/bundle-export.js";
 import { createExportService } from "./portability/export-stream.js";
 import { createAuditRetentionJob } from "./workers/audit-retention.js";
 import { createReportBuilder } from "./adapters/diagnostics/report-builder.js";
@@ -122,7 +123,7 @@ if (!gate.ok) {
 // Read before the database step: a broken image fails here, not inside an upgrade operation.
 const build = readBuildInfo();
 // One set of options for the copies of the upgrade (bootstrap) and of a change of structure (D29).
-const snapshotOptions = { backupsDir: workingPaths.backups, reserveMiB, instanceId: paths.instanceId, build, now: () => new Date().toISOString(), newSnapshotId: randomUUID };
+const snapshotOptions = { backupsDir: workingPaths.backups, reserveMiB, instanceId: paths.instanceId, build, now: () => new Date().toISOString(), newSnapshotId: randomUUID, exportOfCopy: (copyFile: string, exportedAt: Date) => exportOfCopy(copyFile, { busyTimeoutMs: environment.dbBusyTimeoutMs, appVersion: build.appVersion, exportedAt }) };
 const database = await openInstallationDatabase({
   file: workingPaths.database,
   gate: gate.gate,
