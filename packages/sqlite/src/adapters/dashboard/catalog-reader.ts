@@ -11,20 +11,28 @@ import type { TransactionHandle } from "../../transactions/unit-of-work.js";
 
 export function bindCatalogReader(tx: TransactionHandle): DashboardCatalogReader {
   const registry = tx.prepare("SELECT id, symbol, deleted_at FROM registry WHERE id = ? AND user_id = ?");
+  const registryBySymbol = tx.prepare("SELECT id FROM registry WHERE symbol = ? AND user_id = ? AND deleted_at IS NULL");
+  const entryBySymbol = tx.prepare("SELECT id, symbol FROM config_entry WHERE symbol = ? AND user_id = ?");
   const columns = tx.prepare("SELECT id, symbol, deleted_at FROM registry_column WHERE registry_id = ? ORDER BY position, id");
   const widgetScreen = tx.prepare("SELECT screen_id FROM widget WHERE id = ?");
   const configEntry = tx.prepare("SELECT symbol FROM config_entry WHERE id = ? AND user_id = ?");
+  const describe = (ownerId: string, registryId: string): CatalogRegistry | null => {
+    const row = registry.get(registryId, ownerId) as { id: string; symbol: string; deleted_at: string | null } | undefined;
+    if (row === undefined) return null;
+    return {
+      id: row.id,
+      symbol: row.symbol,
+      deleted: row.deleted_at !== null,
+      columns: (columns.all(row.id) as { id: string; symbol: string; deleted_at: string | null }[]).map((column) => ({ id: column.id, symbol: column.symbol, deleted: column.deleted_at !== null })),
+    };
+  };
   return {
-    registry(ownerId, registryId): CatalogRegistry | null {
-      const row = registry.get(registryId, ownerId) as { id: string; symbol: string; deleted_at: string | null } | undefined;
-      if (row === undefined) return null;
-      return {
-        id: row.id,
-        symbol: row.symbol,
-        deleted: row.deleted_at !== null,
-        columns: (columns.all(row.id) as { id: string; symbol: string; deleted_at: string | null }[]).map((column) => ({ id: column.id, symbol: column.symbol, deleted: column.deleted_at !== null })),
-      };
+    registry: describe,
+    registryBySymbol(ownerId, symbol): CatalogRegistry | null {
+      const row = registryBySymbol.get(symbol, ownerId) as { id: string } | undefined;
+      return row === undefined ? null : describe(ownerId, row.id);
     },
+    configEntryBySymbol: (ownerId, symbol) => (entryBySymbol.get(symbol, ownerId) as { id: string; symbol: string } | undefined) ?? null,
     configEntry: (ownerId, entryId) => (configEntry.get(entryId, ownerId) as { symbol: string } | undefined) ?? null,
     screenOfWidget: (widgetId) => (widgetScreen.get(widgetId) as { screen_id: string } | undefined)?.screen_id ?? null,
   };

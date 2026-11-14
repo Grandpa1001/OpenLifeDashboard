@@ -280,7 +280,8 @@
         },
         "screen": {
           "created": "Utworzono pulpit",
-          "design_saved": "Zapisano projekt pulpitu"
+          "design_saved": "Zapisano projekt pulpitu",
+          "template_imported": "Zaimportowano szablon pulpitu"
         },
         "audit": {
           "pruned": "Usunięto stare wpisy dziennika"

@@ -276,7 +276,8 @@
         },
         "screen": {
           "created": "Dashboard created",
-          "design_saved": "Dashboard design saved"
+          "design_saved": "Dashboard design saved",
+          "template_imported": "Dashboard template imported"
         },
         "audit": {
           "pruned": "Old audit entries removed"

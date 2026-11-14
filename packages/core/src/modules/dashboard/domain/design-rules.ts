@@ -27,6 +27,8 @@ export type DesignContext = Readonly<{
   policy: DesignPolicy;
   widgets: WidgetCatalogPort;
   catalog: DashboardCatalogReader;
+  /** The widgets of the screen as they are stored, by identifier: one that comes back unchanged is not judged again (D47.2). */
+  stored?: ReadonlyMap<string, WidgetInput>;
 }>;
 
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -41,7 +43,7 @@ const CONFIG_PATH = "Field.Config";
 const registryOf = (target: FieldRef): string | null => (target.kind === "registry" || target.kind === "column" || target.kind === "systemColumn" ? target.registryId : null);
 
 type Looked = { registry: CatalogRegistry | null };
-type Inspection = Readonly<{ issues: readonly DesignIssue[]; state: WidgetState; config: Readonly<Record<string, unknown>> }>;
+export type Inspection = Readonly<{ issues: readonly DesignIssue[]; state: WidgetState; config: Readonly<Record<string, unknown>> }>;
 
 /** The path a target must carry, or null when the catalog does not know the target at all. */
 function expectedPath(target: FieldRef, registry: CatalogRegistry | null, entry: Readonly<{ symbol: string }> | null): string | null {
@@ -75,16 +77,30 @@ export function isValidScreenName(name: string, policy: Pick<DesignPolicy, "name
 }
 
 /**
- * `stored` is a widget read back, not one being saved: an entry of ConfigTable it points at that is
- * gone was deleted since (entries leave no row), so the binding is broken rather than unknown.
+ * How strictly a widget is judged. A widget being saved for the first time is judged in full. One that is stored,
+ * one that comes back from the Designer unchanged and one that comes from a template are tolerated where the world
+ * may have moved on or the file comes from another installation: a target the catalog does not know is a broken
+ * binding (an entry of ConfigTable is deleted outright and leaves no row), not a defect, and a type this build lacks
+ * is kept as it came and waits for a refresh (Architektura AR13).
  */
-function inspectWidget(widget: WidgetInput, base: string, context: DesignContext, lookup: (registryId: string) => CatalogRegistry | null, stored: boolean): Inspection {
+export type InspectMode = Readonly<{ tolerant: boolean }>;
+export const STRICT: InspectMode = { tolerant: false };
+export const TOLERANT: InspectMode = { tolerant: true };
+
+/** The widget as inspected: its configuration in the current version, its issues and the state it gets. */
+export function inspectWidget(widget: WidgetInput, base: string, context: DesignContext, lookup: (registryId: string) => CatalogRegistry | null, mode: InspectMode): Inspection {
   const issues: DesignIssue[] = [];
   const add = (path: string, code: DesignIssueCode): void => void issues.push({ path: `${base}.${path}`, code });
   const { policy } = context;
 
   if (!context.widgets.has(widget.type)) {
-    add("type", "WIDGET_TYPE_UNKNOWN");
+    if (!mode.tolerant) add("type", "WIDGET_TYPE_UNKNOWN");
+    else {
+      // Kept as it came: only the size is bounded, and nothing of it is read or run.
+      if (utf8Length(JSON.stringify(widget.config)) > context.policy.maxWidgetJsonBytes) add("config", "CONFIG_TOO_LARGE");
+      if (widget.bindings.length > context.policy.maxBindingsPerWidget) add("bindings", "LIMIT_BINDINGS");
+      if (utf8Length(JSON.stringify(widget.bindings)) > context.policy.maxWidgetJsonBytes) add("bindings", "BINDINGS_TOO_LARGE");
+    }
     return { issues, state: "needs_refresh", config: widget.config };
   }
 
@@ -109,21 +125,15 @@ function inspectWidget(widget: WidgetInput, base: string, context: DesignContext
     const registryId = registryOf(binding.target);
     if (registryId !== null) registries.add(registryId);
     const entry = binding.target.kind === "config" ? context.catalog.configEntry(context.ownerId, binding.target.entryId) : null;
-    if (binding.target.kind === "config" && entry === null) {
-      if (stored) broken = true;
+    const unknown = (): void => {
+      if (mode.tolerant) broken = true;
       else add(`${here}.target`, "TARGET_UNKNOWN");
-      return;
-    }
+    };
+    if (binding.target.kind === "config" && entry === null) return unknown();
     const registry = registryId === null ? null : lookup(registryId);
-    if (registryId !== null && registry === null) {
-      add(`${here}.target`, "TARGET_UNKNOWN");
-      return;
-    }
+    if (registryId !== null && registry === null) return unknown();
     const expected = expectedPath(binding.target, registry, entry);
-    if (expected === null) {
-      add(`${here}.target`, "TARGET_UNKNOWN");
-      return;
-    }
+    if (expected === null) return unknown();
     if (binding.path !== expected) add(`${here}.path`, "PATH_MISMATCH");
     if (isBroken(binding.target, registry)) broken = true;
   });
@@ -145,7 +155,7 @@ function inspectWidget(widget: WidgetInput, base: string, context: DesignContext
   return { issues, state, config };
 }
 
-function lookupOf(context: DesignContext): (registryId: string) => CatalogRegistry | null {
+export function lookupOf(context: DesignContext): (registryId: string) => CatalogRegistry | null {
   const seen = new Map<string, Looked>();
   return (registryId) => {
     let looked = seen.get(registryId);
@@ -155,6 +165,12 @@ function lookupOf(context: DesignContext): (registryId: string) => CatalogRegist
     }
     return looked.registry;
   };
+}
+
+/** A widget that comes back as it is stored (the same type, configuration and bindings; its place may differ) needs no new judgement. */
+function isUnchanged(widget: WidgetInput, context: DesignContext): boolean {
+  const before = context.stored?.get(widget.id);
+  return before !== undefined && before.type === widget.type && JSON.stringify(before.config) === JSON.stringify(widget.config) && JSON.stringify(before.bindings) === JSON.stringify(widget.bindings);
 }
 
 /**
@@ -183,7 +199,7 @@ export function validateDesign(input: DesignInput, context: DesignContext): Desi
       if (holder !== null && holder !== context.screenId) issues.push({ path: `${base}.id`, code: "WIDGET_ID_TAKEN" });
     }
     seen.add(widget.id);
-    const inspected = inspectWidget(widget, base, context, lookup, false);
+    const inspected = inspectWidget(widget, base, context, lookup, isUnchanged(widget, context) ? TOLERANT : STRICT);
     issues.push(...inspected.issues);
     widgets.push({ id: widget.id, type: widget.type, config: inspected.config, layout: widget.layout, bindings: widget.bindings, state: inspected.state });
   });
@@ -199,7 +215,7 @@ export function validateDesign(input: DesignInput, context: DesignContext): Desi
  * `needs_refresh`: the owner confirms the widget again, and nothing is read for it.
  */
 export function stateOfStoredWidget(widget: WidgetInput, context: DesignContext): WidgetState {
-  const inspected = inspectWidget(widget, "widget", context, lookupOf(context), true);
+  const inspected = inspectWidget(widget, "widget", context, lookupOf(context), TOLERANT);
   return inspected.issues.length > 0 ? "needs_refresh" : inspected.state;
 }
 

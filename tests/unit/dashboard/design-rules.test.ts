@@ -60,6 +60,11 @@ function contextOf(registries: readonly CatalogRegistry[] = [booksRegistry(), WA
       return owner === OWNER ? (registries.find((registry) => registry.id === id) ?? null) : null;
     },
     configEntry: (owner, id) => (owner === OWNER && Object.hasOwn(configEntries, id) ? { symbol: configEntries[id]! } : null),
+    registryBySymbol: (owner, symbol) => (owner === OWNER ? (registries.find((registry) => registry.symbol === symbol && !registry.deleted) ?? null) : null),
+    configEntryBySymbol: (owner, symbol) => {
+      const id = Object.keys(configEntries).find((key) => configEntries[key] === symbol);
+      return owner === OWNER && id !== undefined ? { id, symbol } : null;
+    },
     screenOfWidget: (id) => widgetScreens[id] ?? null,
   };
   const context: DesignContext = { ownerId: OWNER, screenId: SCREEN, policy: { ...policy, ...overridePolicy }, widgets: createWidgetCatalog(), catalog };
@@ -144,7 +149,22 @@ describe("D17.2-AC1 the screen of F01 and the states of its widgets", () => {
     expect(stateOfStoredWidget({ ...table(), type: "clock" }, context)).toBe("needs_refresh");
     expect(stateOfStoredWidget(withBindings([columnBinding("tytul", 0), columnBinding("autor", 2)]), context)).toBe("needs_refresh");
     expect(stateOfStoredWidget(table({ config: { v: 1, pageSize: 0 } }), context)).toBe("needs_refresh");
-    expect(stateOfStoredWidget(table(), contextOf([]).context)).toBe("needs_refresh");
+    // A target the catalog does not know (a registry a template named that is not here) is a broken binding, not a defect (D47.2).
+    expect(stateOfStoredWidget(table(), contextOf([]).context)).toBe("needs_rebinding");
+  });
+
+  it("a widget that comes back as it is stored is not judged again, one that changed is: D47.2", () => {
+    const { context } = contextOf([]);
+    const stored = table();
+    const again = { ...context, stored: new Map([[stored.id, stored]]) };
+    expect(validateDesign(design(stored), context).ok).toBe(false);
+    const unchanged = validateDesign(design({ ...stored, layout: { ...stored.layout, desktop: { ...stored.layout.desktop, x: 2 } } }), again);
+    expect(unchanged.ok && unchanged.value.widgets[0]?.state).toBe("needs_rebinding");
+    expect(validateDesign(design({ ...stored, config: { v: 1, title: "other" } }), again).ok).toBe(false);
+    const unknownType = { ...stored, type: "weather", config: { v: 9 }, bindings: [] };
+    expect(validateDesign(design(unknownType), context).ok).toBe(false);
+    const kept = validateDesign(design(unknownType), { ...context, stored: new Map([[stored.id, unknownType]]) });
+    expect(kept.ok && kept.value.widgets[0]).toMatchObject({ state: "needs_refresh", config: { v: 9 } });
   });
 
   it("the name is trimmed in the result, and the input is not changed", () => {

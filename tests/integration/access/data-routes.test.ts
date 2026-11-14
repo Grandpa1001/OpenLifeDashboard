@@ -95,6 +95,8 @@ function requestOf(route: RouteEntry, design: unknown, planToken = "a-plan-that-
       return { body: { name: "Ekran" }, headers: {} };
     case "PUT /api/v1/screens/:id/design":
       return { body: design, headers: {} };
+    case "POST /api/v1/screens/:id/template":
+      return { body: { format: "openlifedashboard-screen-template", formatVersion: 1, appVersion: "0.0.0", exportedAt: "2026-11-14T10:00:00.000Z", screen: { name: "Szablon", theme: "dark", accent: "blue", widgets: [] } }, headers: {} };
     default:
       return { body: undefined, headers: {} };
   }
@@ -197,6 +199,7 @@ describe("D20.2 the table is the inventory", () => {
       "POST /api/v1/registries/:symbol/structure",
       "POST /api/v1/registries/:symbol/structure/preview",
       "POST /api/v1/screens",
+      "POST /api/v1/screens/:id/template",
       "POST /api/v1/security/devices/revoke-all",
       "POST /api/v1/security/mfa/disable",
       "POST /api/v1/security/mfa/restart",
@@ -308,6 +311,7 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     expect((await run(route("GET", "/template"), ids)).status).toBe(200);
     await run(route("GET", "/widget-types"), ids);
     await run(route("GET", "/data"), ids);
+    expect((await run(route("POST", "/template"), ids)).status).toBe(200);
     await run(route("GET", "/registry-summaries"), ids);
     await run(route("GET", "/system-tables"), ids);
     await run(route("GET", "/system-tables/:name"), ids);

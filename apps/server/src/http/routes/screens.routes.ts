@@ -19,11 +19,12 @@ import {
   type WidgetDataDto,
   type WidgetTypesDto,
 } from "@openlife/contracts/http/screens";
-import { SCREEN_TEMPLATE_FORMAT, SCREEN_TEMPLATE_FORMAT_VERSION, screenTemplateFileName, type ScreenTemplate } from "@openlife/contracts/export/screen-template";
+import { SCREEN_TEMPLATE_FORMAT, screenTemplateSchema, SCREEN_TEMPLATE_FORMAT_VERSION, screenTemplateFileName, type ScreenTemplate } from "@openlife/contracts/export/screen-template";
 import {
   createScreen,
   exportScreenTemplate,
   getScreen,
+  importScreenTemplate,
   listScreens,
   listWidgetTypes,
   readWidgetData,
@@ -111,6 +112,18 @@ export function registerScreenRoutes(app: Hono<AppEnv>, deps: ScreenRouteDepende
           "Cache-Control": "no-store",
         },
       });
+    }),
+  );
+
+  // A template replaces the design of the screen: the file is the whole request, its widgets get new identifiers here.
+  app.post(
+    SCREEN_TEMPLATE_PATH,
+    ...guard,
+    operation(screenTemplateSchema, async (c, token, body) => {
+      const result = importScreenTemplate(dashboard, token, idOf(c), body.screen, c.get("requestId"));
+      if (!result.ok) return refused(c, result.error);
+      announce({ type: "layout.changed", screenId: idOf(c) });
+      return c.json(toScreenDto(result.value));
     }),
   );
 

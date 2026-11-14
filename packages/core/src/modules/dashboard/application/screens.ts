@@ -7,6 +7,7 @@ import { DomainFault, type Commit, type Failure, type ReadUnit, type Result, typ
 import type { AppendAudit } from "../../audit/public.js";
 import { decideAccess, resolveSessionAccess, type IdentityAccessReader, type SessionStore } from "../../identity/public.js";
 import { pageLabels, resolveSortColumn, type CellValue, type DictionaryLookup, type PageLabels, type RecordStore, type RegistryStore, type StoredColumn, type StoredRegistry } from "../../registries/public.js";
+import { designFromTemplate } from "../domain/template-import.js";
 import { templateOf, type ScreenTemplateDesign } from "../domain/screen-template.js";
 import type { DesignInput, DesignPolicy, WidgetState } from "../domain/design.js";
 import { isValidScreenName, stateOfStoredWidget, validateDesign, type DesignContext } from "../domain/design-rules.js";
@@ -48,7 +49,14 @@ function gate(ports: DashboardPorts, token: string, nowMs: number, requestId: st
   return decision.allow ? { ok: true, ownerId: access.session.ownerId } : { ok: false, error: { code: decision.code } };
 }
 
-const contextOf = (deps: DashboardDependencies, ports: DashboardPorts, ownerId: string, screenId: string): DesignContext => ({ ownerId, screenId, policy: deps.policy, widgets: deps.widgets, catalog: ports.catalog });
+const contextOf = (deps: DashboardDependencies, ports: DashboardPorts, ownerId: string, screenId: string, stored?: StoredScreen): DesignContext => ({
+  ownerId,
+  screenId,
+  policy: deps.policy,
+  widgets: deps.widgets,
+  catalog: ports.catalog,
+  ...(stored === undefined ? {} : { stored: new Map(stored.widgets.map((widget) => [widget.id, widget])) }),
+});
 
 /** A stored screen with the state of each widget worked out against the catalog as it is now. */
 function viewOf(screen: StoredScreen, context: DesignContext): ScreenView {
@@ -122,8 +130,9 @@ export function exportScreenTemplate(deps: DashboardDependencies, token: string,
 /** Replaces the whole design of a screen; the canonical snapshot comes back, with the states worked out. */
 export function saveDesign(deps: DashboardDependencies, token: string, screenId: string, input: DesignInput, requestId: string): Result<ScreenView> {
   return run(deps, token, requestId, (ports, ownerId, nowIso) => {
-    if (ports.dashboard.find(ownerId, screenId) === null) throw notFound();
-    const context = contextOf(deps, ports, ownerId, screenId);
+    const before = ports.dashboard.find(ownerId, screenId);
+    if (before === null) throw notFound();
+    const context = contextOf(deps, ports, ownerId, screenId, before);
     const checked = validateDesign(input, context);
     if (!checked.ok) {
       throw new DomainFault({ code: "VALIDATION_FAILED", fields: [...new Set(checked.issues.map((issue) => issue.path))], issues: checked.issues });
@@ -132,6 +141,35 @@ export function saveDesign(deps: DashboardDependencies, token: string, screenId:
     ports.audit.append({ ownerId, action: "screen.design_saved", entityId: screenId, at: nowIso, requestId, details: { widgets: checked.value.widgets.length } });
     const saved = ports.dashboard.find(ownerId, screenId);
     if (saved === null) throw new Error("the screen that was just saved cannot be read");
+    return viewOf(saved, context);
+  });
+}
+
+/**
+ * Replaces the design of a screen with a template (D47.2): new identifiers for the widgets, the paths resolved by
+ * symbol in this installation, the states worked out from the catalog. A defect of the file refuses the whole
+ * import and leaves the screen as it was.
+ */
+export function importScreenTemplate(deps: DashboardDependencies, token: string, screenId: string, template: ScreenTemplateDesign, requestId: string): Result<ScreenView> {
+  return run(deps, token, requestId, (ports, ownerId, nowIso) => {
+    if (ports.dashboard.find(ownerId, screenId) === null) throw notFound();
+    const context = contextOf(deps, ports, ownerId, screenId);
+    const checked = designFromTemplate(template, context, deps.newId);
+    if (!checked.ok) {
+      throw new DomainFault({ code: "VALIDATION_FAILED", fields: [...new Set(checked.issues.map((issue) => issue.path))], issues: checked.issues });
+    }
+    ports.dashboard.replace(ownerId, screenId, checked.value, nowIso);
+    const states = checked.value.widgets.map((widget) => widget.state);
+    ports.audit.append({
+      ownerId,
+      action: "screen.template_imported",
+      entityId: screenId,
+      at: nowIso,
+      requestId,
+      details: { widgets: states.length, needsRebinding: states.filter((state) => state === "needs_rebinding").length, needsRefresh: states.filter((state) => state === "needs_refresh").length },
+    });
+    const saved = ports.dashboard.find(ownerId, screenId);
+    if (saved === null) throw new Error("the screen that was just imported cannot be read");
     return viewOf(saved, context);
   });
 }

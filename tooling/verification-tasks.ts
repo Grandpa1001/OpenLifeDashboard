@@ -5485,6 +5485,46 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D47.1-regression"),
     ],
   },
+  {
+    // DEV §9.44: the import of the template of a screen.
+    id: "D47.2",
+    ready: true,
+    title: "The import of the template of a screen: new identifiers, paths resolved by symbol, broken bindings and unknown types kept, the whole design replaced in one unit",
+    criteria: ["D47.2-AC1", "D47.2-AC2", "D47.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D47.2-AC1", "D47.2-AC2"],
+        description: "pnpm -r build: the resolver of paths, the use case of the import, the lookups by symbol of the catalog and the route",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/dashboard/domain/template-import.ts", "packages/sqlite/src/adapters/dashboard/catalog-reader.ts", "apps/server/src/http/routes/screens.routes.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D47.2-AC2"],
+        description: "pl and en have the name of the audit action of the import of a template",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/settings.json", "apps/web/src/locales/en/settings.json"],
+      },
+      {
+        id: "screen-template-import",
+        criteria: ["D47.2-AC1", "D47.2-AC2"],
+        description: "Over HTTP on a real SQLite file: the template of A in B has new identifiers and targets found by symbol and reads its data; a missing column or registry keeps its path and the widget needs rebinding; an unknown type is kept with its configuration and needs a refresh; the Designer saves the result again, a new widget with the broken target is refused; a defective file is 422 with paths and codes, a failing write or audit leaves the screen as it was, the audit holds counts only",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/dashboard/screen-template-import.test.ts"],
+        requires: ["tests/integration/dashboard/screen-template-import.test.ts", "tests/fixtures/books/books-v1.export.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "design-rules",
+        criteria: ["D47.2-AC1"],
+        description: "The rules of the design: an unknown target of a stored widget is a broken binding, and a widget that comes back unchanged is not judged again while a changed one is",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/dashboard/design-rules.test.ts"],
+        requires: ["tests/unit/dashboard/design-rules.test.ts"],
+      },
+      ...regressionChecks("D47.2-regression"),
+    ],
+  },
   // The parent passes only through its work orders: the writer, the route, the operation of the gate, the page.
   {
     id: "D46",

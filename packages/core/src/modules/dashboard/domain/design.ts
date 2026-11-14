@@ -64,6 +64,7 @@ export type DesignIssueCode =
   | "ORDINAL_GAP"
   | "TARGET_UNKNOWN"
   | "PATH_MISMATCH"
+  | "PATH_INVALID"
   | "REGISTRY_MISMATCH"
   | "LAYOUT_OUT_OF_GRID"
   | "LAYOUT_TOO_SMALL";

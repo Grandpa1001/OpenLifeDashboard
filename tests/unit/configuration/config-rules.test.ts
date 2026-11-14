@@ -104,6 +104,8 @@ describe("D25.1-AC2 a binding to an entry of ConfigTable", () => {
     catalog: {
       registry: (owner, id) => (owner === OWNER && id === BOOKS_ID ? { id, symbol: "ksiazki", deleted: false, columns: table.bindings.flatMap((binding) => (binding.target.kind === "column" ? [{ id: binding.target.columnId, symbol: binding.path.split(".").at(-1)!, deleted: false }] : [])) } : null),
       configEntry: (owner, id) => (owner === OWNER && Object.hasOwn(entries, id) ? { symbol: entries[id]! } : null),
+      registryBySymbol: () => null,
+      configEntryBySymbol: () => null,
       screenOfWidget: () => null,
     },
   });

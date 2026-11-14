@@ -46,6 +46,10 @@ export interface DashboardCatalogReader {
   registry(ownerId: string, registryId: string): CatalogRegistry | null;
   /** The entry of ConfigTable with this identifier if it is the owner's, or null: an entry is deleted outright, so a stored binding to null is broken. */
   configEntry(ownerId: string, entryId: string): Readonly<{ symbol: string }> | null;
+  /** The live registry of the owner with this symbol, or null: a template names things by symbol (D47.2). */
+  registryBySymbol(ownerId: string, symbol: string): CatalogRegistry | null;
+  /** The entry of ConfigTable of the owner with this symbol, or null. */
+  configEntryBySymbol(ownerId: string, symbol: string): Readonly<{ id: string; symbol: string }> | null;
   /** The screen that holds a widget with this identifier, of any owner, or null. */
   screenOfWidget(widgetId: string): string | null;
 }

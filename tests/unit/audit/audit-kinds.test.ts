@@ -16,7 +16,7 @@ const KNOWN: Readonly<Record<string, readonly string[]>> = {
   structure: [
     "setup.data_chosen", "settings.preferences_saved", "setting.changed", "setting.reset",
     "registry.created", "registry.deleted", "registry.restored", "registry.column_added", "registry.column_removed", "registry.column_renamed", "registry.column_required_changed", "registry.column_type_changed",
-    "dictionary.created", "dictionary.updated", "dictionary.deleted", "config.created", "config.updated", "config.deleted", "screen.created", "screen.design_saved",
+    "dictionary.created", "dictionary.updated", "dictionary.deleted", "config.created", "config.updated", "config.deleted", "screen.created", "screen.design_saved", "screen.template_imported",
   ],
   updates: ["update.installed", "backup.created"],
 };
