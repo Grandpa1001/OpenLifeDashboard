@@ -7,6 +7,7 @@ import { DomainFault, type Commit, type Failure, type ReadUnit, type Result, typ
 import type { AppendAudit } from "../../audit/public.js";
 import { decideAccess, resolveSessionAccess, type IdentityAccessReader, type SessionStore } from "../../identity/public.js";
 import { pageLabels, resolveSortColumn, type CellValue, type DictionaryLookup, type PageLabels, type RecordStore, type RegistryStore, type StoredColumn, type StoredRegistry } from "../../registries/public.js";
+import { templateOf, type ScreenTemplateDesign } from "../domain/screen-template.js";
 import type { DesignInput, DesignPolicy, WidgetState } from "../domain/design.js";
 import { isValidScreenName, stateOfStoredWidget, validateDesign, type DesignContext } from "../domain/design-rules.js";
 import type { DashboardCatalogReader, DashboardStore, StoredScreen, StoredWidget, WidgetCatalogPort, WidgetTypeManifest } from "../ports.js";
@@ -107,6 +108,14 @@ export function getScreen(deps: DashboardDependencies, token: string, screenId: 
   return read(deps, token, requestId, (ports, ownerId): Result<ScreenView> => {
     const screen = ports.dashboard.find(ownerId, screenId);
     return screen === null ? notFoundResult() : { ok: true, value: viewOf(screen, contextOf(deps, ports, ownerId, screenId)) };
+  });
+}
+
+/** The design of a screen as a template, without any identifier of this installation (D47.1). */
+export function exportScreenTemplate(deps: DashboardDependencies, token: string, screenId: string, requestId: string): Result<ScreenTemplateDesign> {
+  return read(deps, token, requestId, (ports, ownerId): Result<ScreenTemplateDesign> => {
+    const screen = ports.dashboard.find(ownerId, screenId);
+    return screen === null ? notFoundResult() : { ok: true, value: templateOf(screen) };
   });
 }
 

@@ -327,7 +327,7 @@ const app = createApp({
   security: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, secureCookies, hasher, crypto: mfaCrypto, keys: attemptKeys, clientIp, newId: randomUUID, newSessionToken, nowMs: Date.now, logger },
   announce: liveHub.publish,
   stream: { unit: identityUnit, hub: liveHub, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, pingIntervalMs: STREAM_PING_INTERVAL_MS, logger },
-  screens: { dashboard: { unit: identityUnit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: environment.baseUrl, logger },
+  screens: { dashboard: { unit: identityUnit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: environment.baseUrl, logger, template: { appVersion: build.appVersion, now: () => new Date() } },
 });
 // The retention of the audit log (D44.5): in this process, between requests, in short batches.
 const auditRetention = createAuditRetentionJob({

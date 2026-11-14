@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -5457,6 +5457,32 @@ const definedLater: readonly TaskDefinition[] = [
         timeoutMs: 15 * 60 * 1000,
       },
       ...regressionChecks("D46.4-regression"),
+    ],
+  },
+  {
+    // DEV §9.44: the template of a screen.
+    id: "D47.1",
+    ready: true,
+    title: "The template of a screen: the format without identifiers or data, and `GET /api/v1/screens/:id/template`",
+    criteria: ["D47.1-AC1", "D47.1-AC2", "D47.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D47.1-AC1", "D47.1-AC2"],
+        description: "pnpm -r build: the contract of the template, the use case of the export and the route",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/export/screen-template.ts", "packages/core/src/modules/dashboard/domain/screen-template.ts", "apps/server/src/http/routes/screens.routes.ts"],
+      },
+      {
+        id: "screen-template-export",
+        criteria: ["D47.1-AC1", "D47.1-AC2"],
+        description: "Over HTTP on a real SQLite file: the template of the screen of F01 has the type, the configuration, the layouts and the bindings as paths and not one identifier or record; a broken binding keeps its path; 401, 403 before the gate and 404",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/dashboard/screen-template-export.test.ts"],
+        requires: ["tests/integration/dashboard/screen-template-export.test.ts", "tests/fixtures/books/books-v1.export.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D47.1-regression"),
     ],
   },
   // The parent passes only through its work orders: the writer, the route, the operation of the gate, the page.

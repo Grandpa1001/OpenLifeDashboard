@@ -177,6 +177,7 @@ describe("D20.2 the table is the inventory", () => {
       "GET /api/v1/registry-summaries",
       "GET /api/v1/screens",
       "GET /api/v1/screens/:id",
+      "GET /api/v1/screens/:id/template",
       "GET /api/v1/security/audit",
       "GET /api/v1/security/devices",
       "GET /api/v1/security/factor",
@@ -304,6 +305,7 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     await run(route("GET", "/screens"), ids);
     await run(route("GET", "/screens/:id"), ids);
     expect((await run(route("PUT", "/design"), ids, designOf(registry, ids.widget))).status).toBe(200);
+    expect((await run(route("GET", "/template"), ids)).status).toBe(200);
     await run(route("GET", "/widget-types"), ids);
     await run(route("GET", "/data"), ids);
     await run(route("GET", "/registry-summaries"), ids);

@@ -9,6 +9,7 @@ import {
   designSnapshotSchema,
   SCREEN_DESIGN_PATH,
   SCREEN_PATH,
+  SCREEN_TEMPLATE_PATH,
   SCREENS_PATH,
   WIDGET_DATA_PATH,
   WIDGET_TYPES_PATH,
@@ -18,8 +19,10 @@ import {
   type WidgetDataDto,
   type WidgetTypesDto,
 } from "@openlife/contracts/http/screens";
+import { SCREEN_TEMPLATE_FORMAT, SCREEN_TEMPLATE_FORMAT_VERSION, screenTemplateFileName, type ScreenTemplate } from "@openlife/contracts/export/screen-template";
 import {
   createScreen,
+  exportScreenTemplate,
   getScreen,
   listScreens,
   listWidgetTypes,
@@ -43,6 +46,8 @@ export type ScreenRouteDependencies = Readonly<{
   cookies: SignedCookie;
   allowedOrigin: string;
   logger: TechnicalLogger;
+  /** What the file of a template says of the application and when it was made (D47.1). */
+  template: Readonly<{ appVersion: string; now: () => Date }>;
 }>;
 
 /** The identifier in the path; a path without one cannot reach a handler, and an empty one names nothing. */
@@ -81,6 +86,31 @@ export function registerScreenRoutes(app: Hono<AppEnv>, deps: ScreenRouteDepende
     read((c, token) => {
       const result = getScreen(dashboard, token, idOf(c), c.get("requestId"));
       return result.ok ? c.json(toScreenDto(result.value)) : refused(c, result.error);
+    }),
+  );
+
+  // The template of the screen: its design without the identifiers of this installation. A download, like the export of the whole data.
+  app.get(
+    SCREEN_TEMPLATE_PATH,
+    read((c, token) => {
+      const result = exportScreenTemplate(dashboard, token, idOf(c), c.get("requestId"));
+      if (!result.ok) return refused(c, result.error);
+      const exportedAt = deps.template.now();
+      const file: ScreenTemplate = {
+        format: SCREEN_TEMPLATE_FORMAT,
+        formatVersion: SCREEN_TEMPLATE_FORMAT_VERSION,
+        appVersion: deps.template.appVersion,
+        exportedAt: exportedAt.toISOString(),
+        screen: result.value as unknown as ScreenTemplate["screen"],
+      };
+      return new Response(JSON.stringify(file), {
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${screenTemplateFileName(exportedAt)}"`,
+          "X-Content-Type-Options": "nosniff",
+          "Cache-Control": "no-store",
+        },
+      });
     }),
   );
 

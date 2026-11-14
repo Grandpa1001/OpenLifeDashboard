@@ -95,6 +95,7 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "GET", path: screens.SCREENS_PATH, access: "data", note: "the owner's screens, in the order they were made" },
   { method: "POST", path: screens.SCREENS_PATH, access: "data", note: "makes the first, empty screen of the owner" },
   { method: "GET", path: screens.SCREEN_PATH, access: "data", note: "the canonical snapshot of a screen with the state of each widget" },
+  { method: "GET", path: screens.SCREEN_TEMPLATE_PATH, access: "data", note: "the design of a screen as a template file, without identifiers" },
   { method: "PUT", path: screens.SCREEN_DESIGN_PATH, access: "data", note: "replaces the whole design of a screen atomically" },
   { method: "GET", path: screens.WIDGET_TYPES_PATH, access: "data", note: "the manifests of the widget types of this build" },
   { method: "GET", path: screens.WIDGET_DATA_PATH, access: "data", note: "a page of the data of a widget from its saved bindings" },

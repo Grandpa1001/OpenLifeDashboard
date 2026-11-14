@@ -117,6 +117,8 @@ export type DesignSnapshotDto = z.infer<typeof designSnapshotSchema>;
 export const SCREEN_PATH = `${SCREENS_PATH}/:id` as const;
 export const SCREEN_DESIGN_PATH = `${SCREENS_PATH}/:id/design` as const;
 export const WIDGET_DATA_PATH = "/api/v1/widgets/:id/data" as const;
+export const SCREEN_TEMPLATE_PATH = `${SCREENS_PATH}/:id/template` as const;
+export const screenTemplatePath = (id: string): string => `${SCREENS_PATH}/${id}/template`;
 export const screenPath = (id: string): string => `${SCREENS_PATH}/${id}`;
 export const screenDesignPath = (id: string): string => `${SCREENS_PATH}/${id}/design`;
 export const widgetDataPath = (id: string): string => `/api/v1/widgets/${id}/data`;

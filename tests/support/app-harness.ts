@@ -210,7 +210,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     dictionaries: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: limits.dictionary, logger },
     config: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, newId: createUuidV7(), limits: limits.config, logger },
     systemTables: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
-    screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger },
+    screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger, template: { appVersion: "0.0.0", now: () => new Date() } },
     settings: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, environment, refresh: effectiveSettings.refresh, logger },
     diagnostics: { unit, overview, logs: diagnosticsLogs, report: createReportBuilder({ overview, logs: diagnosticsLogs, options: effectiveSettings.current, catalog: SETTINGS_CATALOG, now: () => new Date() }), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     import: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, limits, policy: DESIGN_POLICY, widgets: createWidgetCatalog(), gate: gate.gate, newOperationId: randomUUID, pause: giveBackLoop, logger },

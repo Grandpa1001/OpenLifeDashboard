@@ -14,6 +14,11 @@
       "types": "./dist/backups/database-snapshot.d.ts",
       "default": "./dist/backups/database-snapshot.js"
     },
+    "./export/screen-template": {
+      "@openlife/source": "./src/export/screen-template.ts",
+      "types": "./dist/export/screen-template.d.ts",
+      "default": "./dist/export/screen-template.js"
+    },
     "./export/format": {
       "@openlife/source": "./src/export/format.ts",
       "types": "./dist/export/format.d.ts",
