@@ -99,6 +99,7 @@ describe("D49.3-AC1 a catch-up copy after a downtime and the retention of fourte
       nextAt: "2026-11-16T01:00:00.000Z",
       lastRun: { at: new Date(NOW).toISOString(), outcome: "created", code: null },
       retention: "ok",
+      heartbeat: "not_configured",
     });
     expect(readdirSync(h.backupsDir).filter((entry) => !entry.startsWith("."))).toHaveLength(14);
   });
@@ -181,5 +182,52 @@ describe("D49.3-AC2 the look is skipped, a failure stays inside, one copy at a t
     expect(await job.run()).toBe("created");
     expect(job.status().nightly.retention).toBe("failed");
     expect(log.lines.map((line) => line.event)).toEqual(["backup.nightly_created", "backup.retention_failed"]);
+  });
+});
+
+describe("D49.4-AC1/AC2 the signal to the monitor goes after a verified copy and only then", () => {
+  const sent = (over: { ok?: boolean } = {}) => {
+    const calls: string[] = [];
+    return { calls, heartbeat: async () => (calls.push("heartbeat"), over.ok === false ? ({ ok: false, code: "HEARTBEAT_TIMEOUT" } as const) : ({ ok: true } as const)) };
+  };
+
+  it("sends one signal after the copy, before the retention, and says so in the state", async () => {
+    const order: string[] = [];
+    const { job } = stubJob({
+      snapshots: { create: async () => (order.push("copy"), { ok: true, snapshotId: randomUUID() } as SnapshotResult) },
+      prune: () => (order.push("retention"), { ok: true, kept: [], removed: [] }),
+      heartbeat: async () => (order.push("heartbeat"), { ok: true }),
+    });
+    expect(job.status().nightly.heartbeat).toBe("pending");
+    expect(await job.run()).toBe("created");
+    expect(order).toEqual(["copy", "heartbeat", "retention"]);
+    expect(job.status().nightly.heartbeat).toBe("sent");
+    expect(await job.run()).toBe("not_due");
+    expect(order).toEqual(["copy", "heartbeat", "retention"]);
+  });
+
+  it("sends nothing when the copy failed, when nothing was due and when the look was skipped", async () => {
+    const failed = sent();
+    const copyFails = stubJob({ snapshots: { create: async () => ({ ok: false, code: "SNAPSHOT_FAILED" }) } as Pick<DatabaseSnapshotPort, "create">, heartbeat: failed.heartbeat });
+    expect(await copyFails.job.run()).toBe("failed");
+    const skipped = sent();
+    expect(await stubJob({ maintenanceActive: () => true, heartbeat: skipped.heartbeat }).job.run()).toBe("maintenance");
+    expect(await stubJob({ settings: () => ({ ...SETTINGS, enabled: false }), heartbeat: skipped.heartbeat }).job.run()).toBe("disabled");
+    expect(failed.calls).toEqual([]);
+    expect(skipped.calls).toEqual([]);
+    expect(copyFails.job.status().nightly.heartbeat).toBe("pending");
+  });
+
+  it("logs a failed signal with its code, keeps the copy good and still applies the retention", async () => {
+    const { calls, heartbeat } = sent({ ok: false });
+    const { job, log } = stubJob({ heartbeat });
+    expect(await job.run()).toBe("created");
+    expect(calls).toEqual(["heartbeat"]);
+    expect(job.status().nightly).toMatchObject({ heartbeat: "failed", retention: "ok", lastRun: { outcome: "created" } });
+    expect(log.lines).toEqual([
+      { level: "info", event: "backup.nightly_created", operationId: expect.any(String), durationMs: 0 },
+      { level: "error", event: "backup.heartbeat_failed", operationId: expect.any(String), code: "HEARTBEAT_TIMEOUT" },
+      { level: "info", event: "backup.retention_applied", operationId: expect.any(String), durationMs: 0 },
+    ]);
   });
 });

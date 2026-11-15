@@ -46,6 +46,7 @@ import { createLogFiles } from "./adapters/diagnostics/log-files.js";
 import { exportOfCopy } from "./portability/bundle-export.js";
 import { createExportService } from "./portability/export-stream.js";
 import { createAuditRetentionJob } from "./workers/audit-retention.js";
+import { createHeartbeatSender } from "./adapters/monitoring/heartbeat.js";
 import { createNightlyBackupJob } from "./workers/nightly-backup.js";
 import { listBackups } from "./adapters/filesystem/backup-catalog.js";
 import { pruneBackups } from "./adapters/filesystem/backup-retention.js";
@@ -256,6 +257,7 @@ const nightlyBackup = createNightlyBackupJob({
   maintenanceActive: () => gate.gate.current().activeOperation !== null,
   newOperationId: randomUUID,
   logger,
+  ...(environment.backupHeartbeatUrl === undefined ? {} : { heartbeat: createHeartbeatSender({ url: environment.backupHeartbeatUrl }) }),
 });
 const diagnosticsOverview = createOverviewReader({ build, schemaVersion: database.schemaVersion, installation: paths, workingPaths, logStatus: logFile.status, liveConnections: liveHub.total, backupStatus: nightlyBackup.status });
 const diagnosticsLogs = createLogFiles({ dir: workingPaths.logs, retentionDays: () => logLimits().retentionDays, now: () => new Date() });

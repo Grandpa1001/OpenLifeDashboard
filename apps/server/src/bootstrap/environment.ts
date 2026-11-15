@@ -3,6 +3,7 @@
 // Errors name fields, never their values. Option ranges and cross-field rules belong to the
 // settings resolver (D03.2); instance.json is validated in D03.3.
 import { SETTINGS_CATALOG } from "@openlife/contracts/settings";
+import { parseHeartbeatUrl } from "../adapters/monitoring/heartbeat.js";
 import { Secret } from "./secret.js";
 
 export type InstallMode = "local" | "server";
@@ -22,6 +23,8 @@ export type EnvironmentConfig = Readonly<{
   betterAuthSecret: Secret;
   appEncryptionKey: Secret;
   updater: UpdaterConfig;
+  /** The address the nightly copy signals to (D49.4); absent when the administrator set none. It holds the token of the monitor. */
+  backupHeartbeatUrl?: Secret;
   dbBusyTimeoutMs: number;
   overrides: EnvironmentOverrides;
 }>;
@@ -134,6 +137,12 @@ export function parseEnvironment(env: RawEnvironment): EnvironmentResult {
     updater = token && releasesRepo ? { enabled: true, token, releasesRepo } : undefined;
   }
 
+  const rawHeartbeat = present("BACKUP_HEARTBEAT_URL");
+  const heartbeatUrl = rawHeartbeat === undefined ? undefined : parseHeartbeatUrl(rawHeartbeat) === undefined ? undefined : new Secret(rawHeartbeat);
+  if (rawHeartbeat !== undefined && heartbeatUrl === undefined) {
+    invalid.add("BACKUP_HEARTBEAT_URL");
+  }
+
   const integer = (key: string): number | undefined => {
     const raw = present(key);
     if (raw === undefined) {
@@ -173,6 +182,7 @@ export function parseEnvironment(env: RawEnvironment): EnvironmentResult {
       betterAuthSecret,
       appEncryptionKey,
       updater,
+      ...(heartbeatUrl === undefined ? {} : { backupHeartbeatUrl: heartbeatUrl }),
       dbBusyTimeoutMs: busyTimeout ?? DB_BUSY_TIMEOUT_MS.default,
       overrides,
     },

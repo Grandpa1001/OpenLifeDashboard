@@ -341,6 +341,9 @@ jobs:
       - name: Verify D49.3 (the nightly copy in the process)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D49.3
+      - name: Verify D49.4 (the signal to the monitor)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D49.4
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1073,6 +1076,9 @@ jobs:
       - name: Verify D48 (the parent, D48.1–D48.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D48
+      - name: Verify D49 (the parent, D49.1–D49.4 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D49
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

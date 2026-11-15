@@ -8,6 +8,7 @@
 import { decideNightlyBackup, type DatabaseSnapshotPort, type RetentionPolicy } from "@openlife/core/maintenance";
 import type { BackupStatusDto } from "@openlife/contracts/http/diagnostics";
 import { lastNightlyStartedAt, type BackupEntry } from "../adapters/filesystem/backup-catalog.js";
+import type { HeartbeatSender } from "../adapters/monitoring/heartbeat.js";
 import type { pruneBackups } from "../adapters/filesystem/backup-retention.js";
 import type { TechnicalLogger } from "../adapters/logging/technical-logger.js";
 import { NIGHTLY_BACKUP_CHECK_INTERVAL_MS, NIGHTLY_BACKUP_FIRST_RUN_DELAY_MS, NIGHTLY_BACKUP_RETRY_AFTER_FAILURE_MS } from "./nightly-backup-limits.js";
@@ -27,6 +28,8 @@ export type NightlyBackupJobOptions = Readonly<{
   maintenanceActive: () => boolean;
   newOperationId: () => string;
   logger: Pick<TechnicalLogger, "log">;
+  /** The signal to the monitor; absent when the administrator configured none. */
+  heartbeat?: HeartbeatSender;
   /** Tests narrow the pacing; the product uses the constants. */
   checkIntervalMs?: number;
   firstRunDelayMs?: number;
@@ -56,6 +59,15 @@ export function createNightlyBackupJob(options: NightlyBackupJobOptions): Nightl
   let lastRun: BackupStatusDto["nightly"]["lastRun"] = null;
   let retention: BackupStatusDto["nightly"]["retention"] = null;
   let retryNotBeforeMs = 0;
+  let heartbeat: BackupStatusDto["nightly"]["heartbeat"] = options.heartbeat === undefined ? "not_configured" : "pending";
+
+  /** After a verified copy, before the retention: whatever the retention does cannot hold the signal back. A failure is its own error and the copy stays good. */
+  async function signalMonitor(operationId: string): Promise<void> {
+    if (options.heartbeat === undefined) return;
+    const result = await options.heartbeat();
+    heartbeat = result.ok ? "sent" : "failed";
+    if (!result.ok) options.logger.log({ level: "error", event: "backup.heartbeat_failed", operationId, code: result.code });
+  }
 
   function applyRetention(settings: NightlyBackupSettings, operationId: string): void {
     try {
@@ -101,6 +113,7 @@ export function createNightlyBackupJob(options: NightlyBackupJobOptions): Nightl
       lastSuccessAt = new Date(now).toISOString();
       lastRun = { at, outcome: "created", code: null };
       options.logger.log({ level: "info", event: "backup.nightly_created", operationId, durationMs: options.nowMs() - now });
+      await signalMonitor(operationId);
       applyRetention(settings, operationId);
       const after = decideNightlyBackup({ nowMs: options.nowMs(), timeZone, time: settings.time, lastNightlyAt: lastSuccessAt });
       nextAtMs = after.due ? null : after.nextAtMs;
@@ -144,6 +157,7 @@ export function createNightlyBackupJob(options: NightlyBackupJobOptions): Nightl
         nextAt: nextAtMs === null ? null : new Date(nextAtMs).toISOString(),
         lastRun,
         retention,
+        heartbeat,
       },
     }),
   };

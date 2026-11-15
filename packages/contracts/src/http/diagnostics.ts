@@ -47,6 +47,8 @@ export const backupStatusSchema = z
         lastRun: z.object({ at: z.iso.datetime(), outcome: z.enum(["created", "failed"]), code: z.string().min(1).max(64).nullable() }).strict().nullable(),
         /** The retention after the last copy: null before the first one. */
         retention: z.enum(["ok", "failed"]).nullable(),
+        /** The signal to the monitor after the last copy: absent when none is configured, pending before the first copy. */
+        heartbeat: z.enum(["not_configured", "pending", "sent", "failed"]),
       })
       .strict(),
   })

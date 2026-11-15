@@ -5752,6 +5752,56 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D49.3-regression"),
     ],
   },
+  {
+    // DEV §9.47: the signal to the monitor.
+    id: "D49.4",
+    ready: true,
+    title: "The signal to the monitor after a verified nightly copy: optional, from the environment, HTTPS, bounded",
+    criteria: ["D49.4-AC1", "D49.4-AC2", "D49.4-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D49.4-AC1", "D49.4-AC2"],
+        description: "pnpm -r build: the sender of the signal, its limits, the address in the environment and the state in the diagnostics",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/adapters/monitoring/heartbeat.ts", "apps/server/src/adapters/monitoring/heartbeat-limits.ts", "apps/server/src/bootstrap/environment.ts", "packages/contracts/src/http/diagnostics.ts"],
+      },
+      {
+        id: "heartbeat-sender",
+        criteria: ["D49.4-AC1", "D49.4-AC2"],
+        description: "The sender: one GET to the resolved address with the name kept for the certificate and the Host header; an address that is not HTTPS, holds credentials, a fragment or an internal literal is refused; a name that resolves to an internal address, also with one such among several, is refused before any connection; a redirect, a bad status, an error and a slow answer or resolution are failures with a stable code; no result carries the address; the address in the environment is optional, kept as a secret, and a bad one is refused with the key and never the value",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/monitoring/heartbeat.test.ts"],
+        requires: ["tests/unit/monitoring/heartbeat.test.ts"],
+      },
+      {
+        id: "heartbeat-https",
+        criteria: ["D49.4-AC1", "D49.4-AC2"],
+        description: "The real HTTPS transport against a local server with its own certificate: a GET without body and with no header that carries data, the certificate checked against the name, a redirect answered and not followed, a certificate of another name refused",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/monitoring/heartbeat-https.test.ts"],
+        requires: ["tests/integration/monitoring/heartbeat-https.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "nightly-backup-job",
+        criteria: ["D49.4-AC1", "D49.4-AC2"],
+        description: "The job: one signal after a copy and before the retention, none after a failed copy, a skipped look or with no due copy, a failed signal logged with its code while the copy stays good and the retention still runs, the state names the signal",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/nightly-backup-job.test.ts"],
+        requires: ["tests/integration/maintenance/nightly-backup-job.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D49.4-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the retention, the term, the job, the signal.
+  {
+    id: "D49",
+    ready: true,
+    title: "The schedule and retention of the backups: the retention, the term, the job in the process and the signal to the monitor",
+    steps: ["D49.1", "D49.2", "D49.3", "D49.4"],
+    criteria: [],
+    checks: [],
+  },
   // The parent passes only through its work orders: the bundle, the command, the catalog.
   {
     id: "D48",
