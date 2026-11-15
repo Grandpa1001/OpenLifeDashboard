@@ -9,6 +9,11 @@
     "dist"
   ],
   "exports": {
+    "./updates/state": {
+      "@openlife/source": "./src/updates/state.ts",
+      "types": "./dist/updates/state.d.ts",
+      "default": "./dist/updates/state.js"
+    },
     "./updates/protocol": {
       "@openlife/source": "./src/updates/protocol.ts",
       "types": "./dist/updates/protocol.d.ts",

@@ -6139,6 +6139,38 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.51: the journal, the fence and the state machine of the updater.
+    id: "D52.2",
+    ready: true,
+    title: "The journal of the updater, the fence and the state machine: a record that survives a crash, a crashed writer refused",
+    criteria: ["D52.2-AC1", "D52.2-AC2", "D52.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built contracts.
+        id: "workspace-build",
+        criteria: ["D52.2-AC1", "D52.2-AC2"],
+        description: "pnpm -r build: the contract of the record and the journal and the state machine of the updater",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/updates/state.ts", "apps/updater/src/journal/journal.ts", "apps/updater/src/state-machine/transitions.ts", "apps/updater/src/state-machine/begin.ts"],
+      },
+      {
+        id: "updater-state-machine",
+        criteria: ["D52.2-AC1", "D52.2-AC2"],
+        description: "The table allows exactly the ways of the architecture and every other pair is refused; every state has a way out; an error before the commit point goes back through rolling_back and recovery_failed leaves only to idle; no rollback from the commit point on and completed only after it; a smaller fence is a crashed writer, one operation runs at a time and the same operation asked again is the one that runs; a new operation starts from a clean record",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/updater/state-machine.test.ts"],
+        requires: ["tests/unit/updater/state-machine.test.ts"],
+      },
+      {
+        id: "updater-journal",
+        criteria: ["D52.2-AC1", "D52.2-AC2"],
+        description: "The journal on real files: a new installation reads as empty, a record is read back whole and the files are private; a changed byte and a record whose hash disagrees are not read and a journal with every file damaged is unreadable, not empty; a write stopped at each of its four operations leaves the old record or the new and the journal goes on from it; a torn temporary file is not read; the fence survives the restart",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updater/journal.test.ts"],
+        requires: ["tests/integration/updater/journal.test.ts"],
+      },
+      ...regressionChecks("D52.2-regression"),
+    ],
+  },
+  {
     // KM5 gate (DEV §8.4, §9.50): the copy of installation A listed, verified and restored on a separate
     // installation B by the built commands, then the reports of the fast tier for D48-D51 joined item by item
     // for this exact code; does not run their tests again.
