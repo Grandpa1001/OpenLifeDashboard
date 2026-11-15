@@ -332,6 +332,9 @@ jobs:
       - name: Verify D48.3 (the catalog of the backup folder)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D48.3
+      - name: Verify D49.1 (the retention of the backup folder)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D49.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

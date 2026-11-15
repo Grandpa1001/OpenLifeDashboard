@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -5650,6 +5650,39 @@ const definedLater: readonly TaskDefinition[] = [
         timeoutMs: 10 * 60 * 1000,
       },
       ...regressionChecks("D48.3-regression"),
+    ],
+  },
+  {
+    // DEV §9.47: the retention of the copies.
+    id: "D49.1",
+    ready: true,
+    title: "The retention of the backup folder: the plan of the core and its application to finished copies only",
+    criteria: ["D49.1-AC1", "D49.1-AC2", "D49.1-AC3", "D49.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D49.1-AC1", "D49.1-AC2", "D49.1-AC3"],
+        description: "pnpm -r build: the plan of the retention and the adapter that applies it",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/maintenance/domain/backup-retention.ts", "apps/server/src/adapters/filesystem/backup-retention.ts"],
+      },
+      {
+        id: "backup-retention-plan",
+        criteria: ["D49.1-AC1", "D49.1-AC2"],
+        description: "The plan: nightly copies beyond the newest keep go, copies pre_* past the days go, the newest copy of each reason stays at any age, a copy in use and a manual copy stay, the plan does not depend on the order of the input",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/maintenance/backup-retention.test.ts"],
+        requires: ["tests/unit/maintenance/backup-retention.test.ts"],
+      },
+      {
+        id: "backup-retention-files",
+        criteria: ["D49.1-AC1", "D49.1-AC2", "D49.1-AC3"],
+        description: "On a real file system with real packages: the old copies are removed whole and the rest still verifies; a damaged package, a leftover of staging, a link to an outside directory and a copy of another installation are not touched; a removal that fails stops the run with RETENTION_FAILED and leaves a whole copy",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/backup-retention.test.ts"],
+        requires: ["tests/integration/maintenance/backup-retention.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D49.1-regression"),
     ],
   },
   // The parent passes only through its work orders: the bundle, the command, the catalog.
