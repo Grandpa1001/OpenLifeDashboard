@@ -68,3 +68,16 @@ export function listBackups(backupsDir: string, instanceId: string): BackupEntry
   }
   return entries;
 }
+
+/**
+ * When the newest finished nightly copy of this installation was started, or null. The last success of the
+ * schedule is read from the files and kept nowhere else (D49.2), so a restore or a copied folder cannot make
+ * it disagree with the disk; a damaged package and a copy of another installation are not a success.
+ */
+export function lastNightlyStartedAt(entries: readonly BackupEntry[]): string | null {
+  let latest: string | null = null;
+  for (const entry of entries) {
+    if (entry.state === "completed" && entry.ofThisInstallation && entry.reason === "nightly" && (latest === null || entry.startedAt > latest)) latest = entry.startedAt;
+  }
+  return latest;
+}

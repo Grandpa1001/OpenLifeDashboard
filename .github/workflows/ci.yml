@@ -335,6 +335,9 @@ jobs:
       - name: Verify D49.1 (the retention of the backup folder)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D49.1
+      - name: Verify D49.2 (the term of the nightly copy)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D49.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

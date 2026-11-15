@@ -5685,6 +5685,39 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D49.1-regression"),
     ],
   },
+  {
+    // DEV §9.47: the term of the nightly copy.
+    id: "D49.2",
+    ready: true,
+    title: "The term of the nightly copy: one catch-up copy after a downtime, the clock changes, the last success from the folder",
+    criteria: ["D49.2-AC1", "D49.2-AC2", "D49.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D49.2-AC1", "D49.2-AC2"],
+        description: "pnpm -r build: the decision of the schedule and the reading of the last success",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/core/src/modules/maintenance/domain/backup-schedule.ts", "apps/server/src/adapters/filesystem/backup-catalog.ts"],
+      },
+      {
+        id: "backup-schedule",
+        criteria: ["D49.2-AC1", "D49.2-AC2"],
+        description: "The decision in Europe/Warsaw and another zone: one copy after a downtime whatever the missed slots, the next slot, the spring jump moves the slot to its end, the autumn repeat of the hour gives no second copy, a moved time or zone gives no second copy of a day, a bad time is refused",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/maintenance/backup-schedule.test.ts"],
+        requires: ["tests/unit/maintenance/backup-schedule.test.ts"],
+      },
+      {
+        id: "backup-last-nightly",
+        criteria: ["D49.2-AC1", "D49.2-AC2"],
+        description: "The last success is read from the folder: after a downtime the schedule asks for one copy and is satisfied by it; a manual copy, a safety copy, a damaged package, a leftover of staging and a copy of another installation are not a success",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/backup-last-nightly.test.ts"],
+        requires: ["tests/integration/maintenance/backup-last-nightly.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D49.2-regression"),
+    ],
+  },
   // The parent passes only through its work orders: the bundle, the command, the catalog.
   {
     id: "D48",
