@@ -109,7 +109,8 @@ try {
     writeJournal("failed", { code: placed.code });
     refuse(placed.code, ["storage"]);
   }
-  writeJournal("parked", { parked: path.basename(placed.parkedDir) });
+  const parked = placed.parkedDir === null ? null : path.basename(placed.parkedDir);
+  writeJournal("parked", { parked });
 
   let connection: ReturnType<typeof openDatabase> | undefined;
   try {
@@ -120,12 +121,12 @@ try {
     connection = undefined;
     if (!revoked.ok) {
       placed.rollback();
-      writeJournal("failed", { code: revoked.error.code, parked: path.basename(placed.parkedDir), rolledBack: true });
+      writeJournal("failed", { code: revoked.error.code, parked, rolledBack: true });
       refuse(revoked.error.code, revoked.error.fields ?? []);
     }
-    writeJournal("restored", { parked: path.basename(placed.parkedDir) });
+    writeJournal("restored", { parked });
     const { accessEpoch, revokedSessions, revokedDevices } = revoked.value.value;
-    console.log(JSON.stringify({ event: "instance.restored", snapshot: input.snapshot, snapshotId: meta.snapshotId, schemaVersion: meta.schemaVersion, accessEpoch, revokedSessions, revokedDevices, parked: path.basename(placed.parkedDir), requestId }));
+    console.log(JSON.stringify({ event: "instance.restored", snapshot: input.snapshot, snapshotId: meta.snapshotId, schemaVersion: meta.schemaVersion, accessEpoch, revokedSessions, revokedDevices, parked, requestId }));
   } catch (error) {
     connection?.close();
     let rolledBack = false;
@@ -135,8 +136,8 @@ try {
     } catch {
       // The set stays in the parked folder, which the answer and the journal name.
     }
-    writeJournal("failed", { code: "RESTORE_FAILED", parked: path.basename(placed.parkedDir), rolledBack });
-    refuse("RESTORE_FAILED", [], { parked: path.basename(placed.parkedDir), rolledBack, error: describeError(error) });
+    writeJournal("failed", { code: "RESTORE_FAILED", parked, rolledBack });
+    refuse("RESTORE_FAILED", [], { parked, rolledBack, error: describeError(error) });
   }
 } catch (error) {
   refuse("COMMAND_FAILED", [], { error: describeError(error) });

@@ -52,9 +52,10 @@ export function tableWidget(registry: RegistryDto): FixtureWidget {
 }
 
 /** Książki with the 25 records of F01 and the screen of F01 with its table widget; `keyPrefix` keeps the idempotency keys of a test its own. */
-export async function booksOverApi(keyPrefix: string): Promise<{ setup: Installation; cookie: string; registry: RegistryDto; screenId: string }> {
+export async function booksOverApi(keyPrefix: string): Promise<{ setup: Installation; cookie: string; registry: RegistryDto; screenId: string; owner: Awaited<ReturnType<typeof readyOwner>> }> {
   const setup = await installation();
-  const cookie = (await readyOwner(setup)).sessionCookie;
+  const owner = await readyOwner(setup);
+  const cookie = owner.sessionCookie;
   const created = await post(setup.server, REGISTRIES_PATH, definitionOf(BOOKS.symbol, BOOKS.displayName, BOOKS.columns), { cookie });
   if (created.status !== 201) throw new Error(`Książki was not created: ${created.status}`);
   for (const [index, record] of BOOKS.records.entries()) {
@@ -65,5 +66,5 @@ export async function booksOverApi(keyPrefix: string): Promise<{ setup: Installa
   const screenId = screenSchema.parse((await post(setup.server, SCREENS_PATH, { name: SCREEN.name }, { cookie })).json()).id;
   const design = await send(setup.server, "PUT", screenDesignPath(screenId), { name: SCREEN.name, theme: "dark", accent: "blue", widgets: [tableWidget(registry)] }, { cookie });
   if (design.status !== 200) throw new Error(`the screen of F01 was not saved: ${design.status}`);
-  return { setup, cookie, registry, screenId };
+  return { setup, cookie, registry, screenId, owner };
 }

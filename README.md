@@ -126,6 +126,51 @@ printf '%s' '{"snapshot":"20261102T120000Z-pre_delete-<snapshot id>","symbol":"k
 
 The command takes the writer lease like the other commands and verifies the package as a full restore would: the files, their checksums, the meta, the integrity of the copy, this installation, the reason `pre_delete` and the schema version of the database. It reads only that registry from the copy and puts back its catalog, its table, its indexes and its records under the same identifiers, with their times and revisions, in one transaction; nothing else (other registries, screens, sign-in data) changes. It restores only over that registry's own deletion: a registry that is not deleted, a symbol the copy does not have, or a catalog that changed since is `RESTORE_CONFLICT` and nothing is written. On failure it exits 1 with a stable code and field names, never values.
 
+### Restoring the whole instance
+
+A copy is only as good as the day you try it. This is the procedure for bringing a whole installation back from a package of `data/backup/`, on the same machine after a failure or on a new one. There is no button: it is three commands and a start, and they only run against a stopped app.
+
+**What you need.** The package (a directory `…-<reason>-<snapshot id>/` of the installation, from `data/backup/` or from wherever you keep copies of it), the two files that are the identity and the keys of the installation, `control/instance.json` and the environment file with `BETTER_AUTH_SECRET` and `APP_ENCRYPTION_KEY`, and an image of the same build that wrote the package. **The keys are not in the copies.** Without the original `APP_ENCRYPTION_KEY` the second factor in a restored database cannot be opened (`KEY_MISMATCH`); keep `instance.json` and the environment file somewhere other than the disk the data is on, and rehearse the restore once before you need it. Copies on the disk of the installation do not protect against the loss of that disk.
+
+1. Stop the app and anything else that opens the database. A running app holds the writer lease and every command below answers `INSTANCE_BUSY` without changing anything.
+2. On a new machine, prepare the installation first: put the saved `control/instance.json` and the environment file in place, leave `data/` empty, and copy the package into `data/backup/`. A package of another installation is refused with `SNAPSHOT_UNSUITABLE` (`instanceId`).
+3. List what is there with `backup-list` (read only, it works beside a running app) and pick the package:
+
+```sh
+node apps/server/dist/cli/backup-list.js --installation <installation-folder>
+```
+
+4. Check it with `backup-verify`. It verifies the package in full (files, checksums, meta, integrity, and the export of a bundle) and says whether this build can restore it. A damaged or incomplete package is `SNAPSHOT_INVALID` with the part named; a package of a newer schema than the build knows is `SNAPSHOT_UNSUITABLE` (`schemaVersion`):
+
+```sh
+printf '%s' '{"snapshot":"<package directory name>"}' | node apps/server/dist/cli/backup-verify.js --installation <installation-folder>
+```
+
+5. Restore with `restore-instance` and the explicit confirmation that the current database is replaced:
+
+```sh
+printf '%s' '{"snapshot":"<package directory name>","confirm":"replace-current-database"}' | node apps/server/dist/cli/restore-instance.js --installation <installation-folder>
+```
+
+The command checks the package again, checks that the current `APP_ENCRYPTION_KEY` opens the secret of the second factor in it and that the disk holds the database and its reserve, then moves the current `app.db`, `app.db-wal` and `app.db-shm` together into `data/.restore-parked-<time>-<id>/` (kept as they were, a damaged set included; nothing is deleted), puts the database of the package in place, and in one transaction ends every session and trusted device and writes the `backup.restored` audit entry. A failure at any point moves the parked set back. The journal of the restore is `control/maintenance/restore-journal.json` (`started`, `parked`, `restored` or `failed`).
+
+6. Start the app and check it before you open it to anyone: sign in with your password and your authenticator (every session of the past is gone, and so is every trusted device), look at the registers and the counts you expect, and at the diagnostics.
+7. When you are satisfied, delete the parked folder by hand; the app never does.
+
+**When it does not work.**
+
+| Answer | Meaning and what to do |
+|---|---|
+| `INSTANCE_BUSY` | The app or another command is running. Stop it. |
+| `SNAPSHOT_INVALID` | The package is damaged, incomplete or not in the folder (`fields` names the part). Take the next newest package. |
+| `SNAPSHOT_UNSUITABLE` | Another installation (`instanceId`) or a newer schema than this build (`schemaVersion`). Use the instance file of the source, or the image that wrote the package. |
+| `KEY_MISMATCH` | `APP_ENCRYPTION_KEY` is not the key that sealed the copy. Find the original key; without it the database restores no second factor and `reset-mfa` is the only way back in. |
+| `RESTORE_LOW_SPACE` | The disk cannot hold the database and the reserve. Free space. |
+| `RESTORE_PARK_FAILED`, `RESTORE_PLACE_FAILED`, `RESTORE_CHECKSUM_MISMATCH` | The files could not be moved or written. The current set is back where it was; look at the disk and try again. |
+| `RESTORE_FAILED` | Something failed after the database was in place; the answer names the parked folder and whether the set went back (`rolledBack`). If it did not, the set is in that folder and the journal says so. |
+
+Restoring a single deleted registry is the command above, `restore-registry`.
+
 ### Verified runtime
 
 Versions exercised by the verification reports; `tests/verification/readme-versions.ts` fails when a pinned version below no longer matches `package.json`, the pnpm catalog or the Dockerfile. The release matrix (KM7) extends this list.

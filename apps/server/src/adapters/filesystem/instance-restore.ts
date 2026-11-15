@@ -21,7 +21,7 @@ export type RestoreFilesInputs = Readonly<{
 }>;
 
 export type RestoreFilesResult =
-  | Readonly<{ ok: true; parkedDir: string; /** Moves the parked set back and removes the restored files: what a later failure of the caller needs. */ rollback: () => void }>
+  | Readonly<{ ok: true; /** Null when the installation had no database to park. */ parkedDir: string | null; /** Moves the parked set back and removes the restored files: what a later failure of the caller needs. */ rollback: () => void }>
   | Readonly<{ ok: false; code: "RESTORE_PARK_FAILED" | "RESTORE_PLACE_FAILED" | "RESTORE_CHECKSUM_MISMATCH" }>;
 
 const COMPANIONS = ["", "-wal", "-shm"] as const;
@@ -37,7 +37,7 @@ export function restoreDatabaseFiles(inputs: RestoreFilesInputs): RestoreFilesRe
     for (const suffix of COMPANIONS) rmSync(`${inputs.databaseFile}${suffix}`, { force: true });
     for (const suffix of parked.splice(0)) renameSync(path.join(parkedDir, `${path.basename(inputs.databaseFile)}${suffix}`), `${inputs.databaseFile}${suffix}`);
     // Nothing is left to keep in it: the folder of a restore that did not happen is not left behind.
-    rmdirSync(parkedDir);
+    if (existsSync(parkedDir)) rmdirSync(parkedDir);
   };
 
   try {
@@ -77,5 +77,8 @@ export function restoreDatabaseFiles(inputs: RestoreFilesInputs): RestoreFilesRe
     }
     return { ok: false, code: "RESTORE_PLACE_FAILED" };
   }
-  return { ok: true, parkedDir, rollback: putBack };
+  // An installation with no database (a new machine) has nothing to keep: no folder is left for it.
+  const nothingParked = parked.length === 0;
+  if (nothingParked) rmdirSync(parkedDir);
+  return { ok: true, parkedDir: nothingParked ? null : parkedDir, rollback: putBack };
 }

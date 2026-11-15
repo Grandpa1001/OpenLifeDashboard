@@ -5860,6 +5860,56 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D50.2-regression"),
     ],
   },
+  {
+    // DEV §9.48: the rehearsal and the instruction.
+    id: "D50.3",
+    ready: true,
+    title: "The rehearsal of the restore on a separate installation and the instruction of the administrator",
+    criteria: ["D50.3-AC1", "D50.3-AC2", "D50.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D50.3-AC1", "D50.3-AC2"],
+        description: "pnpm -r build: the commands the rehearsal runs",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/cli/restore-instance.ts", "apps/server/src/cli/backup-verify.ts", "apps/server/src/cli/backup-list.ts"],
+      },
+      {
+        id: "restore-rehearsal",
+        criteria: ["D50.3-AC1", "D50.3-AC2"],
+        description: "A new machine made of the keys of the source and an empty data folder: the package of F01's Książki is verified and restored, nothing is parked, the 25 records and the registry revisions are the source's, the canonical export equals the export of the copy, the owner signs in with the old password and authenticator and a session of the source is dead; another instance file and another key are refused and no database appears",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/restore-rehearsal.test.ts"],
+        requires: ["tests/integration/maintenance/restore-rehearsal.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "restore-instance-command",
+        criteria: ["D50.3-AC1"],
+        description: "The restore on the same installation still parks the replaced set whole and puts it back on a failure, with the folder left for a new machine removed",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/restore-instance.test.ts"],
+        requires: ["tests/integration/maintenance/restore-instance.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "restore-instructions",
+        criteria: ["D50.3-AC2"],
+        description: "The instruction in the README: the keys the copies do not hold, seven steps in order, list then verify then restore, commands and the confirmation that exist, every failure code of the restore explained and only codes the sources raise",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/docs/restore-instructions.test.ts"],
+        requires: ["tests/unit/docs/restore-instructions.test.ts", "README.md"],
+      },
+      ...regressionChecks("D50.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the check, the restore, the rehearsal and the instruction.
+  {
+    id: "D50",
+    ready: true,
+    title: "The restore of a whole instance: the check of a copy, the command, the rehearsal on a separate installation and the instruction",
+    steps: ["D50.1", "D50.2", "D50.3"],
+    criteria: [],
+    checks: [],
+  },
   // The parent passes only through its work orders: the retention, the term, the job, the signal.
   {
     id: "D49",

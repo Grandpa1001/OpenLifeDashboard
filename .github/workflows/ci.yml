@@ -350,6 +350,9 @@ jobs:
       - name: Verify D50.2 (the restore of a whole instance)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D50.2
+      - name: Verify D50.3 (the rehearsal of the restore and the instruction)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D50.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1085,6 +1088,9 @@ jobs:
       - name: Verify D49 (the parent, D49.1–D49.4 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D49
+      - name: Verify D50 (the parent, D50.1–D50.3 together)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D50
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
