@@ -75,3 +75,11 @@ export type RestoreRegistryInput = z.infer<typeof restoreRegistryInputSchema>;
 /** Input of `backup-verify` (D50.1) on stdin: the name of a package in the backup folder, never a path. */
 export const backupVerifyInputSchema = z.object({ snapshot: restoreRegistryInputSchema.shape.snapshot }).strict();
 export type BackupVerifyInput = z.infer<typeof backupVerifyInputSchema>;
+
+/**
+ * Input of `restore-instance` (D50.2) on stdin: the package to restore and the explicit confirmation that the
+ * current database is to be replaced (it is moved aside, not deleted, but the instance changes under the owner).
+ */
+export const RESTORE_INSTANCE_CONFIRMATION = "replace-current-database";
+export const restoreInstanceInputSchema = z.object({ snapshot: restoreRegistryInputSchema.shape.snapshot, confirm: z.literal(RESTORE_INSTANCE_CONFIRMATION) }).strict();
+export type RestoreInstanceInput = z.infer<typeof restoreInstanceInputSchema>;

@@ -325,6 +325,14 @@ export type ResetMfaPorts = Readonly<{
   audit: AppendAudit;
 }>;
 
+/** The ports of the access revocation after the restore of a whole instance (D50.2). */
+export type RestoreAccessPorts = Readonly<{
+  owners: Pick<OwnerSingletonWriter, "currentOwnerId" | "advanceAccessEpoch">;
+  sessions: Pick<SessionStore, "deleteAllOfOwner">;
+  trusted: Pick<TrustedDeviceStore, "revokeAll">;
+  audit: AppendAudit;
+}>;
+
 /** The ports of the sessions page: the list, ending one session and ending all the others. */
 export type SessionManagementPorts = Readonly<{
   sessions: Pick<SessionStore, "findActive" | "listActiveOfOwner" | "deleteById" | "deleteAllButOne">;

@@ -55,7 +55,7 @@ export type SnapshotVerification =
   | Readonly<{ ok: true; meta: SnapshotMeta }>
   | Readonly<{ ok: false; code: "SNAPSHOT_INVALID"; fields: readonly string[] }>;
 
-const sha256File = (file: string): string => createHash("sha256").update(readFileSync(file)).digest("hex");
+export const sha256File = (file: string): string => createHash("sha256").update(readFileSync(file)).digest("hex");
 const invalid = (...fields: string[]): SnapshotVerification => ({ ok: false, code: "SNAPSHOT_INVALID", fields });
 
 function readJson(file: string): unknown {

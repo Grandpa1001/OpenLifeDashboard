@@ -5826,6 +5826,40 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D50.1-regression"),
     ],
   },
+  {
+    // DEV §9.48: the restore of a whole instance.
+    id: "D50.2",
+    ready: true,
+    title: "The restore of a whole instance: the command under the lease, the key, the parked set, the access revoked",
+    criteria: ["D50.2-AC1", "D50.2-AC2", "D50.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D50.2-AC1", "D50.2-AC2"],
+        description: "pnpm -r build: the command restore-instance, the files of the restore, the revocation of the access and the opener of the installation",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/cli/restore-instance.ts", "apps/server/src/adapters/filesystem/instance-restore.ts", "packages/core/src/modules/identity/application/restore-access.ts", "apps/server/src/bootstrap/command-session.ts"],
+      },
+      {
+        id: "restore-instance-command",
+        criteria: ["D50.2-AC1", "D50.2-AC2"],
+        description: "The built command on real installations: the restored database is the copy's, the replaced set is parked whole, the old session gets 401, the audit and the journal say restored and the app starts; a running app, a missing confirmation, a damaged, unknown or foreign package, another key and a failing placement change nothing and leave no parked folder",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/restore-instance.test.ts"],
+        requires: ["tests/integration/maintenance/restore-instance.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "commands-regression",
+        criteria: ["D50.2-AC2"],
+        description: "The other commands on the opener they now share: restore-registry, reset-mfa and the audit kinds",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/restore-registry.test.ts", "tests/integration/auth/reset-mfa.test.ts", "tests/unit/audit/audit-kinds.test.ts"],
+        requires: ["tests/integration/maintenance/restore-registry.test.ts", "tests/integration/auth/reset-mfa.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D50.2-regression"),
+    ],
+  },
   // The parent passes only through its work orders: the retention, the term, the job, the signal.
   {
     id: "D49",

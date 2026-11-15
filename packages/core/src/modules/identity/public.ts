@@ -2,6 +2,8 @@
 export { chooseEmptyData } from "./application/choose-data.js";
 export type { ChooseDataDependencies, DataChosen } from "./application/choose-data.js";
 export { resetOwnerMfa } from "./application/reset-mfa.js";
+export { revokeAccessAfterRestore } from "./application/restore-access.js";
+export type { AccessRevoked, RestoreAccessCommand } from "./application/restore-access.js";
 export type { MfaReset, ResetMfaCommand } from "./application/reset-mfa.js";
 export { authorizeDataAccess, authorizeDataChoice } from "./application/data-access.js";
 export type { DataAccessDependencies, DataAccessHolder, DataAccessPorts } from "./application/data-access.js";
@@ -82,6 +84,7 @@ export type {
   RecoveryCodeStore,
   RegenerateRecoveryPorts,
   ResetMfaPorts,
+  RestoreAccessPorts,
   SessionFacts,
   SessionManagementPorts,
   SessionSummary,

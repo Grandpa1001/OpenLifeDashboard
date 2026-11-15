@@ -18,7 +18,7 @@ const KNOWN: Readonly<Record<string, readonly string[]>> = {
     "registry.created", "registry.deleted", "registry.restored", "registry.column_added", "registry.column_removed", "registry.column_renamed", "registry.column_required_changed", "registry.column_type_changed",
     "dictionary.created", "dictionary.updated", "dictionary.deleted", "config.created", "config.updated", "config.deleted", "screen.created", "screen.design_saved", "screen.template_imported",
   ],
-  updates: ["update.installed", "backup.created"],
+  updates: ["update.installed", "backup.created", "backup.restored"],
 };
 
 describe("D43.6-AC1 the kinds of the audit log", () => {

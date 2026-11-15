@@ -8,11 +8,12 @@ import { integerSetting } from "@openlife/core/settings";
 import { openDatabase, type SqliteConnection } from "@openlife/sqlite/connection";
 import { DATABASE_FIELD, inspectDatabase, PRODUCT_MIGRATION_PLAN, type DatabaseRefusalCode } from "@openlife/sqlite/migrations";
 import { checkAuthSchema } from "../adapters/auth/auth-schema.js";
-import { CONTAINER_WORKING_PATHS, installationWorkingPaths } from "../adapters/filesystem/installation-paths.js";
+import { CONTAINER_WORKING_PATHS, installationWorkingPaths, type InstallationPaths, type WorkingPaths } from "../adapters/filesystem/installation-paths.js";
 import { openMaintenanceGate, type GateOpenResult } from "../adapters/filesystem/maintenance-gate.js";
 import { runStoragePreflight, type PreflightResult } from "../adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease, type WriterLeaseResult } from "../adapters/filesystem/writer-lease.js";
 import { loadBootstrapConfig, type BootstrapResult } from "./bootstrap-config.js";
+import type { EnvironmentConfig } from "./environment.js";
 
 const DISK_RESERVE_KEY = "backup.diskReserveMiB";
 
@@ -53,9 +54,22 @@ export type CommandSessionInputs = Readonly<{
   installationDir?: string | undefined;
 }>;
 
-const refused = (code: CommandSessionCode, fields: readonly string[]): CommandSessionResult => ({ ok: false, code, fields });
+type Refusal = Readonly<{ ok: false; code: CommandSessionCode; fields: readonly string[] }>;
+const refused = (code: CommandSessionCode, fields: readonly string[]): Refusal => ({ ok: false, code, fields });
 
-export function openCommandSession(inputs: CommandSessionInputs): CommandSessionResult {
+/** The installation up to the writer lease and a quiet maintenance gate, without a look at the database: what a command that replaces the database needs (restore-instance, D50.2) and what every other command builds on. */
+export type OpenedInstallation = Readonly<{
+  workingPaths: WorkingPaths;
+  environment: EnvironmentConfig;
+  paths: InstallationPaths;
+  reserveMiB: number;
+  /** Held until the caller releases it. */
+  writer: Extract<WriterLeaseResult, { ok: true }>;
+}>;
+
+export type OpenInstallationResult = Readonly<{ ok: true; installation: OpenedInstallation }> | Refusal;
+
+export function openInstallation(inputs: CommandSessionInputs): OpenInstallationResult {
   const workingPaths = inputs.installationDir === undefined ? CONTAINER_WORKING_PATHS : installationWorkingPaths(inputs.installationDir);
   const bootstrap = loadBootstrapConfig({ env: inputs.env, instanceFile: workingPaths.instanceFile });
   if (!bootstrap.ok) {
@@ -74,16 +88,27 @@ export function openCommandSession(inputs: CommandSessionInputs): CommandSession
   if (!writer.ok) {
     return refused(writer.code, writer.fields);
   }
+  const gate = openMaintenanceGate(writer.lease, workingPaths);
+  if (!gate.ok) {
+    writer.lease.release();
+    return refused(gate.code, gate.fields);
+  }
+  if (gate.gate.current().activeOperation !== null) {
+    writer.lease.release();
+    return refused("MAINTENANCE_RECOVERY_REQUIRED", ["activeOperation"]);
+  }
+  return { ok: true, installation: { workingPaths, environment, paths, reserveMiB, writer } };
+}
+
+export function openCommandSession(inputs: CommandSessionInputs): CommandSessionResult {
+  const opened = openInstallation(inputs);
+  if (!opened.ok) {
+    return opened;
+  }
+  const { workingPaths, environment, paths, reserveMiB, writer } = opened.installation;
   let connection: SqliteConnection | undefined;
   let handedOver = false;
   try {
-    const gate = openMaintenanceGate(writer.lease, workingPaths);
-    if (!gate.ok) {
-      return refused(gate.code, gate.fields);
-    }
-    if (gate.gate.current().activeOperation !== null) {
-      return refused("MAINTENANCE_RECOVERY_REQUIRED", ["activeOperation"]);
-    }
     const inspection = inspectDatabase(workingPaths.database, PRODUCT_MIGRATION_PLAN, {
       instanceId: paths.instanceId,
       busyTimeoutMs: environment.dbBusyTimeoutMs,
@@ -94,9 +119,9 @@ export function openCommandSession(inputs: CommandSessionInputs): CommandSession
     if (inspection.kind !== "current") {
       return refused(inspection.kind === "empty" ? "DATABASE_MISSING" : "DATABASE_NOT_CURRENT", [DATABASE_FIELD]);
     }
-    const opened = openDatabase(workingPaths.database, { role: "writer", busyTimeoutMs: environment.dbBusyTimeoutMs });
-    connection = opened;
-    const authSchema = checkAuthSchema(opened);
+    const database = openDatabase(workingPaths.database, { role: "writer", busyTimeoutMs: environment.dbBusyTimeoutMs });
+    connection = database;
+    const authSchema = checkAuthSchema(database);
     if (!authSchema.ok) {
       return refused(authSchema.code, authSchema.fields);
     }
@@ -104,14 +129,14 @@ export function openCommandSession(inputs: CommandSessionInputs): CommandSession
     return {
       ok: true,
       session: {
-        connection: opened,
+        connection: database,
         instanceId: paths.instanceId,
         schemaVersion: inspection.schemaVersion,
         backupsDir: workingPaths.backups,
         reserveMiB,
         busyTimeoutMs: environment.dbBusyTimeoutMs,
         close: () => {
-          opened.close();
+          database.close();
           writer.lease.release();
         },
       },
