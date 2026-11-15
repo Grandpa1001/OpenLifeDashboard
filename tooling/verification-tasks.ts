@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -5909,6 +5909,32 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D50.1", "D50.2", "D50.3"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.49: the drills of the copy.
+    id: "D51.1",
+    ready: true,
+    title: "The drills of a process killed in the middle of a copy and in the middle of a restore",
+    criteria: ["D51.1-AC1", "D51.1-AC2", "D51.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D51.1-AC1", "D51.1-AC2"],
+        description: "pnpm -r build: the commands the drills kill",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/cli/backup-create.ts", "apps/server/src/cli/restore-instance.ts"],
+      },
+      {
+        id: "kill-drills",
+        criteria: ["D51.1-AC1", "D51.1-AC2"],
+        description: "Real SIGKILL of the built commands on a database with a ballast: a copy killed while written publishes nothing, leaves one incomplete entry, the earlier copy whole and the lease free, and the next copy clears the leftover; a restore killed after it parked the set leaves the set whole and a journal that is not restored, and the same command run again restores and leaves the first parked folder",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/backup-kill-drills.test.ts"],
+        requires: ["tests/integration/maintenance/backup-kill-drills.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D51.1-regression"),
+    ],
   },
   // The parent passes only through its work orders: the retention, the term, the job, the signal.
   {

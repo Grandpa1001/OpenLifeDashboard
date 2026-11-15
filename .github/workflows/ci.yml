@@ -353,6 +353,9 @@ jobs:
       - name: Verify D50.3 (the rehearsal of the restore and the instruction)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D50.3
+      - name: Verify D51.1 (the drills of a killed copy and a killed restore)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D51.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
