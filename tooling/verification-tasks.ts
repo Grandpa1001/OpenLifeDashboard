@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -6111,6 +6111,31 @@ const definedLater: readonly TaskDefinition[] = [
         command: ["node", "tests/verification/g4-gate.ts"],
         requires: ["tests/verification/g4-gate.ts", "tests/verification/g4-matrix.ts", "tests/verification/gate-run.ts", "tests/verification/report-join.ts"],
       },
+    ],
+  },
+  {
+    // DEV §9.51: the command channel of the updater.
+    id: "D52.1",
+    ready: true,
+    title: "The command channel app to updater: one route, a narrow command, a signature with a derived key, time and one-time nonce",
+    criteria: ["D52.1-AC1", "D52.1-AC2", "D52.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built contracts.
+        id: "workspace-build",
+        criteria: ["D52.1-AC1", "D52.1-AC2"],
+        description: "pnpm -r build: the contract of the protocol and the new updater app",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/updates/protocol.ts", "apps/updater/src/protocol/verify-command.ts", "apps/updater/package.json"],
+      },
+      {
+        id: "updater-protocol",
+        criteria: ["D52.1-AC1", "D52.1-AC2"],
+        description: "A signed, fresh and new install or status command is accepted at the edge of the skew; the signature is bound to the body, the route, the method and the operation; a wrong token, a missing or malformed signature, a stale or future command, a replayed nonce, a full table of nonces, a body that is an image, a path, a compose payload, an argument, an unknown command or field or a release that is not a stable version, and a body over the size are refused with a code that holds nothing of the secret",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/updater/protocol.test.ts"],
+        requires: ["tests/unit/updater/protocol.test.ts"],
+      },
+      ...regressionChecks("D52.1-regression"),
     ],
   },
   {

@@ -20,6 +20,9 @@
       "path": "./apps/server"
     },
     {
+      "path": "./apps/updater"
+    },
+    {
       "path": "./apps/web"
     }
   ]

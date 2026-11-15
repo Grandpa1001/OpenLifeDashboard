@@ -1,0 +1,21 @@
+{
+  "name": "@openlife/updater",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The updater: the only process with the Docker socket; installs and rolls back the release of the app.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  },
+  "dependencies": {
+    "@openlife/contracts": "workspace:*"
+  }
+}

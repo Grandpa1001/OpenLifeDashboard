@@ -9,6 +9,11 @@
     "dist"
   ],
   "exports": {
+    "./updates/protocol": {
+      "@openlife/source": "./src/updates/protocol.ts",
+      "types": "./dist/updates/protocol.d.ts",
+      "default": "./dist/updates/protocol.js"
+    },
     "./backups/database-snapshot": {
       "@openlife/source": "./src/backups/database-snapshot.ts",
       "types": "./dist/backups/database-snapshot.d.ts",
