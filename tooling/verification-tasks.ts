@@ -5936,6 +5936,32 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D51.1-regression"),
     ],
   },
+  {
+    // DEV §9.49: the drills of a damaged package and a locked database.
+    id: "D51.2",
+    ready: true,
+    title: "The drills of a damaged package and of a locked database",
+    criteria: ["D51.2-AC1", "D51.2-AC2", "D51.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D51.2-AC1", "D51.2-AC2"],
+        description: "pnpm -r build: the commands and the retention the drills run",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/cli/backup-list.ts", "apps/server/src/cli/backup-verify.ts", "apps/server/src/cli/restore-instance.ts", "apps/server/src/adapters/filesystem/backup-retention.ts"],
+      },
+      {
+        id: "damage-drills",
+        criteria: ["D51.2-AC1", "D51.2-AC2"],
+        description: "Eight damages of a real bundle (each part, a missing file, an extra file, a link, a garbage database under honest checksums) are refused with the part named by backup-list, backup-verify and restore-instance, leave every package and the database as they were, and are never removed by a retention that would remove every ordinary copy; a write lock held by another connection neither blocks a copy nor leaks its uncommitted row into it",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/backup-damage-drills.test.ts"],
+        requires: ["tests/integration/maintenance/backup-damage-drills.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D51.2-regression"),
+    ],
+  },
   // The parent passes only through its work orders: the retention, the term, the job, the signal.
   {
     id: "D49",
