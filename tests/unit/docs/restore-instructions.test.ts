@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 
 const root = path.resolve(import.meta.dirname, "../../..");
 const readme = readFileSync(path.join(root, "README.md"), "utf8");
-const section = readme.slice(readme.indexOf("### Restoring the whole instance"), readme.indexOf("### Verified runtime"));
+const section = readme.slice(readme.indexOf("### Restoring the whole instance"), readme.indexOf("### When a copy fails"));
 const sources = (): string => {
   const files = ["apps/server/src/cli/restore-instance.ts", "apps/server/src/cli/backup-verify.ts", "apps/server/src/adapters/filesystem/instance-restore.ts", "apps/server/src/adapters/filesystem/database-snapshots.ts", "apps/server/src/adapters/filesystem/writer-lease.ts"];
   return files.map((file) => readFileSync(path.join(root, file), "utf8")).join("\n");

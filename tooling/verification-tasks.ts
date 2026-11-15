@@ -5962,6 +5962,32 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D51.2-regression"),
     ],
   },
+  {
+    // DEV §9.49: the hints of the administrator.
+    id: "D51.3",
+    ready: true,
+    title: "The hints of the administrator for a failed copy",
+    criteria: ["D51.3-AC1", "D51.3-AC2", "D51.3-regression"],
+    checks: [
+      {
+        id: "failure-instructions",
+        criteria: ["D51.3-AC1", "D51.3-AC2"],
+        description: "The README section on a failed copy: the manual copy, the nightly copy with its retention and signal, a killed process during a copy and during a restore, a damaged package and a locked database each have a state and an action; every row of the table has both; every code the text explains is raised by the sources and every code the copy and its jobs answer with is explained",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/docs/backup-failure-instructions.test.ts", "tests/unit/docs/restore-instructions.test.ts"],
+        requires: ["tests/unit/docs/backup-failure-instructions.test.ts", "README.md"],
+      },
+      ...regressionChecks("D51.3-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the kills, the damages, the hints.
+  {
+    id: "D51",
+    ready: true,
+    title: "The failure drills of the backups: a killed copy and restore, damaged packages, a locked database and the hints",
+    steps: ["D51.1", "D51.2", "D51.3"],
+    criteria: [],
+    checks: [],
+  },
   // The parent passes only through its work orders: the retention, the term, the job, the signal.
   {
     id: "D49",

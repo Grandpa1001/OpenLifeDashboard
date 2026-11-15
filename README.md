@@ -171,6 +171,30 @@ The command checks the package again, checks that the current `APP_ENCRYPTION_KE
 
 Restoring a single deleted registry is the command above, `restore-registry`.
 
+### When a copy fails
+
+A copy either exists whole and verified or does not exist: a package is built in `data/backup/.staging/` and published by one rename, so a failure or a killed process leaves nothing that looks like a copy. What it can leave is a working directory in staging, which `backup-list` shows as `incomplete` and the next copy removes. Nothing here is repaired by itself and no package is deleted except by the retention, which touches only verified copies of this installation.
+
+**A manual copy** (`backup-create`, stopped app) answers with a code:
+
+| Answer | State and what to do |
+|---|---|
+| `INSTANCE_BUSY` | The app or another command holds the writer lease; nothing was written. Stop it and run again. |
+| `SNAPSHOT_LOW_SPACE` | The disk cannot hold the copy and the reserve (`backup.diskReserveMiB`); nothing was written. Free space or lower the reserve, then run again. |
+| `SNAPSHOT_FAILED` | The copy could not be written or did not verify; nothing is published and a leftover is only in staging. Check the disk and the permissions of `data/backup/`, then run again. |
+| `SNAPSHOT_UNAVAILABLE` | This build has no way to make the kind of package asked for; nothing was written. |
+| `DATABASE_MISSING`, `DATABASE_NOT_CURRENT` | There is no database or it is not of the schema of this build; nothing was written. Restore it (above) or start the app once so it migrates. |
+| `MAINTENANCE_RECOVERY_REQUIRED` | A maintenance operation was left active by a crash; start the app so it reconciles it, then run again. |
+| `COMMAND_FAILED` | An unexpected failure; the answer names the class of the error and the request id to find in the logs. |
+
+**The nightly copy** runs inside the app, at `backup.time` in the owner's time zone, or once after a downtime. A failure never reaches a request; it is a line of the log (`backup.nightly_failed` with one of the codes above or `NIGHTLY_BACKUP_FAILED`), the state is in the diagnostics (`lastRun`), and the job waits fifteen minutes before it tries again. After a good copy the retention runs: `RETENTION_FAILED` (`backup.retention_failed`) leaves the packages that were not yet removed whole and does not make the copy any less good. If you configured `BACKUP_HEARTBEAT_URL`, the signal to the monitor goes after a verified copy only; its failure is its own line (`backup.heartbeat_failed`) with `HEARTBEAT_ADDRESS_FORBIDDEN`, `HEARTBEAT_UNREACHABLE`, `HEARTBEAT_TIMEOUT`, `HEARTBEAT_REDIRECT`, `HEARTBEAT_BAD_STATUS` or `HEARTBEAT_FAILED`, and the copy stays good. An address that is not HTTPS, holds credentials or points inside the network is refused at start with `CONFIG_INVALID` and the key `BACKUP_HEARTBEAT_URL`.
+
+**A killed process** (power cut, `kill -9`) during a copy: nothing is published, `backup-list` shows an `incomplete` entry, the earlier copies are untouched and the next copy clears the leftover. During a restore, after the current set was parked: there is no `app.db`, the old set is whole in `data/.restore-parked-…/` and `control/maintenance/restore-journal.json` is not `restored`; run `restore-instance` again with the same package and it finishes.
+
+**A damaged package** (a changed byte, a missing, extra or linked file, a database that does not open) is `invalid` in `backup-list` with the part named and is refused by `backup-verify` and `restore-instance` as `SNAPSHOT_INVALID`; it is never repaired and never removed by the retention, so you can look at it, and you take the next newest package.
+
+**A locked database** (another connection holding a write lock) does not stop a copy: the copy is the committed state and the lock stays.
+
 ### Verified runtime
 
 Versions exercised by the verification reports; `tests/verification/readme-versions.ts` fails when a pinned version below no longer matches `package.json`, the pnpm catalog or the Dockerfile. The release matrix (KM7) extends this list.
