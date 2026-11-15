@@ -6114,6 +6114,56 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // KM5 gate (DEV §8.4, §9.50): the copy of installation A listed, verified and restored on a separate
+    // installation B by the built commands, then the reports of the fast tier for D48-D51 joined item by item
+    // for this exact code; does not run their tests again.
+    id: "G5",
+    ready: true,
+    title: "Gate G5: the list of the copies, a verified bundle and a separate installation restored from it",
+    criteria: ["G5-path", "G5-matrix", "G5-reports"],
+    checks: [
+      {
+        // Runs first: the path test uses the built commands and the built server.
+        id: "workspace-build",
+        criteria: ["G5-path"],
+        description: "pnpm -r build: the commands and the server the path of the copy runs on",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/main.ts", "apps/server/src/cli/restore-instance.ts"],
+      },
+      {
+        id: "g5-path",
+        criteria: ["G5-path"],
+        description:
+          "The built commands on two installations: the folder of A is listed and its bundle verified; a damaged copy of the bundle is refused by B with the part named and B stays empty; the good bundle is restored on B with the 25 records, the revision of the registry and the bindings of the screen of A and of F01, a session of A is dead on B, the owner signs in with the old authenticator and the audit says the restore; the only copy of A survives a nightly look that cannot make another and a retention that would remove everything ordinary",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/g5-path.test.ts"],
+        requires: ["tests/integration/maintenance/g5-path.test.ts", "tests/fixtures/books/books-v1.export.json"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "g5-matrix-static",
+        criteria: ["G5-matrix"],
+        description: "Every item of G5 names ready reports, checks of those tasks and test titles written as they stand in the sources the checks run; every report joined proves an item",
+        command: ["node", "tests/verification/g5-matrix-static.ts"],
+        requires: ["tests/verification/g5-matrix-static.ts", "tests/verification/g5-matrix.ts"],
+      },
+      {
+        id: "g5-gate-controls",
+        criteria: ["G5-matrix"],
+        description: "The G5 gate on synthetic reports: a complete set passes; a failed or renamed test line and a failed check fail; a missing report and a report of other code are blocked; the result always lists every item",
+        command: ["node", "tests/verification/g5-gate-controls.ts"],
+        requires: ["tests/verification/g5-gate-controls.ts", "tests/verification/gate-controls.ts", "tests/verification/g5-gate.ts", "tests/verification/gate-run.ts", "tests/verification/g5-matrix.ts"],
+      },
+      {
+        id: "g5-gate",
+        criteria: ["G5-reports"],
+        description:
+          "Joins the reports of D48.1 to D51.3 for exactly this code and decides every item of G5 from the passed test that proves it: the list of the copies, a verified bundle, the restore on a separate installation, the sessions of the past dead, a damaged package and another key refused, the retention that keeps the last good copy, the schedule, the job, the signal to the monitor, the killed processes, a failed placement and a held lock, the instructions; names what is not run. A missing report is blocked",
+        command: ["node", "tests/verification/g5-gate.ts"],
+        requires: ["tests/verification/g5-gate.ts", "tests/verification/g5-matrix.ts", "tests/verification/gate-run.ts", "tests/verification/report-join.ts"],
+      },
+    ],
+  },
+  {
     id: "D19.1",
     ready: true,
     title: "install.sh in local mode: preflight and the installation folder, without Docker",
