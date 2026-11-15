@@ -15,6 +15,10 @@ export type EffectiveSettings = Readonly<{
   refresh: () => void;
   /** An integer option now; a programming error when the catalog has no such option. */
   integer: (key: string) => number;
+  /** A boolean option now; a programming error when the catalog has no such option. */
+  boolean: (key: string) => boolean;
+  /** A text option (a time of day is one) now; a programming error when the catalog has no such option. */
+  text: (key: string) => string;
 }>;
 
 export function createEffectiveSettings(options: Readonly<{ catalog: readonly SettingDefinition[]; environment: SettingOverrides["environment"]; readStored: () => Readonly<Record<string, unknown>>; initial: readonly EffectiveSetting[]; onInvalid: (fields: readonly string[]) => void }>): EffectiveSettings {
@@ -39,6 +43,16 @@ export function createEffectiveSettings(options: Readonly<{ catalog: readonly Se
     integer: (key) => {
       const value = current().find((setting) => setting.key === key)?.value;
       if (typeof value !== "number") throw new Error(`the option ${key} is not an integer option of the catalog`);
+      return value;
+    },
+    boolean: (key) => {
+      const value = current().find((setting) => setting.key === key)?.value;
+      if (typeof value !== "boolean") throw new Error(`the option ${key} is not a boolean option of the catalog`);
+      return value;
+    },
+    text: (key) => {
+      const value = current().find((setting) => setting.key === key)?.value;
+      if (typeof value !== "string") throw new Error(`the option ${key} is not a text option of the catalog`);
       return value;
     },
   };

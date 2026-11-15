@@ -13,4 +13,4 @@ export type { AppSettingsDependencies, AppSettingsPorts } from "./application/ap
 export { readOwnerPreferences, readSetupStatus, saveOwnerPreferences } from "./application/setup.js";
 export type { DataChoice, PreferencesView, SetupDependencies, SetupStage, SetupStatus } from "./application/setup.js";
 export { DATE_FORMATS, DEFAULT_DATE_FORMAT } from "./ports.js";
-export type { AppSettingStore, DateFormat, OwnerPreferences, OwnerPreferencesStore, SetupPorts } from "./ports.js";
+export type { AppSettingStore, DateFormat, OwnerPreferences, OwnerPreferencesStore, OwnerZoneReader, SetupPorts } from "./ports.js";

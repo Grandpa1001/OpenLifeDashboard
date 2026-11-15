@@ -17,6 +17,14 @@ export interface OwnerPreferencesStore {
   write(ownerId: string, preferences: OwnerPreferences, nowMs: number): void;
 }
 
+/**
+ * The time zone of the owner for work that runs outside a request (the nightly copy, D49.3): this is a single
+ * owner product, so the zone is the one the owner saved; null until the setup saved it.
+ */
+export interface OwnerZoneReader {
+  timeZone(): string | null;
+}
+
 export type SetupPorts = Readonly<{
   sessions: Pick<SessionStore, "findActive">;
   access: IdentityAccessReader;

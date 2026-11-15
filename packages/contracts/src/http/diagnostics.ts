@@ -33,6 +33,26 @@ export type RecentErrorDto = z.infer<typeof recentErrorSchema>;
 /** A part whose module is not in the product yet. */
 const missingPart = z.literal("not_available");
 
+/** The nightly copy as the owner sees it (D49.3): from the folder and from the last attempt of this process. */
+export const backupStatusSchema = z
+  .object({
+    nightly: z
+      .object({
+        enabled: z.boolean(),
+        /** Start of the newest finished nightly copy; null until the job has read the folder or when there is none. */
+        lastSuccessAt: z.iso.datetime().nullable(),
+        /** The next slot; null until the job has looked, and while the option is off. */
+        nextAt: z.iso.datetime().nullable(),
+        /** The last attempt of this process; null before the first one. */
+        lastRun: z.object({ at: z.iso.datetime(), outcome: z.enum(["created", "failed"]), code: z.string().min(1).max(64).nullable() }).strict().nullable(),
+        /** The retention after the last copy: null before the first one. */
+        retention: z.enum(["ok", "failed"]).nullable(),
+      })
+      .strict(),
+  })
+  .strict();
+export type BackupStatusDto = z.infer<typeof backupStatusSchema>;
+
 export const diagnosticsSchema = z
   .object({
     app: z
@@ -57,7 +77,7 @@ export const diagnosticsSchema = z
     logger: z.object({ degraded: z.boolean(), lostLines: z.number().int().min(0), queuedBytes: z.number().int().min(0) }).strict(),
     live: z.object({ connections: z.number().int().min(0) }).strict(),
     recentErrors: z.array(recentErrorSchema).max(20),
-    parts: z.object({ backup: missingPart, updater: missingPart, schedulers: missingPart }).strict(),
+    parts: z.object({ backup: z.union([missingPart, backupStatusSchema]), updater: missingPart, schedulers: missingPart }).strict(),
   })
   .strict();
 export type DiagnosticsDto = z.infer<typeof diagnosticsSchema>;

@@ -5718,6 +5718,40 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D49.2-regression"),
     ],
   },
+  {
+    // DEV §9.47: the nightly copy in the process.
+    id: "D49.3",
+    ready: true,
+    title: "The nightly copy in the process: the job with its lock, the retention after the copy, the state in the diagnostics",
+    criteria: ["D49.3-AC1", "D49.3-AC2", "D49.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built packages and the built server.
+        id: "workspace-build",
+        criteria: ["D49.3-AC1", "D49.3-AC2"],
+        description: "pnpm -r build: the job, its pacing constants, the reader of the owner's zone and the status in the diagnostics",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/workers/nightly-backup.ts", "apps/server/src/workers/nightly-backup-limits.ts", "packages/sqlite/src/adapters/settings/owner-zone.ts", "packages/contracts/src/http/diagnostics.ts"],
+      },
+      {
+        id: "nightly-backup-job",
+        criteria: ["D49.3-AC1", "D49.3-AC2"],
+        description: "On a fake clock and a real folder: a catch-up bundle copy and the retention of fourteen, no second copy at the next look, the state for the diagnostics; the look skipped under maintenance, with the option off and without an owner; a failed copy logged with its code, waited out and retried; one copy for two looks at once and stop waiting for it; a failed retention does not fail the copy",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/nightly-backup-job.test.ts"],
+        requires: ["tests/integration/maintenance/nightly-backup-job.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      {
+        id: "diagnostics-regression",
+        criteria: ["D49.3-AC1", "D49.3-AC2"],
+        description: "The diagnostics still answer the owner and refuse the rest, with the part of the backup either named or not available",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/diagnostics"],
+        requires: ["tests/integration/diagnostics/diagnostics-http.test.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D49.3-regression"),
+    ],
+  },
   // The parent passes only through its work orders: the bundle, the command, the catalog.
   {
     id: "D48",

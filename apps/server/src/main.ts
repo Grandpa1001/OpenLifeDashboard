@@ -19,7 +19,7 @@ import { bindCatalogReader, bindConfigBindingCounts, bindDashboardStore, bindDep
 import { bindDictionaryLookup, bindDictionaryStore } from "@openlife/sqlite/adapters/dictionaries";
 import { bindConfigStore } from "@openlife/sqlite/adapters/configuration";
 import { bindColumnDictionaryLinks, bindIdempotencyStore, bindRecordStore, bindRegistryStore, bindTableColumns, bindTableRebuild, bindRegistryTables } from "@openlife/sqlite/adapters/registries";
-import { bindAppSettingStore, bindOwnerPreferencesStore } from "@openlife/sqlite/adapters/settings";
+import { bindAppSettingStore, bindOwnerPreferencesStore, bindOwnerZoneReader } from "@openlife/sqlite/adapters/settings";
 import { STREAM_PING_INTERVAL_MS } from "@openlife/contracts/http/stream";
 import { createUnitOfWork } from "@openlife/sqlite/transactions";
 import { createWidgetCatalog } from "./adapters/widget-catalog.js";
@@ -46,6 +46,9 @@ import { createLogFiles } from "./adapters/diagnostics/log-files.js";
 import { exportOfCopy } from "./portability/bundle-export.js";
 import { createExportService } from "./portability/export-stream.js";
 import { createAuditRetentionJob } from "./workers/audit-retention.js";
+import { createNightlyBackupJob } from "./workers/nightly-backup.js";
+import { listBackups } from "./adapters/filesystem/backup-catalog.js";
+import { pruneBackups } from "./adapters/filesystem/backup-retention.js";
 import { createReportBuilder } from "./adapters/diagnostics/report-builder.js";
 import { createOverviewReader } from "./adapters/diagnostics/overview-reader.js";
 import { createLiveHub } from "./adapters/events/live-hub.js";
@@ -204,6 +207,7 @@ const identityUnit = createUnitOfWork(database.connection, (tx) => ({
   trusted: bindTrustedDeviceStore(tx),
   setup: bindSetupStateStore(tx),
   preferences: bindOwnerPreferencesStore(tx),
+  ownerZone: bindOwnerZoneReader(tx),
   appSettings: bindAppSettingStore(tx),
   registries: bindRegistryStore(tx),
   records: bindRecordStore(tx),
@@ -236,7 +240,24 @@ const effectiveSettings = createEffectiveSettings({
 currentSettings = effectiveSettings.current;
 const limits = liveLimits(effectiveSettings);
 const liveHub = createLiveHub({ perSession: STREAM_CONNECTIONS_PER_SESSION });
-const diagnosticsOverview = createOverviewReader({ build, schemaVersion: database.schemaVersion, installation: paths, workingPaths, logStatus: logFile.status, liveConnections: liveHub.total });
+// The nightly copy (D49.3): in this process, between requests, at the time the owner set, then the retention.
+const nightlyBackup = createNightlyBackupJob({
+  snapshots: createDatabaseSnapshots(database.connection, snapshotOptions),
+  readCatalog: () => listBackups(workingPaths.backups, paths.instanceId),
+  prune: (policy) => pruneBackups(workingPaths.backups, paths.instanceId, policy),
+  timeZone: () => identityUnit.read((ports) => ports.ownerZone.timeZone()),
+  settings: () => ({
+    enabled: effectiveSettings.boolean("backup.nightlyEnabled"),
+    time: effectiveSettings.text("backup.time"),
+    nightlyKeep: effectiveSettings.integer("backup.nightlyKeep"),
+    safetyKeepDays: effectiveSettings.integer("backup.safetyKeepDays"),
+  }),
+  nowMs: Date.now,
+  maintenanceActive: () => gate.gate.current().activeOperation !== null,
+  newOperationId: randomUUID,
+  logger,
+});
+const diagnosticsOverview = createOverviewReader({ build, schemaVersion: database.schemaVersion, installation: paths, workingPaths, logStatus: logFile.status, liveConnections: liveHub.total, backupStatus: nightlyBackup.status });
 const diagnosticsLogs = createLogFiles({ dir: workingPaths.logs, retentionDays: () => logLimits().retentionDays, now: () => new Date() });
 const attemptKeys = createAttemptKeys(secret);
 const clientIp = (c: Context<AppEnv>): string => getConnInfo(c).remote.address ?? "unknown";
@@ -354,7 +375,7 @@ try {
           return drainServer(server);
         },
       },
-      { name: "jobs", run: () => auditRetention.stop() },
+      { name: "jobs", run: () => Promise.all([auditRetention.stop(), nightlyBackup.stop()]).then(() => undefined) },
       {
         name: "logger",
         run: () => {
@@ -376,6 +397,7 @@ try {
     process.on(signal, () => void shutdown(signal));
   }
   auditRetention.start();
+  nightlyBackup.start();
   console.log(JSON.stringify({ event: "server.listening", host: address.address, port: address.port }));
 } catch (error) {
   fail(`cannot listen on ${host}:${port} (${error instanceof Error && "code" in error ? String(error.code) : "unknown error"})`);

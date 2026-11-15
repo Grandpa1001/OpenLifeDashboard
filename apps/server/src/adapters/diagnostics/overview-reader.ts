@@ -7,7 +7,7 @@
 import { constants } from "node:fs";
 import { lstat, open, statfs } from "node:fs/promises";
 import path from "node:path";
-import type { DiagnosticsDto, RecentErrorDto } from "@openlife/contracts/http/diagnostics";
+import type { BackupStatusDto, DiagnosticsDto, RecentErrorDto } from "@openlife/contracts/http/diagnostics";
 import type { AppBuild } from "../filesystem/database-snapshots.js";
 import type { InstallationPaths, WorkingPaths } from "../filesystem/installation-paths.js";
 import { APP_LOG_FILE, type LogSinkStatus } from "../logging/rotating-file-sink.js";
@@ -21,6 +21,8 @@ export type OverviewReaderOptions = Readonly<{
   workingPaths: WorkingPaths;
   logStatus: () => LogSinkStatus;
   liveConnections: () => number;
+  /** The state of the nightly copy; absent where no job runs (a harness), which the overview says. */
+  backupStatus?: () => BackupStatusDto;
 }>;
 
 export type OverviewReader = () => Promise<DiagnosticsDto>;
@@ -123,7 +125,7 @@ export function createOverviewReader(options: OverviewReaderOptions): OverviewRe
       logger: { degraded: sink.degraded, lostLines: sink.lostLines, queuedBytes: sink.queuedBytes },
       live: { connections: options.liveConnections() },
       recentErrors: errors,
-      parts: { backup: "not_available", updater: "not_available", schedulers: "not_available" },
+      parts: { backup: options.backupStatus?.() ?? "not_available", updater: "not_available", schedulers: "not_available" },
     };
   };
 }
