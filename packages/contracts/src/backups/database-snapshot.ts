@@ -71,3 +71,7 @@ export const restoreRegistryInputSchema = z
   })
   .strict();
 export type RestoreRegistryInput = z.infer<typeof restoreRegistryInputSchema>;
+
+/** Input of `backup-verify` (D50.1) on stdin: the name of a package in the backup folder, never a path. */
+export const backupVerifyInputSchema = z.object({ snapshot: restoreRegistryInputSchema.shape.snapshot }).strict();
+export type BackupVerifyInput = z.infer<typeof backupVerifyInputSchema>;
