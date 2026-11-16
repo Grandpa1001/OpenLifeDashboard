@@ -2,7 +2,7 @@
 // `control/update-state.json` and what the status of the update is rebuilt from, whatever happens to the browser,
 // the app or the updater itself. One record is the whole state of the one operation that can run, or of none.
 import { z } from "zod";
-import { releaseVersionSchema } from "./protocol.js";
+import { backupPackageNameSchema, releaseVersionSchema } from "./protocol.js";
 
 export const UPDATE_STATES = ["idle", "checking", "pulling", "quiescing", "backing_up", "switching", "verifying", "committing", "completed", "rolling_back", "rolled_back", "recovery_failed"] as const;
 export type UpdateState = (typeof UPDATE_STATES)[number];
@@ -28,7 +28,7 @@ export const updateRecordSchema = z
     previousDigest: digestSchema.nullable(),
     schemaVersionFrom: z.number().int().min(0).nullable(),
     schemaVersionTo: z.number().int().min(0).nullable(),
-    backupId: z.string().regex(/^\d{8}T\d{6}Z-[a-z_]+-[0-9a-f-]{36}$/).nullable(),
+    backupId: backupPackageNameSchema.nullable(),
     /** The pins of the release before the operation, so a rollback puts back exactly them. */
     previousSelection: z.object({ app: digestSchema.nullable(), updater: digestSchema.nullable() }).strict().nullable(),
     /** True from the commit point on; after it no rollback to the snapshot is made, as it would lose the data written since. */

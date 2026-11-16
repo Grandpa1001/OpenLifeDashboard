@@ -7,106 +7,21 @@
 //      line of the stream) and an image that is not the pinned digest end `idle` with a code, a good pull ends in
 //      `quiescing` with the digest on the record, and the same operation asked again after a restart is driven from where
 //      the journal says it was, without a second drive while it is going on.
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
-import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { UPDATER_COMMAND_METHOD, UPDATER_COMMAND_PATH, UPDATER_SIGNATURE_HEADER, type UpdaterEnvelope } from "@openlife/contracts/updates/protocol";
-import { RELEASE_CATALOG_FILE, RELEASE_CATALOG_MAX_BYTES, type ReleaseCatalog } from "@openlife/contracts/updates/catalog";
-import type { UpdateRecord } from "@openlife/contracts/updates/state";
+import { RELEASE_CATALOG_FILE, RELEASE_CATALOG_MAX_BYTES } from "@openlife/contracts/updates/catalog";
 import { afterEach, describe, expect, it } from "vitest";
-import type { EngineClient, EngineReply } from "../../../apps/updater/dist/docker/engine-client.js";
-import { createProjectScope } from "../../../apps/updater/dist/docker/project-scope.js";
-import { createReleasePreparer } from "../../../apps/updater/dist/install/prepare-release.js";
 import { openJournal } from "../../../apps/updater/dist/journal/journal.js";
 import { signCommand } from "../../../apps/updater/dist/protocol/verify-command.js";
 import { catalogFileTextOf } from "../../../apps/updater/dist/release/catalog.js";
-import { createUpdaterServer, type UpdaterLogEvent } from "../../../apps/updater/dist/server/updater-server.js";
 import { initialRecord, transition } from "../../../apps/updater/dist/state-machine/transitions.js";
+import { APP, catalogOf, closeServers, digestOf, fakeEngine, imageOf, install, recordOf, release123, send, settled, start, TOKEN, UPDATER } from "../../support/updater-harness.ts";
 
-const TOKEN = randomBytes(32).toString("hex");
-const digestOf = (seed: string): string => `sha256:${createHash("sha256").update(seed).digest("hex")}`;
-const APP = { repository: "registry.example.com/openlife/app", digest: digestOf("app 1.2.3") };
-const UPDATER = { repository: "registry.example.com/openlife/updater", digest: digestOf("updater 1.2.3") };
-const imageOf = (pin: { repository: string; digest: string }): string => `${pin.repository}@${pin.digest}`;
-const catalogOf = (...releases: ReleaseCatalog["releases"]): ReleaseCatalog => ({ v: 1, releases });
-const release123: ReleaseCatalog["releases"][number] = { version: "1.2.3", app: APP, updater: null, minFrom: null, schemaVersion: 7 };
+afterEach(closeServers);
 
-type Request = { method: string; path: string };
-type Engine = { client: EngineClient; requests: Request[]; pullAnswer: (image: string) => EngineReply; digestsOf: (image: string) => string[] };
-
-/** An Engine that answers only what a pull needs, records everything it is asked, and lets a test choose what a pull and an inspection say. */
-function fakeEngine(): Engine {
-  const requests: Request[] = [];
-  const engine: Engine = {
-    requests,
-    pullAnswer: () => ({ status: 200, body: Buffer.from('{"status":"Pulling"}\n{"status":"Digest: ok"}\n') }),
-    digestsOf: (image) => [image],
-    client: {
-      request: async (method, requestPath) => {
-        requests.push({ method, path: requestPath });
-        const pulled = /^\/images\/create\?fromImage=(.+)$/.exec(requestPath);
-        if (method === "POST" && pulled) return engine.pullAnswer(decodeURIComponent(pulled[1]!));
-        const inspected = /^\/images\/(.+)\/json$/.exec(requestPath);
-        if (method === "GET" && inspected) return { status: 200, body: Buffer.from(JSON.stringify({ Id: digestOf("id"), RepoDigests: engine.digestsOf(decodeURIComponent(inspected[1]!)) })) };
-        return { status: 500, body: Buffer.from('{"message":"not part of this test"}') };
-      },
-    },
-  };
-  return engine;
-}
-
-type Started = { url: string; dir: string; engine: Engine; logs: UpdaterLogEvent[]; close: () => Promise<void> };
-const started: Started[] = [];
-afterEach(async () => {
-  for (const each of started.splice(0)) await each.close();
-});
-
-async function start(options: { dir?: string; catalog?: string | null; engine?: Engine } = {}): Promise<Started> {
-  const dir = options.dir ?? mkdtempSync(path.join(tmpdir(), "prepare-release-"));
-  if (options.catalog !== undefined && options.catalog !== null) writeFileSync(path.join(dir, RELEASE_CATALOG_FILE), options.catalog);
-  const engine = options.engine ?? fakeEngine();
-  const logs: UpdaterLogEvent[] = [];
-  const logger = { log: (event: UpdaterLogEvent) => void logs.push(event) };
-  const journal = openJournal(dir);
-  const scope = createProjectScope({ client: engine.client, project: "openlife" });
-  const server = createUpdaterServer({
-    token: TOKEN,
-    journal,
-    appView: async () => ({ running: true, health: "healthy" }),
-    nowMs: Date.now,
-    startedAtMs: Date.now() - 1000,
-    logger,
-    installer: createReleasePreparer({ journal, catalogDir: dir, scope, nowIso: () => new Date().toISOString(), logger }),
-  });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const instance: Started = { url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, dir, engine, logs, close: () => new Promise((resolve) => server.close(() => resolve())) };
-  started.push(instance);
-  return instance;
-}
-
-const envelopeOf = (command: UpdaterEnvelope["command"], operationId: string = randomUUID()): UpdaterEnvelope => ({ v: 1, operationId, issuedAt: Date.now(), nonce: randomBytes(24).toString("base64url"), command });
-async function send(server: Started, envelope: UpdaterEnvelope): Promise<{ status: number; json: Record<string, unknown> }> {
-  const body = JSON.stringify(envelope);
-  const signature = signCommand(TOKEN, { method: UPDATER_COMMAND_METHOD, path: UPDATER_COMMAND_PATH, envelope, body });
-  const reply = await fetch(`${server.url}${UPDATER_COMMAND_PATH}`, { method: "POST", headers: { "Content-Type": "application/json", [UPDATER_SIGNATURE_HEADER]: signature }, body });
-  return { status: reply.status, json: (await reply.json()) as Record<string, unknown> };
-}
-const install = (release: string, fence = 1, operationId?: string) => envelopeOf({ type: "install", release, fence }, operationId);
-const recordOf = (dir: string): UpdateRecord | null => {
-  const read = openJournal(dir).read();
-  return read.ok ? read.record : null;
-};
-/** The record once the operation has left the steps the updater drives by itself. */
-async function settled(server: Started): Promise<UpdateRecord> {
-  for (let tries = 0; tries < 200; tries += 1) {
-    const record = recordOf(server.dir);
-    if (record !== null && record.state !== "checking" && record.state !== "pulling") return record;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  throw new Error("the operation did not settle");
-}
 
 describe("D54.1-AC1 a version the catalog does not vouch for is refused before anything is sent to the Engine", () => {
   it("refuses a version that is not in the catalog, with the release it asked for on the record and nothing sent", async () => {

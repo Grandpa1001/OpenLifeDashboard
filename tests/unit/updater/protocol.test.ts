@@ -31,6 +31,11 @@ describe("D52.1-AC1 a signed, fresh and new command is accepted and the signatur
     expect(verify(requestOf(install))).toEqual({ ok: true, envelope: install });
     const status = envelope({ command: { type: "status" } });
     expect(verify(requestOf(status))).toEqual({ ok: true, envelope: status });
+    // The commands of the app between the pull and the switch (D54.2) carry the fence, and a copy is named by a package, never a path.
+    for (const command of [{ type: "quiesced", fence: 4 }, { type: "backed_up", backupId: "20261116T120000Z-pre_update-00000000-0000-4000-8000-000000000000", fence: 4 }, { type: "abort", fence: 4 }] as const) {
+      const sent = envelope({ command });
+      expect(verify(requestOf(sent))).toEqual({ ok: true, envelope: sent });
+    }
   });
 
   it("accepts a command at the edge of the allowed skew on both sides", () => {
@@ -96,6 +101,11 @@ describe("D52.1-AC2 everything else is refused with a code and nothing of the se
       { ...base, command: { type: "install", release: "latest", fence: 1 } },
       { ...base, command: { type: "install", release: "1.2.3", fence: -1 } },
       { ...base, command: { type: "install", release: "1.2.3" } },
+      { ...base, command: { type: "backed_up", backupId: "../../etc/passwd", fence: 1 } },
+      { ...base, command: { type: "backed_up", backupId: "20261116T120000Z-pre_update-00000000-0000-4000-8000-000000000000" } },
+      { ...base, command: { type: "backed_up", backupId: "20261116T120000Z-pre_update-00000000-0000-4000-8000-000000000000", fence: 1, path: "/data" } },
+      { ...base, command: { type: "quiesced" } },
+      { ...base, command: { type: "abort", fence: 1, reason: "because" } },
       { ...base, command: { type: "exec", cmd: "sh -c id" } },
       { ...base, command: { type: "status", compose: "services: {}" } },
       { ...base, extra: true },

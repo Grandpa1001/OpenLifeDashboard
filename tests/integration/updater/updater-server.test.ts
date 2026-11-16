@@ -14,6 +14,7 @@ import path from "node:path";
 import { UPDATER_COMMAND_METHOD, UPDATER_COMMAND_PATH, UPDATER_HEALTH_PATH, UPDATER_SIGNATURE_HEADER, updaterStatusSchema, type UpdaterEnvelope } from "@openlife/contracts/updates/protocol";
 import { UPDATE_STATE_FILE } from "@openlife/contracts/updates/state";
 import { afterEach, describe, expect, it } from "vitest";
+import { createProgressHandler } from "../../../apps/updater/dist/install/progress.js";
 import { createReleasePreparer, type ReleasePreparer } from "../../../apps/updater/dist/install/prepare-release.js";
 import { openJournal } from "../../../apps/updater/dist/journal/journal.js";
 import { signCommand } from "../../../apps/updater/dist/protocol/verify-command.js";
@@ -41,6 +42,7 @@ async function start(options: { journalDir?: string; startedAtMs?: number; nowMs
     startedAtMs: options.startedAtMs ?? now - 1000,
     logger: { log: (event) => void logs.push(event) },
     installer,
+    progress: createProgressHandler({ journal: openJournal(journalDir), catalogDir: journalDir, backupDir: journalDir, previousSelection: async () => null, nowIso: () => new Date().toISOString() }),
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const instance: Started = { url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, close: () => new Promise((resolve) => server.close(() => resolve())), logs, journalDir, setNow: (ms) => void (now = ms) };

@@ -18,10 +18,19 @@ export const UPDATER_BODY_MAX_BYTES = 4096;
 /** A version of a stable release (`1.2.3`); the updater finds the image of it in the trusted catalog (D53). */
 export const releaseVersionSchema = z.string().regex(/^\d{1,4}\.\d{1,4}\.\d{1,4}$/);
 
+/** The name of a package in the backup folder (UTC start, reason, snapshot id), never a path. */
+export const backupPackageNameSchema = z.string().regex(/^\d{8}T\d{6}Z-[a-z_]+-[0-9a-f-]{36}$/);
+
 export const updaterCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("status") }).strict(),
   /** `fence` is the generation of the maintenance gate the app holds; an older one is a crashed writer (D52.2). */
   z.object({ type: z.literal("install"), release: releaseVersionSchema, fence: z.number().int().min(0) }).strict(),
+  /** The app has closed its writes and finished those it had accepted (D54.2); the operation is the one of the envelope. */
+  z.object({ type: z.literal("quiesced"), fence: z.number().int().min(0) }).strict(),
+  /** The app has taken the `pre_update` copy, named by its package; the updater checks it in the backup folder. */
+  z.object({ type: z.literal("backed_up"), backupId: backupPackageNameSchema, fence: z.number().int().min(0) }).strict(),
+  /** The app gives the operation up before the switch; nothing of A was touched, so it returns to `idle`. */
+  z.object({ type: z.literal("abort"), fence: z.number().int().min(0) }).strict(),
 ]);
 export type UpdaterCommand = z.infer<typeof updaterCommandSchema>;
 

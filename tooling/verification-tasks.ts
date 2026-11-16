@@ -6453,6 +6453,39 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.53: what the app reports between the pull and the switch.
+    id: "D54.2",
+    ready: true,
+    title: "The commands quiesced, backed_up and abort: the order to the switch, the same command twice, the refusals and the way back to idle",
+    criteria: ["D54.2-AC1", "D54.2-AC2", "D54.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built updater and contracts.
+        id: "workspace-build",
+        criteria: ["D54.2-AC1", "D54.2-AC2"],
+        description: "pnpm -r build: the commands of the channel, the check of the copy, the previous selection and the handler of the progress",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/updater/src/install/progress.ts", "apps/updater/src/release/backup-check.ts", "apps/updater/src/release/previous-selection.ts"],
+      },
+      {
+        id: "updater-protocol",
+        criteria: ["D54.2-AC1"],
+        description: "The channel allows exactly its commands and names a copy by the name of a package, never a path",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/updater/protocol.test.ts"],
+        requires: ["tests/unit/updater/protocol.test.ts"],
+      },
+      {
+        id: "install-progress",
+        criteria: ["D54.2-AC1", "D54.2-AC2"],
+        description:
+          "Through the real server of the updater, a real journal, catalog and backup folder and a fake Engine: quiesced and backed_up take one operation from quiescing through backing_up to switching and record the copy, the pins before, the digest and the versions of the schema; the same command twice is answered as it was with no other record, another copy is refused; another operation, an older and a newer fence, a state that cannot take the command, a command before any operation and while the updater still pulls are refused with a code and the record stays; an abort in quiescing or backing_up closes the operation through rolling_back and rolled_back as idle with ABORTED, a second abort is answered as done and the next operation is taken with a clean record; after the switch an abort is refused; a copy that is missing, of another reason, with a file that is no part of a package, changed after its checksum or a link, a catalog that no longer lists the release and an installation with no way back close the operation with a code; nothing is sent to the Engine that touches a container; the log holds no path",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updater/install-progress.test.ts", "tests/integration/updater/prepare-release.test.ts", "tests/integration/updater/updater-server.test.ts"],
+        requires: ["tests/integration/updater/install-progress.test.ts", "tests/support/updater-harness.ts"],
+      },
+      ...regressionChecks("D54.2-regression"),
+    ],
+  },
+  {
     // KM5 gate (DEV §8.4, §9.50): the copy of installation A listed, verified and restored on a separate
     // installation B by the built commands, then the reports of the fast tier for D48-D51 joined item by item
     // for this exact code; does not run their tests again.

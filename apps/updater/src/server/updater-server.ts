@@ -8,6 +8,7 @@ import http from "node:http";
 import { UPDATER_BODY_MAX_BYTES, UPDATER_CLOCK_SKEW_MS, UPDATER_COMMAND_METHOD, UPDATER_COMMAND_PATH, UPDATER_HEALTH_PATH, UPDATER_SIGNATURE_HEADER, type UpdaterEnvelope, type UpdaterStatus } from "@openlife/contracts/updates/protocol";
 import type { UpdateRecord } from "@openlife/contracts/updates/state";
 import type { ReleasePreparer } from "../install/prepare-release.js";
+import type { ProgressHandler } from "../install/progress.js";
 import type { Journal } from "../journal/journal.js";
 import type { UpdaterLogEvent, UpdaterLogger } from "../logging.js";
 import { createReplayCache } from "../protocol/replay-cache.js";
@@ -30,6 +31,8 @@ export type UpdaterServerOptions = Readonly<{
   logger: UpdaterLogger;
   /** Drives an accepted operation through its first steps in the background; the command is answered before they are done. */
   installer: ReleasePreparer;
+  /** What the app reports between the pull and the switch: quiet, copy taken, or given up (D54.2). */
+  progress: ProgressHandler;
 }>;
 
 const statusOf = (record: UpdateRecord, app: AppView): UpdaterStatus => ({ state: record.state, operationId: record.operationId, fence: record.fence, targetRelease: record.targetRelease, error: record.error, app });
@@ -87,6 +90,22 @@ export function createUpdaterServer(options: UpdaterServerOptions): http.Server 
     }
     if (envelope.command.type === "status") {
       send(response, 200, statusOf(record, await options.appView().catch(() => null)));
+      return;
+    }
+    if (envelope.command.type !== "install") {
+      const result = await options.progress.handle(envelope);
+      if (result === "JOURNAL_UNREADABLE") {
+        send(response, 503, { code: "JOURNAL_UNREADABLE" });
+        return;
+      }
+      if (!result.ok) {
+        options.logger.log({ level: "warn", event: "updater.progress_refused", code: result.code, operationId: envelope.operationId });
+        // A refusal that closed the operation tells the app so with the state, so it can open its writes; the others leave the record as it is.
+        send(response, 409, { code: result.code, state: result.record.state, operationId: result.record.operationId, fence: result.record.fence });
+        return;
+      }
+      options.logger.log({ level: "info", event: "updater.progress_accepted", operationId: envelope.operationId });
+      send(response, 200, statusOf(result.record, await options.appView().catch(() => null)));
       return;
     }
     const nowIso = new Date(options.nowMs()).toISOString();
