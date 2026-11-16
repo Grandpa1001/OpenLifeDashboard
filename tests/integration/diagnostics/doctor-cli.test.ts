@@ -77,13 +77,18 @@ describe("D44.4-AC1 a healthy installation", () => {
 
   it("tells an app that is not there, one that is unavailable, one that answers something else and an address that is not one", async () => {
     const instance = await startedInstallation();
+    // Every server is made first and only the first is closed: a port freed before the others were made could be given to one
+    // of them, and the app that is gone would answer (run 43829733862, the port of "gone" came back as the 503).
     const gone = await answering(200, '{"status":"ok"}');
-    await Promise.all(servers.splice(0).map((server) => new Promise<void>((resolve) => server.close(() => resolve()))));
+    const unavailable = await answering(503, '{"status":"unavailable"}');
+    const proxy = await answering(200, "<html>a proxy</html>");
+    const maybe = await answering(200, '{"status":"maybe"}');
+    await new Promise<void>((resolve) => servers[0]!.close(() => resolve()));
     const cases: Array<[string, string, string]> = [
       ["CONNECTION_FAILED", gone, ""],
-      ["HEALTH_UNAVAILABLE", await answering(503, '{"status":"unavailable"}'), ""],
-      ["HEALTH_UNEXPECTED", await answering(200, "<html>a proxy</html>"), ""],
-      ["HEALTH_UNEXPECTED", await answering(200, '{"status":"maybe"}'), ""],
+      ["HEALTH_UNAVAILABLE", unavailable, ""],
+      ["HEALTH_UNEXPECTED", proxy, ""],
+      ["HEALTH_UNEXPECTED", maybe, ""],
       ["URL_INVALID", "ftp://127.0.0.1/", ""],
       ["URL_INVALID", "http://user:pass@127.0.0.1:1/", ""],
       ["URL_INVALID", "not a url", ""],
