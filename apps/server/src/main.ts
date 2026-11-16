@@ -48,6 +48,10 @@ import { createExportService } from "./portability/export-stream.js";
 import { createAuditRetentionJob } from "./workers/audit-retention.js";
 import { createHeartbeatSender } from "./adapters/monitoring/heartbeat.js";
 import { createNightlyBackupJob } from "./workers/nightly-backup.js";
+import { createReleaseChecker } from "./adapters/updates/release-checker.js";
+import { createReleaseClient } from "./adapters/updates/release-client.js";
+import { openCheckCache } from "./adapters/updates/check-cache.js";
+import { createReleaseCheckJob, createUnconfiguredUpdates } from "./workers/release-check.js";
 import { listBackups } from "./adapters/filesystem/backup-catalog.js";
 import { pruneBackups } from "./adapters/filesystem/backup-retention.js";
 import { createReportBuilder } from "./adapters/diagnostics/report-builder.js";
@@ -259,6 +263,24 @@ const nightlyBackup = createNightlyBackupJob({
   logger,
   ...(environment.backupHeartbeatUrl === undefined ? {} : { heartbeat: createHeartbeatSender({ url: environment.backupHeartbeatUrl }) }),
 });
+// The check of the releases (D53.3): only where the installation has a source of releases, which is an installation with the updater.
+const releaseCheck =
+  environment.updater.enabled
+    ? createReleaseCheckJob({
+        checker: createReleaseChecker({
+          repository: environment.updater.releasesRepo,
+          client: createReleaseClient({ repository: environment.updater.releasesRepo, ...(environment.updater.releasesApiUrl === undefined ? {} : { baseUrl: environment.updater.releasesApiUrl }) }),
+          cache: openCheckCache(path.dirname(workingPaths.database), environment.updater.releasesRepo),
+          currentVersion: build.appVersion,
+          nowMs: Date.now,
+        }),
+        currentVersion: build.appVersion,
+        enabled: () => effectiveSettings.boolean("updates.checkEnabled"),
+        nowMs: Date.now,
+        announce: (version) => liveHub.publish({ type: "update.available", version }),
+        logger,
+      })
+    : null;
 const diagnosticsOverview = createOverviewReader({ build, schemaVersion: database.schemaVersion, installation: paths, workingPaths, logStatus: logFile.status, liveConnections: liveHub.total, backupStatus: nightlyBackup.status });
 const diagnosticsLogs = createLogFiles({ dir: workingPaths.logs, retentionDays: () => logLimits().retentionDays, now: () => new Date() });
 const attemptKeys = createAttemptKeys(secret);
@@ -329,6 +351,7 @@ const app = createApp({
   config: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: limits.config, logger },
   systemTables: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
   settings: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, environment: environment.overrides, refresh: effectiveSettings.refresh, logger },
+  updates: { unit: identityUnit, updates: releaseCheck?.service ?? createUnconfiguredUpdates(build.appVersion), cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
   diagnostics: {
     unit: identityUnit,
     overview: diagnosticsOverview,
@@ -377,7 +400,7 @@ try {
           return drainServer(server);
         },
       },
-      { name: "jobs", run: () => Promise.all([auditRetention.stop(), nightlyBackup.stop()]).then(() => undefined) },
+      { name: "jobs", run: () => Promise.all([auditRetention.stop(), nightlyBackup.stop(), releaseCheck?.stop()]).then(() => undefined) },
       {
         name: "logger",
         run: () => {
@@ -400,6 +423,7 @@ try {
   }
   auditRetention.start();
   nightlyBackup.start();
+  releaseCheck?.start();
   console.log(JSON.stringify({ event: "server.listening", host: address.address, port: address.port }));
 } catch (error) {
   fail(`cannot listen on ${host}:${port} (${error instanceof Error && "code" in error ? String(error.code) : "unknown error"})`);

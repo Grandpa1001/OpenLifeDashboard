@@ -44,6 +44,7 @@ import { createLogFiles } from "../../apps/server/dist/adapters/diagnostics/log-
 import { createExportService } from "../../apps/server/dist/portability/export-stream.js";
 import { createReportBuilder } from "../../apps/server/dist/adapters/diagnostics/report-builder.js";
 import { createOverviewReader } from "../../apps/server/dist/adapters/diagnostics/overview-reader.js";
+import { createUnconfiguredUpdates, type UpdatesService } from "../../apps/server/dist/workers/release-check.js";
 import { describeInstallation, installationWorkingPaths } from "../../apps/server/dist/adapters/filesystem/installation-paths.js";
 import { createLiveHub } from "../../apps/server/dist/adapters/events/live-hub.js";
 import { bindSystemTableReader } from "../../apps/server/dist/adapters/system-tables.js";
@@ -72,7 +73,7 @@ export function closeHarnesses(): void {
   for (const release of leases.splice(0)) release();
 }
 
-export type HarnessReply = Readonly<{ status: number; text: string; json: () => unknown; setCookies: string[]; cookie: string | null }>;
+export type HarnessReply = Readonly<{ status: number; text: string; json: () => unknown; setCookies: string[]; cookie: string | null; headers: Headers }>;
 
 /** `announce` replaces what the routes tell the streams after a commit, to try an announcement that fails (D38). */
 export type HarnessOptions = Readonly<{
@@ -91,6 +92,8 @@ export type HarnessOptions = Readonly<{
   exportDatabaseFile?: string;
   /** The version of the application the export names; the same as the file it is compared with (D45.2). */
   exportAppVersion?: string;
+  /** The service of the check of the releases; without it the installation has no source of releases (D53.3). */
+  updates?: UpdatesService;
 }>;
 
 export async function createAppHarness(options: HarnessOptions = {}) {
@@ -215,6 +218,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     systemTables: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger, template: { appVersion: "0.0.0", now: () => new Date() } },
     settings: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, environment, refresh: effectiveSettings.refresh, logger },
+    updates: { unit, updates: options.updates ?? createUnconfiguredUpdates("0.0.0"), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     diagnostics: { unit, overview, logs: diagnosticsLogs, report: createReportBuilder({ overview, logs: diagnosticsLogs, options: effectiveSettings.current, catalog: SETTINGS_CATALOG, now: () => new Date() }), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     import: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, limits, policy: DESIGN_POLICY, widgets: createWidgetCatalog(), gate: gate.gate, newOperationId: randomUUID, pause: giveBackLoop, logger },
     export: { unit, export: createExportService({ databaseFile: options.exportDatabaseFile ?? workingPaths.database, busyTimeoutMs: 5000, appVersion: options.exportAppVersion ?? "0.0.0", now: () => new Date(), logger, ...(options.exportRecordsPerPage === undefined ? {} : { recordsPerPage: options.exportRecordsPerPage }) }), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
@@ -232,7 +236,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     const response = await app.request(route, { method, headers, ...(body === undefined ? {} : { body: typeof body === "string" ? body : JSON.stringify(body) }) });
     const text = await response.text();
     const setCookies = response.headers.getSetCookie();
-    return { status: response.status, text, json: () => JSON.parse(text) as unknown, setCookies, cookie: setCookies[0]?.split(";")[0] ?? null };
+    return { status: response.status, text, json: () => JSON.parse(text) as unknown, setCookies, cookie: setCookies[0]?.split(";")[0] ?? null, headers: response.headers };
   }
 
   /** A request whose answer is not read to the end: a live stream stays open for the test to read event by event. */

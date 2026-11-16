@@ -6323,6 +6323,52 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.52: the job and the routes of the releases.
+    id: "D53.3",
+    ready: true,
+    title: "The check of the releases in the process: the daily job, the routes and the event, offline and limits harmless",
+    criteria: ["D53.3-AC1", "D53.3-AC2", "D53.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built server and contracts.
+        id: "workspace-build",
+        criteria: ["D53.3-AC1", "D53.3-AC2"],
+        description: "pnpm -r build: the job, the routes and the contract of the releases",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/workers/release-check.ts", "apps/server/src/http/routes/updates.routes.ts", "packages/contracts/src/http/updates.ts"],
+      },
+      {
+        id: "release-check-job",
+        criteria: ["D53.3-AC1", "D53.3-AC2"],
+        description: "The job on a fake clock: it asks soon after the start when the option is on and once a day after, never while the option is off or a backoff holds it, with one request for any number of askers, tells the streams of a newer release once; Check now works with the option off, is refused for the cooldown and while the source asked to wait and not for an ordinary backoff; a failure is a code in the log and the state and never a throw; the state is the contract's with the next check and the retry time; stopping waits for the request that is going on; an installation with no source says so",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updates/release-check-job.test.ts"],
+        requires: ["tests/integration/updates/release-check-job.test.ts"],
+      },
+      {
+        id: "updates-http",
+        criteria: ["D53.3-AC1", "D53.3-AC2"],
+        description: "On the in-process app with the real job, the real client and a real HTTP server standing in for the repository: no session is 401 and a session without the gate is refused with its code; the owner reads the state, Check now asks the source and answers the state and the outcome and tells the streams once, is 429 with the seconds to wait for the cooldown and for a limit of the source; a body with an address, a repository or a version is 422 and the source is not asked; another origin is refused; an installation with no source answers 409; the source gone, failing or answering nonsense is a state with a code and the release it knew stays",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updates/updates-http.test.ts"],
+        requires: ["tests/integration/updates/updates-http.test.ts"],
+      },
+      {
+        id: "releases-api-url",
+        criteria: ["D53.3-AC2"],
+        description: "The base of the API of the releases is read only when the updater is on, is HTTPS or loopback HTTP and refused with the name of the key and never its value otherwise",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/updates/releases-api-url.test.ts"],
+        requires: ["tests/unit/updates/releases-api-url.test.ts"],
+      },
+      {
+        id: "routes-regression",
+        criteria: ["D53.3-AC1"],
+        description: "The inventory of the routes lists the two new ones with the access they ask for, and the texts of the failures of the screens still cover every code of the API",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/route-inventory.test.ts", "tests/unit/web/error-message.test.ts"],
+        requires: ["tests/integration/auth/route-inventory.test.ts", "tests/support/route-inventory.ts"],
+      },
+      ...regressionChecks("D53.3-regression"),
+    ],
+  },
+  {
     // KM5 gate (DEV §8.4, §9.50): the copy of installation A listed, verified and restored on a separate
     // installation B by the built commands, then the reports of the fast tier for D48-D51 joined item by item
     // for this exact code; does not run their tests again.

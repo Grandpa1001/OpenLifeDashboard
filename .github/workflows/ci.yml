@@ -418,6 +418,9 @@ jobs:
       - name: Verify D53.2 (the client of the releases and its cache)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D53.2
+      - name: Verify D53.3 (the check of the releases in the process)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D53.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

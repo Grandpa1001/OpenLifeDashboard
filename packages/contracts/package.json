@@ -99,6 +99,11 @@
       "types": "./dist/http/settings.d.ts",
       "default": "./dist/http/settings.js"
     },
+    "./http/updates": {
+      "@openlife/source": "./src/http/updates.ts",
+      "types": "./dist/http/updates.d.ts",
+      "default": "./dist/http/updates.js"
+    },
     "./http/stream": {
       "@openlife/source": "./src/http/stream.ts",
       "types": "./dist/http/stream.d.ts",

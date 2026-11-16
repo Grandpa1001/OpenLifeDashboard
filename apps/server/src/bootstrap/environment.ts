@@ -4,6 +4,7 @@
 // settings resolver (D03.2); instance.json is validated in D03.3.
 import { SETTINGS_CATALOG } from "@openlife/contracts/settings";
 import { parseHeartbeatUrl } from "../adapters/monitoring/heartbeat.js";
+import { parseApiBase } from "../adapters/updates/release-client.js";
 import { Secret } from "./secret.js";
 
 export type InstallMode = "local" | "server";
@@ -11,7 +12,7 @@ export type BootstrapErrorCode = "CONFIG_INVALID";
 
 export type UpdaterConfig =
   | Readonly<{ enabled: false }>
-  | Readonly<{ enabled: true; token: Secret; releasesRepo: string }>;
+  | Readonly<{ enabled: true; token: Secret; releasesRepo: string; /** The base of the API of the releases when the installation does not use GitHub itself (a mirror, a test); absent means api.github.com. */ releasesApiUrl?: string }>;
 
 /** Parsed env overrides keyed by setting key; ranges are checked by the settings resolver. */
 export type EnvironmentOverrides = Readonly<Record<string, number>>;
@@ -131,7 +132,12 @@ export function parseEnvironment(env: RawEnvironment): EnvironmentResult {
     if (rawRepo !== undefined && !releasesRepo) {
       invalid.add("RELEASES_REPO");
     }
-    updater = token && releasesRepo ? { enabled: true, token, releasesRepo } : undefined;
+    const rawApi = present("RELEASES_API_URL");
+    const releasesApiUrl = rawApi === undefined ? undefined : parseApiBase(rawApi) === undefined ? undefined : rawApi;
+    if (rawApi !== undefined && releasesApiUrl === undefined) {
+      invalid.add("RELEASES_API_URL");
+    }
+    updater = token && releasesRepo && (rawApi === undefined || releasesApiUrl !== undefined) ? { enabled: true, token, releasesRepo, ...(releasesApiUrl === undefined ? {} : { releasesApiUrl }) } : undefined;
   }
 
   const rawHeartbeat = present("BACKUP_HEARTBEAT_URL");

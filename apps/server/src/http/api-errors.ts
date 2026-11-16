@@ -44,6 +44,8 @@ const FALLBACK_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   IMPORT_TOO_LARGE: "The file is larger than the import allows",
   IMPORT_INVALID: "The file is not an export this installation can import",
   IMPORT_UNAVAILABLE: "The import could not be made now; nothing was changed",
+  UPDATES_NOT_CONFIGURED: "This installation has no source of releases to check",
+  UPDATE_CHECK_THROTTLED: "The releases were checked a moment ago or the source asked to wait",
 };
 
 export function apiErrorResponse(

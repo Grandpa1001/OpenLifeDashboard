@@ -41,6 +41,8 @@ export const API_ERROR_CODES = [
   "IMPORT_TOO_LARGE",
   "IMPORT_INVALID",
   "IMPORT_UNAVAILABLE",
+  "UPDATES_NOT_CONFIGURED",
+  "UPDATE_CHECK_THROTTLED",
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

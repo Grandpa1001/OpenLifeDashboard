@@ -13,6 +13,7 @@ import { registerConfigRoutes, type ConfigRouteDependencies } from "../http/rout
 import { registerImportRoutes, type ImportRouteDependencies } from "../http/routes/import.routes.js";
 import { registerExportRoutes, type ExportRouteDependencies } from "../http/routes/export.routes.js";
 import { registerDiagnosticsRoutes, type DiagnosticsRouteDependencies } from "../http/routes/diagnostics.routes.js";
+import { registerUpdatesRoutes, type UpdatesRouteDependencies } from "../http/routes/updates.routes.js";
 import { registerSettingsRoutes, type SettingsRouteDependencies } from "../http/routes/settings.routes.js";
 import { registerIdentityRoutes, type IdentityRouteDependencies } from "../http/routes/identity.routes.js";
 import { registerMfaEnrollmentRoutes, type MfaEnrollmentRouteDependencies } from "../http/routes/mfa-enrollment.routes.js";
@@ -49,6 +50,7 @@ export type AppDependencies = Readonly<{
   config: ConfigRouteDependencies;
   settings: SettingsRouteDependencies;
   diagnostics: DiagnosticsRouteDependencies;
+  updates: UpdatesRouteDependencies;
   export: ExportRouteDependencies;
   import: ImportRouteDependencies;
   security: SecurityRouteDependencies;
@@ -87,6 +89,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   registerConfigRoutes(app, dependencies.config, announce);
   registerSettingsRoutes(app, dependencies.settings);
   registerDiagnosticsRoutes(app, dependencies.diagnostics);
+  registerUpdatesRoutes(app, dependencies.updates);
   registerExportRoutes(app, dependencies.export);
   registerImportRoutes(app, dependencies.import);
   registerSecurityRoutes(app, dependencies.security);
