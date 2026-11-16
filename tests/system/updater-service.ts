@@ -117,10 +117,14 @@ try {
   check.expect(send(x, replayed).json["code"] === "REPLAYED", "the same command sent again is refused as a replay");
   check.expect(send(x, envelopeOf({ type: "status" }), { signature: `v1=${"0".repeat(64)}` }).json["code"] === "BAD_SIGNATURE", "a wrong signature is refused");
   const first = send(x, envelopeOf({ type: "install", release: "1.2.3", fence: 5 }));
-  check.expect(first.status === 501 && first.json["code"] === "INSTALL_NOT_AVAILABLE", "an install is begun and closed as not available until the steps of the update arrive");
+  check.expect(first.status === 202 && first.json["fence"] === 5, "an install is accepted and driven in the background");
   const journalFile = path.join(x.dir, "control", "update-state.json");
-  const journal = JSON.parse(readFileSync(journalFile, "utf8")) as { record: { state: string; fence: number; error: { code: string } | null } };
-  check.expect(journal.record.state === "idle" && journal.record.fence === 5 && journal.record.error?.code === "INSTALL_NOT_AVAILABLE", "the journal in the control folder of the installation holds the fence and the code");
+  // The installation has no catalog of releases, so the operation closes at once with the code of that and pulls nothing.
+  type Journal = { record: { state: string; fence: number; error: { code: string } | null } };
+  const readJournal = (): Journal => JSON.parse(readFileSync(journalFile, "utf8")) as Journal;
+  for (let tries = 0; tries < 50 && readJournal().record.state !== "idle"; tries += 1) await new Promise((resolve) => setTimeout(resolve, 100));
+  const journal = readJournal();
+  check.expect(journal.record.state === "idle" && journal.record.fence === 5 && journal.record.error?.code === "CATALOG_MISSING", "the journal in the control folder of the installation holds the fence and the code of the missing catalog");
   check.expect(statSync(journalFile).uid === (process.getuid?.() ?? -1), "the journal is a file of the host user");
   check.expect(send(x, envelopeOf({ type: "install", release: "1.2.3", fence: 4 })).json["code"] === "STALE_FENCE", "a smaller fence is refused as a crashed writer");
 
@@ -131,7 +135,7 @@ try {
   check.expect(afterRestart.status === 200 && afterRestart.json["fence"] === 5, "after the restart the status holds the fence of before");
   check.expect(send(x, beforeRestart).json["code"] === "STALE", "a command made before the restart is stale, though nothing in its signature says so");
   check.expect(send(x, envelopeOf({ type: "install", release: "1.2.3", fence: 4 })).json["code"] === "STALE_FENCE", "the crashed writer is still refused after the restart");
-  check.expect(send(x, envelopeOf({ type: "install", release: "1.2.3", fence: 6 })).status === 501, "the current fence is taken after the restart");
+  check.expect(send(x, envelopeOf({ type: "install", release: "1.2.3", fence: 6 })).status === 202, "the current fence is taken after the restart");
 
   // Its own app only.
   check.expect(compose(x, "stop", "app").status === 0, "the app of X is stopped");

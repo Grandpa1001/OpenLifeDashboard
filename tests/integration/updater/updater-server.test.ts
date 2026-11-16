@@ -1,7 +1,7 @@
 // D52.5 — the server of the updater on real HTTP, a real journal and a fake view of the app (Architektura §11.2.1).
 // AC1: a command through the channel is answered and moves the journal: status gives the record and the app, an
-//      install is begun on the record, closed at once as not available (the steps are D54), the fence it carried is the
-//      one the journal holds afterwards, and a smaller fence is refused as a crashed writer, also after the process
+//      install is begun on the record and answered as accepted (the steps run in the background, D54.1), the fence it
+//      carried is the one the journal holds afterwards, and a smaller fence is refused as a crashed writer, also after the process
 //      restarts; a running operation is resumed by the same operation and refused for another.
 // AC2: every refusal is a code and a status and nothing more: a bad signature, a replay, a stale and a malformed
 //      command, a body over the bound, an unknown route and a wrong method; a command older than the process is stale
@@ -14,6 +14,7 @@ import path from "node:path";
 import { UPDATER_COMMAND_METHOD, UPDATER_COMMAND_PATH, UPDATER_HEALTH_PATH, UPDATER_SIGNATURE_HEADER, updaterStatusSchema, type UpdaterEnvelope } from "@openlife/contracts/updates/protocol";
 import { UPDATE_STATE_FILE } from "@openlife/contracts/updates/state";
 import { afterEach, describe, expect, it } from "vitest";
+import { createReleasePreparer, type ReleasePreparer } from "../../../apps/updater/dist/install/prepare-release.js";
 import { openJournal } from "../../../apps/updater/dist/journal/journal.js";
 import { signCommand } from "../../../apps/updater/dist/protocol/verify-command.js";
 import { createUpdaterServer, type AppView, type UpdaterLogEvent } from "../../../apps/updater/dist/server/updater-server.js";
@@ -26,9 +27,11 @@ afterEach(async () => {
   for (const each of started.splice(0)) await each.close();
 });
 
-async function start(options: { journalDir?: string; startedAtMs?: number; nowMs?: number; app?: AppView } = {}): Promise<Started> {
+async function start(options: { journalDir?: string; startedAtMs?: number; nowMs?: number; app?: AppView; installer?: ReleasePreparer } = {}): Promise<Started> {
   const journalDir = options.journalDir ?? mkdtempSync(path.join(tmpdir(), "updater-server-"));
   const logs: UpdaterLogEvent[] = [];
+  // Without a catalog the steps of an installation close it at once with a code, so the operations of these tests do not stay held.
+  const installer = options.installer ?? createReleasePreparer({ journal: openJournal(journalDir), catalogDir: journalDir, scope: { pullVerified: async () => undefined }, nowIso: () => new Date().toISOString(), logger: { log: () => undefined } });
   let now = options.nowMs ?? Date.now();
   const server = createUpdaterServer({
     token: TOKEN,
@@ -37,6 +40,7 @@ async function start(options: { journalDir?: string; startedAtMs?: number; nowMs
     nowMs: () => now,
     startedAtMs: options.startedAtMs ?? now - 1000,
     logger: { log: (event) => void logs.push(event) },
+    installer,
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const instance: Started = { url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, close: () => new Promise((resolve) => server.close(() => resolve())), logs, journalDir, setNow: (ms) => void (now = ms) };
@@ -69,15 +73,15 @@ describe("D52.5-AC1 a command moves the journal and the fence outlives the proce
     expect((await send(without, envelopeOf({ type: "status" }))).json["app"]).toBeNull();
   });
 
-  it("begins an install on the journal, closes it as not available, keeps the fence, refuses a smaller one and takes a larger", async () => {
+  it("begins an install on the journal, answers it as accepted, keeps the fence, refuses a smaller one and takes a larger", async () => {
     const server = await start();
     const first = await send(server, install(5));
-    expect([first.status, first.json["code"]]).toEqual([501, "INSTALL_NOT_AVAILABLE"]);
-    expect(recordOf(server.journalDir)).toMatchObject({ state: "idle", fence: 5, targetRelease: "1.2.3", error: { code: "INSTALL_NOT_AVAILABLE" } });
+    expect([first.status, first.json["state"], first.json["fence"]]).toEqual([202, "checking", 5]);
+    expect(recordOf(server.journalDir)).toMatchObject({ state: "idle", fence: 5, targetRelease: "1.2.3", error: { code: "CATALOG_MISSING" } });
     expect(openJournal(server.journalDir).read()).toMatchObject({ ok: true, record: { seq: 2 } });
     expect(await send(server, install(4))).toMatchObject({ status: 409, json: { code: "STALE_FENCE" } });
-    expect((await send(server, install(5))).status).toBe(501);
-    expect((await send(server, install(9))).status).toBe(501);
+    expect((await send(server, install(5))).status).toBe(202);
+    expect((await send(server, install(9))).status).toBe(202);
     expect(recordOf(server.journalDir)?.fence).toBe(9);
   });
 
@@ -87,7 +91,7 @@ describe("D52.5-AC1 a command moves the journal and the fence outlives the proce
     await before.close();
     const after = await start({ journalDir: before.journalDir, startedAtMs: Date.now() - 1000 });
     expect(await send(after, install(6))).toMatchObject({ status: 409, json: { code: "STALE_FENCE" } });
-    expect((await send(after, install(7))).status).toBe(501);
+    expect((await send(after, install(7))).status).toBe(202);
     expect(updaterStatusSchema.parse((await send(after, envelopeOf({ type: "status" }))).json).fence).toBe(7);
   });
 
@@ -97,7 +101,7 @@ describe("D52.5-AC1 a command moves the journal and the fence outlives the proce
     const begun = transition(initialRecord(new Date().toISOString()), "checking", { operationId, targetRelease: "1.2.3", fence: 3 }, new Date().toISOString());
     if (!begun.ok) throw new Error("not begun");
     openJournal(dir).write(begun.record);
-    const server = await start({ journalDir: dir });
+    const server = await start({ journalDir: dir, installer: { prepare: async () => undefined } });
     const same = await send(server, install(3, undefined, operationId));
     expect([same.status, same.json["state"], same.json["operationId"]]).toEqual([202, "checking", operationId]);
     expect(await send(server, install(3))).toMatchObject({ status: 409, json: { code: "BUSY" } });

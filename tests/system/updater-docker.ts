@@ -44,6 +44,7 @@ const socketPath = ((): string => {
   return host.startsWith("unix://") ? host.slice("unix://".length) : "/var/run/docker.sock";
 })();
 const engine = createEngineClient(socketPath);
+const imageDigests = (image: string): string[] => (JSON.parse(run(["image", "inspect", image]).stdout)[0] as { RepoDigests?: string[] }).RepoDigests ?? [];
 const inspectOf = (id: string): Record<string, any> => JSON.parse(run(["inspect", id]).stdout)[0] as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 async function healthy(id: string, seconds = 90): Promise<boolean> {
@@ -142,7 +143,11 @@ try {
   check.expect(compose(x, "start", "app").status === 0 && (await healthy(xApp)), "X runs on release A again");
 
   // The switch to B and the way back.
-  await scopeX.pull(refB);
+  // D54.1: a pull that proves what it pulled. A digest the registry does not hold is no image, and the one it holds is listed under its own name.
+  check.expect(await refused(() => scopeX.pullVerified(`${repository}@sha256:${"0".repeat(64)}`), "PULL_FAILED"), "a digest the registry does not hold is refused as a failed pull, and the image is not there");
+  check.expect(await refused(() => scopeX.pullVerified("openlife-app:latest"), "IMAGE_INVALID"), "a verified pull of a tag is refused before anything is sent");
+  await scopeX.pullVerified(refB);
+  check.expect(imageDigests(refB).includes(refB), "the image pulled by the digest of release B lists exactly that name among its digests");
   const toB = await scopeX.replaceApp(foundX, refB);
   check.expect(await healthy(toB.nextId).then((ok) => ok, () => false), "the app of release B is healthy");
   const bInfo = inspectOf(toB.nextId);

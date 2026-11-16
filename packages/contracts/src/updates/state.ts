@@ -10,7 +10,9 @@ export type UpdateState = (typeof UPDATE_STATES)[number];
 /** The states in which an operation holds the instance; the others leave it free (a closed operation or none). */
 export const ACTIVE_UPDATE_STATES: readonly UpdateState[] = ["checking", "pulling", "quiescing", "backing_up", "switching", "verifying", "committing", "rolling_back", "recovery_failed"];
 
-const digestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
+/** The digest of an image, the only name of a release the updater trusts. */
+export const imageDigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
+const digestSchema = imageDigestSchema;
 
 export const updateRecordSchema = z
   .object({

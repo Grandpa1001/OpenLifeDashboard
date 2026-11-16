@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -6417,6 +6417,40 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D53.1", "D53.2", "D53.3", "D53.4"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.53: the catalog of the releases and the first steps of an installation.
+    id: "D54.1",
+    ready: true,
+    title: "The catalog of the releases and the pull by digest: an installation goes from checking through pulling to quiescing, or ends idle with a code",
+    criteria: ["D54.1-AC1", "D54.1-AC2", "D54.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built updater and contracts.
+        id: "workspace-build",
+        criteria: ["D54.1-AC1", "D54.1-AC2"],
+        description: "pnpm -r build: the contract of the catalog, its reader and the first steps of an installation in the updater",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/updates/catalog.ts", "apps/updater/src/release/catalog.ts", "apps/updater/src/install/prepare-release.ts"],
+      },
+      {
+        id: "prepare-release",
+        criteria: ["D54.1-AC1", "D54.1-AC2"],
+        description:
+          "Through the real server of the updater, a real journal and catalog file and a fake Engine that records every request: a version the catalog does not list, a catalog that is missing, too large, a link, changed after its hash, of another shape, with a tag, a scheme or a repeated version, and a command that tries to name an image are refused with a code and nothing at all is sent to the Engine; the app and the updater of a release are pulled by the digests of the catalog and nothing else is touched, a refused or failed pull ends idle with PULL_FAILED, an image that is not the pinned digest with DIGEST_MISMATCH, the text of the Engine is not kept, a good pull ends in quiescing with the digest on the record, and the same operation asked again after a restart is driven once from where the journal says it was",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updater/prepare-release.test.ts", "tests/integration/updater/updater-server.test.ts"],
+        requires: ["tests/integration/updater/prepare-release.test.ts", "tests/integration/updater/updater-server.test.ts"],
+      },
+      {
+        id: "updater-docker",
+        criteria: ["D54.1-AC2"],
+        description: "On a real daemon and a local registry: a pull by a digest the registry does not hold is a failed pull, a tag is refused before anything is sent, and the image pulled by the digest of release B lists exactly that name among its digests",
+        command: ["node", "tests/system/updater-docker.ts"],
+        requires: ["tests/system/updater-docker.ts", "docker/Dockerfile", "docker/compose.yml", "tests/support/compose-instance.ts"],
+        timeoutMs: 25 * 60 * 1000,
+      },
+      ...regressionChecks("D54.1-regression"),
+    ],
   },
   {
     // KM5 gate (DEV §8.4, §9.50): the copy of installation A listed, verified and restored on a separate

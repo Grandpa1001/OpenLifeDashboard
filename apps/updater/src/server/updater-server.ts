@@ -7,17 +7,18 @@
 import http from "node:http";
 import { UPDATER_BODY_MAX_BYTES, UPDATER_CLOCK_SKEW_MS, UPDATER_COMMAND_METHOD, UPDATER_COMMAND_PATH, UPDATER_HEALTH_PATH, UPDATER_SIGNATURE_HEADER, type UpdaterEnvelope, type UpdaterStatus } from "@openlife/contracts/updates/protocol";
 import type { UpdateRecord } from "@openlife/contracts/updates/state";
+import type { ReleasePreparer } from "../install/prepare-release.js";
 import type { Journal } from "../journal/journal.js";
+import type { UpdaterLogEvent, UpdaterLogger } from "../logging.js";
 import { createReplayCache } from "../protocol/replay-cache.js";
 import { verifyCommand } from "../protocol/verify-command.js";
 import { beginInstall } from "../state-machine/begin.js";
-import { initialRecord, transition } from "../state-machine/transitions.js";
+import { initialRecord } from "../state-machine/transitions.js";
 
 const REPLAY_CAPACITY = 10_000;
 
 export type AppView = Readonly<{ running: boolean; health: string | null }> | null;
-export type UpdaterLogEvent = Readonly<{ level: "info" | "warn" | "error"; event: string; code?: string; operationId?: string }>;
-export type UpdaterLogger = Readonly<{ log: (event: UpdaterLogEvent) => void }>;
+export type { UpdaterLogEvent, UpdaterLogger };
 
 export type UpdaterServerOptions = Readonly<{
   token: string;
@@ -27,6 +28,8 @@ export type UpdaterServerOptions = Readonly<{
   nowMs: () => number;
   startedAtMs: number;
   logger: UpdaterLogger;
+  /** Drives an accepted operation through its first steps in the background; the command is answered before they are done. */
+  installer: ReleasePreparer;
 }>;
 
 const statusOf = (record: UpdateRecord, app: AppView): UpdaterStatus => ({ state: record.state, operationId: record.operationId, fence: record.fence, targetRelease: record.targetRelease, error: record.error, app });
@@ -55,6 +58,18 @@ function readBody(request: http.IncomingMessage): Promise<{ text: string; tooLar
 
 export function createUpdaterServer(options: UpdaterServerOptions): http.Server {
   const replay = createReplayCache({ windowMs: 2 * UPDATER_CLOCK_SKEW_MS, maxEntries: REPLAY_CAPACITY });
+  /** The operations this process is driving now; after a restart an operation of the journal is driven again when it is asked for again. */
+  const driving = new Set<string>();
+
+  function drive(record: UpdateRecord): void {
+    const id = record.operationId;
+    if (id === null || driving.has(id)) return;
+    driving.add(id);
+    void options.installer
+      .prepare(record)
+      .catch(() => options.logger.log({ level: "error", event: "updater.prepare_failed", code: "PREPARE_FAILED", operationId: id }))
+      .finally(() => driving.delete(id));
+  }
 
   /** The record the journal holds, or the first of a new installation; an unreadable journal is no record and nothing is done. */
   function current(): UpdateRecord | null {
@@ -82,17 +97,15 @@ export function createUpdaterServer(options: UpdaterServerOptions): http.Server 
       return;
     }
     if (begun.resumed) {
+      if (begun.record.state === "checking" || begun.record.state === "pulling") drive(begun.record);
       send(response, 202, statusOf(begun.record, await options.appView().catch(() => null)));
       return;
     }
     // The operation is on the record before anything else happens to it: a crash after this line leaves a record that says so.
     options.journal.write(begun.record);
     options.logger.log({ level: "info", event: "updater.install_begun", operationId: envelope.operationId });
-    // The steps of an installation (the pull, the quiet of the app, the copy, the switch) arrive with D54 and D55; until then the
-    // operation is closed at once with a code that says so, so the instance is never left held by an operation nothing drives.
-    const closed = transition(begun.record, "idle", { error: { code: "INSTALL_NOT_AVAILABLE" } }, nowIso);
-    if (closed.ok) options.journal.write(closed.record);
-    send(response, 501, { code: "INSTALL_NOT_AVAILABLE", operationId: envelope.operationId, fence: begun.record.fence });
+    drive(begun.record);
+    send(response, 202, statusOf(begun.record, await options.appView().catch(() => null)));
   }
 
   return http.createServer((request, response) => {

@@ -14,6 +14,11 @@
       "types": "./dist/updates/state.d.ts",
       "default": "./dist/updates/state.js"
     },
+    "./updates/catalog": {
+      "@openlife/source": "./src/updates/catalog.ts",
+      "types": "./dist/updates/catalog.d.ts",
+      "default": "./dist/updates/catalog.js"
+    },
     "./updates/check-cache": {
       "@openlife/source": "./src/updates/check-cache.ts",
       "types": "./dist/updates/check-cache.d.ts",

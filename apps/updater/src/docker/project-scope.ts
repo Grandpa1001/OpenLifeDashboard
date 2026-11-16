@@ -20,7 +20,7 @@ const PROJECT_NAME = /^[a-z0-9][a-z0-9_-]*$/;
 /** The path of the command the helper runs in the app image, fixed here and never from a request. */
 const RESTORE_COMMAND_PATH = "apps/server/dist/cli/restore-instance.js";
 
-export type ScopeCode = "OUT_OF_SCOPE" | "APP_NOT_FOUND" | "APP_AMBIGUOUS" | "IMAGE_INVALID" | "PACKAGE_INVALID" | "SOCKET_MOUNT_REFUSED" | "UNHEALTHY" | "SWITCH_FAILED";
+export type ScopeCode = "OUT_OF_SCOPE" | "APP_NOT_FOUND" | "APP_AMBIGUOUS" | "IMAGE_INVALID" | "PACKAGE_INVALID" | "SOCKET_MOUNT_REFUSED" | "UNHEALTHY" | "SWITCH_FAILED" | "PULL_FAILED" | "DIGEST_MISMATCH";
 export class ScopeError extends Error {
   readonly code: ScopeCode;
   constructor(code: ScopeCode) {
@@ -98,6 +98,27 @@ export function createProjectScope(options: ProjectScopeOptions) {
       const parsed = JSON.parse(line) as { error?: unknown };
       if (typeof parsed.error === "string") throw new ScopeError("IMAGE_INVALID");
     }
+  }
+
+  /**
+   * A pull that proves what it pulled: the image is named by a digest, the Engine pulls by it (and refuses content that is
+   * not that digest), and the image it now holds must list exactly that name among its digests. A failure to pull is
+   * `PULL_FAILED`, an image that is not the pinned digest `DIGEST_MISMATCH`; nothing of the Engine's text is kept.
+   */
+  async function pullVerified(image: string): Promise<void> {
+    if (!PINNED_IMAGE.test(image)) throw new ScopeError("IMAGE_INVALID");
+    try {
+      await pull(image);
+    } catch {
+      throw new ScopeError("PULL_FAILED");
+    }
+    let digests: readonly string[];
+    try {
+      digests = jsonOf<{ RepoDigests?: string[] }>(await client.request("GET", `/images/${enc(image)}/json`)).RepoDigests ?? [];
+    } catch {
+      throw new ScopeError("PULL_FAILED");
+    }
+    if (!digests.includes(image)) throw new ScopeError("DIGEST_MISMATCH");
   }
 
   async function imageIdOf(image: string): Promise<string> {
@@ -248,7 +269,7 @@ export function createProjectScope(options: ProjectScopeOptions) {
     }
   }
 
-  return { findApp, pull, imageIdOf, waitHealthy, replaceApp, rollbackApp, discardPrevious, stopApp, startApp, runRecovery, inspectApp: (id: string) => own(id, "app"), own };
+  return { findApp, pull, pullVerified, imageIdOf, waitHealthy, replaceApp, rollbackApp, discardPrevious, stopApp, startApp, runRecovery, inspectApp: (id: string) => own(id, "app"), own };
 }
 
 export type ProjectScope = ReturnType<typeof createProjectScope>;

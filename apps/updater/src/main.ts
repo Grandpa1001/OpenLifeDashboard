@@ -8,8 +8,10 @@ import { UPDATER_PORT } from "@openlife/contracts/updates/protocol";
 import { UPDATE_STATE_FILE } from "@openlife/contracts/updates/state";
 import { createEngineClient } from "./docker/engine-client.js";
 import { createProjectScope, ScopeError } from "./docker/project-scope.js";
+import { createReleasePreparer } from "./install/prepare-release.js";
 import { openJournal } from "./journal/journal.js";
-import { createUpdaterServer, type AppView, type UpdaterLogger } from "./server/updater-server.js";
+import type { UpdaterLogger } from "./logging.js";
+import { createUpdaterServer, type AppView } from "./server/updater-server.js";
 
 const SOCKET = "/var/run/docker.sock";
 const CONTROL_DIR = "/control";
@@ -45,7 +47,8 @@ const appView = async (): Promise<AppView> => {
   }
 };
 
-const server = createUpdaterServer({ token, journal, appView, nowMs: Date.now, startedAtMs: Date.now(), logger });
+const installer = createReleasePreparer({ journal, catalogDir: CONTROL_DIR, scope, nowIso: () => new Date().toISOString(), logger });
+const server = createUpdaterServer({ token, journal, appView, nowMs: Date.now, startedAtMs: Date.now(), logger, installer });
 server.listen(UPDATER_PORT, "0.0.0.0", () => console.log(JSON.stringify({ event: "updater.listening", port: UPDATER_PORT })));
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.on(signal, () => server.close(() => process.exit(0)));
