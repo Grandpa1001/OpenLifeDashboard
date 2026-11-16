@@ -6298,6 +6298,31 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.52: the client of the repository of the releases and its cache.
+    id: "D53.2",
+    ready: true,
+    title: "The client of the repository of the releases and the cache of the check: ETag, limits, codes, no redirect",
+    criteria: ["D53.2-AC1", "D53.2-AC2", "D53.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built server and contracts.
+        id: "workspace-build",
+        criteria: ["D53.2-AC1", "D53.2-AC2"],
+        description: "pnpm -r build: the client, the cache and the checker of the releases",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/adapters/updates/release-client.ts", "apps/server/src/adapters/updates/check-cache.ts", "apps/server/src/adapters/updates/release-checker.ts", "packages/contracts/src/updates/check-cache.ts"],
+      },
+      {
+        id: "release-client",
+        criteria: ["D53.2-AC1", "D53.2-AC2"],
+        description: "Against a real HTTP server of our own: a 200 gives the stable releases and the ETag and a 304 for that ETag is no change, with the headers of a client and no cookie or credential; a limit of the API (429, 403 with no calls left or with Retry-After) is a rate limit with the wait asked for and a plain 403 is a refusal; 404, 5xx and other statuses have their own codes; a redirect is never followed; the network gone and a slow answer are network failures; an answer too large, not JSON or not a list is invalid; a draft, a prerelease and a link of the feed are no release; the base of the API is HTTPS or loopback HTTP; the cache is whole after a write and read by a new process, a torn file, a damaged file, a link, another repository and a file too large are no cache; a success clears the backoff, a failure lengthens it and keeps the releases and the ETag, a limit waits as told, a 304 keeps the releases, and a cache that cannot be written does not fail the check",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updates/release-client.test.ts"],
+        requires: ["tests/integration/updates/release-client.test.ts"],
+      },
+      ...regressionChecks("D53.2-regression"),
+    ],
+  },
+  {
     // KM5 gate (DEV §8.4, §9.50): the copy of installation A listed, verified and restored on a separate
     // installation B by the built commands, then the reports of the fast tier for D48-D51 joined item by item
     // for this exact code; does not run their tests again.
