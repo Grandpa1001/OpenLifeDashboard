@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 4,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -6201,6 +6201,33 @@ const definedLater: readonly TaskDefinition[] = [
         timeoutMs: 10 * 60 * 1000,
       },
       ...regressionChecks("D52.3-regression"),
+    ],
+  },
+  {
+    // DEV §9.51: the Docker adapter of the updater.
+    id: "D52.4",
+    ready: true,
+    title: "The Docker adapter of the updater: its own project only, a switch of the app by digest with a way back, the database recovered by a helper",
+    criteria: ["D52.4-AC1", "D52.4-AC2", "D52.4-regression"],
+    checks: [
+      {
+        // Runs first: the system check uses the built updater and the built sqlite package.
+        id: "workspace-build",
+        criteria: ["D52.4-AC1", "D52.4-AC2"],
+        description: "pnpm -r build: the Engine client and the scope of the project",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/updater/src/docker/engine-client.ts", "apps/updater/src/docker/project-scope.ts"],
+      },
+      {
+        id: "updater-docker",
+        criteria: ["D52.4-AC1", "D52.4-AC2"],
+        description:
+          "Two installations of Compose on one real daemon and a local registry for the digests: the updater of X finds its own app and refuses the app of Y, a container with no labels, an id that is none, another folder under the same project name, an image that is a tag or a short digest, a package name that is a path or holds a shell word, and a recovery while the app runs; it replaces the app by release B pinned by digest, keeps the old one stopped and renamed aside, takes the way back to release A and replaces again, discards the old one at the commit; a plain docker compose up -d from the folder of X and a restart keep release B; a helper of a pinned image with the folders of the app only restores the database from the package and goes; after a restart of the updater the fence of a crashed writer is refused; Y is the same container, image and start as before",
+        command: ["node", "tests/system/updater-docker.ts"],
+        requires: ["tests/system/updater-docker.ts", "docker/Dockerfile", "docker/compose.yml", "tests/support/compose-instance.ts"],
+        timeoutMs: 25 * 60 * 1000,
+      },
+      ...regressionChecks("D52.4-regression"),
     ],
   },
   {
