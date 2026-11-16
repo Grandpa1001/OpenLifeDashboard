@@ -224,13 +224,24 @@ type UpdateOperation = Extract<MaintenanceOperation, { reason: "update" }>;
  * the operation (the copy is the one before the migration, no second one is made) and the operation is left on the gate in the
  * phase `verifying`: it is closed only after the updater's commit point. Anything else leaves the gate as it was and the app does not start, so
  * the app A that restarts after a failed switch, an app of another version and an updater that cannot be asked never open writes.
- * A failed migration is rolled back as a whole and leaves the operation for the way back (D56).
+ * A failed migration is rolled back as a whole and leaves the operation for the way back (D56). A process that went down after taking the
+ * operation over and finds the updater past its commit point closes the operation and starts (D55.4); before that point it does not start.
  */
 async function adoptUpdate(inputs: DatabaseOpenInputs, operation: UpdateOperation, generation: number): Promise<DatabaseOpenResult> {
   const update = inputs.update;
-  if (update === undefined || operation.phase !== "switching" || operation.targetRelease !== update.appVersion) return RECOVERY_REQUIRED;
+  // Before the switch the operation is the old app's own: nothing here may take it over, and there is nothing to ask the updater.
+  if (update === undefined || operation.targetRelease !== update.appVersion || operation.phase === "quiescing" || operation.phase === "backing_up") return RECOVERY_REQUIRED;
   const status = await update.status();
-  if (status === null || status.operationId !== operation.operationId || status.state !== "verifying" || status.fence !== generation) return RECOVERY_REQUIRED;
+  if (status === null || status.operationId !== operation.operationId || status.fence !== generation) return RECOVERY_REQUIRED;
+  // This process was the new app and went down after it had taken the operation over: when the updater has passed its commit point the
+  // choice is durable and the data are this version's, so the operation only closes (there is no way back after it, and nothing to redo).
+  if (status.committed && (operation.phase === "migrating" || operation.phase === "verifying" || operation.phase === "committing")) {
+    const done = inspectDatabase(inputs.file, inputs.plan, { instanceId: inputs.instanceId, busyTimeoutMs: inputs.busyTimeoutMs });
+    if (done.kind !== "current") return RECOVERY_REQUIRED;
+    const connection = withWriter(inputs, () => inputs.gate.complete(operation.operationId, generation));
+    return { ok: true, connection, schemaVersion: done.schemaVersion, created: false };
+  }
+  if (operation.phase !== "switching" || status.state !== "verifying") return RECOVERY_REQUIRED;
   const inspection = inspectDatabase(inputs.file, inputs.plan, { instanceId: inputs.instanceId, busyTimeoutMs: inputs.busyTimeoutMs });
   if (inspection.kind !== "pending" && inspection.kind !== "current") return RECOVERY_REQUIRED;
   const connection = openWriter(inputs);

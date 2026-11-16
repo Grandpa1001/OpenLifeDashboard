@@ -6637,6 +6637,49 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D55.3-regression"),
     ],
   },
+  {
+    // DEV §9.54: the new app opens its writes after the commit point, and the update A to B on a real daemon.
+    id: "D55.4",
+    ready: true,
+    title: "The update A to B on a real daemon: the new app opens its writes only after the commit point, and a new app that went down after it only closes the operation",
+    criteria: ["D55.4-AC1", "D55.4-AC2", "D55.4-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built server, updater and contracts.
+        id: "workspace-build",
+        criteria: ["D55.4-AC1", "D55.4-AC2"],
+        description: "pnpm -r build: the app that closes the operation after a fall and the images of the update test",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/bootstrap/database.ts", "tests/system/update-switch.ts"],
+      },
+      {
+        id: "update-adoption",
+        criteria: ["D55.4-AC2"],
+        description: "A new app that went down after it took the operation over and finds the updater past its commit point only closes the operation, keeps the migrated data and holds nothing; before the commit point, with another operation or fence, with no updater to ask, or over a database that is not at its version it does not start and leaves the operation",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/update-adoption.test.ts"],
+        requires: ["tests/integration/maintenance/update-adoption.test.ts"],
+      },
+      {
+        id: "update-switch",
+        criteria: ["D55.4-AC1"],
+        description:
+          "On a real daemon with a local registry, the updater as a service of Compose, the image of this checkout (A), the image of a release with another version and one controlled migration (B, from a copy of this checkout) and a source of the releases on the loopback of the app: the owner passes the factor, changes an option, finds the release and starts the update with a fresh factor, a second start is refused, the updater completes the operation after its commit point and the gate shows the operation while the app is switched; the app that runs is B pinned by its digest and healthy only after the commit, the replaced app is gone, the release file pins B and keeps the updater, the gate holds no operation, there is one copy before the update and none before the migration, the database is migrated and keeps the option and the owner, the start is audited once, the health probe and a sign-in answer, and a plain docker compose up -d keeps B",
+        command: ["node", "tests/system/update-switch.ts"],
+        requires: ["tests/system/update-switch.ts", "docker/Dockerfile", "docker/compose.yml", "docker/compose.updater.yml", "tests/support/compose-instance.ts"],
+        timeoutMs: 30 * 60 * 1000,
+      },
+      ...regressionChecks("D55.4-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the switch, the takeover, the commit, the opening of the writes.
+  {
+    id: "D55",
+    ready: true,
+    title: "The switch of the app, the proof of the new app and the commit point: the update A to B up to the opening of the writes",
+    steps: ["D55.1", "D55.2", "D55.3", "D55.4"],
+    criteria: [],
+    checks: [],
+  },
   // The parent passes only through its work orders: the catalog and the pull, the commands, the gate, the start from the app.
   {
     id: "D54",

@@ -1,9 +1,10 @@
-// D55.2 — the new app B takes over the operation of the update, migrates under it and proves itself before it opens anything
+// D55.2 and D55.4 — the new app B takes over the operation of the update, migrates under it and proves itself before it opens anything
 // (Architektura §11.2.2 steps 5 to 7; DEV §9.54), on a real gate, a real database and a real copy of it.
 // AC1: B finds the operation `update` in `switching` for its own version with the updater in `verifying`, migrates the database of A to
 //      its version under the operation with no second copy (the `pre_update` copy of the operation is the one before the migration), leaves
 //      the operation on the gate in the phase `verifying`, holds its readiness, and only after the updater has committed closes the
 //      operation and gives the readiness back, the writes opening in that order.
+// D55.4-AC2: B that went down after it took the operation over and finds the updater past its commit point only closes the operation; before it, it does not start.
 // AC2: another version, a copy that is missing or is of another database, an updater that cannot be asked or says another operation,
 //      another state or another fence, an operation in another phase, and a migration that fails leave the gate as it was and do not
 //      start the app; a proof that is refused or that cannot be made opens nothing.
@@ -146,6 +147,48 @@ describe("D55.2-AC1 B takes the operation over, migrates under it with the copy 
     expect(events).toEqual(["ready sent", "status 1", "status 2", "status 3", "gate closed before the readiness", "readiness given back"]);
     expect(readiness.isReady()).toBe(true);
     expect(r.gate.current().activeOperation).toBeNull();
+  });
+});
+
+describe("D55.4-AC2 the new app that went down after taking the operation over", () => {
+  /** The state after B adopted the operation and went down before it closed it: the database is B's, the operation is in `verifying`. */
+  async function afterTheFall() {
+    const r = await rig();
+    const opened = await openInstallationDatabase(r.inputs());
+    if (!opened.ok) throw new Error("not adopted");
+    opened.connection.close();
+    return r;
+  }
+
+  it("after the commit point only closes the operation, opens no hold and keeps the migrated data", async () => {
+    const r = await afterTheFall();
+    r.state.status = r.statusOf({ state: "completed", committed: true });
+    const result = await openInstallationDatabase(r.inputs());
+    if (!result.ok) throw new Error(`refused: ${result.code}`);
+    result.connection.close();
+    expect(result.update).toBeUndefined();
+    expect(r.gate.current()).toMatchObject({ generation: r.fence, activeOperation: null });
+    expect(noteTable(r.workingPaths.database)).toBe(true);
+  });
+
+  it("before the commit point does not start and leaves the operation, for the way back", async () => {
+    const r = await afterTheFall();
+    for (const status of [r.statusOf({ state: "verifying" }), r.statusOf({ state: "committing", committed: false }), null, r.statusOf({ operationId: randomUUID(), committed: true }), r.statusOf({ fence: r.fence + 1, committed: true })]) {
+      r.state.status = status;
+      const result = await openInstallationDatabase(r.inputs());
+      expect(result.ok ? "started" : result.code, JSON.stringify(status)).toBe("MAINTENANCE_RECOVERY_REQUIRED");
+      expect(r.gate.current().activeOperation).toMatchObject({ reason: "update", phase: "verifying" });
+    }
+  });
+
+  it("does not close the operation over a database that is not at its version", async () => {
+    const r = await rig();
+    // The operation stands in `verifying` (as after an adoption) while the database is still A's: the commit point cannot be of this data.
+    r.gate.advance({ operationId: r.operationId, reason: "update", phase: "verifying", startedAt: r.gate.current().activeOperation!.startedAt, targetRelease: TARGET });
+    r.state.status = r.statusOf({ state: "completed", committed: true });
+    const result = await openInstallationDatabase(r.inputs());
+    expect(result.ok ? "started" : result.code).toBe("MAINTENANCE_RECOVERY_REQUIRED");
+    expect(r.gate.current().activeOperation).toMatchObject({ phase: "verifying" });
   });
 });
 
