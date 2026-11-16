@@ -39,6 +39,11 @@
       "types": "./dist/modules/identity/public.d.ts",
       "default": "./dist/modules/identity/public.js"
     },
+    "./updates": {
+      "@openlife/source": "./src/modules/updates/public.ts",
+      "types": "./dist/modules/updates/public.d.ts",
+      "default": "./dist/modules/updates/public.js"
+    },
     "./maintenance": {
       "@openlife/source": "./src/modules/maintenance/public.ts",
       "types": "./dist/modules/maintenance/public.d.ts",

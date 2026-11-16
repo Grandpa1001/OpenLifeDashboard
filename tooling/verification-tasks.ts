@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -6279,6 +6279,23 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D52.1", "D52.2", "D52.3", "D52.4", "D52.5"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.52: the releases the application reads.
+    id: "D53.1",
+    ready: true,
+    title: "The releases the application reads: stable ones only, whether a newer one is there, the policy of the checks and the way to a newer release",
+    criteria: ["D53.1-AC1", "D53.1-AC2", "D53.1-AC3", "D53.1-regression"],
+    checks: [
+      {
+        id: "release-feed",
+        criteria: ["D53.1-AC1", "D53.1-AC2", "D53.1-AC3"],
+        description: "Only a stable published release of the feed is a release (a draft, a prerelease, a suffixed tag, a duplicate and an entry without a time are dropped and counted), the link is made from the repository and the tag, the notes are bounded text, the entries read are bounded, a newer release is available and an equal, an older one and a build that is not a stable version are not; the daily check is due after a day and not during a backoff, a failure doubles the wait from five minutes to six hours, a limit of the API waits for what it says (bounded), Check now is refused during the limit and for a short cooldown; the way to a newer release is direct, stepwise through the next required one, or left to the administrator",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/updates/release-feed.test.ts"],
+        requires: ["tests/unit/updates/release-feed.test.ts", "packages/core/src/modules/updates/public.ts"],
+      },
+      ...regressionChecks("D53.1-regression"),
+    ],
   },
   {
     // KM5 gate (DEV §8.4, §9.50): the copy of installation A listed, verified and restored on a separate
