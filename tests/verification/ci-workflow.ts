@@ -100,8 +100,8 @@ check.expect(
   "G4 hangs on the fast jobs of KM4 and runs only with the full tier, never on a partial set",
 );
 check.expect(
-  ["changes", "fast-account"].every((job) => needs("g5").includes(job)) && (jobs["g5"]?.if ?? "").includes("needs.changes.outputs.full == 'true'"),
-  "G5 hangs on the fast account job of KM5 and runs only with the full tier, never on a partial set",
+  ["changes", "fast-copies"].every((job) => needs("g5").includes(job)) && (jobs["g5"]?.if ?? "").includes("needs.changes.outputs.full == 'true'"),
+  "G5 hangs on the fast copies job of KM5 and runs only with the full tier, never on a partial set",
 );
 check.expect((jobs["g0"]?.if ?? "").includes("needs.full.result != 'skipped'"), "G0 does not run when the full tier was skipped (never on a partial set)");
 check.expect(Object.keys(parsed.on ?? {}).sort().join() === ["pull_request", "push", "schedule", "workflow_dispatch"].sort().join(), "CI runs on pushes, pull requests, nightly and by hand");

@@ -248,8 +248,9 @@ jobs:
           if-no-files-found: error
 
   fast-account:
-    # The account, the diagnostics and the portability (D43.1 on): split from the job of the data after run
-    # 43394912100, where the 30 minutes of the data ended in the step D46.1 (the job had grown to 26 minutes).
+    # The account, the diagnostics and the portability (D43.1 to D47.2): split from the job of the data after run
+    # 43394912100, where the 30 minutes of the data ended in the step D46.1 (the job had grown to 26 minutes). The
+    # copies, the restore and the updater (D48 on) are in fast-copies.
     name: fast tier (account, diagnostics and portability, SQLite, HTTP)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -323,6 +324,40 @@ jobs:
       - name: Verify D47.2 (the import of the template of a screen)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D47.2
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-fast-account
+          path: .artifacts/
+          # The report directory is a dot-directory, which upload-artifact skips by default.
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+
+  fast-copies:
+    # The copies, the restore and the updater (D48 on): split from the job of the account after run 43761013642,
+    # where the 30 minutes of the account ended (the job had grown to 25 minutes, 35 seconds for each step, most of
+    # it the build and the checks every step repeats).
+    name: fast tier (copies, restore and updater, SQLite, HTTP)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
       - name: Verify D48.1 (the package of scope bundle)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D48.1
@@ -372,7 +407,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: verification-fast-account
+          name: verification-fast-copies
           path: .artifacts/
           # The report directory is a dot-directory, which upload-artifact skips by default.
           include-hidden-files: true
@@ -1664,7 +1699,7 @@ jobs:
     # reports of the tasks of KM5 from the account job and decides every item from their logs. Like the other
     # gates it runs only with the full tier, never on a partial set.
     name: verify:task G5 (the list of the copies, a verified bundle and a separate installation restored from it)
-    needs: [changes, fast-account]
+    needs: [changes, fast-copies]
     if: ${{ !cancelled() && needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -1684,10 +1719,10 @@ jobs:
             echo "install attempt $attempt did not finish; trying again"
           done
           exit 1
-      - name: Download the reports of the account job of the fast tier
+      - name: Download the reports of the copies job of the fast tier
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: verification-fast-account
+          pattern: verification-fast-copies
           path: .artifacts/ci-reports
       - name: Verify G5 (the path of the copy, the matrix and the reports of KM5)
         run: pnpm verify:task -- G5

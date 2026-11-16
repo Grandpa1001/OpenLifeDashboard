@@ -9,9 +9,10 @@ import { copyRepository, removeCopy, repoRoot, runPnpm } from "../support/reposi
 /** The five packages required by Architektura §13 / DEV D01.1. */
 const REQUIRED_PACKAGES = ["contracts", "core", "sqlite", "ui", "widgets"];
 const SMOKE_SCRIPTS = ["typecheck", "lint", "check:architecture", "check:contracts", "test:integration"];
-/** Build output of applications, which have no package exports: tsc for the server, Vite for web. */
+/** Build output of applications, which have no package exports: tsc for the server and the updater, Vite for web. The updater has no entry point until D52.4, so the output that proves its build is the check of a command. */
 const APP_OUTPUTS: Readonly<Record<string, readonly string[]>> = {
   "apps/server": ["dist/main.js"],
+  "apps/updater": ["dist/protocol/verify-command.js"],
   "apps/web": ["dist/index.html"],
 };
 
