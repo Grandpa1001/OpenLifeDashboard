@@ -183,6 +183,10 @@ test.describe("D34.1-AC2 what the bar refuses, asks and how it is used by the ke
     await tile.click();
     await expect(field(page, "panel.registry")).toBeVisible();
     expect((await frame.boundingBox())!.y).toBe(unselected);
+    // The registries load after the tile is selected, and the choice of columns and the sort are built from them. Tab is walked
+    // only over a bar that is whole, or it walks one that is still being made and misses them (run 43826421208).
+    await expect(field(page, "panel.registry").locator("option:checked")).toHaveText("Książki (ksiazki)");
+    await expect(field(page, "panel.sort")).toBeVisible();
 
     await field(page, "panel.registry").focus();
     const order = [
