@@ -6578,6 +6578,39 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D55.1-regression"),
     ],
   },
+  {
+    // DEV §9.54: the new app takes over the operation, migrates under it and proves itself.
+    id: "D55.2",
+    ready: true,
+    title: "The new app takes over the update: it migrates under the operation with the copy of A, holds its readiness and opens nothing before the commit",
+    criteria: ["D55.2-AC1", "D55.2-AC2", "D55.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built server and contracts.
+        id: "workspace-build",
+        criteria: ["D55.2-AC1", "D55.2-AC2"],
+        description: "pnpm -r build: the adoption of the operation in the bootstrap, the readiness that can be held and the proof of the new app",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/workers/update-adoption.ts", "apps/server/src/bootstrap/database.ts", "apps/server/src/bootstrap/readiness.ts"],
+      },
+      {
+        id: "update-adoption",
+        criteria: ["D55.2-AC1", "D55.2-AC2"],
+        description:
+          "On a real gate, a real database of A and a real pre_update copy: the new app finds the operation in switching for its own version with the updater in verifying, migrates under it with no second copy, leaves the operation on the gate in verifying and returns it for the proof; a release with no migration is taken over too; the proof reads the database, tells the updater the version and schema, waits for the commit, and only then closes the operation on the gate and gives the readiness back, in that order; another version, no updater to ask, another phase, an updater that cannot be asked or says another operation, state or fence, no copy, a copy of another database, a database already migrated and a migration that fails leave the gate as it was (the failed migration leaves the operation in migrating, with the database of A) and the app does not start; a proof that fails, a refusal, an updater that cannot be reached, a commit that does not come and an operation that ended open nothing",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/update-adoption.test.ts"],
+        requires: ["tests/integration/maintenance/update-adoption.test.ts", "tests/support/migration-plans.ts"],
+      },
+      {
+        id: "updater-protocol",
+        criteria: ["D55.2-AC1"],
+        description: "The channel allows the ready command with a fence, a version of the application and of the schema, and nothing more",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/updater/protocol.test.ts"],
+        requires: ["tests/unit/updater/protocol.test.ts"],
+      },
+      ...regressionChecks("D55.2-regression"),
+    ],
+  },
   // The parent passes only through its work orders: the catalog and the pull, the commands, the gate, the start from the app.
   {
     id: "D54",

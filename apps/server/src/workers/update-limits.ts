@@ -11,3 +11,7 @@ export const UPDATE_DRAIN_TIMEOUT_MS = 30 * 1000;
 export const UPDATER_REQUEST_TIMEOUT_MS = 10 * 1000;
 /** A command whose answer was lost is sent again (with a new nonce, the same operation) up to this many times. */
 export const UPDATER_SEND_ATTEMPTS = 3;
+/** How often the new app asks the updater whether the commit point has been passed. */
+export const UPDATE_COMMIT_POLL_MS = 1000;
+/** How long the new app waits for the commit point after it has proved itself; the updater stops waiting for the proof sooner (D55.3). */
+export const UPDATE_COMMIT_WAIT_MS = 5 * 60 * 1000;

@@ -56,6 +56,7 @@ import { createReleaseCheckJob, createUnconfiguredUpdates } from "./workers/rele
 import { findPublishedPackage, listBackups } from "./adapters/filesystem/backup-catalog.js";
 import { createUpdaterClient } from "./adapters/updates/updater-client.js";
 import { createUpdateCoordinator, unconfiguredInstaller } from "./workers/update-coordinator.js";
+import { createUpdateAdoption } from "./workers/update-adoption.js";
 import { createUpdateOperation } from "./workers/update-operation.js";
 import { UPDATE_DRAIN_TIMEOUT_MS, UPDATER_REQUEST_TIMEOUT_MS, UPDATER_SEND_ATTEMPTS } from "./workers/update-limits.js";
 import { UPDATER_DEFAULT_BASE_URL } from "@openlife/contracts/updates/protocol";
@@ -138,6 +139,8 @@ if (!gate.ok) {
 const build = readBuildInfo();
 // One set of options for the copies of the upgrade (bootstrap) and of a change of structure (D29).
 const snapshotOptions = { backupsDir: workingPaths.backups, reserveMiB, instanceId: paths.instanceId, build, now: () => new Date().toISOString(), newSnapshotId: randomUUID, exportOfCopy: (copyFile: string, exportedAt: Date) => exportOfCopy(copyFile, { busyTimeoutMs: environment.dbBusyTimeoutMs, appVersion: build.appVersion, exportedAt }) };
+// The channel to the updater, where the installation has one: the update the app begins (D54.4) and the one it takes over as the new app (D55.2) use it.
+const updaterClient = environment.updater.enabled ? createUpdaterClient({ baseUrl: UPDATER_DEFAULT_BASE_URL, token: environment.updater.token.reveal(), nowMs: Date.now, newOperationId: randomUUID, timeoutMs: UPDATER_REQUEST_TIMEOUT_MS, attempts: UPDATER_SEND_ATTEMPTS }) : null;
 const database = await openInstallationDatabase({
   file: workingPaths.database,
   gate: gate.gate,
@@ -147,6 +150,7 @@ const database = await openInstallationDatabase({
   createSnapshots: (source) => createDatabaseSnapshots(source, snapshotOptions),
   now: () => new Date().toISOString(),
   newOperationId: randomUUID,
+  ...(updaterClient === null ? {} : { update: { appVersion: build.appVersion, status: () => updaterClient.status() } }),
 });
 if (!database.ok) {
   bootstrapFailed(database.code, database.fields);
@@ -205,6 +209,8 @@ const logger = createTechnicalLogger({
   sinks: [stdoutSink, logFile],
 });
 const readiness = createReadiness();
+// An update that this process has taken over holds the installation until the updater has committed: the probe says unavailable meanwhile (D55.2).
+if (database.update !== undefined) readiness.hold();
 // Sign-in composition (D09.3): the library supplies the schema and crypto, every write goes
 // through the application's unit of work on the one writer connection (Architektura §9.8).
 const hasher = createPasswordHasher();
@@ -291,9 +297,9 @@ const releaseCheck =
     : null;
 // The update up to the switch (D54.4): where the installation has an updater; it closes the writes through the barrier and takes its own copy.
 const updateInstaller =
-  environment.updater.enabled
+  updaterClient !== null
     ? createUpdateCoordinator({
-        updater: createUpdaterClient({ baseUrl: UPDATER_DEFAULT_BASE_URL, token: environment.updater.token.reveal(), nowMs: Date.now, newOperationId: randomUUID, timeoutMs: UPDATER_REQUEST_TIMEOUT_MS, attempts: UPDATER_SEND_ATTEMPTS }),
+        updater: updaterClient,
         gate: gate.gate,
         operation: createUpdateOperation({ gate: gate.gate, barrier: updateBarrier, nowMs: Date.now, newOperationId: randomUUID, drainTimeoutMs: UPDATE_DRAIN_TIMEOUT_MS }),
         snapshots: createDatabaseSnapshots(database.connection, snapshotOptions),
@@ -306,6 +312,23 @@ const updateInstaller =
         logger,
       })
     : unconfiguredInstaller;
+// The new app after a switch (D55.2): it proves itself to the updater and opens its writes only once the updater has committed.
+const adoption =
+  database.update !== undefined && updaterClient !== null
+    ? createUpdateAdoption({
+        updater: updaterClient,
+        gate: gate.gate,
+        readiness,
+        selfCheck: () => {
+          const integrity = database.connection.handle.prepare("PRAGMA quick_check(1)").get() as { quick_check?: string } | undefined;
+          return integrity?.quick_check === "ok" && database.connection.handle.prepare("SELECT 1 AS present FROM instance_state").get() !== undefined;
+        },
+        appVersion: build.appVersion,
+        schemaVersion: database.schemaVersion,
+        update: database.update,
+        logger,
+      })
+    : null;
 const diagnosticsOverview = createOverviewReader({ build, schemaVersion: database.schemaVersion, installation: paths, workingPaths, logStatus: logFile.status, liveConnections: liveHub.total, backupStatus: nightlyBackup.status });
 const diagnosticsLogs = createLogFiles({ dir: workingPaths.logs, retentionDays: () => logLimits().retentionDays, now: () => new Date() });
 const attemptKeys = createAttemptKeys(secret);
@@ -426,7 +449,13 @@ try {
           return drainServer(server);
         },
       },
-      { name: "jobs", run: () => Promise.all([auditRetention.stop(), nightlyBackup.stop(), releaseCheck?.stop()]).then(() => undefined) },
+      {
+        name: "jobs",
+        run: () => {
+          adoption?.stop();
+          return Promise.all([auditRetention.stop(), nightlyBackup.stop(), releaseCheck?.stop()]).then(() => undefined);
+        },
+      },
       {
         name: "logger",
         run: () => {
@@ -450,6 +479,7 @@ try {
   auditRetention.start();
   nightlyBackup.start();
   releaseCheck?.start();
+  void adoption?.run();
   console.log(JSON.stringify({ event: "server.listening", host: address.address, port: address.port }));
 } catch (error) {
   fail(`cannot listen on ${host}:${port} (${error instanceof Error && "code" in error ? String(error.code) : "unknown error"})`);

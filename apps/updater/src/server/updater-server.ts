@@ -38,7 +38,7 @@ export type UpdaterServerOptions = Readonly<{
   switcher: ReleaseSwitcher;
 }>;
 
-const statusOf = (record: UpdateRecord, app: AppView): UpdaterStatus => ({ state: record.state, operationId: record.operationId, fence: record.fence, targetRelease: record.targetRelease, error: record.error, app });
+const statusOf = (record: UpdateRecord, app: AppView): UpdaterStatus => ({ state: record.state, operationId: record.operationId, fence: record.fence, targetRelease: record.targetRelease, committed: record.committed, error: record.error, app });
 
 function send(response: http.ServerResponse, status: number, body: unknown): void {
   const text = JSON.stringify(body);

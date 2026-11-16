@@ -29,6 +29,8 @@ export const updaterCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("quiesced"), fence: z.number().int().min(0) }).strict(),
   /** The app has taken the `pre_update` copy, named by its package; the updater checks it in the backup folder. */
   z.object({ type: z.literal("backed_up"), backupId: backupPackageNameSchema, fence: z.number().int().min(0) }).strict(),
+  /** The new app B has opened the database, migrated it and read it: the proof the updater needs before it commits (D55.2). */
+  z.object({ type: z.literal("ready"), fence: z.number().int().min(0), appVersion: releaseVersionSchema, schemaVersion: z.number().int().min(0) }).strict(),
   /** The app gives the operation up before the switch; nothing of A was touched, so it returns to `idle`. */
   z.object({ type: z.literal("abort"), fence: z.number().int().min(0) }).strict(),
 ]);
@@ -71,6 +73,8 @@ export const updaterStatusSchema = z
     operationId: z.uuid().nullable(),
     fence: z.number().int().min(0),
     targetRelease: releaseVersionSchema.nullable(),
+    /** True from the commit point of the operation on: no way back to the snapshot, and the new app may open its writes (D55.3). */
+    committed: z.boolean(),
     error: z.object({ code: z.string().min(1).max(64) }).strict().nullable(),
     /** The app of the project of this installation, as the updater sees it; null when it cannot find exactly one. */
     app: z.object({ running: z.boolean(), health: z.string().nullable() }).strict().nullable(),

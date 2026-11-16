@@ -28,6 +28,7 @@ import {
 } from "@openlife/sqlite/migrations";
 import { readRebuildOutcome } from "@openlife/sqlite/adapters/registries";
 import type { MaintenanceOperation } from "@openlife/contracts/workers/maintenance-state";
+import type { UpdaterStatus } from "@openlife/contracts/updates/protocol";
 import type { MaintenanceGate } from "../adapters/filesystem/maintenance-gate.js";
 
 export type DatabaseOpenCode =
@@ -38,8 +39,11 @@ export type DatabaseOpenCode =
   | "DATABASE_MISSING"
   | "DATABASE_UNAVAILABLE";
 
+/** The operation of an update that this process has taken over and that is still on the gate: the new app B waiting for the updater's commit (D55.2). */
+export type AdoptedUpdate = Readonly<{ operationId: string; fence: number }>;
+
 export type DatabaseOpenResult =
-  | Readonly<{ ok: true; connection: SqliteConnection; schemaVersion: number; created: boolean }>
+  | Readonly<{ ok: true; connection: SqliteConnection; schemaVersion: number; created: boolean; update?: AdoptedUpdate }>
   | Readonly<{ ok: false; code: DatabaseOpenCode; fields: readonly string[] }>;
 
 export type DatabaseOpenInputs = Readonly<{
@@ -54,6 +58,11 @@ export type DatabaseOpenInputs = Readonly<{
   createSnapshots: (source: SqliteConnection) => DatabaseSnapshotPort;
   now: () => string;
   newOperationId: () => string;
+  /**
+   * What lets this process take over the operation of an update that was begun by the app it replaces (D55.2): its own version
+   * and what the updater says of the operation. Without it, an operation `update` found on the gate is never adopted.
+   */
+  update?: Readonly<{ appVersion: string; status: () => Promise<UpdaterStatus | null> }>;
 }>;
 
 const refused = (code: DatabaseOpenCode, fields: readonly string[]): DatabaseOpenResult => ({ ok: false, code, fields });
@@ -90,6 +99,7 @@ async function open(inputs: DatabaseOpenInputs): Promise<DatabaseOpenResult> {
   const active = state.activeOperation;
   // Only an init or an upgrade towards this very plan can be reconciled here; a standalone
   // snapshot operation has no owner before the backup jobs (D48/D49).
+  if (active?.reason === "update") return adoptUpdate(inputs, active, state.generation);
   const reconcilable =
     active !== null &&
     ((active.reason === "init" && active.targetSchemaVersion === target) || (active.reason === "migrate" && active.toSchemaVersion === target) || active.reason === "rebuild" || active.reason === "import");
@@ -199,6 +209,59 @@ async function closeRebuild(inputs: DatabaseOpenInputs, operation: RebuildOperat
     if (operation.phase === "snapshot") await inputs.createSnapshots(connection).discardUnpublished();
     inputs.gate.complete(operation.operationId, generation);
     return { ok: true, connection, schemaVersion: inspection.schemaVersion, created: false };
+  } catch (error) {
+    connection.close();
+    throw error;
+  }
+}
+
+type UpdateOperation = Extract<MaintenanceOperation, { reason: "update" }>;
+
+/**
+ * The new app B finds the operation of the update the app A began (D55.2; Architektura §11.2.2 steps 5 and 6). It takes it over only
+ * when everything agrees: the operation is in `switching`, its target is this very version, the updater has the same operation in
+ * `verifying` with the same fence, and the copy `pre_update` of that operation is published and verifies. The database is then migrated under
+ * the operation (the copy is the one before the migration, no second one is made) and the operation is left on the gate in the
+ * phase `verifying`: it is closed only after the updater's commit point. Anything else leaves the gate as it was and the app does not start, so
+ * the app A that restarts after a failed switch, an app of another version and an updater that cannot be asked never open writes.
+ * A failed migration is rolled back as a whole and leaves the operation for the way back (D56).
+ */
+async function adoptUpdate(inputs: DatabaseOpenInputs, operation: UpdateOperation, generation: number): Promise<DatabaseOpenResult> {
+  const update = inputs.update;
+  if (update === undefined || operation.phase !== "switching" || operation.targetRelease !== update.appVersion) return RECOVERY_REQUIRED;
+  const status = await update.status();
+  if (status === null || status.operationId !== operation.operationId || status.state !== "verifying" || status.fence !== generation) return RECOVERY_REQUIRED;
+  const inspection = inspectDatabase(inputs.file, inputs.plan, { instanceId: inputs.instanceId, busyTimeoutMs: inputs.busyTimeoutMs });
+  if (inspection.kind !== "pending" && inspection.kind !== "current") return RECOVERY_REQUIRED;
+  const connection = openWriter(inputs);
+  try {
+    const published = await inputs.createSnapshots(connection).findPublished(operation.operationId);
+    if (published === undefined) {
+      connection.close();
+      return refused("MIGRATION_SNAPSHOT_REQUIRED", ["schemaVersion"]);
+    }
+    const copyIsOfTheDatabase = published.schemaVersion === (inspection.kind === "pending" ? inspection.fromSchemaVersion : inspection.schemaVersion);
+    if (!copyIsOfTheDatabase) {
+      connection.close();
+      return RECOVERY_REQUIRED;
+    }
+    if (inspection.kind === "pending") {
+      inputs.gate.advance({ ...operation, phase: "migrating" });
+      try {
+        migrateDatabase(connection, inputs.plan, inputs.now());
+      } catch (error) {
+        if (!(error instanceof MigrationFailedError)) throw error;
+        connection.close();
+        return refused("MIGRATION_FAILED", [error.migrationId]);
+      }
+    }
+    inputs.gate.advance({ ...operation, phase: "verifying" });
+    const after = inspectDatabase(inputs.file, inputs.plan, { instanceId: inputs.instanceId, busyTimeoutMs: inputs.busyTimeoutMs });
+    if (after.kind !== "current") {
+      connection.close();
+      return RECOVERY_REQUIRED;
+    }
+    return { ok: true, connection, schemaVersion: after.schemaVersion, created: false, update: { operationId: operation.operationId, fence: generation } };
   } catch (error) {
     connection.close();
     throw error;

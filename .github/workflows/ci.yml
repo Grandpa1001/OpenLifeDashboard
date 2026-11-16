@@ -436,6 +436,9 @@ jobs:
       - name: Verify D55.1 (the switch of the app by the updater)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D55.1
+      - name: Verify D55.2 (the new app takes over the update)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D55.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

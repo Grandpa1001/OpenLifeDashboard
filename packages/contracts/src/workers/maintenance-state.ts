@@ -66,11 +66,14 @@ const importOperationSchema = z.object({ ...operationFields, reason: z.literal("
 /**
  * An update of the installation to another release (D54.3; Architektura §11.2.2). From its first phase every write of the
  * application is refused, so the copy taken in `backing_up` and the data the new release finds are the same. Nothing of
- * the data changes in these phases, so the operation is closed by the updater's way (D55, D56), never reconciled by a
- * start of the app: an app that finds it active stays closed and says so.
+ * the data changes in the first three phases, so the operation is closed by the updater's way, never reconciled by a
+ * start of the app: an app that finds it active stays closed and says so. The one exception is the new app B of the
+ * release itself: it finds the operation in `switching` with its own version as the target and the updater in `verifying`,
+ * adopts it and goes through `migrating`, `verifying` and `committing` (D55.2); the operation is closed only once the updater has
+ * passed its commit point.
  */
 const updateOperationSchema = z
-  .object({ ...operationFields, reason: z.literal("update"), phase: z.enum(["quiescing", "backing_up", "switching"]), targetRelease: releaseVersionSchema })
+  .object({ ...operationFields, reason: z.literal("update"), phase: z.enum(["quiescing", "backing_up", "switching", "migrating", "verifying", "committing"]), targetRelease: releaseVersionSchema })
   .strict();
 
 export const maintenanceOperationSchema = z.discriminatedUnion("reason", [

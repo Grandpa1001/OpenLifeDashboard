@@ -6,14 +6,26 @@ export interface Readiness {
   isReady(): boolean;
 }
 
-export type ReadinessControl = Readiness & Readonly<{ withdraw: () => void }>;
+/**
+ * `withdraw` is for good (shutdown). `hold` and `release` are for an operation that holds the installation while the process
+ * lives (an update that has not passed its commit point, D55.2): the probe says unavailable until `release`, and a
+ * `release` never takes back a withdrawal.
+ */
+export type ReadinessControl = Readiness & Readonly<{ withdraw: () => void; hold: () => void; release: () => void }>;
 
 export function createReadiness(): ReadinessControl {
-  let ready = true;
+  let withdrawn = false;
+  let held = false;
   return {
-    isReady: () => ready,
+    isReady: () => !withdrawn && !held,
     withdraw() {
-      ready = false;
+      withdrawn = true;
+    },
+    hold() {
+      held = true;
+    },
+    release() {
+      held = false;
     },
   };
 }

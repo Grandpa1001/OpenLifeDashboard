@@ -70,7 +70,7 @@ describe("D52.5-AC1 a command moves the journal and the fence outlives the proce
     const server = await start();
     const status = await send(server, envelopeOf({ type: "status" }));
     expect(status.status).toBe(200);
-    expect(updaterStatusSchema.parse(status.json)).toEqual({ state: "idle", operationId: null, fence: 0, targetRelease: null, error: null, app: { running: true, health: "healthy" } });
+    expect(updaterStatusSchema.parse(status.json)).toEqual({ state: "idle", operationId: null, fence: 0, targetRelease: null, committed: false, error: null, app: { running: true, health: "healthy" } });
     expect(await (await fetch(`${server.url}${UPDATER_HEALTH_PATH}`)).json()).toEqual({ status: "ok" });
     // The app is not found: the status says so and still answers.
     const without = await start({ app: null });
