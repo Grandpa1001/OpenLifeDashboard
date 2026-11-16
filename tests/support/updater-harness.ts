@@ -12,6 +12,7 @@ import type { EngineClient, EngineReply } from "../../apps/updater/dist/docker/e
 import { createProjectScope, type ProjectScope } from "../../apps/updater/dist/docker/project-scope.js";
 import { createReleasePreparer } from "../../apps/updater/dist/install/prepare-release.js";
 import { createProgressHandler } from "../../apps/updater/dist/install/progress.js";
+import { createRollbackRunner, type RollbackOptions } from "../../apps/updater/dist/install/roll-back.js";
 import { createReleaseSwitcher } from "../../apps/updater/dist/install/switch-release.js";
 import { openJournal } from "../../apps/updater/dist/journal/journal.js";
 import { signCommand } from "../../apps/updater/dist/protocol/verify-command.js";
@@ -73,15 +74,37 @@ export function fakeSwitchScope(calls: Array<{ app: { id: string; name: string }
 /** A switch that never begins (the app is never found): the operation stays in `switching`, which is what the tests of the commands before it look at. */
 export const idleSwitchScope: SwitchScope = { findApp: () => new Promise(() => undefined), replaceApp: () => new Promise(() => undefined), discardPrevious: async () => undefined };
 
-export async function start(options: { dir?: string; catalog?: string | null; engine?: Engine; backupDir?: string; previous?: PreviousSelection | null; switchScope?: SwitchScope; startTimeoutMs?: number } = {}): Promise<Started> {
+/** The calls the way back makes on the app of the project, in order, and what they answer; each can be made to fail. */
+export type RollbackScope = RollbackOptions["scope"];
+export function fakeRollbackScope(calls: string[] = [], fail: Partial<Record<keyof RollbackScope, unknown>> = {}, exitCode = 0): RollbackScope {
+  const step = async <T>(name: keyof RollbackScope, detail: string, value: T): Promise<T> => {
+    calls.push(`${name} ${detail}`.trim());
+    if (fail[name] !== undefined) throw fail[name];
+    return value;
+  };
+  return {
+    findApp: () => step("findApp", "", { id: "container-a", name: "openlife-app-1" }),
+    stopApp: (app) => step("stopApp", app.id, undefined),
+    startApp: (app) => step("startApp", app.id, undefined),
+    retireReplacement: (replacement) => step("retireReplacement", `${replacement.previousId} ${replacement.nextId === "" ? "-" : replacement.nextId}`, undefined),
+    imageOfApp: (id) => step("imageOfApp", id, "sha256:" + "a".repeat(64)),
+    isRunning: (id) => step("isRunning", id, true),
+    runRecovery: (app, _image, snapshot, endsUpdate) => step("runRecovery", `${app.id} ${snapshot} ${endsUpdate ?? "-"}`, { exitCode, event: null }),
+    waitHealthy: (id) => step("waitHealthy", id, undefined),
+  };
+}
+
+export async function start(options: { dir?: string; catalog?: string | null; engine?: Engine; backupDir?: string; previous?: PreviousSelection | null; switchScope?: SwitchScope; startTimeoutMs?: number; rollbackScope?: RollbackScope } = {}): Promise<Started> {
   const dir = options.dir ?? mkdtempSync(path.join(tmpdir(), "prepare-release-"));
   if (options.catalog !== undefined && options.catalog !== null) writeFileSync(path.join(dir, RELEASE_CATALOG_FILE), options.catalog);
   const engine = options.engine ?? fakeEngine();
+  const logs: UpdaterLogEvent[] = [];
   const switchScope = options.switchScope ?? fakeSwitchScope();
+  const rollback = options.rollbackScope === undefined ? null : createRollbackRunner({ journal: openJournal(dir), controlDir: dir, scope: options.rollbackScope, nowIso: () => new Date().toISOString(), logger: { log: (event) => void logs.push(event) }, healthTimeoutMs: 50 });
+  const onStopped = (record: Parameters<NonNullable<typeof rollback>["run"]>[0]): void => void rollback?.run(record);
   const backupDir = options.backupDir ?? path.join(dir, "backup");
   mkdirSync(backupDir, { recursive: true });
   const previous = options.previous === undefined ? { app: digestOf("app 1.0.0"), updater: null } : options.previous;
-  const logs: UpdaterLogEvent[] = [];
   const logger = { log: (event: UpdaterLogEvent) => void logs.push(event) };
   const journal = openJournal(dir);
   const scope = createProjectScope({ client: engine.client, project: "openlife" });
@@ -93,8 +116,8 @@ export async function start(options: { dir?: string; catalog?: string | null; en
     startedAtMs: Date.now() - 1000,
     logger,
     installer: createReleasePreparer({ journal, catalogDir: dir, scope, nowIso: () => new Date().toISOString(), logger }),
-    switcher: createReleaseSwitcher({ journal, catalogDir: dir, scope: switchScope, nowIso: () => new Date().toISOString(), logger, ...(options.startTimeoutMs === undefined ? {} : { startTimeoutMs: options.startTimeoutMs }) }),
-    progress: createProgressHandler({ journal, catalogDir: dir, backupDir, previousSelection: async () => previous, discardPrevious: async (replacement) => switchScope.discardPrevious({ ...replacement, nextId: replacement.nextId ?? "unknown" }), nowIso: () => new Date().toISOString() }),
+    switcher: createReleaseSwitcher({ journal, catalogDir: dir, scope: switchScope, nowIso: () => new Date().toISOString(), logger, onStopped, ...(options.startTimeoutMs === undefined ? {} : { startTimeoutMs: options.startTimeoutMs }) }),
+    progress: createProgressHandler({ journal, catalogDir: dir, backupDir, previousSelection: async () => previous, onStopped, discardPrevious: async (replacement) => switchScope.discardPrevious({ ...replacement, nextId: replacement.nextId ?? "unknown" }), nowIso: () => new Date().toISOString() }),
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const instance: Started = { backupDir, url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, dir, engine, logs, close: () => new Promise((resolve) => server.close(() => resolve())) };

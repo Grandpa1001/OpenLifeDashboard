@@ -9,7 +9,7 @@ import { openDatabase, type SqliteConnection } from "@openlife/sqlite/connection
 import { DATABASE_FIELD, inspectDatabase, PRODUCT_MIGRATION_PLAN, type DatabaseRefusalCode } from "@openlife/sqlite/migrations";
 import { checkAuthSchema } from "../adapters/auth/auth-schema.js";
 import { CONTAINER_WORKING_PATHS, installationWorkingPaths, type InstallationPaths, type WorkingPaths } from "../adapters/filesystem/installation-paths.js";
-import { openMaintenanceGate, type GateOpenResult } from "../adapters/filesystem/maintenance-gate.js";
+import { openMaintenanceGate, type GateOpenResult, type MaintenanceGate } from "../adapters/filesystem/maintenance-gate.js";
 import { runStoragePreflight, type PreflightResult } from "../adapters/filesystem/storage-preflight.js";
 import { acquireWriterLease, type WriterLeaseResult } from "../adapters/filesystem/writer-lease.js";
 import { loadBootstrapConfig, type BootstrapResult } from "./bootstrap-config.js";
@@ -52,6 +52,8 @@ export type CommandSessionInputs = Readonly<{
   env: Readonly<Record<string, string | undefined>>;
   /** Installation folder outside a container; absent = the fixed container paths. */
   installationDir?: string | undefined;
+  /** The operation of an update that this command ends (restore-instance, D56.1): an active `update` of this id does not refuse the command. */
+  endsUpdate?: string | undefined;
 }>;
 
 type Refusal = Readonly<{ ok: false; code: CommandSessionCode; fields: readonly string[] }>;
@@ -65,6 +67,8 @@ export type OpenedInstallation = Readonly<{
   reserveMiB: number;
   /** Held until the caller releases it. */
   writer: Extract<WriterLeaseResult, { ok: true }>;
+  /** The maintenance gate under that lease, for a command that ends an operation (D56.1). */
+  gate: MaintenanceGate;
 }>;
 
 export type OpenInstallationResult = Readonly<{ ok: true; installation: OpenedInstallation }> | Refusal;
@@ -93,11 +97,12 @@ export function openInstallation(inputs: CommandSessionInputs): OpenInstallation
     writer.lease.release();
     return refused(gate.code, gate.fields);
   }
-  if (gate.gate.current().activeOperation !== null) {
+  const active = gate.gate.current().activeOperation;
+  if (active !== null && !(active.reason === "update" && inputs.endsUpdate !== undefined && active.operationId === inputs.endsUpdate)) {
     writer.lease.release();
     return refused("MAINTENANCE_RECOVERY_REQUIRED", ["activeOperation"]);
   }
-  return { ok: true, installation: { workingPaths, environment, paths, reserveMiB, writer } };
+  return { ok: true, installation: { workingPaths, environment, paths, reserveMiB, writer, gate: gate.gate } };
 }
 
 export function openCommandSession(inputs: CommandSessionInputs): CommandSessionResult {

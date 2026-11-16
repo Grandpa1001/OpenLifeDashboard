@@ -17,6 +17,7 @@ const PINNED_IMAGE = /^(?:[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::\d{1,5})?\/)?[a-z0
 const LOCAL_IMAGE_ID = /^sha256:[0-9a-f]{64}$/;
 const PACKAGE_NAME = /^\d{8}T\d{6}Z-[a-z_]+-[0-9a-f-]{36}$/;
 const PROJECT_NAME = /^[a-z0-9][a-z0-9_-]*$/;
+const OPERATION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 /** The path of the command the helper runs in the app image, fixed here and never from a request. */
 const RESTORE_COMMAND_PATH = "apps/server/dist/cli/restore-instance.js";
 
@@ -198,6 +199,32 @@ export function createProjectScope(options: ProjectScopeOptions) {
     jsonOf(await client.request("POST", `/containers/${enc(replacement.previousId)}/start`), [204, 304]);
   }
 
+  /**
+   * The way back of a replacement without the start (D56.1): the new app is stopped and removed when it is there, and the old one gets its name
+   * again and stays stopped, for the helper that restores the database and for the start after it. Every step looks first, so it can be made again.
+   */
+  async function retireReplacement(replacement: Replacement): Promise<void> {
+    const old = await own(replacement.previousId, "app");
+    if (replacement.nextId !== "") {
+      const next: Inspect | null = await own(replacement.nextId, "app").catch(() => null);
+      if (next !== null) {
+        if (next.State.Running) jsonOf(await client.request("POST", `/containers/${enc(replacement.nextId)}/stop`), [204, 304]);
+        jsonOf(await client.request("DELETE", `/containers/${enc(replacement.nextId)}`), [204]);
+      }
+    }
+    if (old.Name.replace(/^\//, "") !== replacement.name) jsonOf(await client.request("POST", `/containers/${enc(replacement.previousId)}/rename?name=${enc(replacement.name)}`), [204]);
+  }
+
+  /** The id of the image a container runs, which the helper of the recovery is made from: the same image as the app it restores. */
+  async function imageOfApp(id: string): Promise<string> {
+    return (await own(id, "app")).Image;
+  }
+
+  /** True when the app is running now. */
+  async function isRunning(id: string): Promise<boolean> {
+    return (await own(id, "app")).State.Running;
+  }
+
   /** The old app after a replacement that is committed: it is not needed any more. */
   async function discardPrevious(replacement: Replacement): Promise<void> {
     await own(replacement.previousId, "app");
@@ -220,14 +247,15 @@ export function createProjectScope(options: ProjectScopeOptions) {
    * same data) and nothing else: no port, no network, a read-only root, no capability, and a command that holds a name
    * of a package of the shape the store makes. The app must be stopped: the command takes the lease.
    */
-  async function runRecovery(app: OwnApp, image: string, snapshot: string): Promise<RecoveryResult> {
+  async function runRecovery(app: OwnApp, image: string, snapshot: string, endsUpdate?: string): Promise<RecoveryResult> {
     if (!isPinnedImage(image)) throw new ScopeError("IMAGE_INVALID");
     if (!PACKAGE_NAME.test(snapshot)) throw new ScopeError("PACKAGE_INVALID");
+    if (endsUpdate !== undefined && !OPERATION_ID.test(endsUpdate)) throw new ScopeError("PACKAGE_INVALID");
     const old = await own(app.id, "app");
     if (old.State.Running) throw new ScopeError("SWITCH_FAILED");
     const mounts = (old.HostConfig.Mounts ?? []).map((mount) => mount.Source ?? "").concat((old.HostConfig.Binds ?? []).map((bind) => bind.split(":")[0] ?? ""));
     if (mounts.some((source) => /docker\.sock$/.test(source))) throw new ScopeError("SOCKET_MOUNT_REFUSED");
-    const input = JSON.stringify({ snapshot, confirm: "replace-current-database" });
+    const input = JSON.stringify({ snapshot, confirm: "replace-current-database", ...(endsUpdate === undefined ? {} : { endsUpdate }) });
     const name = `${project}-recovery-${newId()}`;
     const body = {
       Image: image,
@@ -269,7 +297,7 @@ export function createProjectScope(options: ProjectScopeOptions) {
     }
   }
 
-  return { findApp, pull, pullVerified, imageIdOf, waitHealthy, replaceApp, rollbackApp, discardPrevious, stopApp, startApp, runRecovery, inspectApp: (id: string) => own(id, "app"), own };
+  return { findApp, pull, pullVerified, imageIdOf, waitHealthy, replaceApp, rollbackApp, retireReplacement, imageOfApp, isRunning, discardPrevious, stopApp, startApp, runRecovery, inspectApp: (id: string) => own(id, "app"), own };
 }
 
 export type ProjectScope = ReturnType<typeof createProjectScope>;

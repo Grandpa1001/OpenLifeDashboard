@@ -49,11 +49,11 @@ if (!options.ok) {
 }
 const input = await readJsonInput(EVENT, restoreInstanceInputSchema);
 const requestId = randomUUID();
-const opened = openInstallation({ env: process.env, installationDir: options.installationDir });
+const opened = openInstallation({ env: process.env, installationDir: options.installationDir, endsUpdate: input.endsUpdate });
 if (!opened.ok) {
   refuse(opened.code, opened.fields);
 }
-const { workingPaths, environment, paths, reserveMiB, writer } = opened.installation;
+const { workingPaths, environment, paths, reserveMiB, writer, gate } = opened.installation;
 
 /** The journal of the restore lives outside the database: replaced at every state, so a crash leaves the last one. */
 const journalFile = path.join(workingPaths.maintenance, JOURNAL_FILE);
@@ -63,6 +63,7 @@ const writeJournal = (state: "started" | "parked" | "restored" | "failed", extra
   renameSync(pending, journalFile);
 };
 
+let restored: { snapshotId: string } | undefined;
 try {
   const packageDir = path.join(workingPaths.backups, input.snapshot);
   const verification = verifyDatabaseSnapshot(packageDir);
@@ -126,6 +127,7 @@ try {
     }
     writeJournal("restored", { parked });
     const { accessEpoch, revokedSessions, revokedDevices } = revoked.value.value;
+    restored = { snapshotId: meta.snapshotId };
     console.log(JSON.stringify({ event: "instance.restored", snapshot: input.snapshot, snapshotId: meta.snapshotId, schemaVersion: meta.schemaVersion, accessEpoch, revokedSessions, revokedDevices, parked, requestId }));
   } catch (error) {
     connection?.close();
@@ -138,6 +140,12 @@ try {
     }
     writeJournal("failed", { code: "RESTORE_FAILED", parked, rolledBack });
     refuse("RESTORE_FAILED", [], { parked, rolledBack, error: describeError(error) });
+  }
+  // The way back of an update ends its operation once the database is the copy's: the gate is closed by the command that holds the lease.
+  const ending = gate.current();
+  if (input.endsUpdate !== undefined && restored !== undefined && ending.activeOperation?.reason === "update" && ending.activeOperation.operationId === input.endsUpdate) {
+    gate.complete(input.endsUpdate, ending.generation);
+    console.log(JSON.stringify({ event: "instance.update_ended", operationId: input.endsUpdate }));
   }
 } catch (error) {
   refuse("COMMAND_FAILED", [], { error: describeError(error) });

@@ -27,6 +27,8 @@ export type ProgressOptions = Readonly<{
   previousSelection: () => Promise<PreviousSelection | null>;
   /** Removes the app that was replaced, once the choice of the release is committed (D55.3); a failure is the caller's to log, never a reason to undo the commit. */
   discardPrevious: (replacement: NonNullable<UpdateRecord["replacement"]>) => Promise<void>;
+  /** Called with the record when the operation is stopped in `rolling_back` after the switch, so the way back (D56.1) can be driven. */
+  onStopped?: (record: UpdateRecord) => void;
   nowIso: () => string;
 }>;
 
@@ -68,6 +70,7 @@ export function createProgressHandler(options: ProgressOptions): ProgressHandler
       const next = transition(record, "rolling_back", { error: { code } }, options.nowIso());
       if (!next.ok) return refuse("TRANSITION_REFUSED");
       options.journal.write(next.record);
+      options.onStopped?.(next.record);
       return { ok: false, code, record: next.record };
     };
     if (record.targetRelease === null || command.appVersion !== record.targetRelease) return stop("VERSION_MISMATCH");
@@ -84,7 +87,10 @@ export function createProgressHandler(options: ProgressOptions): ProgressHandler
     const durable = written.ok && sameSelection(options.catalogDir, selection);
     if (!durable) {
       const back = transition(committing.record, "rolling_back", { error: { code: "RELEASE_FILE_FAILED" } }, options.nowIso());
-      if (back.ok) options.journal.write(back.record);
+      if (back.ok) {
+        options.journal.write(back.record);
+        options.onStopped?.(back.record);
+      }
       return { ok: false, code: "RELEASE_FILE_FAILED", record: back.ok ? back.record : committing.record };
     }
     const committed = confirmCommit(committing.record, options.nowIso());
@@ -139,7 +145,10 @@ export function createProgressHandler(options: ProgressOptions): ProgressHandler
     if (release === null) return fail("RELEASE_UNKNOWN");
     const previous = await options.previousSelection();
     if (previous === null || previous.app === null) return fail("PREVIOUS_UNKNOWN");
-    const next = transition(record, "switching", { backupId: command.backupId, previousSelection: previous, previousDigest: previous.app, schemaVersionFrom: backup.schemaVersion, schemaVersionTo: release.schemaVersion }, options.nowIso());
+    // The release file as it is now, so the way back puts back exactly it; a file that is not the file it must be is no choice to go back to.
+    const filed = savedReleaseFile(options.catalogDir);
+    if (filed === undefined) return fail("PREVIOUS_UNKNOWN");
+    const next = transition(record, "switching", { backupId: command.backupId, previousReleaseFile: filed, previousSelection: previous, previousDigest: previous.app, schemaVersionFrom: backup.schemaVersion, schemaVersionTo: release.schemaVersion }, options.nowIso());
     if (!next.ok) return refuse("TRANSITION_REFUSED");
     options.journal.write(next.record);
     return accept(next.record);
@@ -174,4 +183,15 @@ function sameSelection(controlDir: string, selection: ReleaseSelection): boolean
   } catch {
     return false;
   }
+}
+
+/** The text of the release file now, null when there is none, undefined when it cannot be kept (too large or not the file it must be). */
+function savedReleaseFile(controlDir: string): string | null | undefined {
+  let text: string;
+  try {
+    text = readFileSync(path.join(controlDir, RELEASE_FILE_NAME), "utf8");
+  } catch {
+    return null;
+  }
+  return readReleaseFile(text).ok ? text : undefined;
 }

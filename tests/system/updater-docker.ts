@@ -7,7 +7,7 @@
 // of a pinned image with only the folders of that app. Y is the same container, the same image and the same start at
 // the end. Nothing of the installation keys or of the owner's password is printed.
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createCheck } from "../support/check-report.ts";
@@ -16,9 +16,10 @@ import { docker, requireNativeDocker } from "../support/docker.ts";
 import { repoRoot } from "../support/repository-copy.ts";
 import { createEngineClient } from "../../apps/updater/dist/docker/engine-client.js";
 import { createProjectScope, ScopeError } from "../../apps/updater/dist/docker/project-scope.js";
+import { createRollbackRunner } from "../../apps/updater/dist/install/roll-back.js";
 import { createReleaseSwitcher } from "../../apps/updater/dist/install/switch-release.js";
 import { catalogFileTextOf } from "../../apps/updater/dist/release/catalog.js";
-import { writeReleaseFile } from "../../apps/updater/dist/release/release-file.js";
+import { RELEASE_FILE_NAME, readReleaseFile, renderReleaseFile, writeReleaseFile } from "../../apps/updater/dist/release/release-file.js";
 import { openJournal } from "../../apps/updater/dist/journal/journal.js";
 import { beginInstall } from "../../apps/updater/dist/state-machine/begin.js";
 import { initialRecord, transition } from "../../apps/updater/dist/state-machine/transitions.js";
@@ -214,6 +215,48 @@ try {
   check.expect(inspectOf(appNow.id)["State"].Running === false && run(["ps", "-a", "--filter", "label=com.openlife.updater.helper=1", "-q"]).stdout.trim() === "", "the app stays stopped for the owner of the update to start, and the helper is gone");
   await scopeX.startApp(appNow);
   check.expect(await healthy(appNow.id), "the app starts on the recovered database");
+
+  // D56.1: the way back on the real containers. The update of this test failed past the switch: the app of release B did not come up, the database
+  // of A changed meanwhile (what the copy must take back), the operation `update` is on the gate, and the release file was changed. The updater stops
+  // every app of the project, removes B, restores the copy with the helper (which ends the operation on the gate), puts the file back and
+  // starts A, healthy, before it says the way back is made.
+  const stopA = await scopeX.findApp();
+  await scopeX.stopApp(stopA);
+  const changedAfterCopy = oneOff(["apps/server/dist/cli/reset-password.js"], JSON.stringify({ password: "another long passphrase for the owner" }));
+  check.expect(changedAfterCopy.status === 0 && resetsIn(x) === 1, "the database of A holds a change the copy does not have", changedAfterCopy.output);
+  const gateFile = path.join(x.dir, "control", "maintenance", "state.json");
+  const gateBefore = JSON.parse(readFileSync(gateFile, "utf8")) as { generation: number };
+  const failedOperation = "33333333-3333-4333-8333-333333333333";
+  writeFileSync(gateFile, `${JSON.stringify({ formatVersion: 1, generation: gateBefore.generation + 1, activeOperation: { operationId: failedOperation, reason: "update", phase: "verifying", startedAt: new Date().toISOString(), targetRelease: "1.2.3" } })}\n`);
+  const controlDir = path.join(x.dir, "control");
+  const fileBefore = readFileSync(path.join(controlDir, RELEASE_FILE_NAME), "utf8");
+  const swapped = await scopeX.replaceApp({ id: stopA.id, name: stopA.name }, refB);
+  const other = renderReleaseFile({ app: pin(digests["a"]), updater: null });
+  if (other.ok) writeFileSync(path.join(controlDir, RELEASE_FILE_NAME), other.text);
+  await sleep(3000);
+  check.expect(run(["logs", swapped.nextId]).output.includes("MAINTENANCE_RECOVERY_REQUIRED"), "the app of B refuses to start: it found the operation of the update on the gate (its container may be restarted by Docker meanwhile)");
+  const wayBackDir = mkdtempSync(path.join(root, "way-back-"));
+  const wayBackNow = new Date().toISOString();
+  let failing = transition(initialRecord(wayBackNow), "checking", { operationId: failedOperation, targetRelease: "1.2.3", fence: gateBefore.generation + 1 }, wayBackNow);
+  for (const state of ["pulling", "quiescing", "backing_up", "switching", "verifying"] as const) if (failing.ok) failing = transition(failing.record, state, state === "switching" ? { backupId: packageName } : {}, wayBackNow);
+  if (failing.ok) failing = transition(failing.record, "rolling_back", { error: { code: "TEST_FAILURE" } }, wayBackNow);
+  check.expect(failing.ok, "a record in rolling_back is made for the way back");
+  if (failing.ok) {
+    const wayBackJournal = openJournal(wayBackDir);
+    const stopped = { ...failing.record, replacement: { previousId: swapped.previousId, previousName: swapped.previousName, nextId: swapped.nextId, name: swapped.name }, previousReleaseFile: fileBefore };
+    wayBackJournal.write(stopped);
+    const wayBackLog: Array<Record<string, unknown>> = [];
+    await createRollbackRunner({ journal: wayBackJournal, controlDir, scope: scopeX, nowIso: () => new Date().toISOString(), logger: { log: (event) => void wayBackLog.push(event) } }).run(stopped);
+    const ended = wayBackJournal.read();
+    check.expect(ended.ok && ended.record?.state === "idle" && ended.record.error?.code === "TEST_FAILURE", "the way back ends idle with the code that stopped the operation", JSON.stringify([ended, wayBackLog]));
+    check.expect(run(["inspect", "--format", "{{.Id}}", swapped.nextId]).status !== 0, "the app of B is gone");
+    const backA = inspectOf(swapped.previousId);
+    check.expect(backA["State"].Running === true && backA["Name"] === `/${stopA.name}`, "the old app has its name again and runs");
+    check.expect(await healthy(swapped.previousId), "the old app is healthy on the restored database");
+    check.expect(resetsIn(x) === 0, "the database is the copy's: the change made after it is gone");
+    check.expect(JSON.parse(readFileSync(gateFile, "utf8")).activeOperation === null, "the operation is closed on the gate by the helper");
+    check.expect(existsSync(path.join(controlDir, RELEASE_FILE_NAME)) && readFileSync(path.join(controlDir, RELEASE_FILE_NAME), "utf8") === fileBefore && readReleaseFile(fileBefore).ok, "the release file is as it was before the operation");
+  }
 
   // The fence: the crashed writer after a restart of the updater.
   const journalDir = mkdtempSync(path.join(root, "journal-"));

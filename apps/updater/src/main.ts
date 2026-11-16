@@ -10,6 +10,7 @@ import { createEngineClient } from "./docker/engine-client.js";
 import { createProjectScope, ScopeError } from "./docker/project-scope.js";
 import { createReleasePreparer } from "./install/prepare-release.js";
 import { createProgressHandler } from "./install/progress.js";
+import { createRollbackRunner } from "./install/roll-back.js";
 import { createReleaseSwitcher } from "./install/switch-release.js";
 import { openJournal } from "./journal/journal.js";
 import type { UpdaterLogger } from "./logging.js";
@@ -52,11 +53,13 @@ const appView = async (): Promise<AppView> => {
 };
 
 const installer = createReleasePreparer({ journal, catalogDir: CONTROL_DIR, scope, nowIso: () => new Date().toISOString(), logger });
-const progress = createProgressHandler({ journal, catalogDir: CONTROL_DIR, backupDir: BACKUP_DIR, previousSelection: createPreviousSelection({ controlDir: CONTROL_DIR, scope }), discardPrevious: async (replacement) => {
+const rollback = createRollbackRunner({ journal, controlDir: CONTROL_DIR, scope, nowIso: () => new Date().toISOString(), logger });
+const progress = createProgressHandler({ journal, catalogDir: CONTROL_DIR, backupDir: BACKUP_DIR, previousSelection: createPreviousSelection({ controlDir: CONTROL_DIR, scope }), onStopped: (record) => void rollback.run(record),
+  discardPrevious: async (replacement) => {
     // Only the replaced app is removed, and only once the swap has finished (the new container is on the journal).
     if (replacement.nextId !== null) await scope.discardPrevious({ ...replacement, nextId: replacement.nextId });
   }, nowIso: () => new Date().toISOString() });
-const switcher = createReleaseSwitcher({ journal, catalogDir: CONTROL_DIR, scope, nowIso: () => new Date().toISOString(), logger });
+const switcher = createReleaseSwitcher({ journal, catalogDir: CONTROL_DIR, scope, nowIso: () => new Date().toISOString(), logger, onStopped: (record) => void rollback.run(record) });
 const server = createUpdaterServer({ token, journal, appView, nowMs: Date.now, startedAtMs: Date.now(), logger, installer, progress, switcher });
 server.listen(UPDATER_PORT, "0.0.0.0", () => console.log(JSON.stringify({ event: "updater.listening", port: UPDATER_PORT })));
 for (const signal of ["SIGTERM", "SIGINT"] as const) {

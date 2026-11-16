@@ -22,6 +22,8 @@ export type SwitchOptions = Readonly<{
   logger: UpdaterLogger;
   /** How long the new app has to say it is ready; the constant of the protocol unless a test narrows it. */
   startTimeoutMs?: number;
+  /** Called with the record when the operation is stopped in `rolling_back`, so the way back can be driven (D56.1). */
+  onStopped?: (record: UpdateRecord) => void;
 }>;
 
 export type ReleaseSwitcher = Readonly<{ run: (record: UpdateRecord) => Promise<void> }>;
@@ -34,7 +36,10 @@ export function createReleaseSwitcher(options: SwitchOptions): ReleaseSwitcher {
       const log = (level: "info" | "warn", event: string, code?: string): void => options.logger.log({ level, event, ...(code === undefined ? {} : { code }), ...(operationId === undefined ? {} : { operationId }) });
       const stop = (code: string): void => {
         const next = transition(record, "rolling_back", { error: { code } }, options.nowIso());
-        if (next.ok) options.journal.write(next.record);
+        if (next.ok) {
+          options.journal.write(next.record);
+          options.onStopped?.(next.record);
+        }
         log("warn", "updater.switch_failed", code);
       };
       try {
@@ -71,7 +76,10 @@ export function createReleaseSwitcher(options: SwitchOptions): ReleaseSwitcher {
           const read = options.journal.read();
           if (!read.ok || read.record === null || read.record.state !== "verifying" || read.record.operationId !== verifying.record.operationId) return;
           const stopped = transition(read.record, "rolling_back", { error: { code: "START_TIMEOUT" } }, options.nowIso());
-          if (stopped.ok) options.journal.write(stopped.record);
+          if (stopped.ok) {
+            options.journal.write(stopped.record);
+            options.onStopped?.(stopped.record);
+          }
           log("warn", "updater.switch_failed", "START_TIMEOUT");
         }, options.startTimeoutMs ?? START_TIMEOUT_MS);
         timer.unref();

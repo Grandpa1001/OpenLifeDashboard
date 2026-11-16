@@ -36,6 +36,8 @@ export const updateRecordSchema = z
      * (with `nextId` null) and again after it, so a recovery after a crash can find both by the record alone.
      */
     replacement: z.object({ previousId: z.string().min(1).max(128), previousName: z.string().min(1).max(256), nextId: z.string().min(1).max(128).nullable(), name: z.string().min(1).max(256) }).strict().nullable().optional(),
+    /** The text of the release file before the operation, or null when the installation had none (D56.1): the way back puts back exactly that. */
+    previousReleaseFile: z.string().max(4096).nullable().optional(),
     /** True from the commit point on; after it no rollback to the snapshot is made, as it would lose the data written since. */
     committed: z.boolean(),
     error: z.object({ code: z.string().min(1).max(64) }).strict().nullable(),

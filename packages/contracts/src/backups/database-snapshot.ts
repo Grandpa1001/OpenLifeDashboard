@@ -81,5 +81,10 @@ export type BackupVerifyInput = z.infer<typeof backupVerifyInputSchema>;
  * current database is to be replaced (it is moved aside, not deleted, but the instance changes under the owner).
  */
 export const RESTORE_INSTANCE_CONFIRMATION = "replace-current-database";
-export const restoreInstanceInputSchema = z.object({ snapshot: restoreRegistryInputSchema.shape.snapshot, confirm: z.literal(RESTORE_INSTANCE_CONFIRMATION) }).strict();
+/**
+ * `endsUpdate` is the operation of an update that the restore ends (D56.1): the way back of the updater restores the copy taken before
+ * the update, and the operation `update` that is still on the maintenance gate is closed by the same command, under its lease, once
+ * the database is restored. An active operation of any other kind or id still refuses the command.
+ */
+export const restoreInstanceInputSchema = z.object({ snapshot: restoreRegistryInputSchema.shape.snapshot, confirm: z.literal(RESTORE_INSTANCE_CONFIRMATION), endsUpdate: z.uuid().optional() }).strict();
 export type RestoreInstanceInput = z.infer<typeof restoreInstanceInputSchema>;

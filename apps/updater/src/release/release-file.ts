@@ -148,3 +148,27 @@ export function writeReleaseFile(controlDir: string, selection: ReleaseSelection
   }
   return { ok: true, text: rendered.text };
 }
+
+/**
+ * Puts back the release file as it was before an update (D56.1): the text that was saved, validated as the file it must be and written the
+ * way a choice is (next to the file, flushed, renamed), or no file when there was none. Nothing else can be written through it.
+ */
+export function restoreReleaseFile(controlDir: string, text: string | null, files: ReleaseFiles = nodeReleaseFiles): Readonly<{ ok: true }> | Readonly<{ ok: false; code: ReleaseRefusal }> {
+  const target = path.join(controlDir, RELEASE_FILE_NAME);
+  try {
+    if (text === null) {
+      files.remove(target);
+      files.flushDirectory(controlDir);
+      return { ok: true };
+    }
+    if (!readReleaseFile(text).ok) return { ok: false, code: "FILE_INVALID" };
+    const temporary = `${target}.tmp`;
+    files.remove(temporary);
+    files.writeFlushed(temporary, text);
+    files.rename(temporary, target);
+    files.flushDirectory(controlDir);
+    return { ok: true };
+  } catch {
+    return { ok: false, code: "WRITE_FAILED" };
+  }
+}

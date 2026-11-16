@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -6679,6 +6679,47 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D55.1", "D55.2", "D55.3", "D55.4"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.55: the way back to the app A.
+    id: "D56.1",
+    ready: true,
+    title: "The way back to the app A: the new app removed, the copy restored by the helper that ends the operation on the gate, the file put back, the old app healthy",
+    criteria: ["D56.1-AC1", "D56.1-AC2", "D56.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built server, updater and contracts.
+        id: "workspace-build",
+        criteria: ["D56.1-AC1", "D56.1-AC2"],
+        description: "pnpm -r build: the way back of the updater and the end of an update operation by restore-instance",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/updater/src/install/roll-back.ts", "apps/server/src/cli/restore-instance.ts"],
+      },
+      {
+        id: "restore-ends-update",
+        criteria: ["D56.1-AC1", "D56.1-AC2"],
+        description: "The command restore-instance with the id of the operation update on the gate restores the copy and closes that operation under its lease, keeping the generation; without the id, with another id, with an operation of another kind and when the copy cannot be restored it changes nothing and the operation stays",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/restore-ends-update.test.ts", "tests/integration/maintenance/restore-instance.test.ts"],
+        requires: ["tests/integration/maintenance/restore-ends-update.test.ts", "tests/integration/maintenance/restore-instance.test.ts"],
+      },
+      {
+        id: "roll-back",
+        criteria: ["D56.1-AC1", "D56.1-AC2"],
+        description:
+          "Through the real server of the updater with a real journal, catalog, backup folder and release file and a recorded stand-in for the Docker scope: a proof of another version or schema, no proof in time and a swap that failed each stop the apps, remove the new one, restore the copy of the operation with the helper that ends the operation on the gate, put the release file back as it was (or remove it), start the old app and wait for it to be healthy, and only then write rolled_back and idle with the code that stopped the operation; the instance is free afterwards; a step that fails (the new app that cannot be removed, the helper that fails or exits with a code, the old app that is not healthy) ends in recovery_failed with the code of the step, the later steps are not made, the file is not touched, the instance is held, a new operation and a proof are refused and nothing of the text of the failure is logged",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updater/roll-back.test.ts", "tests/integration/updater/commit-release.test.ts", "tests/integration/updater/switch-release.test.ts", "tests/integration/updater/install-progress.test.ts", "tests/integration/updater/updater-server.test.ts"],
+        requires: ["tests/integration/updater/roll-back.test.ts", "tests/support/updater-harness.ts"],
+      },
+      {
+        id: "updater-docker",
+        criteria: ["D56.1-AC1"],
+        description: "On a real daemon, after a failed update past the switch (the new app that does not come up, the database of A changed after the copy, the operation on the gate and the release file changed): the way back removes the new app, restores the database from the copy with the helper, which closes the operation on the gate, puts the release file back and starts the old app, healthy, on the restored database, and the operation ends idle with the code that stopped it",
+        command: ["node", "tests/system/updater-docker.ts"],
+        requires: ["tests/system/updater-docker.ts", "docker/Dockerfile", "docker/compose.yml", "tests/support/compose-instance.ts"],
+        timeoutMs: 25 * 60 * 1000,
+      },
+      ...regressionChecks("D56.1-regression"),
+    ],
   },
   // The parent passes only through its work orders: the catalog and the pull, the commands, the gate, the start from the app.
   {
