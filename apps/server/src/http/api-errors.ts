@@ -46,6 +46,9 @@ const FALLBACK_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   IMPORT_UNAVAILABLE: "The import could not be made now; nothing was changed",
   UPDATES_NOT_CONFIGURED: "This installation has no source of releases to check",
   UPDATE_CHECK_THROTTLED: "The releases were checked a moment ago or the source asked to wait",
+  UPDATE_RELEASE_UNKNOWN: "This release is not the one the last check found available",
+  UPDATE_IN_PROGRESS: "An update is already in progress",
+  UPDATE_UNAVAILABLE: "The update could not be started; nothing was changed",
 };
 
 export function apiErrorResponse(

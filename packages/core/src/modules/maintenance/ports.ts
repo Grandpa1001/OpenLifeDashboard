@@ -2,7 +2,7 @@
 
 export type SnapshotRequest = Readonly<{
   /** Before an upgrade (D05), a change of a registry's type (D29) or its deletion (D30), asked for by the owner (D48) or by the schedule (D49). */
-  reason: "pre_migration" | "pre_type_change" | "pre_delete" | "manual" | "nightly";
+  reason: "pre_migration" | "pre_type_change" | "pre_delete" | "pre_update" | "manual" | "nightly";
   /** `bundle` also holds the export of the same state (D48). */
   scope: "database" | "bundle";
   /** The maintenance operation the snapshot belongs to and its fence (gate generation). */

@@ -48,7 +48,7 @@ describe("D12.1 failure texts", () => {
     const withoutText = API_ERROR_CODES.filter((code) => api(code).key === "UNKNOWN");
     // These are answers of routes the sign-in screens do not call (setup, registries, the policy denials). The step-up has its text since D42.2.
     // The two answers of the releases (D53.3) are told by the page of the updates itself, which knows the reason and the seconds (D53.4).
-    expect(withoutText.sort()).toEqual(["NOT_FOUND", "RECOVERY_ACK_REQUIRED", "MFA_REQUIRED", "SETUP_DATA_REQUIRED", "SCREEN_LIMIT_EXCEEDED", "UPDATES_NOT_CONFIGURED", "UPDATE_CHECK_THROTTLED"].sort());
+    expect(withoutText.sort()).toEqual(["NOT_FOUND", "RECOVERY_ACK_REQUIRED", "MFA_REQUIRED", "SETUP_DATA_REQUIRED", "SCREEN_LIMIT_EXCEEDED", "UPDATES_NOT_CONFIGURED", "UPDATE_CHECK_THROTTLED", "UPDATE_RELEASE_UNKNOWN", "UPDATE_IN_PROGRESS", "UPDATE_UNAVAILABLE"].sort());
   });
 });
 

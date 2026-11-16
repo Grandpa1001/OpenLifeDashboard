@@ -74,6 +74,7 @@ export const ROUTE_INVENTORY: readonly RouteEntry[] = [
   { method: "GET", path: diagnostics.DIAGNOSTICS_PATH, access: "data", note: "the overview of the installation: versions, paths, sizes, the technical log and its latest errors, built from a list of fields" },
   { method: "GET", path: updates.UPDATES_PATH, access: "data", note: "the state of the check of the releases: the running version, the newest stable release, when it was asked and when again, the last failure by a code" },
   { method: "POST", path: updates.UPDATES_CHECK_PATH, access: "data", note: "Check now: takes no body and no address, the source is the installation's; refused for a short time and while the source asked to wait" },
+  { method: "POST", path: updates.UPDATES_INSTALL_PATH, access: "data", note: "starts the update to the release the last check found: a version only, a fresh second factor, one operation at a time; audited as update.started" },
   { method: "GET", path: diagnostics.DIAGNOSTICS_LOGS_PATH, access: "data", note: "the files of the technical log the sink wrote, from a closed set of names" },
   { method: "GET", path: diagnostics.DIAGNOSTICS_LOG_PATH, access: "data", note: "downloads one file of that list as an attachment; any other name is not found" },
   { method: "GET", path: diagnostics.DIAGNOSTICS_REQUEST_PATH, access: "data", note: "the lines of the log that belong to one request id" },

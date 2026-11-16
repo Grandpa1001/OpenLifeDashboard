@@ -53,7 +53,12 @@ import { createReleaseChecker } from "./adapters/updates/release-checker.js";
 import { createReleaseClient } from "./adapters/updates/release-client.js";
 import { openCheckCache } from "./adapters/updates/check-cache.js";
 import { createReleaseCheckJob, createUnconfiguredUpdates } from "./workers/release-check.js";
-import { listBackups } from "./adapters/filesystem/backup-catalog.js";
+import { findPublishedPackage, listBackups } from "./adapters/filesystem/backup-catalog.js";
+import { createUpdaterClient } from "./adapters/updates/updater-client.js";
+import { createUpdateCoordinator, unconfiguredInstaller } from "./workers/update-coordinator.js";
+import { createUpdateOperation } from "./workers/update-operation.js";
+import { UPDATE_DRAIN_TIMEOUT_MS, UPDATER_REQUEST_TIMEOUT_MS, UPDATER_SEND_ATTEMPTS } from "./workers/update-limits.js";
+import { UPDATER_DEFAULT_BASE_URL } from "@openlife/contracts/updates/protocol";
 import { pruneBackups } from "./adapters/filesystem/backup-retention.js";
 import { createReportBuilder } from "./adapters/diagnostics/report-builder.js";
 import { createOverviewReader } from "./adapters/diagnostics/overview-reader.js";
@@ -264,6 +269,8 @@ const nightlyBackup = createNightlyBackupJob({
   logger,
   ...(environment.backupHeartbeatUrl === undefined ? {} : { heartbeat: createHeartbeatSender({ url: environment.backupHeartbeatUrl }) }),
 });
+// The barrier of the writes while an update holds the installation (D54.3); the routes and the update (D54.4) share it.
+const updateBarrier = createUpdateBarrier({ gate: gate.gate });
 // The check of the releases (D53.3): only where the installation has a source of releases, which is an installation with the updater.
 const releaseCheck =
   environment.updater.enabled
@@ -282,6 +289,23 @@ const releaseCheck =
         logger,
       })
     : null;
+// The update up to the switch (D54.4): where the installation has an updater; it closes the writes through the barrier and takes its own copy.
+const updateInstaller =
+  environment.updater.enabled
+    ? createUpdateCoordinator({
+        updater: createUpdaterClient({ baseUrl: UPDATER_DEFAULT_BASE_URL, token: environment.updater.token.reveal(), nowMs: Date.now, newOperationId: randomUUID, timeoutMs: UPDATER_REQUEST_TIMEOUT_MS, attempts: UPDATER_SEND_ATTEMPTS }),
+        gate: gate.gate,
+        operation: createUpdateOperation({ gate: gate.gate, barrier: updateBarrier, nowMs: Date.now, newOperationId: randomUUID, drainTimeoutMs: UPDATE_DRAIN_TIMEOUT_MS }),
+        snapshots: createDatabaseSnapshots(database.connection, snapshotOptions),
+        packageOf: (snapshotId) => findPublishedPackage(workingPaths.backups, snapshotId),
+        availableRelease: () => {
+          const known = releaseCheck?.service.status();
+          return known !== undefined && known.available ? (known.latest?.version ?? null) : null;
+        },
+        newOperationId: randomUUID,
+        logger,
+      })
+    : unconfiguredInstaller;
 const diagnosticsOverview = createOverviewReader({ build, schemaVersion: database.schemaVersion, installation: paths, workingPaths, logStatus: logFile.status, liveConnections: liveHub.total, backupStatus: nightlyBackup.status });
 const diagnosticsLogs = createLogFiles({ dir: workingPaths.logs, retentionDays: () => logLimits().retentionDays, now: () => new Date() });
 const attemptKeys = createAttemptKeys(secret);
@@ -292,7 +316,6 @@ const mfaCrypto = createMfaCrypto(environment.appEncryptionKey.reveal());
 const planSigner = createStructurePlanSigner(environment.appEncryptionKey.reveal());
 const secureCookies = environment.baseUrl.startsWith("https:");
 const newSessionToken = (): string => randomBytes(32).toString("base64url");
-const updateBarrier = createUpdateBarrier({ gate: gate.gate });
 const app = createApp({
   webRoot,
   indexHtml,
@@ -354,7 +377,7 @@ const app = createApp({
   config: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, newId: createUuidV7(), limits: limits.config, logger },
   systemTables: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
   settings: { unit: identityUnit, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, environment: environment.overrides, refresh: effectiveSettings.refresh, logger },
-  updates: { unit: identityUnit, updates: releaseCheck?.service ?? createUnconfiguredUpdates(build.appVersion), cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
+  updates: { unit: identityUnit, updates: releaseCheck?.service ?? createUnconfiguredUpdates(build.appVersion), installer: updateInstaller, start: { unit: identityUnit, nowMs: Date.now }, newOperationId: randomUUID, cookies, allowedOrigin: environment.baseUrl, nowMs: Date.now, logger },
   diagnostics: {
     unit: identityUnit,
     overview: diagnosticsOverview,

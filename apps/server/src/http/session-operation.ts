@@ -47,6 +47,9 @@ const STATUS: Readonly<Partial<Record<ApiErrorCode, 401 | 403 | 404 | 409 | 422 
   SCREEN_LIMIT_EXCEEDED: 409,
   UPDATES_NOT_CONFIGURED: 409,
   UPDATE_CHECK_THROTTLED: 429,
+  UPDATE_RELEASE_UNKNOWN: 409,
+  UPDATE_IN_PROGRESS: 409,
+  UPDATE_UNAVAILABLE: 503,
   NOT_FOUND: 404,
   VALIDATION_FAILED: 422,
   // Maintenance: the change can be asked for again once the operation or the disk allows it.

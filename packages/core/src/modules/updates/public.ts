@@ -8,3 +8,5 @@ export { afterFailure, afterSuccess, backoffMs, BACKOFF_BASE_MS, BACKOFF_MAX_MS,
 export type { CheckState, FailureKind, ManualDecision } from "./domain/check-policy.js";
 export { planUpgrade } from "./domain/upgrade-path.js";
 export type { KnownRelease, UpgradeStep } from "./domain/upgrade-path.js";
+export { authorizeUpdateStart } from "./application/authorize-update.js";
+export type { UpdateAuthorizationDependencies, UpdateAuthorizationPorts } from "./application/authorize-update.js";

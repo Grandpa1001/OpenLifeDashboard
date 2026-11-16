@@ -6512,6 +6512,48 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.53: the start of an update up to the switch, on the app's side.
+    id: "D54.4",
+    ready: true,
+    title: "The start of an update from the app: the route with a fresh factor, the updater pulls, the app goes quiet, takes the copy and the updater enters switching",
+    criteria: ["D54.4-AC1", "D54.4-AC2", "D54.4-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built server, updater and contracts.
+        id: "workspace-build",
+        criteria: ["D54.4-AC1", "D54.4-AC2"],
+        description: "pnpm -r build: the client of the updater, the coordinator, the route and the authority to start an update",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/adapters/updates/updater-client.ts", "apps/server/src/workers/update-coordinator.ts", "packages/core/src/modules/updates/application/authorize-update.ts"],
+      },
+      {
+        id: "update-start",
+        criteria: ["D54.4-AC1", "D54.4-AC2"],
+        description:
+          "On the real application of the harness, the real server of the updater with a real journal, catalog and backup folder and a fake Engine, and the real copy of the database: a start with a fresh factor is accepted, the updater pulls while the app still takes writes, the app closes its writes and takes the pre_update copy, and the updater enters switching with the copy, the pins before and the schema versions, the gate holding the operation with the fence of the updater and the state read from the updater's journal; the start is audited once with the release and the operation and nothing secret; a second operation is refused, the same operation asked again is the same one, and once the writes are closed the same request is told maintenance is on; a version that is not the available one, a body that names more than a version, no session, another origin, no second factor and a stale one start nothing; an installation with no updater has nothing to start; a copy that fails, a release the updater does not list, an updater that cannot be reached or that refuses, and a lost answer to the install leave A with open writes, no operation held and the reason told, and the lost answer starts one operation",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updates/update-start.test.ts", "tests/integration/updates/updates-http.test.ts"],
+        requires: ["tests/integration/updates/update-start.test.ts", "tests/integration/updates/updates-http.test.ts", "tests/support/app-harness.ts", "tests/support/updater-harness.ts"],
+      },
+      {
+        id: "data-routes",
+        criteria: ["D54.4-AC1"],
+        description: "The table of every route of the access to the data holds the route of the start, which answers its own code after the gate and refuses before it as every other",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/access/data-routes.test.ts"],
+        requires: ["tests/integration/access/data-routes.test.ts"],
+      },
+      ...regressionChecks("D54.4-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the catalog and the pull, the commands, the gate, the start from the app.
+  {
+    id: "D54",
+    ready: true,
+    title: "The start of an update up to the switch: the catalog and the pull, the commands of the channel, the operation of the gate, the start from the app",
+    steps: ["D54.1", "D54.2", "D54.3", "D54.4"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM5 gate (DEV §8.4, §9.50): the copy of installation A listed, verified and restored on a separate
     // installation B by the built commands, then the reports of the fast tier for D48-D51 joined item by item
     // for this exact code; does not run their tests again.

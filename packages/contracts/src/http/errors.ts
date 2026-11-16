@@ -43,6 +43,9 @@ export const API_ERROR_CODES = [
   "IMPORT_UNAVAILABLE",
   "UPDATES_NOT_CONFIGURED",
   "UPDATE_CHECK_THROTTLED",
+  "UPDATE_RELEASE_UNKNOWN",
+  "UPDATE_IN_PROGRESS",
+  "UPDATE_UNAVAILABLE",
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];

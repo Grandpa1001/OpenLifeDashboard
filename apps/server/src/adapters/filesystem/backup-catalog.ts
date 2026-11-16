@@ -81,3 +81,12 @@ export function lastNightlyStartedAt(entries: readonly BackupEntry[]): string | 
   }
   return latest;
 }
+
+/** The name of the published package a snapshot made (the directory ends with its id), or null when there is none; a staging folder is hidden and never named. */
+export function findPublishedPackage(backupsDir: string, snapshotId: string): string | null {
+  try {
+    return readdirSync(backupsDir).find((name) => !name.startsWith(".") && name.endsWith(`-${snapshotId}`)) ?? null;
+  } catch {
+    return null;
+  }
+}

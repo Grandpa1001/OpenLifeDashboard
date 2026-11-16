@@ -193,7 +193,7 @@ describe("D53.3-AC2 a failure stays inside, the state is the contract's, stoppin
 
   it("answers an installation with no source of releases with its version and no check, and refuses Check now", async () => {
     const none = createUnconfiguredUpdates("1.0.0");
-    expect(updatesStatusSchema.parse(none.status())).toEqual({ configured: false, enabled: false, current: "1.0.0", available: false, latest: null, checkedAt: null, nextCheckAt: null, error: null, retryAt: null });
+    expect(updatesStatusSchema.parse(none.status())).toEqual({ configured: false, enabled: false, current: "1.0.0", available: false, latest: null, checkedAt: null, nextCheckAt: null, error: null, retryAt: null, operation: null });
     expect(await none.checkNow()).toEqual({ ok: false, reason: "NOT_CONFIGURED", retryAfterSeconds: null });
   });
 

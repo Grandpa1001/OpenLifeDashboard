@@ -146,7 +146,7 @@ describe("D53.3-AC2 the request names nothing, a source that fails is a state, n
 
   it("tells an installation with no source of releases that there is nothing to check, and asks nothing", async () => {
     const { status, check } = await installation({ configured: false });
-    expect(updatesStatusSchema.parse((await status()).json())).toEqual({ configured: false, enabled: false, current: "0.0.0", available: false, latest: null, checkedAt: null, nextCheckAt: null, error: null, retryAt: null });
+    expect(updatesStatusSchema.parse((await status()).json())).toEqual({ configured: false, enabled: false, current: "0.0.0", available: false, latest: null, checkedAt: null, nextCheckAt: null, error: null, retryAt: null, operation: null });
     const reply = await check();
     expect([reply.status, apiErrorSchema.parse(reply.json()).code]).toEqual([409, "UPDATES_NOT_CONFIGURED"]);
   });

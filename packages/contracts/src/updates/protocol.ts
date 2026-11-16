@@ -62,6 +62,8 @@ export type UpdaterRefusalCode = "MALFORMED" | "BAD_SIGNATURE" | "STALE" | "REPL
 /** The answers of the updater (D52.5): what the owner's app may learn of the state, never a path, a token or an image name of a client. */
 export const UPDATER_HEALTH_PATH = "/v1/health";
 export const UPDATER_PORT = 9090;
+/** Where the app reaches the updater: its service on the network of the project (docker/compose.updater.yml), never published. */
+export const UPDATER_DEFAULT_BASE_URL = `http://updater:${UPDATER_PORT}`;
 
 export const updaterStatusSchema = z
   .object({

@@ -13,6 +13,11 @@ import { createMfaCrypto } from "../../apps/server/dist/adapters/auth/mfa-crypto
 import { createPasswordHasher } from "../../apps/server/dist/adapters/auth/password-hasher.js";
 import { createSessionCookies, createTrustedDeviceCookies } from "../../apps/server/dist/adapters/auth/session-cookie.js";
 import { createTechnicalLogger } from "../../apps/server/dist/adapters/logging/technical-logger.js";
+import { findPublishedPackage } from "../../apps/server/dist/adapters/filesystem/backup-catalog.js";
+import { createUpdaterClient } from "../../apps/server/dist/adapters/updates/updater-client.js";
+import { createUpdateCoordinator, unconfiguredInstaller } from "../../apps/server/dist/workers/update-coordinator.js";
+import { createUpdateOperation } from "../../apps/server/dist/workers/update-operation.js";
+import type { DatabaseSnapshotPort } from "../../packages/core/dist/modules/maintenance/public.js";
 import { createUpdateBarrier } from "../../apps/server/dist/http/middleware/update-barrier.js";
 import { createRateLimiter } from "../../apps/server/dist/http/middleware/fixed-window-limit.js";
 import { createOwner } from "../../packages/core/dist/modules/identity/public.js";
@@ -95,14 +100,18 @@ export type HarnessOptions = Readonly<{
   exportAppVersion?: string;
   /** The service of the check of the releases; without it the installation has no source of releases (D53.3). */
   updates?: UpdatesService;
+  /** An updater to start updates at, as the app has one: its address and token, how often it asks, and the release the check found (D54.4). */
+  updater?: Readonly<{ baseUrl: string; token: string; pollMs?: number; pullTimeoutMs?: number; drainTimeoutMs?: number; availableRelease: () => string | null; attempts?: number; /** Replaces the store of the copies the update takes its `pre_update` copy with, to try a copy that fails. */ snapshots?: Pick<DatabaseSnapshotPort, "create"> }>;
+  /** The folder of the copies, when another process (the updater of a test) looks at the same one. */
+  backupsDir?: string;
 }>;
 
 export async function createAppHarness(options: HarnessOptions = {}) {
   const dir = scratchDir("openlife-harness-");
   // The writer lease and the maintenance gate as the bootstrap takes them, before the database exists.
-  const workingPaths = { maintenance: path.join(dir, "maintenance"), database: path.join(dir, "app.db"), backups: path.join(dir, "backup") };
+  const workingPaths = { maintenance: path.join(dir, "maintenance"), database: path.join(dir, "app.db"), backups: options.backupsDir ?? path.join(dir, "backup") };
   mkdirSync(workingPaths.maintenance);
-  mkdirSync(workingPaths.backups);
+  mkdirSync(workingPaths.backups, { recursive: true });
   const writer = acquireWriterLease(workingPaths.maintenance);
   if (!writer.ok) throw new Error(`the harness could not take the writer lease: ${writer.code}`);
   leases.push(() => writer.lease.release());
@@ -201,6 +210,21 @@ export async function createAppHarness(options: HarnessOptions = {}) {
   });
   const common = { nowMs: Date.now, newId: randomUUID, newSessionToken: () => randomBytes(32).toString("base64url"), logger, allowedOrigin: HARNESS_ORIGIN, secureCookies: false, cookies, keys, clientIp };
   const updateBarrier = createUpdateBarrier({ gate: gate.gate });
+  const coordinator =
+    options.updater === undefined
+      ? null
+      : createUpdateCoordinator({
+          updater: createUpdaterClient({ baseUrl: options.updater.baseUrl, token: options.updater.token, nowMs: Date.now, newOperationId: randomUUID, timeoutMs: 5000, attempts: options.updater.attempts ?? 3 }),
+          gate: gate.gate,
+          operation: createUpdateOperation({ gate: gate.gate, barrier: updateBarrier, nowMs: Date.now, newOperationId: randomUUID, drainTimeoutMs: options.updater.drainTimeoutMs ?? 2000 }),
+          snapshots: options.updater.snapshots ?? snapshots,
+          packageOf: (snapshotId) => findPublishedPackage(workingPaths.backups, snapshotId),
+          availableRelease: options.updater.availableRelease,
+          newOperationId: randomUUID,
+          logger,
+          pollMs: options.updater.pollMs ?? 20,
+          pullTimeoutMs: options.updater.pullTimeoutMs ?? 5000,
+        });
   const app = createApp({
     webRoot: dir,
     indexHtml: "<!doctype html>",
@@ -221,7 +245,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     systemTables: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     screens: { dashboard: { unit, nowMs: Date.now, newId: createUuidV7(), policy: DESIGN_POLICY, widgets: createWidgetCatalog() }, cookies, allowedOrigin: HARNESS_ORIGIN, logger, template: { appVersion: "0.0.0", now: () => new Date() } },
     settings: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, environment, refresh: effectiveSettings.refresh, logger },
-    updates: { unit, updates: options.updates ?? createUnconfiguredUpdates("0.0.0"), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
+    updates: { unit, updates: options.updates ?? createUnconfiguredUpdates("0.0.0"), installer: coordinator ?? unconfiguredInstaller, start: { unit, nowMs: Date.now }, newOperationId: randomUUID, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     diagnostics: { unit, overview, logs: diagnosticsLogs, report: createReportBuilder({ overview, logs: diagnosticsLogs, options: effectiveSettings.current, catalog: SETTINGS_CATALOG, now: () => new Date() }), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
     import: { unit, cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, limits, policy: DESIGN_POLICY, widgets: createWidgetCatalog(), gate: gate.gate, newOperationId: randomUUID, pause: giveBackLoop, logger },
     export: { unit, export: createExportService({ databaseFile: options.exportDatabaseFile ?? workingPaths.database, busyTimeoutMs: 5000, appVersion: options.exportAppVersion ?? "0.0.0", now: () => new Date(), logger, ...(options.exportRecordsPerPage === undefined ? {} : { recordsPerPage: options.exportRecordsPerPage }) }), cookies, allowedOrigin: HARNESS_ORIGIN, nowMs: Date.now, logger },
@@ -264,6 +288,8 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     gate: gate.gate,
     /** The barrier of an update the app has (D54.3). */
     updateBarrier,
+    /** The coordinator of an update, when the harness has an updater to start them at (D54.4). */
+    coordinator,
     /** The folder of the technical log the diagnostics read (D44). */
     logsDir,
     /** The folder of the harness, which is its installation. */

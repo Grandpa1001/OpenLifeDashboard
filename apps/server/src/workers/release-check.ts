@@ -20,7 +20,7 @@ export type UpdatesService = Readonly<{
 
 /** An installation with no source of releases: the version it runs, and nothing to check. */
 export function createUnconfiguredUpdates(currentVersion: string): UpdatesService {
-  const status: UpdatesStatusDto = { configured: false, enabled: false, current: currentVersion, available: false, latest: null, checkedAt: null, nextCheckAt: null, error: null, retryAt: null };
+  const status: UpdatesStatusDto = { configured: false, enabled: false, current: currentVersion, available: false, latest: null, checkedAt: null, nextCheckAt: null, error: null, retryAt: null, operation: null };
   return { status: () => status, checkNow: async () => ({ ok: false, reason: "NOT_CONFIGURED", retryAfterSeconds: null }) };
 }
 
@@ -64,6 +64,8 @@ export function createReleaseCheckJob(options: ReleaseCheckJobOptions): ReleaseC
       nextCheckAt: enabled ? iso(Math.max(nextDaily, known.state.notBeforeMs ?? 0)) : null,
       error: known.lastErrorCode === null ? null : { code: known.lastErrorCode },
       retryAt: iso(retryAt),
+      // The operation of an update is the updater's to tell; the route adds it (D54.4).
+      operation: null,
     };
   };
 
