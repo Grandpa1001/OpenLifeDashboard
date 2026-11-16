@@ -86,6 +86,7 @@ function requestOf(route: RouteEntry, design: unknown, planToken = "a-plan-that-
     case "POST /api/v1/security/mfa/restart":
     case "POST /api/v1/security/devices/revoke-all":
     case "POST /api/v1/security/sessions/revoke-others":
+    case "POST /api/v1/updates/check":
       return { body: {}, headers: {} };
     case "PATCH /api/v1/registries/:symbol/records/:recordId":
       return { body: { schemaRevision: 1, expectedRevision: 1, values: { kg: 72 } }, headers: {} };
@@ -188,6 +189,7 @@ describe("D20.2 the table is the inventory", () => {
       "GET /api/v1/stream",
       "GET /api/v1/system-tables",
       "GET /api/v1/system-tables/:name",
+      "GET /api/v1/updates",
       "GET /api/v1/widget-types",
       "GET /api/v1/widgets/:id/data",
       "PATCH /api/v1/registries/:symbol/records/:recordId",
@@ -207,6 +209,7 @@ describe("D20.2 the table is the inventory", () => {
       "POST /api/v1/security/password/confirm",
       "POST /api/v1/security/recovery-codes",
       "POST /api/v1/security/sessions/revoke-others",
+      "POST /api/v1/updates/check",
       "PUT /api/v1/config/:symbol",
       "PUT /api/v1/dictionaries/:symbol",
       "PUT /api/v1/screens/:id/design",
@@ -315,6 +318,9 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     await run(route("GET", "/registry-summaries"), ids);
     await run(route("GET", "/system-tables"), ids);
     await run(route("GET", "/system-tables/:name"), ids);
+    // The releases (D53.3): the state, and Check now, which this installation (no updater, so no source of releases) answers by its own code after the gate.
+    expect((await run(route("GET", "/updates"), ids)).status).toBe(200);
+    expect((await run(route("POST", "/updates/check"), ids)).status).toBe(409);
     expect((await run(route("GET", "/stream"), ids)).status).toBe(200);
     // Last, because it raises the schema revision the requests above are built on: a rename of the column
     // of waga on the plan of its own preview; the column is the server's, so its identifier is read first.
@@ -345,7 +351,8 @@ describe("D20.2-AC1 every data route refuses every state before the gate and ans
     answered.set("POST /api/v1/security/password/confirm", await factorReply("POST", "/api/v1/security/password/confirm"));
     answered.set("POST /api/v1/security/mfa/restart", await factorReply("POST", "/api/v1/security/mfa/restart"));
     expect([...answered.keys()].sort(), "every data route has its positive control").toEqual(DATA_ROUTES.map(keyOf).sort());
-    for (const [key, status] of answered) expect([200, 201, 204], `the owner past the gate on ${key}`).toContain(status);
+    // An installation with no updater has no source of releases, so Check now answers its own 409 once the gate is passed (the 200 is in the test of the routes of D53.3).
+    for (const [key, status] of answered) expect(key === "POST /api/v1/updates/check" ? [409] : [200, 201, 204], `the owner past the gate on ${key}`).toContain(status);
 
     // The same routes with data and real identifiers, in the states that remain.
     await expectRefused(setup, "no session, real data", null, { status: 401, code: "AUTH_REQUIRED" }, ids);

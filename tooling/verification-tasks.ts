@@ -6361,9 +6361,9 @@ const definedLater: readonly TaskDefinition[] = [
       {
         id: "routes-regression",
         criteria: ["D53.3-AC1"],
-        description: "The inventory of the routes lists the two new ones with the access they ask for, and the texts of the failures of the screens still cover every code of the API",
-        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/route-inventory.test.ts", "tests/unit/web/error-message.test.ts"],
-        requires: ["tests/integration/auth/route-inventory.test.ts", "tests/support/route-inventory.ts"],
+        description: "The inventory of the routes lists the two new ones with the access they ask for, the table of the data routes tries each of them in every state of the owner and gives them their positive control, and the texts of the failures of the screens still cover every code of the API",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/unit/web/error-message.test.ts"],
+        requires: ["tests/integration/auth/route-inventory.test.ts", "tests/integration/access/data-routes.test.ts", "tests/support/route-inventory.ts"],
       },
       ...regressionChecks("D53.3-regression"),
     ],
