@@ -80,7 +80,11 @@ try {
     pins[name] = { repository, digest: run(["inspect", "--format", "{{index .RepoDigests 0}}", `${repository}:t`]).stdout.trim().split("@")[1] ?? "" };
   }
 
-  x = prepareComposeInstance(path.join(root, "x"), { image: APP_TAG, port: await freeLoopbackPort(), updater: { token: TOKEN, releasesRepo: "example/openlife-releases" } });
+  // The group of the socket, which the installer writes from the host (D61): on Linux the daemon is on this very socket and its group is
+  // the one the service must have to reach it (run 43844052201, where the group 0 of Docker Desktop could not); on Docker Desktop the
+  // socket the service sees lies inside the virtual machine and belongs to the group 0.
+  const dockerGid = process.platform === "linux" ? String(statSync("/var/run/docker.sock").gid) : "0";
+  x = prepareComposeInstance(path.join(root, "x"), { image: APP_TAG, port: await freeLoopbackPort(), updater: { token: TOKEN, releasesRepo: "example/openlife-releases", dockerGid } });
   y = prepareComposeInstance(path.join(root, "y"), { image: APP_TAG, port: await freeLoopbackPort() });
   const writtenX = writeReleaseFile(path.join(x.dir, "control"), { app: pins["openlife-app"]!, updater: pins["openlife-updater"]! });
   const writtenY = writeReleaseFile(path.join(y.dir, "control"), { app: pins["openlife-app"]!, updater: null });
@@ -107,7 +111,7 @@ try {
   // The channel.
   const status = send(x, envelopeOf({ type: "status" }));
   check.expect(status.status === 200 && status.json["state"] === "idle" && status.json["fence"] === 0, "a signed status through the channel answers the record of a new installation");
-  check.expect(JSON.stringify(status.json["app"]) === '{"running":true,"health":"healthy"}', "the status shows the app of the project of the updater, running and healthy");
+  check.expect(JSON.stringify(status.json["app"]) === '{"running":true,"health":"healthy"}', "the status shows the app of the project of the updater, running and healthy", run(["logs", "--tail", "5", updaterId]).output);
   const replayed = envelopeOf({ type: "status" });
   send(x, replayed);
   check.expect(send(x, replayed).json["code"] === "REPLAYED", "the same command sent again is refused as a replay");

@@ -7,7 +7,7 @@ import path from "node:path";
 import { UPDATER_PORT } from "@openlife/contracts/updates/protocol";
 import { UPDATE_STATE_FILE } from "@openlife/contracts/updates/state";
 import { createEngineClient } from "./docker/engine-client.js";
-import { createProjectScope } from "./docker/project-scope.js";
+import { createProjectScope, ScopeError } from "./docker/project-scope.js";
 import { openJournal } from "./journal/journal.js";
 import { createUpdaterServer, type AppView, type UpdaterLogger } from "./server/updater-server.js";
 
@@ -31,12 +31,19 @@ const journal = openJournal(CONTROL_DIR);
 if (!journal.read().ok) fail("JOURNAL_UNREADABLE", [path.join(CONTROL_DIR, UPDATE_STATE_FILE)]);
 
 const scope = createProjectScope({ client: createEngineClient(SOCKET), project });
-const appView = async (): Promise<AppView> => {
-  const app = await scope.findApp();
-  const state = (await scope.inspectApp(app.id)).State;
-  return { running: state.Running, health: state.Health?.Status ?? null };
-};
 const logger: UpdaterLogger = { log: (event) => console.log(JSON.stringify({ timestamp: new Date().toISOString(), ...event })) };
+const appView = async (): Promise<AppView> => {
+  try {
+    const app = await scope.findApp();
+    const state = (await scope.inspectApp(app.id)).State;
+    return { running: state.Running, health: state.Health?.Status ?? null };
+  } catch (error) {
+    // The status answers without the app, and the log says why in a code, never in the text of the error (it may name a path).
+    const code = error instanceof ScopeError ? error.code : (error as NodeJS.ErrnoException).code ?? "ENGINE_UNAVAILABLE";
+    logger.log({ level: "warn", event: "updater.app_view_failed", code: String(code) });
+    return null;
+  }
+};
 
 const server = createUpdaterServer({ token, journal, appView, nowMs: Date.now, startedAtMs: Date.now(), logger });
 server.listen(UPDATER_PORT, "0.0.0.0", () => console.log(JSON.stringify({ event: "updater.listening", port: UPDATER_PORT })));
