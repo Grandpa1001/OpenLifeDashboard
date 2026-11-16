@@ -5,7 +5,7 @@ import { z } from "zod";
 import { ensure, ensureUnique } from "./strict-json.ts";
 
 const GENERATED_SECRETS = ["BETTER_AUTH_SECRET", "APP_ENCRYPTION_KEY", "UPDATER_TOKEN"] as const;
-const BOOTSTRAP_ERRORS = ["CONFIG_INVALID", "INSTANCE_METADATA_INVALID", "FEATURE_UNAVAILABLE"] as const;
+const BOOTSTRAP_ERRORS = ["CONFIG_INVALID", "INSTANCE_METADATA_INVALID"] as const;
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 /** A step-up factor counts as fresh for this long (Architektura §9.6). */
 const STEP_UP_FRESH_MS = 5 * 60 * 1000;
@@ -41,7 +41,6 @@ const bootstrapSchema = z.strictObject({
     z.strictObject({
       id: z.string().min(1),
       task: z.string(),
-      phase: z.literal("before-D52").optional(),
       envPatch: z.record(z.string(), z.string().nullable()).optional(),
       databaseOverrides: z.record(z.string(), z.unknown()).optional(),
       instancePatch: z.record(z.string(), z.unknown()).optional(),
@@ -83,7 +82,6 @@ export function checkBootstrapCases(value: unknown, workOrders: ReadonlySet<stri
     if (expected.kind === "error") ensureUnique(expected.fields, `F08: case ${item.id} repeats an error field`);
     else ensure(!("code" in expected) && !("exitCode" in expected), `F08: ready case ${item.id} declares a failure`);
     if ("effectiveOption" in expected) parseWith(effectiveOption, expected["effectiveOption"], `F08 case ${item.id} effectiveOption`);
-    if (item.phase !== undefined) ensure(expected.kind === "error" && expected.code === "FEATURE_UNAVAILABLE", `F08: case ${item.id} phase without FEATURE_UNAVAILABLE`);
   }
 }
 

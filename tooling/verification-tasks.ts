@@ -6231,6 +6231,56 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.51: the server and the service of the updater.
+    id: "D52.5",
+    ready: true,
+    title: "The updater as a service: the server of the channel, the image and the file of Compose, the updater accepted by the configuration",
+    criteria: ["D52.5-AC1", "D52.5-AC2", "D52.5-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built updater and the built contracts.
+        id: "workspace-build",
+        criteria: ["D52.5-AC1", "D52.5-AC2"],
+        description: "pnpm -r build: the server and the composition root of the updater",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/updater/src/server/updater-server.ts", "apps/updater/src/main.ts"],
+      },
+      {
+        id: "updater-server",
+        criteria: ["D52.5-AC1", "D52.5-AC2"],
+        description: "The server on real HTTP, a real journal and a fake view of the app: status gives the record and the app, an install is begun on the journal, closed as not available and keeps its fence, a smaller fence is refused also after a restart, the running operation is resumed by the same operation and refused for another; a bad signature, a replay, a stale and a malformed command, a body over the bound, another route and another method are refused with a code only; a command older than the process is stale; an unreadable journal stops every command; the log holds no token, signature or body",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updater/updater-server.test.ts"],
+        requires: ["tests/integration/updater/updater-server.test.ts"],
+      },
+      {
+        id: "updater-configuration",
+        criteria: ["D52.5-AC2"],
+        description: "The configuration takes the updater now that it exists: the case of the fixture with the updater enabled is ready, the active updater without a token is still refused, the three copies of the fixture agree",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/bootstrap/environment.test.ts"],
+        requires: ["tests/unit/bootstrap/environment.test.ts", "tests/fixtures/cases/bootstrap-v1.cases.json"],
+      },
+      {
+        id: "updater-service",
+        criteria: ["D52.5-AC1", "D52.5-AC2"],
+        description:
+          "The image of the updater target and compose.updater.yml pinned by digest next to the app on a real daemon: the app accepts UPDATER_ENABLED=true; the updater runs as the host user with a read-only root, no capability and no published port, holds the socket, the control folder and the backups read-only and none of the keys of the app, while the app has the token and neither the socket nor the control folder; signed commands answer through the channel, a replay and a wrong signature are refused, an install is closed as not available and its fence is in the journal as the host user's file; after a restart the fence stays, a command made before it is stale and the crashed writer is refused; the status shows only the app of its own project beside a second installation; the log holds no token, signature or nonce; the image does not start without a token of the right shape",
+        command: ["node", "tests/system/updater-service.ts"],
+        requires: ["tests/system/updater-service.ts", "docker/Dockerfile", "docker/compose.updater.yml", "tests/support/compose-instance.ts"],
+        timeoutMs: 25 * 60 * 1000,
+      },
+      ...regressionChecks("D52.5-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the channel, the journal, the release file, the adapter, the service.
+  {
+    id: "D52",
+    ready: true,
+    title: "The updater PoC: the channel, the journal and the fence, the choice of the release, the Docker adapter and the service",
+    steps: ["D52.1", "D52.2", "D52.3", "D52.4", "D52.5"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM5 gate (DEV §8.4, §9.50): the copy of installation A listed, verified and restored on a separate
     // installation B by the built commands, then the reports of the fast tier for D48-D51 joined item by item
     // for this exact code; does not run their tests again.

@@ -7,7 +7,7 @@ import { parseHeartbeatUrl } from "../adapters/monitoring/heartbeat.js";
 import { Secret } from "./secret.js";
 
 export type InstallMode = "local" | "server";
-export type BootstrapErrorCode = "CONFIG_INVALID" | "FEATURE_UNAVAILABLE";
+export type BootstrapErrorCode = "CONFIG_INVALID";
 
 export type UpdaterConfig =
   | Readonly<{ enabled: false }>
@@ -34,9 +34,6 @@ export type EnvironmentResult =
   | Readonly<{ ok: false; code: BootstrapErrorCode; fields: readonly string[] }>;
 
 export type RawEnvironment = Readonly<Record<string, string | undefined>>;
-
-/** The updater module arrives with D52; until then an active, valid updater set is refused. */
-const UPDATER_MODULE_AVAILABLE = false;
 
 const DB_BUSY_TIMEOUT_MS = { default: 5_000, min: 100, max: 30_000 } as const;
 const SECRET_HEX = /^[0-9a-f]{64}$/i;
@@ -170,9 +167,6 @@ export function parseEnvironment(env: RawEnvironment): EnvironmentResult {
 
   if (invalid.size > 0 || !installMode || !baseUrl || !betterAuthSecret || !appEncryptionKey || !updater) {
     return { ok: false, code: "CONFIG_INVALID", fields: [...invalid].sort() };
-  }
-  if (updater.enabled && !UPDATER_MODULE_AVAILABLE) {
-    return { ok: false, code: "FEATURE_UNAVAILABLE", fields: ["UPDATER_ENABLED"] };
   }
   return {
     ok: true,

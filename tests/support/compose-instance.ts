@@ -20,6 +20,8 @@ export type ComposeInstanceOptions = Readonly<{
   gid?: number;
   /** Extra .env lines, e.g. an optional option that must reach the app. */
   extraEnv?: Readonly<Record<string, string>>;
+  /** An installation with the updater (D52.5): its compose file is copied and listed before the release file, and its keys are in .env. */
+  updater?: Readonly<{ token: string; releasesRepo: string; dockerGid?: string }>;
 }>;
 
 export type ComposeInstance = TestInstance &
@@ -30,12 +32,13 @@ export type ComposeInstance = TestInstance &
   }>;
 
 export const COMPOSE_FILES = ["compose.yml", "compose.local.yml", path.join("control", "compose.release.yml")] as const;
+export const COMPOSE_FILES_WITH_UPDATER = ["compose.yml", "compose.local.yml", "compose.updater.yml", path.join("control", "compose.release.yml")] as const;
 /** `;` on every system: the path separator of COMPOSE_FILE (Architektura §14.4). */
 const COMPOSE_PATH_SEPARATOR = ";";
 
 export function prepareComposeInstance(dir: string, options: ComposeInstanceOptions): ComposeInstance {
   const instance = prepareTestInstance(dir, { baseUrl: `http://localhost:${options.port}` });
-  for (const file of ["compose.yml", "compose.local.yml"]) {
+  for (const file of ["compose.yml", "compose.local.yml", ...(options.updater === undefined ? [] : ["compose.updater.yml"])]) {
     copyFileSync(path.join(repoRoot, "docker", file), path.join(instance.dir, file), constants.COPYFILE_EXCL);
   }
   // Exactly what the app needs from a release: the image to run.
@@ -52,11 +55,12 @@ export function prepareComposeInstance(dir: string, options: ComposeInstanceOpti
     APP_GID: String(options.gid ?? process.getgid?.() ?? 1000),
     COMPOSE_PROJECT_NAME: projectName,
     COMPOSE_PATH_SEPARATOR,
-    COMPOSE_FILE: COMPOSE_FILES.join(COMPOSE_PATH_SEPARATOR),
+    COMPOSE_FILE: (options.updater === undefined ? COMPOSE_FILES : COMPOSE_FILES_WITH_UPDATER).join(COMPOSE_PATH_SEPARATOR),
+    ...(options.updater === undefined ? {} : { UPDATER_ENABLED: "true", UPDATER_TOKEN: options.updater.token, RELEASES_REPO: options.updater.releasesRepo, DOCKER_GID: options.updater.dockerGid ?? "0" }),
     ...options.extraEnv,
   };
   appendFileSync(instance.envFile, `${Object.entries(lines).map(([key, value]) => `${key}=${value}`).join("\n")}\n`);
-  return { ...instance, port: options.port, projectName, composeFiles: COMPOSE_FILES };
+  return { ...instance, port: options.port, projectName, composeFiles: options.updater === undefined ? COMPOSE_FILES : COMPOSE_FILES_WITH_UPDATER };
 }
 
 /**

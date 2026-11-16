@@ -15,7 +15,23 @@ RUN pnpm fetch
 COPY . .
 RUN pnpm install --offline --frozen-lockfile \
  && pnpm -r build \
- && pnpm --filter @openlife/server deploy --prod /out/server
+ && pnpm --filter @openlife/server deploy --prod /out/server \
+ && pnpm --filter @openlife/updater deploy --prod /out/updater
+
+# The updater (Architektura §11.2.1; D52.5): the only service with the Docker socket, a target of its own so the app image
+# holds none of its code. Built with `--target updater`; the app image stays the last stage, so a plain build is the app.
+FROM ${NODE_IMAGE} AS updater
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=build /out/updater apps/updater
+# The journal and the release file live in the control folder of the installation, mounted at /control (Compose); the
+# folder exists so the image runs without it in a check, and the user may write it only through the mount.
+RUN mkdir -p /control && chown -R node:node /control
+USER node
+EXPOSE 9090
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --start-interval=2s --retries=3 \
+  CMD ["node", "-e", "fetch('http://127.0.0.1:9090/v1/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+ENTRYPOINT ["node", "apps/updater/dist/main.js"]
 
 FROM ${NODE_IMAGE} AS runtime
 ENV NODE_ENV=production

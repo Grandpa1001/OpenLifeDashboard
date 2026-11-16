@@ -49,3 +49,23 @@ export function signingStringOf(input: SigningInput): string {
 
 /** Why a command was not accepted; a code, never a detail of the signature. */
 export type UpdaterRefusalCode = "MALFORMED" | "BAD_SIGNATURE" | "STALE" | "REPLAYED" | "REPLAY_CACHE_FULL";
+
+/** The answers of the updater (D52.5): what the owner's app may learn of the state, never a path, a token or an image name of a client. */
+export const UPDATER_HEALTH_PATH = "/v1/health";
+export const UPDATER_PORT = 9090;
+
+export const updaterStatusSchema = z
+  .object({
+    state: z.enum(["idle", "checking", "pulling", "quiescing", "backing_up", "switching", "verifying", "committing", "completed", "rolling_back", "rolled_back", "recovery_failed"]),
+    operationId: z.uuid().nullable(),
+    fence: z.number().int().min(0),
+    targetRelease: releaseVersionSchema.nullable(),
+    error: z.object({ code: z.string().min(1).max(64) }).strict().nullable(),
+    /** The app of the project of this installation, as the updater sees it; null when it cannot find exactly one. */
+    app: z.object({ running: z.boolean(), health: z.string().nullable() }).strict().nullable(),
+  })
+  .strict();
+export type UpdaterStatus = z.infer<typeof updaterStatusSchema>;
+
+/** The refusal of a command: the code of the verification or of the machine, with nothing else. */
+export const updaterRefusalSchema = z.object({ code: z.string().min(1).max(64) }).strict();

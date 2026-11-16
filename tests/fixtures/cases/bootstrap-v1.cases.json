@@ -101,12 +101,11 @@
       "expected": {"kind": "error", "code": "CONFIG_INVALID", "fields": ["UPDATER_TOKEN"], "exitCode": 1}
     },
     {
-      "id": "configured-updater-module-not-built-yet",
+      "id": "configured-updater-enabled",
       "task": "D03.1",
-      "phase": "before-D52",
       "envPatch": {"UPDATER_ENABLED": "true", "RELEASES_REPO": "example/openlife-releases"},
       "extraGeneratedSecrets": ["UPDATER_TOKEN"],
-      "expected": {"kind": "error", "code": "FEATURE_UNAVAILABLE", "fields": ["UPDATER_ENABLED"], "exitCode": 1}
+      "expected": {"kind": "ready", "updaterEnabled": true}
     },
     {
       "id": "record-limit-plus-overhead-exceeds-body",

@@ -24,7 +24,7 @@ describe("F08 cases for D03.1", () => {
       "missing-encryption-key",
       "inactive-updater-allows-empty-placeholders",
       "active-updater-requires-token",
-      "configured-updater-module-not-built-yet",
+      "configured-updater-enabled",
     ]);
   });
 
