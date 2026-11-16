@@ -6171,6 +6171,39 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.51: the file of the chosen release.
+    id: "D52.3",
+    ready: true,
+    title: "The file of the chosen release: generated from checked pins, validated as text, written atomically, read by Compose",
+    criteria: ["D52.3-AC1", "D52.3-AC2", "D52.3-regression"],
+    checks: [
+      {
+        // Runs first: the system check uses the built updater.
+        id: "workspace-build",
+        criteria: ["D52.3-AC1", "D52.3-AC2"],
+        description: "pnpm -r build: the generator and the validator of the release file",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/updater/src/release/release-file.ts"],
+      },
+      {
+        id: "release-file",
+        criteria: ["D52.3-AC1", "D52.3-AC2"],
+        description: "The file is rendered from checked pins as exactly the images of the app and the updater by digest, always the same text, and reads back as the same selection; the write goes through a temporary file that is read back and validated before the rename; a tag, a bad digest, a repository with a scheme, a space or a new line, an extra key or service, an anchor, an alias, a merge key, a tag, a second document, a duplicated key, a value that is not text and a file over the size are refused; a stop at each step leaves the old file or the new one",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/updater/release-file.test.ts"],
+        requires: ["tests/unit/updater/release-file.test.ts"],
+      },
+      {
+        id: "release-file-compose",
+        criteria: ["D52.3-AC1"],
+        description: "The real Docker Compose from an installation folder resolves the app to the image pinned by the digest and the updater to its own pin, leaves the rest of the app service as it was, gives the same answer when asked again and holds the last choice only",
+        command: ["node", "tests/system/release-file-compose.ts"],
+        requires: ["tests/system/release-file-compose.ts", "docker/compose.yml", "tests/support/compose-instance.ts"],
+        timeoutMs: 10 * 60 * 1000,
+      },
+      ...regressionChecks("D52.3-regression"),
+    ],
+  },
+  {
     // KM5 gate (DEV §8.4, §9.50): the copy of installation A listed, verified and restored on a separate
     // installation B by the built commands, then the reports of the fast tier for D48-D51 joined item by item
     // for this exact code; does not run their tests again.

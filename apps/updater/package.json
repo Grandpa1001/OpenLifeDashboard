@@ -16,6 +16,7 @@
     "typescript": "catalog:"
   },
   "dependencies": {
-    "@openlife/contracts": "workspace:*"
+    "@openlife/contracts": "workspace:*",
+    "yaml": "catalog:"
   }
 }
