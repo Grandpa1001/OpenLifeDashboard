@@ -31,6 +31,11 @@ export const updateRecordSchema = z
     backupId: backupPackageNameSchema.nullable(),
     /** The pins of the release before the operation, so a rollback puts back exactly them. */
     previousSelection: z.object({ app: digestSchema.nullable(), updater: digestSchema.nullable() }).strict().nullable(),
+    /**
+     * The containers of the switch (D55.1): the app that was running and the one that replaces it, written before the swap
+     * (with `nextId` null) and again after it, so a recovery after a crash can find both by the record alone.
+     */
+    replacement: z.object({ previousId: z.string().min(1).max(128), previousName: z.string().min(1).max(256), nextId: z.string().min(1).max(128).nullable(), name: z.string().min(1).max(256) }).strict().nullable().optional(),
     /** True from the commit point on; after it no rollback to the snapshot is made, as it would lose the data written since. */
     committed: z.boolean(),
     error: z.object({ code: z.string().min(1).max(64) }).strict().nullable(),

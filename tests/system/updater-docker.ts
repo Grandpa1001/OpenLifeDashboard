@@ -7,7 +7,7 @@
 // of a pinned image with only the folders of that app. Y is the same container, the same image and the same start at
 // the end. Nothing of the installation keys or of the owner's password is printed.
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createCheck } from "../support/check-report.ts";
@@ -16,6 +16,8 @@ import { docker, requireNativeDocker } from "../support/docker.ts";
 import { repoRoot } from "../support/repository-copy.ts";
 import { createEngineClient } from "../../apps/updater/dist/docker/engine-client.js";
 import { createProjectScope, ScopeError } from "../../apps/updater/dist/docker/project-scope.js";
+import { createReleaseSwitcher } from "../../apps/updater/dist/install/switch-release.js";
+import { catalogFileTextOf } from "../../apps/updater/dist/release/catalog.js";
 import { writeReleaseFile } from "../../apps/updater/dist/release/release-file.js";
 import { openJournal } from "../../apps/updater/dist/journal/journal.js";
 import { beginInstall } from "../../apps/updater/dist/state-machine/begin.js";
@@ -157,6 +159,38 @@ try {
   const backToA = inspectOf(toB.previousId);
   check.expect(backToA["State"].Running === true && backToA["Name"] === `/${foundX.name}` && backToA["Config"].Image === refA, "the way back puts the old app in its name and running, on release A");
   check.expect((await healthy(toB.previousId)) && run(["inspect", "--format", "{{.Id}}", toB.nextId]).status !== 0, "release A is healthy again and the app of B is gone");
+
+  // D55.1: the switch of the updater, from `switching` with the image of a catalog (no image in any command), on the real containers.
+  const switchDir = mkdtempSync(path.join(root, "switch-"));
+  const switchNow = new Date().toISOString();
+  writeFileSync(path.join(switchDir, "release-catalog.json"), catalogFileTextOf({ v: 1, releases: [{ version: "1.2.3", app: pin(digests["b"]), updater: null, minFrom: null, schemaVersion: 7 }] }));
+  const switchOperation = "22222222-2222-4222-8222-222222222222";
+  let switching = transition(initialRecord(switchNow), "checking", { operationId: switchOperation, targetRelease: "1.2.3", fence: 1 }, switchNow);
+  for (const state of ["pulling", "quiescing", "backing_up", "switching"] as const) if (switching.ok) switching = transition(switching.record, state, {}, switchNow);
+  const switchJournal = openJournal(switchDir);
+  check.expect(switching.ok, "a record in switching is made for the switch");
+  if (switching.ok) {
+    switchJournal.write(switching.record);
+    const switchLog: unknown[] = [];
+    await createReleaseSwitcher({ journal: switchJournal, catalogDir: switchDir, scope: scopeX, nowIso: () => new Date().toISOString(), logger: { log: (event) => void switchLog.push(event) } }).run(switching.record);
+    const switched = switchJournal.read();
+    const done = switched.ok ? switched.record : null;
+    check.expect(done?.state === "verifying" && done.replacement?.previousId === foundX.id && typeof done.replacement.nextId === "string" && done.replacement.name === foundX.name, "the switch ends in verifying with both containers on the journal", JSON.stringify(done));
+    if (done?.replacement?.nextId) {
+      check.expect(inspectOf(done.replacement.nextId)["Config"].Image === refB && inspectOf(done.replacement.nextId)["Name"] === `/${foundX.name}` && inspectOf(done.replacement.nextId)["State"].Running === true, "B runs under the name of A, on the image of the catalog");
+      check.expect(inspectOf(done.replacement.previousId)["State"].Running === false && inspectOf(done.replacement.previousId)["Name"] === `/${done.replacement.previousName}`, "A is kept stopped and renamed aside");
+      await scopeX.rollbackApp({ previousId: done.replacement.previousId, previousName: done.replacement.previousName, nextId: done.replacement.nextId, name: done.replacement.name });
+      check.expect((await healthy(done.replacement.previousId)) && inspectOf(done.replacement.previousId)["Name"] === `/${foundX.name}`, "the test puts A back for the rest of the run");
+    }
+    // A catalog that names an image the scope refuses stops the operation in rolling_back with nothing replaced.
+    const refusedDir = mkdtempSync(path.join(root, "switch-"));
+    writeFileSync(path.join(refusedDir, "release-catalog.json"), catalogFileTextOf({ v: 1, releases: [{ version: "1.2.3", app: { repository: "openlife-app", digest: `sha256:${"0".repeat(64)}` }, updater: null, minFrom: null, schemaVersion: 7 }] }));
+    const refusedJournal = openJournal(refusedDir);
+    refusedJournal.write(switching.record);
+    await createReleaseSwitcher({ journal: refusedJournal, catalogDir: refusedDir, scope: scopeX, nowIso: () => new Date().toISOString(), logger: { log: () => undefined } }).run(switching.record);
+    const stopped = refusedJournal.read();
+    check.expect(stopped.ok && stopped.record?.state === "rolling_back" && inspectOf(foundX.id)["State"].Running === true, "a swap that cannot be made stops the operation in rolling_back and leaves A running", JSON.stringify(stopped));
+  }
 
   const again = await scopeX.replaceApp({ id: toB.previousId, name: foundX.name }, refB);
   check.expect(await healthy(again.nextId), "the next switch to release B is healthy");

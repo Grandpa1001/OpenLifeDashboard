@@ -25,7 +25,7 @@ export const TRANSITIONS: Readonly<Record<UpdateState, readonly UpdateState[]>> 
 
 export type TransitionRefusal = "TRANSITION_REFUSED" | "AFTER_COMMIT_POINT";
 
-export type TransitionPatch = Partial<Pick<UpdateRecord, "operationId" | "fence" | "targetRelease" | "targetDigest" | "previousDigest" | "schemaVersionFrom" | "schemaVersionTo" | "backupId" | "previousSelection" | "committed" | "error">>;
+export type TransitionPatch = Partial<Pick<UpdateRecord, "operationId" | "fence" | "targetRelease" | "targetDigest" | "previousDigest" | "schemaVersionFrom" | "schemaVersionTo" | "backupId" | "previousSelection" | "replacement" | "committed" | "error">>;
 
 /** True while an operation holds the instance: a new one is not taken, and the app is not given back its writes unasked. */
 export const isActive = (state: UpdateState): boolean => ACTIVE_UPDATE_STATES.includes(state);
@@ -53,18 +53,23 @@ export function transition(record: UpdateRecord, to: UpdateState, patch: Transit
   };
   // A new operation starts from a clean record: nothing of the one before is carried into it, except the fence (it only grows).
   if (to === "checking") {
-    return { ok: true, record: { ...next, targetDigest: patch.targetDigest ?? null, previousDigest: null, schemaVersionFrom: null, schemaVersionTo: null, backupId: null, previousSelection: null, committed: false, error: null } };
+    return { ok: true, record: { ...next, targetDigest: patch.targetDigest ?? null, previousDigest: null, schemaVersionFrom: null, schemaVersionTo: null, backupId: null, previousSelection: null, replacement: null, committed: false, error: null } };
   }
   return { ok: true, record: closing ? { ...next, committed: false } : next };
 }
 
 /** The record of an installation that never updated. */
 export function initialRecord(nowIso: string): UpdateRecord {
-  return { v: 1, seq: 0, operationId: null, state: "idle", fence: 0, targetRelease: null, targetDigest: null, previousDigest: null, schemaVersionFrom: null, schemaVersionTo: null, backupId: null, previousSelection: null, committed: false, error: null, updatedAt: nowIso };
+  return { v: 1, seq: 0, operationId: null, state: "idle", fence: 0, targetRelease: null, targetDigest: null, previousDigest: null, schemaVersionFrom: null, schemaVersionTo: null, backupId: null, previousSelection: null, replacement: null, committed: false, error: null, updatedAt: nowIso };
 }
 
 /** The commit point: inside `committing`, once the choice of the image is durable. From the next record on, no rollback to the snapshot. */
 export function confirmCommit(record: UpdateRecord, nowIso: string): Readonly<{ ok: true; record: UpdateRecord }> | Readonly<{ ok: false; code: TransitionRefusal }> {
   if (record.state !== "committing" || record.committed) return { ok: false, code: "TRANSITION_REFUSED" };
   return { ok: true, record: { ...record, committed: true, seq: record.seq + 1, updatedAt: nowIso } };
+}
+
+/** A change to the record that is no change of state (what a step has learned while it works): the same state, the next number. */
+export function amendRecord(record: UpdateRecord, patch: Pick<TransitionPatch, "replacement">, nowIso: string): UpdateRecord {
+  return { ...record, ...patch, seq: record.seq + 1, updatedAt: nowIso };
 }

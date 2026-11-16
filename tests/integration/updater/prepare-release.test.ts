@@ -79,18 +79,25 @@ describe("D54.1-AC1 a version the catalog does not vouch for is refused before a
   });
 });
 
-describe("D54.1-AC2 the images are pulled by the digests of the catalog and proved, or the operation ends idle with a code", () => {
-  it("pulls the app and the updater of the release by their digests and ends in quiescing with the digest on the record", async () => {
-    const server = await start({ catalog: catalogFileTextOf(catalogOf(release123, { ...release123, version: "1.3.0", updater: UPDATER, minFrom: "1.2.0", schemaVersion: 8 })) });
+describe("D54.1-AC2 the image is pulled by the digest of the catalog and proved, or the operation ends idle with a code", () => {
+  it("pulls the app of the release by its digest and ends in quiescing with the digest on the record", async () => {
+    const server = await start({ catalog: catalogFileTextOf(catalogOf(release123, { ...release123, version: "1.3.0", minFrom: "1.2.0", schemaVersion: 8 })) });
     const operationId = randomUUID();
     expect((await send(server, install("1.3.0", 4, operationId))).status).toBe(202);
     const record = await settled(server);
     expect(record).toMatchObject({ state: "quiescing", operationId, fence: 4, targetRelease: "1.3.0", targetDigest: APP.digest, committed: false, error: null });
     const pulls = server.engine.requests.filter((request) => request.method === "POST").map((request) => decodeURIComponent(request.path.split("fromImage=")[1] ?? ""));
-    expect(pulls).toEqual([imageOf(APP), imageOf(UPDATER)]);
+    expect(pulls).toEqual([imageOf(APP)]);
     // Only pulls and the look at the pulled images: nothing is created, started, stopped, renamed or deleted, so the app A is as it was.
     expect(server.engine.requests.every((request) => request.method === "GET" || request.path.startsWith("/images/create?fromImage="))).toBe(true);
     expect(server.engine.requests.some((request) => request.path.startsWith("/containers"))).toBe(false);
+  });
+
+  it("refuses a release that replaces the updater, which is for the administrator, before anything is pulled", async () => {
+    const server = await start({ catalog: catalogFileTextOf(catalogOf(release123, { ...release123, version: "1.3.0", updater: UPDATER, schemaVersion: 8 })) });
+    expect((await send(server, install("1.3.0"))).status).toBe(202);
+    expect(await settled(server)).toMatchObject({ state: "idle", targetRelease: "1.3.0", error: { code: "RELEASE_REQUIRES_ADMIN" } });
+    expect(server.engine.requests).toEqual([]);
   });
 
   it("ends idle with PULL_FAILED when the Engine refuses the pull or the stream of the pull carries an error", async () => {

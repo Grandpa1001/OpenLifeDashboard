@@ -15,6 +15,7 @@ import { UPDATER_COMMAND_METHOD, UPDATER_COMMAND_PATH, UPDATER_HEALTH_PATH, UPDA
 import { UPDATE_STATE_FILE } from "@openlife/contracts/updates/state";
 import { afterEach, describe, expect, it } from "vitest";
 import { createProgressHandler } from "../../../apps/updater/dist/install/progress.js";
+import { createReleaseSwitcher } from "../../../apps/updater/dist/install/switch-release.js";
 import { createReleasePreparer, type ReleasePreparer } from "../../../apps/updater/dist/install/prepare-release.js";
 import { openJournal } from "../../../apps/updater/dist/journal/journal.js";
 import { signCommand } from "../../../apps/updater/dist/protocol/verify-command.js";
@@ -42,6 +43,7 @@ async function start(options: { journalDir?: string; startedAtMs?: number; nowMs
     startedAtMs: options.startedAtMs ?? now - 1000,
     logger: { log: (event) => void logs.push(event) },
     installer,
+    switcher: createReleaseSwitcher({ journal: openJournal(journalDir), catalogDir: journalDir, scope: { findApp: async () => ({ id: "a", name: "a" }), replaceApp: async (app) => ({ previousId: app.id, previousName: "a-previous", nextId: "b", name: app.name }) }, nowIso: () => new Date().toISOString(), logger: { log: () => undefined } }),
     progress: createProgressHandler({ journal: openJournal(journalDir), catalogDir: journalDir, backupDir: journalDir, previousSelection: async () => null, nowIso: () => new Date().toISOString() }),
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));

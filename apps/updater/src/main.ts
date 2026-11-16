@@ -10,6 +10,7 @@ import { createEngineClient } from "./docker/engine-client.js";
 import { createProjectScope, ScopeError } from "./docker/project-scope.js";
 import { createReleasePreparer } from "./install/prepare-release.js";
 import { createProgressHandler } from "./install/progress.js";
+import { createReleaseSwitcher } from "./install/switch-release.js";
 import { openJournal } from "./journal/journal.js";
 import type { UpdaterLogger } from "./logging.js";
 import { createPreviousSelection } from "./release/previous-selection.js";
@@ -52,7 +53,8 @@ const appView = async (): Promise<AppView> => {
 
 const installer = createReleasePreparer({ journal, catalogDir: CONTROL_DIR, scope, nowIso: () => new Date().toISOString(), logger });
 const progress = createProgressHandler({ journal, catalogDir: CONTROL_DIR, backupDir: BACKUP_DIR, previousSelection: createPreviousSelection({ controlDir: CONTROL_DIR, scope }), nowIso: () => new Date().toISOString() });
-const server = createUpdaterServer({ token, journal, appView, nowMs: Date.now, startedAtMs: Date.now(), logger, installer, progress });
+const switcher = createReleaseSwitcher({ journal, catalogDir: CONTROL_DIR, scope, nowIso: () => new Date().toISOString(), logger });
+const server = createUpdaterServer({ token, journal, appView, nowMs: Date.now, startedAtMs: Date.now(), logger, installer, progress, switcher });
 server.listen(UPDATER_PORT, "0.0.0.0", () => console.log(JSON.stringify({ event: "updater.listening", port: UPDATER_PORT })));
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.on(signal, () => server.close(() => process.exit(0)));

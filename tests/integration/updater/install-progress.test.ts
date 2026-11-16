@@ -16,7 +16,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { openJournal } from "../../../apps/updater/dist/journal/journal.js";
 import { catalogFileTextOf } from "../../../apps/updater/dist/release/catalog.js";
 import { initialRecord, transition } from "../../../apps/updater/dist/state-machine/transitions.js";
-import { catalogOf, closeServers, digestOf, envelopeOf, install, publishBackup, recordOf, release123, send, settled, start, type Started } from "../../support/updater-harness.ts";
+import { catalogOf, closeServers, digestOf, envelopeOf, idleSwitchScope, install, publishBackup, recordOf, release123, send, settled, start, type Started } from "../../support/updater-harness.ts";
 
 afterEach(closeServers);
 
@@ -30,7 +30,7 @@ const abort = (operationId: string, fence = FENCE) => asApp({ type: "abort", fen
 
 /** An operation that has pulled and waits in `quiescing`, as the app finds it by asking for the status. */
 async function inQuiescing(options: Parameters<typeof start>[0] = {}): Promise<{ server: Started; operationId: string }> {
-  const server = await start({ catalog, ...options });
+  const server = await start({ catalog, switchScope: idleSwitchScope, ...options });
   const operationId = randomUUID();
   expect((await send(server, install("1.3.0", FENCE, operationId))).status).toBe(202);
   expect(await settled(server)).toMatchObject({ state: "quiescing", operationId });

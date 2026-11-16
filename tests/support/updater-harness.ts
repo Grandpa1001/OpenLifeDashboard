@@ -12,6 +12,7 @@ import type { EngineClient, EngineReply } from "../../apps/updater/dist/docker/e
 import { createProjectScope } from "../../apps/updater/dist/docker/project-scope.js";
 import { createReleasePreparer } from "../../apps/updater/dist/install/prepare-release.js";
 import { createProgressHandler } from "../../apps/updater/dist/install/progress.js";
+import { createReleaseSwitcher } from "../../apps/updater/dist/install/switch-release.js";
 import { openJournal } from "../../apps/updater/dist/journal/journal.js";
 import { signCommand } from "../../apps/updater/dist/protocol/verify-command.js";
 import type { PreviousSelection } from "../../apps/updater/dist/release/previous-selection.js";
@@ -56,7 +57,22 @@ export async function closeServers(): Promise<void> {
   for (const each of started.splice(0)) await each.close();
 }
 
-export async function start(options: { dir?: string; catalog?: string | null; engine?: Engine; backupDir?: string; previous?: PreviousSelection | null } = {}): Promise<Started> {
+/** The app of the project as the updater's switch finds it, and what a replacement of it gives back; every call is recorded. */
+export type SwitchScope = Parameters<typeof createReleaseSwitcher>[0]["scope"];
+export function fakeSwitchScope(calls: Array<{ app: { id: string; name: string }; image: string }> = []): SwitchScope {
+  return {
+    findApp: async () => ({ id: "container-a", name: "openlife-app-1" }),
+    replaceApp: async (app, image) => {
+      calls.push({ app, image });
+      return { previousId: app.id, previousName: `${app.name}-previous-1234`, nextId: "container-b", name: app.name };
+    },
+  };
+}
+
+/** A switch that never begins (the app is never found): the operation stays in `switching`, which is what the tests of the commands before it look at. */
+export const idleSwitchScope: SwitchScope = { findApp: () => new Promise(() => undefined), replaceApp: () => new Promise(() => undefined) };
+
+export async function start(options: { dir?: string; catalog?: string | null; engine?: Engine; backupDir?: string; previous?: PreviousSelection | null; switchScope?: SwitchScope } = {}): Promise<Started> {
   const dir = options.dir ?? mkdtempSync(path.join(tmpdir(), "prepare-release-"));
   if (options.catalog !== undefined && options.catalog !== null) writeFileSync(path.join(dir, RELEASE_CATALOG_FILE), options.catalog);
   const engine = options.engine ?? fakeEngine();
@@ -75,6 +91,7 @@ export async function start(options: { dir?: string; catalog?: string | null; en
     startedAtMs: Date.now() - 1000,
     logger,
     installer: createReleasePreparer({ journal, catalogDir: dir, scope, nowIso: () => new Date().toISOString(), logger }),
+    switcher: createReleaseSwitcher({ journal, catalogDir: dir, scope: options.switchScope ?? fakeSwitchScope(), nowIso: () => new Date().toISOString(), logger }),
     progress: createProgressHandler({ journal, catalogDir: dir, backupDir, previousSelection: async () => previous, nowIso: () => new Date().toISOString() }),
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));

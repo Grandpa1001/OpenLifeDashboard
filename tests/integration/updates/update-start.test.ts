@@ -19,7 +19,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { catalogFileTextOf } from "../../../apps/updater/dist/release/catalog.js";
 import { codeOf, secretOf } from "../../support/auth-http.ts";
 import { closeHarnesses, createAppHarness, HARNESS_EMAIL, HARNESS_PASSWORD, type HarnessOptions } from "../../support/app-harness.ts";
-import { catalogOf, closeServers, fakeEngine, install, recordOf, release123, send, start, TOKEN, type Engine, type Started } from "../../support/updater-harness.ts";
+import { catalogOf, closeServers, fakeEngine, idleSwitchScope, install, recordOf, release123, send, start, TOKEN, type Engine, type Started } from "../../support/updater-harness.ts";
 
 afterEach(async () => {
   await closeServers();
@@ -36,7 +36,7 @@ type Rig = Awaited<ReturnType<typeof rig>>;
 /** The app, the updater and the folder of the copies they both look at; the owner has passed the factor and chosen the empty start. */
 async function rig(options: { engine?: Engine; available?: () => string | null; updaterUrl?: (real: string) => Promise<string> | string; snapshots?: NonNullable<HarnessOptions["updater"]>["snapshots"]; catalog?: string | null; attempts?: number } = {}) {
   const backupsDir = mkdtempSync(path.join(tmpdir(), "update-start-"));
-  const updater = await start({ catalog: options.catalog === undefined ? catalog : options.catalog, backupDir: backupsDir, ...(options.engine === undefined ? {} : { engine: options.engine }) });
+  const updater = await start({ catalog: options.catalog === undefined ? catalog : options.catalog, backupDir: backupsDir, switchScope: idleSwitchScope, ...(options.engine === undefined ? {} : { engine: options.engine }) });
   const baseUrl = options.updaterUrl === undefined ? updater.url : await options.updaterUrl(updater.url);
   const h = await createAppHarness({
     backupsDir,

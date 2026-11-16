@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -6542,6 +6542,40 @@ const definedLater: readonly TaskDefinition[] = [
         requires: ["tests/integration/access/data-routes.test.ts"],
       },
       ...regressionChecks("D54.4-regression"),
+    ],
+  },
+  {
+    // DEV §9.54: the switch of the app by the updater.
+    id: "D55.1",
+    ready: true,
+    title: "The switch of the app: from switching the updater replaces the app by the image of the catalog, has the containers on the journal and waits in verifying",
+    criteria: ["D55.1-AC1", "D55.1-AC2", "D55.1-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built updater and contracts.
+        id: "workspace-build",
+        criteria: ["D55.1-AC1", "D55.1-AC2"],
+        description: "pnpm -r build: the switch of the updater and the containers of the switch in the record",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/updater/src/install/switch-release.ts", "packages/contracts/src/updates/state.ts"],
+      },
+      {
+        id: "switch-release",
+        criteria: ["D55.1-AC1", "D55.1-AC2"],
+        description:
+          "Through the real server of the updater on HTTP with a real journal, catalog and backup folder and a recorded stand-in for the app of the project: once the copy is taken the app is replaced by the image of the catalog pinned by its digest, never one a command named, the containers are on the journal before the swap and after it and the operation ends in verifying; the same report of the copy swaps once and a repeated one is refused as it was; an operation in switching with nothing replaced is driven when asked again after a restart and one whose swap has begun is not; a failed swap, an app that is not found and a failure of any other kind stop the operation in rolling_back with a code and keep nothing of the text of the failure, the operation holds the instance and cannot be given up any more; a release that replaces the updater is refused when the operation begins, before anything is pulled, and again at the switch if the catalog changed",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updater/switch-release.test.ts", "tests/integration/updater/prepare-release.test.ts", "tests/integration/updater/install-progress.test.ts", "tests/integration/updater/updater-server.test.ts"],
+        requires: ["tests/integration/updater/switch-release.test.ts", "tests/support/updater-harness.ts"],
+      },
+      {
+        id: "updater-docker",
+        criteria: ["D55.1-AC1", "D55.1-AC2"],
+        description: "On a real daemon: from a record in switching and a catalog the switch makes B run under the name of A on the image of the catalog, keeps A stopped and renamed aside, ends in verifying with both containers on the journal, and a swap that cannot be made stops in rolling_back with A still running",
+        command: ["node", "tests/system/updater-docker.ts"],
+        requires: ["tests/system/updater-docker.ts", "docker/Dockerfile", "docker/compose.yml", "tests/support/compose-instance.ts"],
+        timeoutMs: 25 * 60 * 1000,
+      },
+      ...regressionChecks("D55.1-regression"),
     ],
   },
   // The parent passes only through its work orders: the catalog and the pull, the commands, the gate, the start from the app.

@@ -1,6 +1,6 @@
 // The first steps of an installation, driven by the updater alone (Architektura §11.2.2 steps 1 and 2; D54.1): the
-// release of the command is found in the trusted catalog (`checking`), its images are pulled by the digests of the
-// catalog and proved to be those digests (`pulling`), and the operation waits for the app to be quiet (`quiescing`).
+// release of the command is found in the trusted catalog (`checking`), its image is pulled by the digest of the
+// catalog and proved to be that digest (`pulling`), and the operation waits for the app to be quiet (`quiescing`).
 // Everything here happens while the app A still serves, so a failure closes the operation as `idle` with a code and
 // touches nothing of A. The record is on the journal before each step, so a crash leaves a record that says where it
 // was; the same operation asked again drives it from there (the pulls are idempotent).
@@ -39,18 +39,18 @@ export function createReleasePreparer(options: PrepareOptions): ReleasePreparer 
         if (!read.ok) return close(read.code);
         const release = record.targetRelease === null ? null : findRelease(read.catalog, record.targetRelease);
         if (release === null) return close("RELEASE_UNKNOWN");
+        // The update from the UI replaces the app only; a release that replaces the updater is for the administrator (Architektura §11.2.1).
+        if (release.updater !== null) return close("RELEASE_REQUIRES_ADMIN");
         if (record.state === "checking") {
           const pulling = transition(record, "pulling", { targetDigest: release.app.digest }, options.nowIso());
           if (!pulling.ok) return close("TRANSITION_REFUSED");
           options.journal.write(pulling.record);
           record = pulling.record;
         }
-        for (const pin of [release.app, ...(release.updater === null ? [] : [release.updater])]) {
-          try {
-            await options.scope.pullVerified(imageOf(pin));
-          } catch (error) {
-            return close(error instanceof ScopeError ? error.code : "PULL_FAILED");
-          }
+        try {
+          await options.scope.pullVerified(imageOf(release.app));
+        } catch (error) {
+          return close(error instanceof ScopeError ? error.code : "PULL_FAILED");
         }
         const quiescing = transition(record, "quiescing", {}, options.nowIso());
         if (!quiescing.ok) return close("TRANSITION_REFUSED");

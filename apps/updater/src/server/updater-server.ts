@@ -9,6 +9,7 @@ import { UPDATER_BODY_MAX_BYTES, UPDATER_CLOCK_SKEW_MS, UPDATER_COMMAND_METHOD, 
 import type { UpdateRecord } from "@openlife/contracts/updates/state";
 import type { ReleasePreparer } from "../install/prepare-release.js";
 import type { ProgressHandler } from "../install/progress.js";
+import type { ReleaseSwitcher } from "../install/switch-release.js";
 import type { Journal } from "../journal/journal.js";
 import type { UpdaterLogEvent, UpdaterLogger } from "../logging.js";
 import { createReplayCache } from "../protocol/replay-cache.js";
@@ -33,6 +34,8 @@ export type UpdaterServerOptions = Readonly<{
   installer: ReleasePreparer;
   /** What the app reports between the pull and the switch: quiet, copy taken, or given up (D54.2). */
   progress: ProgressHandler;
+  /** Replaces the app by the release once the copy is taken (D55.1). */
+  switcher: ReleaseSwitcher;
 }>;
 
 const statusOf = (record: UpdateRecord, app: AppView): UpdaterStatus => ({ state: record.state, operationId: record.operationId, fence: record.fence, targetRelease: record.targetRelease, error: record.error, app });
@@ -64,13 +67,21 @@ export function createUpdaterServer(options: UpdaterServerOptions): http.Server 
   /** The operations this process is driving now; after a restart an operation of the journal is driven again when it is asked for again. */
   const driving = new Set<string>();
 
+  /** What the updater does by itself in a state: the pull while the app serves, the switch once the copy is taken. */
+  const stepOf = (record: UpdateRecord): ((record: UpdateRecord) => Promise<void>) | null => {
+    if (record.state === "checking" || record.state === "pulling") return options.installer.prepare;
+    // A switch that has begun (the containers are on the journal) is not made again by asking: what is left of it is for the recovery (D56).
+    if (record.state === "switching" && (record.replacement ?? null) === null) return options.switcher.run;
+    return null;
+  };
+
   function drive(record: UpdateRecord): void {
     const id = record.operationId;
-    if (id === null || driving.has(id)) return;
+    const step = stepOf(record);
+    if (id === null || step === null || driving.has(id)) return;
     driving.add(id);
-    void options.installer
-      .prepare(record)
-      .catch(() => options.logger.log({ level: "error", event: "updater.prepare_failed", code: "PREPARE_FAILED", operationId: id }))
+    void step(record)
+      .catch(() => options.logger.log({ level: "error", event: "updater.step_failed", code: "STEP_FAILED", operationId: id }))
       .finally(() => driving.delete(id));
   }
 
@@ -105,6 +116,7 @@ export function createUpdaterServer(options: UpdaterServerOptions): http.Server 
         return;
       }
       options.logger.log({ level: "info", event: "updater.progress_accepted", operationId: envelope.operationId });
+      drive(result.record);
       send(response, 200, statusOf(result.record, await options.appView().catch(() => null)));
       return;
     }
@@ -116,7 +128,7 @@ export function createUpdaterServer(options: UpdaterServerOptions): http.Server 
       return;
     }
     if (begun.resumed) {
-      if (begun.record.state === "checking" || begun.record.state === "pulling") drive(begun.record);
+      drive(begun.record);
       send(response, 202, statusOf(begun.record, await options.appView().catch(() => null)));
       return;
     }
