@@ -114,6 +114,7 @@ describe("D55.1-AC2 a failure stops the operation with a code and replaces nothi
     replaceApp: async () => {
       throw error;
     },
+    discardPrevious: async () => undefined,
   });
 
   it("stops in rolling_back with SWITCH_FAILED when the swap fails, keeping the old container on the journal and no new one", async () => {

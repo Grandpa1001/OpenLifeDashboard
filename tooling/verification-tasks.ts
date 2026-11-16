@@ -6611,6 +6611,32 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D55.2-regression"),
     ],
   },
+  {
+    // DEV §9.54: the proof of the new app and the commit point.
+    id: "D55.3",
+    ready: true,
+    title: "The proof of the new app and the commit point: the choice of the release is written, read back and committed, then the operation is completed",
+    criteria: ["D55.3-AC1", "D55.3-AC2", "D55.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built updater and contracts.
+        id: "workspace-build",
+        criteria: ["D55.3-AC1", "D55.3-AC2"],
+        description: "pnpm -r build: the proof and the commit point in the updater and the limit of the wait",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/updater/src/install/progress.ts", "apps/updater/src/install/update-limits.ts"],
+      },
+      {
+        id: "commit-release",
+        criteria: ["D55.3-AC1", "D55.3-AC2"],
+        description:
+          "Through the real server of the updater on HTTP with a real journal, catalog, backup folder and release file: a ready of the new app that fits the release (the version of the application and of the schema compared with the catalog) takes the operation through committing to completed, with the choice written to the file and read back the same, the commit point on the journal before the end, the replaced app discarded, the updater the installation has kept and the same proof asked again answered as it was; another version or schema, a proof of another operation, an older or newer fence, a proof before the switch, none in time (START_TIMEOUT, and a proof after it refused), a file that cannot be written, a release the catalog lost and a timer that must not touch a committed operation commit nothing and write no file; a replaced app that cannot be discarded does not undo the commit and its text is not logged",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updater/commit-release.test.ts", "tests/integration/updater/switch-release.test.ts", "tests/integration/updater/install-progress.test.ts", "tests/integration/updater/updater-server.test.ts"],
+        requires: ["tests/integration/updater/commit-release.test.ts", "tests/support/updater-harness.ts"],
+      },
+      ...regressionChecks("D55.3-regression"),
+    ],
+  },
   // The parent passes only through its work orders: the catalog and the pull, the commands, the gate, the start from the app.
   {
     id: "D54",

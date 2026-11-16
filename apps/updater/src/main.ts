@@ -52,7 +52,10 @@ const appView = async (): Promise<AppView> => {
 };
 
 const installer = createReleasePreparer({ journal, catalogDir: CONTROL_DIR, scope, nowIso: () => new Date().toISOString(), logger });
-const progress = createProgressHandler({ journal, catalogDir: CONTROL_DIR, backupDir: BACKUP_DIR, previousSelection: createPreviousSelection({ controlDir: CONTROL_DIR, scope }), nowIso: () => new Date().toISOString() });
+const progress = createProgressHandler({ journal, catalogDir: CONTROL_DIR, backupDir: BACKUP_DIR, previousSelection: createPreviousSelection({ controlDir: CONTROL_DIR, scope }), discardPrevious: async (replacement) => {
+    // Only the replaced app is removed, and only once the swap has finished (the new container is on the journal).
+    if (replacement.nextId !== null) await scope.discardPrevious({ ...replacement, nextId: replacement.nextId });
+  }, nowIso: () => new Date().toISOString() });
 const switcher = createReleaseSwitcher({ journal, catalogDir: CONTROL_DIR, scope, nowIso: () => new Date().toISOString(), logger });
 const server = createUpdaterServer({ token, journal, appView, nowMs: Date.now, startedAtMs: Date.now(), logger, installer, progress, switcher });
 server.listen(UPDATER_PORT, "0.0.0.0", () => console.log(JSON.stringify({ event: "updater.listening", port: UPDATER_PORT })));

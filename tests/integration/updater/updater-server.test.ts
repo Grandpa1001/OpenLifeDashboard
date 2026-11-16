@@ -44,7 +44,7 @@ async function start(options: { journalDir?: string; startedAtMs?: number; nowMs
     logger: { log: (event) => void logs.push(event) },
     installer,
     switcher: createReleaseSwitcher({ journal: openJournal(journalDir), catalogDir: journalDir, scope: { findApp: async () => ({ id: "a", name: "a" }), replaceApp: async (app) => ({ previousId: app.id, previousName: "a-previous", nextId: "b", name: app.name }) }, nowIso: () => new Date().toISOString(), logger: { log: () => undefined } }),
-    progress: createProgressHandler({ journal: openJournal(journalDir), catalogDir: journalDir, backupDir: journalDir, previousSelection: async () => null, nowIso: () => new Date().toISOString() }),
+    progress: createProgressHandler({ journal: openJournal(journalDir), catalogDir: journalDir, backupDir: journalDir, previousSelection: async () => null, discardPrevious: async () => undefined, nowIso: () => new Date().toISOString() }),
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const instance: Started = { url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, close: () => new Promise((resolve) => server.close(() => resolve())), logs, journalDir, setNow: (ms) => void (now = ms) };

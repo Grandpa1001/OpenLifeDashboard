@@ -11,6 +11,7 @@ import type { UpdaterLogger } from "../logging.js";
 import { findRelease, readCatalog } from "../release/catalog.js";
 import { imageOf } from "../release/release-file.js";
 import { amendRecord, transition } from "../state-machine/transitions.js";
+import { START_TIMEOUT_MS } from "./update-limits.js";
 import type { UpdateRecord } from "@openlife/contracts/updates/state";
 
 export type SwitchOptions = Readonly<{
@@ -19,6 +20,8 @@ export type SwitchOptions = Readonly<{
   scope: Pick<ProjectScope, "findApp" | "replaceApp">;
   nowIso: () => string;
   logger: UpdaterLogger;
+  /** How long the new app has to say it is ready; the constant of the protocol unless a test narrows it. */
+  startTimeoutMs?: number;
 }>;
 
 export type ReleaseSwitcher = Readonly<{ run: (record: UpdateRecord) => Promise<void> }>;
@@ -62,6 +65,16 @@ export function createReleaseSwitcher(options: SwitchOptions): ReleaseSwitcher {
         if (!verifying.ok) return stop("TRANSITION_REFUSED");
         options.journal.write(verifying.record);
         log("info", "updater.switched");
+        // The new app has a limited time to prove itself. When it passes, the operation stops in `rolling_back` (the way back is D56)
+        // and a proof that comes after that is refused. A timer is lost with the process; after a restart the recovery decides.
+        const timer = setTimeout(() => {
+          const read = options.journal.read();
+          if (!read.ok || read.record === null || read.record.state !== "verifying" || read.record.operationId !== verifying.record.operationId) return;
+          const stopped = transition(read.record, "rolling_back", { error: { code: "START_TIMEOUT" } }, options.nowIso());
+          if (stopped.ok) options.journal.write(stopped.record);
+          log("warn", "updater.switch_failed", "START_TIMEOUT");
+        }, options.startTimeoutMs ?? START_TIMEOUT_MS);
+        timer.unref();
       } catch {
         log("warn", "updater.switch_failed", "SWITCH_FAILED");
       }
