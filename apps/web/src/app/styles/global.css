@@ -1901,3 +1901,38 @@ main.pulpit {
 .template-section input[type="file"] {
   max-width: 100%;
 }
+
+/* The version in the corner of the part of the application (D53.4): quiet, with a dot when a newer release is known. */
+.version-mark {
+  position: fixed;
+  right: var(--space-3);
+  bottom: var(--space-2);
+}
+
+.version-mark a {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  min-height: var(--touch-target);
+  padding: 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.version-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+}
+
+.updates-notes {
+  max-height: 20rem;
+  overflow: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

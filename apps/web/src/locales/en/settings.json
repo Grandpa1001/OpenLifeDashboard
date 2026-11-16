@@ -6,7 +6,8 @@
     "style": "Style",
     "security": "Security",
     "app": "Application",
-    "diagnostics": "Diagnostics"
+    "diagnostics": "Diagnostics",
+    "updates": "Updates"
   },
   "locale": {
     "pl": "Polski",
@@ -338,6 +339,55 @@
       "offRisk": "I understand that the password alone will protect the account.",
       "turnOff": "Turn off the second factor",
       "turnedOff": "The second factor is off. Your other sessions and the trusted devices were ended."
+    }
+  },
+  "updates": {
+    "heading": "Updates",
+    "loadFailed": "The state of the updates could not be read.",
+    "notConfigured": "This installation has no updater, so it does not look for new versions. Updates are made as the installation guide says.",
+    "version": {
+      "heading": "Version",
+      "current": "Running version: {{version}}",
+      "notChecked": "The releases have not been checked yet.",
+      "noRelease": "No stable release was found.",
+      "available": "A newer version is available: {{version}}.",
+      "upToDate": "You are using the newest stable version.",
+      "checkedAt": "Last checked: {{when}}.",
+      "nextCheck": "Next check: {{when}}."
+    },
+    "release": {
+      "heading": "Version {{version}}",
+      "published": "Published: {{when}}.",
+      "notes": "What is new",
+      "noNotes": "The release has no notes.",
+      "open": "Open the release on GitHub",
+      "howTo": "The update itself is not made from this page."
+    },
+    "check": {
+      "heading": "Checking",
+      "switch": "Look for new versions once a day",
+      "switchNote": "Switching it off does not stop “Check now”. Nothing is installed by a check.",
+      "now": "Check now",
+      "checking": "Checking…",
+      "updated": "The check is done: the list of releases changed.",
+      "unchanged": "The check is done: nothing changed.",
+      "failed": "The check did not succeed. The reason is below.",
+      "tooSoon_one": "It was checked a moment ago. Try again in {{count}} second.",
+      "tooSoon_other": "It was checked a moment ago. Try again in {{count}} seconds."
+    },
+    "errors": {
+      "NETWORK_UNAVAILABLE": "The server of the releases cannot be reached. Your data and the application work as before.",
+      "TIMEOUT": "The server of the releases did not answer in time.",
+      "RATE_LIMITED": "The server of the releases asks to wait before the next check.",
+      "FORBIDDEN": "The server of the releases refused the question.",
+      "NOT_FOUND": "The server of the releases does not know this repository.",
+      "SERVER_ERROR": "The server of the releases has a problem now.",
+      "REDIRECT_REFUSED": "The server of the releases sent the question elsewhere, which is not followed.",
+      "RESPONSE_TOO_LARGE": "The answer of the server of the releases is too large.",
+      "RESPONSE_INVALID": "The answer of the server of the releases could not be understood.",
+      "UNEXPECTED_STATUS": "The server of the releases answered in an unexpected way.",
+      "UNKNOWN": "The check did not succeed.",
+      "retryAt": "The next try is after {{when}}."
     }
   },
   "diagnostics": {

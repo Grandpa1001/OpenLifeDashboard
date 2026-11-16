@@ -40,8 +40,8 @@ export async function stopServers(): Promise<void> {
   }
 }
 
-export async function serve(instance: TestInstance, at?: Readonly<{ port: number; origin: string }>): Promise<ServerProcess> {
-  const server = await startBuiltServer({ installation: { dir: instance.dir, env: instance.env }, ...(at === undefined ? {} : { args: ["--port", String(at.port)] }) });
+export async function serve(instance: TestInstance, at?: Readonly<{ port: number; origin: string }>, env?: Readonly<Record<string, string>>): Promise<ServerProcess> {
+  const server = await startBuiltServer({ installation: { dir: instance.dir, env: instance.env }, ...(at === undefined ? {} : { args: ["--port", String(at.port)] }), ...(env === undefined ? {} : { env }) });
   if (at !== undefined) originOf.set(server, at.origin);
   running.push(server);
   return server;
@@ -211,12 +211,12 @@ export type BrowserOwner = Readonly<{
  * (it must reach the server untrimmed), and the setup stands at the requested stage, made by the
  * real routes from an API session that is not the browser's.
  */
-export async function browserOwner(stage: OwnerStage, password = "  a spaced pass phrase 🔐  "): Promise<BrowserOwner> {
+export async function browserOwner(stage: OwnerStage, password = "  a spaced pass phrase 🔐  ", serverEnv?: Readonly<Record<string, string>>): Promise<BrowserOwner> {
   // The port is chosen free and the server listens a few seconds later, after the owner is made; another
   // worker can take it in between (EADDRINUSE, run 43194896323). The installation is then made again on another port.
   for (let attempt = 1; ; attempt += 1) {
     try {
-      return await startBrowserOwner(stage, password);
+      return await startBrowserOwner(stage, password, serverEnv);
     } catch (error) {
       if (attempt >= PORT_TAKEN_ATTEMPTS || !(error instanceof Error && error.message.includes("EADDRINUSE"))) throw error;
     }
@@ -226,13 +226,13 @@ export async function browserOwner(stage: OwnerStage, password = "  a spaced pas
 /** How many times an installation is made again when its port was taken before the server could listen. */
 const PORT_TAKEN_ATTEMPTS = 3;
 
-async function startBrowserOwner(stage: OwnerStage, password: string): Promise<BrowserOwner> {
+async function startBrowserOwner(stage: OwnerStage, password: string, serverEnv?: Readonly<Record<string, string>>): Promise<BrowserOwner> {
   const port = await freeLoopbackPort();
   const origin = `http://127.0.0.1:${port}`;
   const instance = await startedInstallation({ baseUrl: origin });
   const created = await runBuiltScript(CREATE_OWNER, ["--installation", instance.dir], { PATH: process.env["PATH"] ?? "", ...instance.env }, JSON.stringify({ email: OWNER_EMAIL, password }));
   must(created.code === 0, `create-owner failed:\n${created.output}`);
-  let server = await serve(instance, { port, origin });
+  let server = await serve(instance, { port, origin }, serverEnv);
   const setup: Installation = { instance, server };
   let secret: Buffer | null = null;
   let recoveryCodes: readonly string[] = [];
@@ -267,7 +267,7 @@ async function startBrowserOwner(stage: OwnerStage, password: string): Promise<B
     restart: async (between) => {
       await stopServer(server);
       between?.();
-      server = await serve(instance, { port, origin });
+      server = await serve(instance, { port, origin }, serverEnv);
     },
   };
 }

@@ -13,6 +13,7 @@ import { AccountPage } from "../../features/settings/pages/account-page.js";
 import { DiagnosticsPage } from "../../features/settings/pages/diagnostics-page.js";
 import { SettingsLayout } from "../../features/settings/pages/settings-layout.js";
 import { SecurityPage } from "../../features/settings/pages/security-page.js";
+import { UpdatesPage } from "../../features/settings/pages/updates-page.js";
 import { StylePage } from "../../features/settings/pages/style-page.js";
 import { RegistryPage } from "../../features/registers/pages/registry-page.js";
 import { StructurePage } from "../../features/registers/pages/structure-page.js";
@@ -26,6 +27,7 @@ import { setInterfaceLanguage } from "../../lib/language.js";
 import { currentIdentityStatus } from "../../lib/session/identity-status.js";
 import { currentOwnerSetup } from "../../lib/session/owner-setup.js";
 import { routeForNextAction } from "../../lib/session/route-for-next-action.js";
+import { VersionMark } from "../layout/version-mark.js";
 import { AppBar } from "../layout/app-bar.js";
 import { GateErrorPage } from "../pages/gate-error-page.js";
 import { NotFoundPage } from "../pages/not-found-page.js";
@@ -135,6 +137,7 @@ const appRoute = createRoute({
       <>
         <AppBar />
         <Outlet />
+        <VersionMark />
       </>
     );
   },
@@ -223,6 +226,12 @@ const diagnosticsRoute = createRoute({
   component: DiagnosticsPage,
 });
 
+const updatesRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: "/updates",
+  component: UpdatesPage,
+});
+
 const setupRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/setup",
@@ -296,7 +305,7 @@ export function createAppRouter(queryClient: QueryClient) {
       mfaRoute,
       setupRoute,
       designerRoute,
-      appRoute.addChildren([screensRoute, registersRoute, registryRoute, structureRoute, systemTableRoute, dictionariesRoute, configRoute, settingsRoute.addChildren([settingsIndexRoute, accountRoute, styleRoute, securityRoute, appSettingsRoute, diagnosticsRoute])]),
+      appRoute.addChildren([screensRoute, registersRoute, registryRoute, structureRoute, systemTableRoute, dictionariesRoute, configRoute, settingsRoute.addChildren([settingsIndexRoute, accountRoute, styleRoute, securityRoute, appSettingsRoute, updatesRoute, diagnosticsRoute])]),
     ]),
     context: { queryClient },
     defaultPreload: false,

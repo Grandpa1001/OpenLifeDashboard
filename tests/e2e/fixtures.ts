@@ -30,7 +30,7 @@ export function text(texts: Record<string, unknown>, key: string): string {
   return value;
 }
 
-export const test = base.extend<{ server: RunningServer; ownerServer: (stage: OwnerStage) => Promise<BrowserOwner> }, { scratchCleanup: void }>({
+export const test = base.extend<{ server: RunningServer; ownerServer: (stage: OwnerStage, serverEnv?: Readonly<Record<string, string>>) => Promise<BrowserOwner> }, { scratchCleanup: void }>({
   scratchCleanup: [
     // eslint-disable-next-line no-empty-pattern -- Playwright requires the destructuring form.
     async ({}, use) => {
@@ -58,7 +58,7 @@ export const test = base.extend<{ server: RunningServer; ownerServer: (stage: Ow
   // deadline (§15.2). (The `server` fixture is below the context in the dependency order, so the
   // context is already closed when it stops.)
   ownerServer: async ({ context }, use) => {
-    await use((stage) => browserOwner(stage));
+    await use((stage, serverEnv) => browserOwner(stage, undefined, serverEnv));
     await context.close();
     await stopServers();
   },

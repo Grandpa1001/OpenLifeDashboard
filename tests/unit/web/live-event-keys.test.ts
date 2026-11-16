@@ -26,12 +26,16 @@ describe("D38.2-AC1 the keys of each event", () => {
     expect(queryKeysForEvent({ type: "layout.changed", screenId: "s1" })).toEqual([queryKeys.screens.list, queryKeys.screens.screen("s1")]);
   });
 
+  it("a release that is announced reads the state of the updates again and nothing else", () => {
+    expect(queryKeysForEvent({ type: "update.available", version: "1.0.0" })).toEqual([queryKeys.updates.status]);
+  });
+
   it("the other registries are never named, and the events without a table concern no key", () => {
     const other = queryKeys.registries.records("inne");
     for (const event of [{ type: "data.changed", registry: "ksiazki" }, { type: "schema.changed", registry: "ksiazki" }] as const) {
       expect(queryKeysForEvent(event).some((key) => key.join("/") === other.join("/"))).toBe(false);
     }
-    const bare: Record<string, LiveEvent> = { ready: { type: "ready" }, ping: { type: "ping" }, "day.changed": { type: "day.changed" }, "update.available": { type: "update.available", version: "1.0.0" } };
+    const bare: Record<string, LiveEvent> = { ready: { type: "ready" }, ping: { type: "ping" }, "day.changed": { type: "day.changed" } };
     for (const name of LIVE_EVENT_NAMES) {
       if (name in bare) expect(queryKeysForEvent(bare[name]!), name).toEqual([]);
     }

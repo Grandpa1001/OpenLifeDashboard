@@ -44,5 +44,11 @@
   },
   "connection": {
     "lost": "Brak połączenia z serwerem. Łączę ponownie…"
+  },
+  "version": {
+    "navigation": "Wersja",
+    "short": "v{{current}}",
+    "open": "Otwórz aktualizacje.",
+    "newer": "Dostępna jest nowsza wersja {{latest}}."
   }
 }

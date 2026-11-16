@@ -6,7 +6,7 @@ import { queryKeys } from "../query-keys/index.js";
 
 type QueryKeyPrefix = readonly (string | number)[];
 
-/** The keys to invalidate for one event; `ready` and `ping` concern none, and so for now do `day.changed` and `update.available` (the scheduler of the day and the check of releases send them after D38). */
+/** The keys to invalidate for one event; `ready`, `ping` and `day.changed` concern none; `update.available` reads the state of the updates again (D53.4). */
 export function queryKeysForEvent(event: LiveEvent): readonly QueryKeyPrefix[] {
   switch (event.type) {
     case "data.changed":
@@ -17,6 +17,8 @@ export function queryKeysForEvent(event: LiveEvent): readonly QueryKeyPrefix[] {
       return [queryKeys.config.list, queryKeys.screens.list, queryKeys.screens.allWidgetData];
     case "layout.changed":
       return [queryKeys.screens.list, queryKeys.screens.screen(event.screenId)];
+    case "update.available":
+      return [queryKeys.updates.status];
     default:
       return [];
   }

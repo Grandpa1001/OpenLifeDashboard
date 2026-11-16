@@ -6,7 +6,8 @@
     "style": "Styl",
     "security": "Bezpieczeństwo",
     "app": "Aplikacja",
-    "diagnostics": "Diagnostyka"
+    "diagnostics": "Diagnostyka",
+    "updates": "Aktualizacje"
   },
   "locale": {
     "pl": "Polski",
@@ -344,6 +345,57 @@
       "offRisk": "Rozumiem, że samo hasło będzie chronić konto.",
       "turnOff": "Wyłącz drugi czynnik",
       "turnedOff": "Drugi czynnik jest wyłączony. Pozostałe sesje i zaufane urządzenia zostały zakończone."
+    }
+  },
+  "updates": {
+    "heading": "Aktualizacje",
+    "loadFailed": "Nie udało się odczytać stanu aktualizacji.",
+    "notConfigured": "Ta instalacja nie ma usługi aktualizacji, więc nie szuka nowych wersji. Aktualizacje wykonuje się tak, jak opisuje instrukcja instalacji.",
+    "version": {
+      "heading": "Wersja",
+      "current": "Działająca wersja: {{version}}",
+      "notChecked": "Wydania nie były jeszcze sprawdzane.",
+      "noRelease": "Nie znaleziono stabilnego wydania.",
+      "available": "Jest nowsza wersja: {{version}}.",
+      "upToDate": "Używasz najnowszej stabilnej wersji.",
+      "checkedAt": "Ostatnie sprawdzenie: {{when}}.",
+      "nextCheck": "Następne sprawdzenie: {{when}}."
+    },
+    "release": {
+      "heading": "Wersja {{version}}",
+      "published": "Opublikowana: {{when}}.",
+      "notes": "Co nowego",
+      "noNotes": "Wydanie nie ma notatek.",
+      "open": "Otwórz wydanie na GitHubie",
+      "howTo": "Sama aktualizacja nie jest wykonywana z tej strony."
+    },
+    "check": {
+      "heading": "Sprawdzanie",
+      "switch": "Szukaj nowych wersji raz na dobę",
+      "switchNote": "Wyłączenie nie blokuje „Sprawdź teraz”. Sprawdzenie niczego nie instaluje.",
+      "now": "Sprawdź teraz",
+      "checking": "Sprawdzam…",
+      "updated": "Sprawdzenie zakończone: lista wydań się zmieniła.",
+      "unchanged": "Sprawdzenie zakończone: nic się nie zmieniło.",
+      "failed": "Sprawdzenie się nie udało. Powód jest niżej.",
+      "tooSoon_one": "Sprawdzano przed chwilą. Spróbuj za {{count}} sekundę.",
+      "tooSoon_few": "Sprawdzano przed chwilą. Spróbuj za {{count}} sekundy.",
+      "tooSoon_many": "Sprawdzano przed chwilą. Spróbuj za {{count}} sekund.",
+      "tooSoon_other": "Sprawdzano przed chwilą. Spróbuj za {{count}} sekundy."
+    },
+    "errors": {
+      "NETWORK_UNAVAILABLE": "Nie można połączyć się z serwerem wydań. Twoje dane i aplikacja działają jak dotąd.",
+      "TIMEOUT": "Serwer wydań nie odpowiedział na czas.",
+      "RATE_LIMITED": "Serwer wydań prosi o odczekanie przed kolejnym sprawdzeniem.",
+      "FORBIDDEN": "Serwer wydań odmówił odpowiedzi.",
+      "NOT_FOUND": "Serwer wydań nie zna tego repozytorium.",
+      "SERVER_ERROR": "Serwer wydań ma teraz problem.",
+      "REDIRECT_REFUSED": "Serwer wydań odesłał pytanie gdzie indziej, czego nie wykonujemy.",
+      "RESPONSE_TOO_LARGE": "Odpowiedź serwera wydań jest za duża.",
+      "RESPONSE_INVALID": "Odpowiedzi serwera wydań nie dało się zrozumieć.",
+      "UNEXPECTED_STATUS": "Serwer wydań odpowiedział w nieoczekiwany sposób.",
+      "UNKNOWN": "Sprawdzenie się nie udało.",
+      "retryAt": "Następna próba po {{when}}."
     }
   },
   "diagnostics": {

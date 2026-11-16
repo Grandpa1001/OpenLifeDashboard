@@ -6369,6 +6369,56 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.52: the page of the updates and the version mark.
+    id: "D53.4",
+    ready: true,
+    title: "The Updates page and the version mark: the version and the release with its notes, the switch, Check now and what goes wrong, in words",
+    criteria: ["D53.4-AC1", "D53.4-AC2", "D53.4-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D53.4-AC1", "D53.4-AC2"],
+        description: "pnpm -r build: the page, the version mark and the query of the state",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/settings/pages/updates-page.tsx", "apps/web/src/app/layout/version-mark.tsx", "apps/web/src/lib/updates/updates-status.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D53.4-AC1", "D53.4-AC2"],
+        description: "pl and en have the same keys, including the texts of the page, the codes of the check and the plural forms of the seconds",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/settings.json", "apps/web/src/locales/en/settings.json"],
+      },
+      {
+        id: "live-event-keys",
+        criteria: ["D53.4-AC1"],
+        description: "An announced release reads the state of the updates again and no other state, and the events that concern no table still name no key",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/live-event-keys.test.ts"],
+        requires: ["tests/unit/web/live-event-keys.test.ts"],
+      },
+      {
+        id: "settings-updates-e2e",
+        criteria: ["D53.4-AC1", "D53.4-AC2"],
+        description:
+          "Playwright on the built app with a repository of releases of its own on the loopback: the running version, then after Check now the newer release with its notes as text and a link made from the repository and the tag, and the mark with a dot that leads to the page; a release that is not newer, and an installation without an updater that offers nothing to check; the switch saved on the server and kept over a reload, Check now with an empty body and no field for an address; a failing source, a second try that is too soon and a source that is gone told in words; the page from the keyboard, axe, and a phone without sideways scrolling",
+        command: ["node", "tests/verification/e2e.ts", "settings-updates.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/settings-updates.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D53.4-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the module, the client, the job and the routes, the page.
+  {
+    id: "D53",
+    ready: true,
+    title: "The check of the releases: the rules, the client and the cache, the job and the routes, the page and the mark",
+    steps: ["D53.1", "D53.2", "D53.3", "D53.4"],
+    criteria: [],
+    checks: [],
+  },
+  {
     // KM5 gate (DEV §8.4, §9.50): the copy of installation A listed, verified and restored on a separate
     // installation B by the built commands, then the reports of the fast tier for D48-D51 joined item by item
     // for this exact code; does not run their tests again.
