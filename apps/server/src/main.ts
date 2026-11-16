@@ -36,6 +36,7 @@ import { createSessionCookies, createTrustedDeviceCookies } from "./adapters/aut
 import { CONTAINER_WORKING_PATHS, installationWorkingPaths } from "./adapters/filesystem/installation-paths.js";
 import { createDatabaseSnapshots } from "./adapters/filesystem/database-snapshots.js";
 import { openMaintenanceGate } from "./adapters/filesystem/maintenance-gate.js";
+import { createUpdateBarrier } from "./http/middleware/update-barrier.js";
 import { LOG_RETENTION_SWEEP_MS } from "./adapters/logging/limits.js";
 import { createRotatingFileSink } from "./adapters/logging/rotating-file-sink.js";
 import { stdoutSink } from "./adapters/logging/stdout-sink.js";
@@ -291,12 +292,14 @@ const mfaCrypto = createMfaCrypto(environment.appEncryptionKey.reveal());
 const planSigner = createStructurePlanSigner(environment.appEncryptionKey.reveal());
 const secureCookies = environment.baseUrl.startsWith("https:");
 const newSessionToken = (): string => randomBytes(32).toString("base64url");
+const updateBarrier = createUpdateBarrier({ gate: gate.gate });
 const app = createApp({
   webRoot,
   indexHtml,
   newRequestId: randomUUID,
   logger,
   readiness,
+  updateBarrier,
   nowMs: () => performance.now(),
   identity: {
     unit: identityUnit,

@@ -6486,6 +6486,32 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.53: the operation update of the maintenance gate and the barrier of the writes.
+    id: "D54.3",
+    ready: true,
+    title: "The operation update of the maintenance gate: every write refused from its first phase, the writes taken before it ended before the app is quiet",
+    criteria: ["D54.3-AC1", "D54.3-AC2", "D54.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built server and contracts.
+        id: "workspace-build",
+        criteria: ["D54.3-AC1", "D54.3-AC2"],
+        description: "pnpm -r build: the operation in the gate, the barrier of the writes and the operation of the update",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/middleware/update-barrier.ts", "apps/server/src/workers/update-operation.ts", "packages/contracts/src/workers/maintenance-state.ts"],
+      },
+      {
+        id: "update-operation",
+        criteria: ["D54.3-AC1", "D54.3-AC2"],
+        description:
+          "On the real HTTP application of the harness, its real gate and a built server: every method of the route inventory but GET is refused with MAINTENANCE from the first phase of the update, with a session and without, a body that is not JSON and another origin included, the hash of every row of every table unchanged, while before the operation the same routes are not refused for it; a read and the health probe answer and carry the header of the maintenance, and the routes work again once the operation is closed; an app that starts with the operation active refuses to start (MAINTENANCE_RECOVERY_REQUIRED) and leaves it as it was; a write taken before the operation ends before the app is quiet, the next one is refused at once, the gate holds the operation with the fence at once and none passes after it; a write that fails is no longer counted, another operation is not begun over the update, the phases are recorded one by one, a wrong fence or operation cannot close it, a wait that runs out opens the writes again, and the next operation has a larger fence",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/update-operation.test.ts"],
+        requires: ["tests/integration/maintenance/update-operation.test.ts", "tests/support/app-harness.ts", "tests/support/route-inventory.ts"],
+      },
+      ...regressionChecks("D54.3-regression"),
+    ],
+  },
+  {
     // KM5 gate (DEV §8.4, §9.50): the copy of installation A listed, verified and restored on a separate
     // installation B by the built commands, then the reports of the fast tier for D48-D51 joined item by item
     // for this exact code; does not run their tests again.

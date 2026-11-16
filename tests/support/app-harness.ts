@@ -13,6 +13,7 @@ import { createMfaCrypto } from "../../apps/server/dist/adapters/auth/mfa-crypto
 import { createPasswordHasher } from "../../apps/server/dist/adapters/auth/password-hasher.js";
 import { createSessionCookies, createTrustedDeviceCookies } from "../../apps/server/dist/adapters/auth/session-cookie.js";
 import { createTechnicalLogger } from "../../apps/server/dist/adapters/logging/technical-logger.js";
+import { createUpdateBarrier } from "../../apps/server/dist/http/middleware/update-barrier.js";
 import { createRateLimiter } from "../../apps/server/dist/http/middleware/fixed-window-limit.js";
 import { createOwner } from "../../packages/core/dist/modules/identity/public.js";
 import { bindAppendAudit } from "../../packages/sqlite/dist/adapters/audit/append-audit.js";
@@ -199,12 +200,14 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     liveConnections: hub.total,
   });
   const common = { nowMs: Date.now, newId: randomUUID, newSessionToken: () => randomBytes(32).toString("base64url"), logger, allowedOrigin: HARNESS_ORIGIN, secureCookies: false, cookies, keys, clientIp };
+  const updateBarrier = createUpdateBarrier({ gate: gate.gate });
   const app = createApp({
     webRoot: dir,
     indexHtml: "<!doctype html>",
     newRequestId: randomUUID,
     logger,
     readiness: createReadiness(),
+    updateBarrier,
     nowMs: () => performance.now(),
     identity: { ...common, onSessionEnded: hub.closeToken, unit, verifier: hasher, decoyHash: await hasher.hash("decoy"), trustedDevice: { cookies: trustedDeviceCookies, hash: mfaCrypto.hashTrustedDeviceToken }, loginLimiter: createRateLimiter({ limit: 1000, windowMs: 60_000, nowMs: Date.now }) },
     mfaEnrollment: { ...common, unit, crypto: mfaCrypto },
@@ -259,6 +262,8 @@ export async function createAppHarness(options: HarnessOptions = {}) {
     structure,
     /** The maintenance gate of the harness, to read the operations the routes record. */
     gate: gate.gate,
+    /** The barrier of an update the app has (D54.3). */
+    updateBarrier,
     /** The folder of the technical log the diagnostics read (D44). */
     logsDir,
     /** The folder of the harness, which is its installation. */

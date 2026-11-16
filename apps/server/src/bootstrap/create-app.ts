@@ -26,6 +26,7 @@ import { registerSetupRoutes, type SetupRouteDependencies } from "../http/routes
 import { registerStreamRoutes, type StreamRouteDependencies } from "../http/routes/stream.routes.js";
 import { registerSystemTableRoutes, type SystemTableRouteDependencies } from "../http/routes/system-tables.routes.js";
 import { registerMfaVerificationRoutes, type MfaVerificationRouteDependencies } from "../http/routes/mfa-verification.routes.js";
+import type { UpdateBarrier } from "../http/middleware/update-barrier.js";
 import type { Readiness } from "./readiness.js";
 import { spaFallback, webAssets } from "../http/spa.js";
 
@@ -37,6 +38,8 @@ export type AppDependencies = Readonly<{
   newRequestId: () => string;
   logger: TechnicalLogger;
   readiness: Readiness;
+  /** Refuses every write while an update holds the installation and counts the writes in flight, so they can be waited for (D54.3). */
+  updateBarrier: UpdateBarrier;
   /** Monotonic milliseconds for request durations. */
   nowMs: () => number;
   identity: IdentityRouteDependencies;
@@ -76,6 +79,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
     }
   };
   installHttpFoundation(app, dependencies);
+  app.use("*", dependencies.updateBarrier.middleware);
   app.get(HEALTH_PATH, health(dependencies.readiness));
   app.get(PUBLIC_BOOTSTRAP_PATH, publicBootstrap);
   registerIdentityRoutes(app, dependencies.identity);

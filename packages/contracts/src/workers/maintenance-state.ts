@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { releaseVersionSchema } from "../updates/protocol.js";
 
 // control/maintenance/state.json v1 (Architektura §4.8, §11.4): the durable maintenance gate,
 // kept outside the database it protects. It is separate from the writer lease: recovering the
@@ -62,12 +63,23 @@ const rebuildOperationSchema = z
  */
 const importOperationSchema = z.object({ ...operationFields, reason: z.literal("import"), phase: z.enum(["validating", "writing"]) }).strict();
 
+/**
+ * An update of the installation to another release (D54.3; Architektura §11.2.2). From its first phase every write of the
+ * application is refused, so the copy taken in `backing_up` and the data the new release finds are the same. Nothing of
+ * the data changes in these phases, so the operation is closed by the updater's way (D55, D56), never reconciled by a
+ * start of the app: an app that finds it active stays closed and says so.
+ */
+const updateOperationSchema = z
+  .object({ ...operationFields, reason: z.literal("update"), phase: z.enum(["quiescing", "backing_up", "switching"]), targetRelease: releaseVersionSchema })
+  .strict();
+
 export const maintenanceOperationSchema = z.discriminatedUnion("reason", [
   initOperationSchema,
   migrateOperationSchema,
   snapshotOperationSchema,
   rebuildOperationSchema,
   importOperationSchema,
+  updateOperationSchema,
 ]);
 
 export const maintenanceStateSchema = z
