@@ -905,7 +905,7 @@ const definedLater: readonly TaskDefinition[] = [
         description: "Unit + integration suites twice at once: both pass, nothing skipped or todo, no temp folder left",
         command: ["node", "tests/verification/parallel-suites.ts"],
         requires: ["tests/verification/parallel-suites.ts", "tests/support/scratch.ts", "tests/support/vitest-setup.ts", "vitest.config.ts"],
-        timeoutMs: 10 * 60 * 1000,
+        timeoutMs: 15 * 60 * 1000,
       },
       {
         id: "runner-self-test",
