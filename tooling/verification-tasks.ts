@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -6974,6 +6974,46 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D57.1", "D57.2", "D57.3", "D57.4"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.57: the release package and the installer that checks it before it writes anything.
+    id: "D58.1",
+    ready: true,
+    title: "The release package and install.sh from it: the files of one release with a manifest and sums, checked whole before anything is written",
+    criteria: ["D58.1-AC1", "D58.1-AC2", "D58.1-regression"],
+    checks: [
+      {
+        id: "installer-syntax",
+        criteria: ["D58.1-AC1"],
+        description: "bash parses install/install.sh (the macOS bash 3.2 and the bash of Linux accept the same syntax)",
+        command: ["bash", "-n", "install/install.sh"],
+        requires: ["install/install.sh"],
+      },
+      {
+        id: "release-package",
+        criteria: ["D58.1-AC1"],
+        description:
+          "The builder makes a folder and an archive with exactly the installer, both Compose files, a manifest and SHA256SUMS, the files are the repository's, the same input gives the same sums, a version that is not x.y.z or an image without a digest is refused, the archive holds one folder with the same files, and install.sh run from the unpacked archive without --image uses the image of the manifest and the files of the package, tells the version and accepts the same image given again",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/release-package.test.ts", "-t", "D58.1-AC1"],
+        requires: ["tests/integration/installer/release-package.test.ts", "scripts/support/release-package.ts", "tests/support/installer-rig.ts"],
+      },
+      {
+        id: "release-package-damage",
+        criteria: ["D58.1-AC2"],
+        description:
+          "A changed file, a missing file, a missing SHA256SUMS, an extra file or folder, a link instead of a file, a SHA256SUMS that lists a file twice, a file that is not ours, too few files or a line that is not a sum, a sealed manifest of another format, product, version or image, and an --image other than the pinned one each end the installer with a message before any folder is made or any Docker call",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/release-package.test.ts", "-t", "D58.1-AC2"],
+        requires: ["tests/integration/installer/release-package.test.ts", "tests/support/installer-rig.ts"],
+      },
+      {
+        id: "installer-regression",
+        criteria: ["D58.1-regression"],
+        description: "The installer of the repository (D19.1, D19.2) still passes with the check of a package in it",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer", "-t", "D19"],
+        requires: ["tests/integration/installer/install-local.test.ts", "tests/integration/installer/install-stages.test.ts"],
+      },
+      ...regressionChecks("D58.1-regression"),
+    ],
   },
   {
     // KM6 gate (DEV §8.4, §9.56): the update A to B and the broken B back to A from the browser on a real daemon (the system test of the parent D57),

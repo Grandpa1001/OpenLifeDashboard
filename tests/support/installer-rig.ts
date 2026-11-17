@@ -12,6 +12,9 @@ export const INSTALLER = fileURLToPath(new URL("../../install/install.sh", impor
 /** Commands the installer may use (plus `sleep` for the fake docker); nothing else is on its PATH. */
 const TOOLS = ["env", "bash", "uname", "id", "od", "tr", "cut", "sed", "awk", "df", "find", "head", "mkdir", "mv", "rm", "cat", "date", "dirname", "sleep"];
 
+/** The tool that checks a release package (DEV §9.57): coreutils on Linux, `shasum` on macOS; whichever the computer has is on the PATH. */
+const HASH_TOOLS = ["sha256sum", "shasum"];
+
 /**
  * How the fake docker blocks so that Ctrl+C always reaches it. The marker is written by a shell
  * builtin and the wait replaces the script (`exec`): a SIGINT sent once the marker exists finds
@@ -70,6 +73,10 @@ export function installerRig(options: Readonly<{ docker?: FakeDocker | false; us
   const ownerEnv = path.join(binDir, "owner-env");
   // `id -u` / `id -g` answer with the chosen user (0 = root) instead of the real tool.
   for (const tool of TOOLS.filter((name) => name !== "id" || options.userId === undefined)) symlinkSync(which(tool), path.join(binDir, tool));
+  for (const tool of HASH_TOOLS) {
+    const found = spawnSync("sh", ["-c", `command -v ${tool}`], { encoding: "utf8" }).stdout.trim();
+    if (found) symlinkSync(found, path.join(binDir, tool));
+  }
   if (options.userId !== undefined) {
     writeFileSync(path.join(binDir, "id"), `#!/usr/bin/env bash\necho ${options.userId}\n`, { mode: 0o755 });
   }
@@ -127,12 +134,14 @@ export function dockerCalls(rig: InstallerRig): string[] {
 export type InstallerRun = Readonly<{ status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string }>;
 
 export type RunOptions = Readonly<{
+  /** The installer to run when it is not the one of the repository, e.g. the install.sh of a release package. */
+  script?: string;
   /** Stdin of the installer, e.g. the owner's password line for --owner-password-stdin. */
   input?: string;
 }>;
 
 export function runInstaller(rig: InstallerRig, args: readonly string[], options: RunOptions = {}): InstallerRun {
-  const result = spawnSync("bash", [INSTALLER, ...args], {
+  const result = spawnSync("bash", [options.script ?? INSTALLER, ...args], {
     encoding: "utf8",
     // HOME is only a place for the default folder; stdin is not a terminal, so nothing is asked.
     env: { PATH: rig.binDir, HOME: rig.binDir },

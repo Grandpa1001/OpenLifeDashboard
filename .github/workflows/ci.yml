@@ -127,6 +127,9 @@ jobs:
       - name: Verify D19.2 (install.sh stages, owner account and resuming)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D19.2
+      - name: Verify D58.1 (the release package and install.sh from it)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D58.1
       - name: Verify D20.2 (every data route refuses the states before the gate)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D20.2

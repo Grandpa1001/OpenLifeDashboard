@@ -16,6 +16,10 @@
 # continues. Secrets are generated once, with the first .env. Nothing is written before every
 # check of the preflight has passed. The owner's password is never an argument, an environment
 # variable or a file (D19.2 reads it from stdin).
+#
+# Run from a release package (release.json or SHA256SUMS beside this script, DEV §9.57) it first checks every file
+# of the package against SHA256SUMS and takes the image from the manifest; run from the repository it
+# needs --image. Nothing is written before that check has passed.
 set -u -o pipefail
 
 readonly STATE_FORMAT_VERSION=1
@@ -33,6 +37,12 @@ readonly PASSWORD_MAX_CODE_POINTS=128
 readonly OWNER_EMAIL_MAX_LENGTH=254
 readonly CREDENTIAL_ATTEMPTS=5      # asks in a terminal before giving up
 readonly CREATE_OWNER_COMMAND=(node apps/server/dist/cli/create-owner.js)
+# The release package: exactly these files, listed in SHA256SUMS (scripts/support/release-package.ts is the builder).
+readonly PACKAGE_FORMAT_VERSION=1
+readonly PACKAGE_PRODUCT=openlife-dashboard
+readonly PACKAGE_MANIFEST=release.json
+readonly PACKAGE_SUMS=SHA256SUMS
+readonly PACKAGE_FILES=(compose.local.yml compose.yml install.sh release.json)
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -48,14 +58,14 @@ tmp_files=()
 
 usage() {
   cat >&2 <<'USAGE'
-usage: install.sh [--mode local] [--dir <folder>] [--port <port>] --image <image>
+usage: install.sh [--mode local] [--dir <folder>] [--port <port>] [--image <image>]
                   [--owner-email <e-mail>] [--owner-password-stdin] [--yes]
 
   --mode         local (default). The server mode arrives with a later release.
   --dir          installation folder (default ~/OpenLifeDashboard/default); a fresh or an
                  interrupted installation folder of this installer, never a foreign one
   --port         host port on 127.0.0.1, 1024-65535 (default 8080)
-  --image        the application image to run (until the release package pins it)
+  --image        the application image to run; not needed from a release package, which pins it
   --owner-email  e-mail of the owner account (asked for when a terminal is attached)
   --owner-password-stdin
                  read the owner's password from the first line of stdin; without it the password
@@ -253,8 +263,81 @@ preflight_folder() {
   fi
 }
 
+# ------------------------------------------------------------------------- release package
+
+file_sha256() { # the SHA-256 of a file as 64 hex digits
+  local sum
+  if command -v sha256sum >/dev/null 2>&1; then
+    sum="$(sha256sum -- "$1")" || fail "cannot read $1 to check it"
+  elif command -v shasum >/dev/null 2>&1; then
+    sum="$(shasum -a 256 -- "$1")" || fail "cannot read $1 to check it"
+  else
+    fail "neither sha256sum nor shasum is available, so the release package cannot be checked"
+  fi
+  printf '%s' "${sum%% *}"
+}
+
+is_package_file() { # is_package_file <name>: one of the files of a package, SHA256SUMS included
+  local known
+  [ "$1" = "$PACKAGE_SUMS" ] && return 0
+  for known in "${PACKAGE_FILES[@]}"; do
+    [ "$1" = "$known" ] && return 0
+  done
+  return 1
+}
+
+manifest_text() { # manifest_text <key>: the value of a string key; the manifest has one key per line and each key once
+  local values count
+  values="$(sed -n "s/^  \"$1\": \"\\([^\"]*\\)\",\{0,1\}\$/\\1/p" "$script_dir/$PACKAGE_MANIFEST")"
+  count="$(printf '%s\n' "$values" | awk 'NF { n++ } END { print n + 0 }')"
+  [ "$count" -eq 1 ] || fail "$PACKAGE_MANIFEST must name \"$1\" exactly once"
+  printf '%s' "$values"
+}
+
+# The package is whole and unchanged: only its own files, each as SHA256SUMS lists it, and a manifest
+# that names the product, a version and an image pinned by digest. Reads only; the image of the
+# manifest becomes the image of the installation. The sums find a damaged or a changed package; they do
+# not say who published it.
+verify_release_package() {
+  local entry name line expected actual listed=0 seen=" " sum_pattern version manifest_image format
+  sum_pattern='^([0-9a-f]{64})  ([A-Za-z0-9._-]+)$'
+  [ -f "$script_dir/$PACKAGE_SUMS" ] || fail "the release package is incomplete: $PACKAGE_SUMS is missing"
+  while IFS= read -r entry; do
+    name="${entry##*/}"
+    is_package_file "$name" || fail "the release package holds a file that is not part of it: $name"
+  done < <(find "$script_dir" -mindepth 1 -maxdepth 1)
+  for name in "${PACKAGE_FILES[@]}" "$PACKAGE_SUMS"; do
+    [ -f "$script_dir/$name" ] && [ ! -L "$script_dir/$name" ] || fail "the release package is incomplete: $name is missing or is not a plain file"
+  done
+  while IFS= read -r line || [ -n "$line" ]; do
+    [[ "$line" =~ $sum_pattern ]] || fail "$PACKAGE_SUMS has a line that is not '<sha256>  <file>': $line"
+    expected="${BASH_REMATCH[1]}"
+    name="${BASH_REMATCH[2]}"
+    { is_package_file "$name" && [ "$name" != "$PACKAGE_SUMS" ]; } || fail "$PACKAGE_SUMS lists a file that is not part of the package: $name"
+    case "$seen" in *" $name "*) fail "$PACKAGE_SUMS lists $name twice" ;; esac
+    actual="$(file_sha256 "$script_dir/$name")"
+    [ "$actual" = "$expected" ] || fail "$name does not match $PACKAGE_SUMS: the package is damaged or was changed; download it again"
+    seen="$seen$name "
+    listed=$((listed + 1))
+  done <"$script_dir/$PACKAGE_SUMS"
+  [ "$listed" -eq "${#PACKAGE_FILES[@]}" ] || fail "$PACKAGE_SUMS must list all ${#PACKAGE_FILES[@]} files of the package, it lists $listed"
+
+  format="$(sed -n 's/^  "formatVersion": \([0-9]*\),\{0,1\}$/\1/p' "$script_dir/$PACKAGE_MANIFEST")"
+  [ "$format" = "$PACKAGE_FORMAT_VERSION" ] || fail "$PACKAGE_MANIFEST has a format this installer does not know (formatVersion ${format:-missing}, expected $PACKAGE_FORMAT_VERSION)"
+  [ "$(manifest_text product)" = "$PACKAGE_PRODUCT" ] || fail "$PACKAGE_MANIFEST is not the manifest of $PACKAGE_PRODUCT"
+  version="$(manifest_text version)"
+  [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "$PACKAGE_MANIFEST names a version that is not x.y.z: $version"
+  manifest_image="$(manifest_text image)"
+  [[ "$manifest_image" =~ ^[A-Za-z0-9._/-]+(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$ ]] || fail "$PACKAGE_MANIFEST names an image that is not pinned by digest: $manifest_image"
+  if [ -n "$image" ] && [ "$image" != "$manifest_image" ]; then
+    usage_error "this release package pins its image ($manifest_image); do not give --image, or give the same one"
+  fi
+  image="$manifest_image"
+  package_version="$version"
+}
+
 validate_image() {
-  [ -n "$image" ] || usage_error "--image is required (the release package will pin it later)"
+  [ -n "$image" ] || usage_error "--image is required when the installer is not run from a release package"
   case "$image" in
     *[!A-Za-z0-9._/:@-]*) fail "the image reference contains characters that are not allowed: $image" ;;
   esac
@@ -563,8 +646,14 @@ print_summary() {
 resuming="no"
 state_file=""
 current_stage=""
+package_version=""
 
 preflight_system
+# A release.json or a SHA256SUMS beside the script means a release package (so a package that lost
+# one of them is refused, not mistaken for the repository): it is checked whole before anything else.
+if [ -e "$script_dir/$PACKAGE_MANIFEST" ] || [ -e "$script_dir/$PACKAGE_SUMS" ]; then
+  verify_release_package
+fi
 validate_image
 validate_owner_email
 
@@ -597,6 +686,7 @@ if [ "$rank" -lt 3 ]; then
 fi
 [ "$rank" -ge 4 ] || read_owner_credentials
 
+[ -z "$package_version" ] || say "Release package:      $PACKAGE_PRODUCT $package_version (every file matches $PACKAGE_SUMS)"
 say "Installation folder: $dir"
 say "Address:             http://localhost:$port (reachable only from this computer)"
 if [ "$resuming" = "yes" ]; then

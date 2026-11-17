@@ -29,6 +29,7 @@
     "prepare:test-instance": "node scripts/prepare-test-instance.ts",
     "fixtures:verify": "node scripts/fixtures-verify.ts",
     "check:locales": "node scripts/check-locales.ts",
+    "package:release": "node scripts/package-release.ts",
     "test:e2e": "playwright test"
   },
   "devDependencies": {
