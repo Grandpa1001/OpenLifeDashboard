@@ -224,22 +224,23 @@ export function createProjectScope(options: ProjectScopeOptions) {
     return { running: found.State.Running, status: found.State.Status, exitCode: found.State.ExitCode, oomKilled: found.State.OOMKilled === true, restartCount: found.RestartCount ?? 0 };
   }
 
-  /** The last event the app wrote to its log (its `event` and, when it has one, its `code`), or null: how a failed start says why it failed. */
-  async function lastLogEvent(id: string): Promise<LogEvent | null> {
+  /** The events the app wrote to its log, oldest first (its `event` and, when it has one, its `code`): how a failed start says why it failed, also after Docker started it again. */
+  async function logEvents(id: string): Promise<LogEvent[]> {
     await own(id, "app");
-    const log = demuxLog((await client.request("GET", `/containers/${enc(id)}/logs?stdout=1&stderr=1&tail=40`)).body);
-    for (const line of log.split("\n").reverse()) {
+    const log = demuxLog((await client.request("GET", `/containers/${enc(id)}/logs?stdout=1&stderr=1&tail=80`)).body);
+    const events: LogEvent[] = [];
+    for (const line of log.split("\n")) {
       try {
         const parsed: unknown = JSON.parse(line);
         if (typeof parsed === "object" && parsed !== null && "event" in parsed && typeof (parsed as { event: unknown }).event === "string") {
           const code = (parsed as { code?: unknown }).code;
-          return { event: (parsed as { event: string }).event, ...(typeof code === "string" ? { code } : {}) };
+          events.push({ event: (parsed as { event: string }).event, ...(typeof code === "string" ? { code } : {}) });
         }
       } catch {
         // Not a line of JSON.
       }
     }
-    return null;
+    return events;
   }
 
   /** Every other app of the project, stopped and removed: what the way back leaves nothing of when a swap was cut short and its new container has no id on the journal. */
@@ -338,7 +339,7 @@ export function createProjectScope(options: ProjectScopeOptions) {
     }
   }
 
-  return { findApp, pull, pullVerified, imageIdOf, waitHealthy, replaceApp, rollbackApp, retireReplacement, retireOthers, describeContainer, lastLogEvent, imageOfApp, isRunning, discardPrevious, stopApp, startApp, runRecovery, inspectApp: (id: string) => own(id, "app"), own };
+  return { findApp, pull, pullVerified, imageIdOf, waitHealthy, replaceApp, rollbackApp, retireReplacement, retireOthers, describeContainer, logEvents, imageOfApp, isRunning, discardPrevious, stopApp, startApp, runRecovery, inspectApp: (id: string) => own(id, "app"), own };
 }
 
 export type ProjectScope = ReturnType<typeof createProjectScope>;

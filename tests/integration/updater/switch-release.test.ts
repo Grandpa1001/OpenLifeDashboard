@@ -59,9 +59,27 @@ describe("D55.1-AC1 the updater replaces the app by the release and waits in ver
     });
     // The image is the catalog's, pinned by its digest: nothing in any command named one.
     expect(calls).toEqual([{ app: { id: "container-a", name: "openlife-app-1" }, image: imageOf(APP) }]);
-    // The intent was on the journal before the swap: the records go switching, switching with the old container, switching with both, verifying.
-    expect(record.seq).toBeGreaterThanOrEqual(8);
+    // The records: ... switching, verifying with the old container, verifying with both.
+    expect(record.seq).toBe(7);
     expect(server.engine.requests.every((request) => request.method === "GET" || request.path.startsWith("/images/create"))).toBe(true);
+  });
+
+  it("is in verifying, with the old container on the journal, before the swap begins, so the new app that starts at once finds an operation it can take over", async () => {
+    let seen: { state: string | undefined; replacement: unknown } | null = null;
+    let dir = "";
+    const scope: SwitchScope = {
+      ...fakeSwitchScope(),
+      replaceApp: async (app, image) => {
+        const record = recordOf(dir);
+        seen = { state: record?.state, replacement: record?.replacement };
+        return fakeSwitchScope().replaceApp(app, image);
+      },
+    };
+    const server = await start({ catalog, switchScope: scope });
+    dir = server.dir;
+    await toBackedUp(server);
+    await reached(server, "verifying");
+    expect(seen).toEqual({ state: "verifying", replacement: { previousId: "container-a", previousName: "openlife-app-1", nextId: null, name: "openlife-app-1" } });
   });
 
   it("swaps once however often the copy is reported, and answers the repeated report as it was", async () => {

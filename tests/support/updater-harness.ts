@@ -76,14 +76,14 @@ export const idleSwitchScope: SwitchScope = { findApp: () => new Promise(() => u
 
 /** What the watch of the new app sees of its container, set by the test between looks. */
 export type WatchScope = NonNullable<Parameters<typeof createReleaseSwitcher>[0]["watchScope"]>;
-export function fakeWatchScope(state: { container: Awaited<ReturnType<WatchScope["describeContainer"]>> | "missing"; log: Awaited<ReturnType<WatchScope["lastLogEvent"]>>; looks: number }): WatchScope {
+export function fakeWatchScope(state: { container: Awaited<ReturnType<WatchScope["describeContainer"]>> | "missing"; log: Awaited<ReturnType<WatchScope["logEvents"]>>; looks: number }): WatchScope {
   return {
     describeContainer: async () => {
       state.looks += 1;
       if (state.container === "missing") throw new Error("no such container");
       return state.container;
     },
-    lastLogEvent: async () => state.log,
+    logEvents: async () => state.log,
   };
 }
 

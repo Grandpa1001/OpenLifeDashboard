@@ -6781,8 +6781,8 @@ const definedLater: readonly TaskDefinition[] = [
         id: "roll-back",
         criteria: ["D56.3-AC2"],
         description: "A way back that fails at a step leaves the operation in recovery_failed, the instance held and a new operation and a proof refused, and the status of the updater says the state, the code and the operation",
-        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updater/roll-back.test.ts"],
-        requires: ["tests/integration/updater/roll-back.test.ts"],
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updater/roll-back.test.ts", "tests/integration/updater/commit-release.test.ts", "tests/integration/updater/switch-release.test.ts", "tests/integration/updater/install-progress.test.ts", "tests/integration/updater/updater-server.test.ts"],
+        requires: ["tests/integration/updater/roll-back.test.ts", "tests/support/updater-harness.ts"],
       },
       {
         id: "update-instructions",
@@ -6793,6 +6793,42 @@ const definedLater: readonly TaskDefinition[] = [
       },
       ...regressionChecks("D56.3-regression"),
     ],
+  },
+  {
+    // DEV §9.55: an update that goes wrong, on a real daemon.
+    id: "D56.4",
+    ready: true,
+    title: "An update that goes wrong on a real daemon: a release whose migration fails, a release that never proves itself and an updater that is killed, each ending in the old app on its copy",
+    criteria: ["D56.4-AC1", "D56.4-AC2", "D56.4-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built server and updater.
+        id: "workspace-build",
+        criteria: ["D56.4-AC1", "D56.4-AC2"],
+        description: "pnpm -r build: the images of the broken releases are built from copies of this checkout",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/updater/src/install/switch-release.ts", "tests/system/update-rollback.ts"],
+      },
+      {
+        id: "update-rollback",
+        criteria: ["D56.4-AC1", "D56.4-AC2"],
+        description:
+          "On a real daemon with a local registry, the updater as a service of Compose, the image of this checkout (A), a release of version 1.3.0 whose migration fails (F07 B-broken), a release that migrates and runs but never proves itself, and the time to start set to 60 seconds, each on an installation of its own with an owner and an option of his own and the update started from the route with a fresh factor: the updater ends the operation idle with B_MIGRATION_FAILED, with START_TIMEOUT, and, with the updater killed while it waits for the proof and started again, with B_EXITED or START_TIMEOUT; each time the app that runs is A on its image and healthy, the new app is gone and no other app of the project is left, the release file is as it was, the gate holds no operation, the copy before the update is still there, the database is the copy's (the schema of A without the migration of the release, the option and the owner there, the start of the update and the restore in the audit log once), the health probe says ok, a sign-in is taken and the session of before the restore is ended",
+        command: ["node", "tests/system/update-rollback.ts"],
+        requires: ["tests/system/update-rollback.ts", "docker/Dockerfile", "docker/compose.yml", "docker/compose.updater.yml", "tests/support/compose-instance.ts"],
+        timeoutMs: 30 * 60 * 1000,
+      },
+      ...regressionChecks("D56.4-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the way back, the watch and the recovery, the old app that restarts, the broken releases on Docker.
+  {
+    id: "D56",
+    ready: true,
+    title: "The way back to the app A and the recovery: the copy restored, the file put back, the watch of the new app, the recovery of the updater and the broken releases on a real daemon",
+    steps: ["D56.1", "D56.2", "D56.3", "D56.4"],
+    criteria: [],
+    checks: [],
   },
   // The parent passes only through its work orders: the catalog and the pull, the commands, the gate, the start from the app.
   {

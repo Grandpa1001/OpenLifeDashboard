@@ -19,7 +19,7 @@ export type SwitchOptions = Readonly<{
   catalogDir: string;
   scope: Pick<ProjectScope, "findApp" | "replaceApp">;
   /** What lets the updater look at the new app while it waits for its proof (D56.2); without it only the time is watched. */
-  watchScope?: Pick<ProjectScope, "describeContainer" | "lastLogEvent">;
+  watchScope?: Pick<ProjectScope, "describeContainer" | "logEvents">;
   /** How often the new app is looked at; the constant of the protocol unless a test narrows it. */
   watchIntervalMs?: number;
   nowIso: () => string;
@@ -52,8 +52,9 @@ export function createReleaseSwitcher(options: SwitchOptions): ReleaseSwitcher {
     if (state.oomKilled) return "B_OOM_KILLED";
     const ended = !state.running && (state.status === "exited" || state.status === "dead");
     if (!ended && state.restartCount === 0) return null;
-    const last = await watchScope.lastLogEvent(nextId).catch(() => null);
-    return last?.event === "bootstrap.failed" && last.code === "MIGRATION_FAILED" ? "B_MIGRATION_FAILED" : "B_EXITED";
+    // Docker may have started the app again after its first failure, whose reason is what matters, so every event of the log is read, not the last.
+    const events = await watchScope.logEvents(nextId).catch(() => []);
+    return events.some((event) => event.event === "bootstrap.failed" && event.code === "MIGRATION_FAILED") ? "B_MIGRATION_FAILED" : "B_EXITED";
   }
 
   function watch(record: UpdateRecord): void {
@@ -124,9 +125,12 @@ export function createReleaseSwitcher(options: SwitchOptions): ReleaseSwitcher {
         } catch (error) {
           return stop(error instanceof ScopeError ? error.code : "APP_NOT_FOUND");
         }
-        // What is about to be replaced is on the journal before anything is done to it.
-        record = amendRecord(record, { replacement: { previousId: app.id, previousName: app.name, nextId: null, name: app.name } }, options.nowIso());
-        options.journal.write(record);
+        // The operation is `verifying` and what is about to be replaced is on the journal before anything is done to it: the new app asks the updater
+        // about the operation the moment it starts, and an updater that still said `switching` would make it refuse to start.
+        const verifying = transition(record, "verifying", { replacement: { previousId: app.id, previousName: app.name, nextId: null, name: app.name } }, options.nowIso());
+        if (!verifying.ok) return stop("TRANSITION_REFUSED");
+        options.journal.write(verifying.record);
+        record = verifying.record;
         let replaced: Awaited<ReturnType<typeof options.scope.replaceApp>>;
         try {
           replaced = await options.scope.replaceApp(app, imageOf(release.app));
@@ -135,13 +139,10 @@ export function createReleaseSwitcher(options: SwitchOptions): ReleaseSwitcher {
         }
         record = amendRecord(record, { replacement: { previousId: replaced.previousId, previousName: replaced.previousName, nextId: replaced.nextId, name: replaced.name } }, options.nowIso());
         options.journal.write(record);
-        const verifying = transition(record, "verifying", {}, options.nowIso());
-        if (!verifying.ok) return stop("TRANSITION_REFUSED");
-        options.journal.write(verifying.record);
         log("info", "updater.switched");
         // The new app is watched while it has the time to prove itself: when it ends, is killed or is started again, or the time passes, the
         // operation stops in `rolling_back` (the way back is D56.1) and a proof that comes after that is refused.
-        watch(verifying.record);
+        watch(record);
       } catch {
         log("warn", "updater.switch_failed", "SWITCH_FAILED");
       }

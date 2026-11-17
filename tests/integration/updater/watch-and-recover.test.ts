@@ -55,14 +55,14 @@ describe("D56.2-AC1 the new app is watched, and the way back is made at once for
   };
 
   it.each([
-    ["killed for memory", "B_OOM_KILLED", { container: { ...running, running: false, status: "exited", exitCode: 137, oomKilled: true }, log: null, looks: 0 }],
-    ["refused its start by a failed migration", "B_MIGRATION_FAILED", { container: { ...running, running: false, status: "exited", exitCode: 1 }, log: { event: "bootstrap.failed", code: "MIGRATION_FAILED" }, looks: 0 }],
-    ["ended for another reason", "B_EXITED", { container: { ...running, running: false, status: "exited", exitCode: 1 }, log: { event: "bootstrap.failed", code: "MAINTENANCE_RECOVERY_REQUIRED" }, looks: 0 }],
-    ["ended with nothing in its log", "B_EXITED", { container: { ...running, running: false, status: "exited", exitCode: 0 }, log: null, looks: 0 }],
-    ["started again by Docker while it runs", "B_EXITED", { container: { ...running, restartCount: 2 }, log: null, looks: 0 }],
-    ["gone", "B_MISSING", { container: "missing", log: null, looks: 0 }],
+    ["killed for memory", "B_OOM_KILLED", { container: { ...running, running: false, status: "exited", exitCode: 137, oomKilled: true }, log: [], looks: 0 }],
+    ["refused its start by a failed migration (and then by the operation it left, when Docker started it again)", "B_MIGRATION_FAILED", { container: { ...running, running: false, status: "exited", exitCode: 1 }, log: [{ event: "bootstrap.failed", code: "MIGRATION_FAILED" }, { event: "bootstrap.failed", code: "MAINTENANCE_RECOVERY_REQUIRED" }], looks: 0 }],
+    ["ended for another reason", "B_EXITED", { container: { ...running, running: false, status: "exited", exitCode: 1 }, log: [{ event: "bootstrap.failed", code: "MAINTENANCE_RECOVERY_REQUIRED" }], looks: 0 }],
+    ["ended with nothing in its log", "B_EXITED", { container: { ...running, running: false, status: "exited", exitCode: 0 }, log: [], looks: 0 }],
+    ["started again by Docker while it runs", "B_EXITED", { container: { ...running, restartCount: 2 }, log: [], looks: 0 }],
+    ["gone", "B_MISSING", { container: "missing", log: [], looks: 0 }],
   ] as const)("a new app that is %s ends the wait with %s and the way back is made", async (_name, code, state) => {
-    const { server, calls, operationId } = await watched({ ...state } as State);
+    const { server, calls, operationId } = await watched({ ...state } as unknown as State);
     const record = await reached(server, "idle");
     expect(record).toMatchObject({ error: { code }, operationId, committed: false });
     expect(calls).toContain(`runRecovery container-a ${record.backupId} ${operationId}`);
@@ -70,14 +70,14 @@ describe("D56.2-AC1 the new app is watched, and the way back is made at once for
   });
 
   it("leaves a new app that runs alone until the time runs out, and then stops with START_TIMEOUT", async () => {
-    const state: State = { container: { ...running }, log: null, looks: 0 };
+    const state: State = { container: { ...running }, log: [], looks: 0 };
     const { server } = await watched(state, { startTimeoutMs: 120 });
     expect(await reached(server, "idle")).toMatchObject({ error: { code: "START_TIMEOUT" } });
     expect(state.looks).toBeGreaterThan(1);
   });
 
   it("stops looking at the new app once it has proved itself", async () => {
-    const state: State = { container: { ...running }, log: null, looks: 0 };
+    const state: State = { container: { ...running }, log: [], looks: 0 };
     const { server, operationId } = await watched(state);
     await new Promise((resolve) => setTimeout(resolve, 80));
     expect(state.looks).toBeGreaterThan(0);
