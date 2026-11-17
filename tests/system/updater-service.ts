@@ -152,6 +152,11 @@ try {
     const expectedField = env.length === 0 || env[1] === "UPDATER_TOKEN=zz" ? "UPDATER_TOKEN" : "COMPOSE_PROJECT_NAME";
     check.expect(refused.status === 1 && refused.output.includes('"CONFIG_INVALID"') && refused.output.includes(expectedField) && !refused.output.includes(TOKEN) && !refused.output.includes("zz\""), `the image does not start without ${expectedField} of the right shape and prints no value of it`, refused.output);
   }
+  // The time the new app has to start is an option of the installation: out of its range, the updater does not start and prints nothing of the value (D56.2).
+  for (const value of ["59", "901", "soon"]) {
+    const refused = run(["run", "--rm", "-e", `UPDATER_TOKEN=${TOKEN}`, "-e", "COMPOSE_PROJECT_NAME=openlife", "-e", `UPDATER_START_TIMEOUT_SECONDS=${value}`, UPDATER_TAG]);
+    check.expect(refused.status === 1 && refused.output.includes('"CONFIG_INVALID"') && refused.output.includes("UPDATER_START_TIMEOUT_SECONDS") && !refused.output.includes(`=${value}`) && !refused.output.includes(`"${value}"`), `the image does not start with a time to start of ${value} and prints no value of it`, refused.output);
+  }
 } finally {
   for (const instance of [x, y]) if (instance) run(["compose", "down", "-v", "--remove-orphans", "-t", "5"], instance.dir);
   run(["rm", "-f", registryName]);

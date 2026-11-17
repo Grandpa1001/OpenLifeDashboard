@@ -6,10 +6,12 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { UPDATER_PORT } from "@openlife/contracts/updates/protocol";
 import { UPDATE_STATE_FILE } from "@openlife/contracts/updates/state";
+import { START_TIMEOUT_ENV, startTimeoutOf } from "./config.js";
 import { createEngineClient } from "./docker/engine-client.js";
 import { createProjectScope, ScopeError } from "./docker/project-scope.js";
 import { createReleasePreparer } from "./install/prepare-release.js";
 import { createProgressHandler } from "./install/progress.js";
+import { recoverOnStart } from "./install/recover.js";
 import { createRollbackRunner } from "./install/roll-back.js";
 import { createReleaseSwitcher } from "./install/switch-release.js";
 import { openJournal } from "./journal/journal.js";
@@ -28,6 +30,8 @@ function fail(code: string, fields: readonly string[]): never {
   process.exit(1);
 }
 
+const startTimeout = startTimeoutOf(process.env);
+if (!startTimeout.ok) fail("CONFIG_INVALID", [START_TIMEOUT_ENV]);
 const token = process.env["UPDATER_TOKEN"];
 const project = process.env["COMPOSE_PROJECT_NAME"];
 if (token === undefined || !TOKEN.test(token)) fail("CONFIG_INVALID", ["UPDATER_TOKEN"]);
@@ -59,9 +63,11 @@ const progress = createProgressHandler({ journal, catalogDir: CONTROL_DIR, backu
     // Only the replaced app is removed, and only once the swap has finished (the new container is on the journal).
     if (replacement.nextId !== null) await scope.discardPrevious({ ...replacement, nextId: replacement.nextId });
   }, nowIso: () => new Date().toISOString() });
-const switcher = createReleaseSwitcher({ journal, catalogDir: CONTROL_DIR, scope, nowIso: () => new Date().toISOString(), logger, onStopped: (record) => void rollback.run(record) });
+const switcher = createReleaseSwitcher({ journal, catalogDir: CONTROL_DIR, scope, nowIso: () => new Date().toISOString(), logger, onStopped: (record) => void rollback.run(record), watchScope: scope, startTimeoutMs: startTimeout.ms });
 const server = createUpdaterServer({ token, journal, appView, nowMs: Date.now, startedAtMs: Date.now(), logger, installer, progress, switcher });
 server.listen(UPDATER_PORT, "0.0.0.0", () => console.log(JSON.stringify({ event: "updater.listening", port: UPDATER_PORT })));
+// What the journal says was going on when the updater last stopped is settled now, before anything else asks: no state opens the writes by default.
+void recoverOnStart({ journal, rollback, switcher, discardPrevious: async (replacement) => { if (replacement.nextId !== null) await scope.discardPrevious({ ...replacement, nextId: replacement.nextId }); }, nowIso: () => new Date().toISOString(), logger });
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.on(signal, () => server.close(() => process.exit(0)));
 }

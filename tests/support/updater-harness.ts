@@ -74,6 +74,19 @@ export function fakeSwitchScope(calls: Array<{ app: { id: string; name: string }
 /** A switch that never begins (the app is never found): the operation stays in `switching`, which is what the tests of the commands before it look at. */
 export const idleSwitchScope: SwitchScope = { findApp: () => new Promise(() => undefined), replaceApp: () => new Promise(() => undefined), discardPrevious: async () => undefined };
 
+/** What the watch of the new app sees of its container, set by the test between looks. */
+export type WatchScope = NonNullable<Parameters<typeof createReleaseSwitcher>[0]["watchScope"]>;
+export function fakeWatchScope(state: { container: Awaited<ReturnType<WatchScope["describeContainer"]>> | "missing"; log: Awaited<ReturnType<WatchScope["lastLogEvent"]>>; looks: number }): WatchScope {
+  return {
+    describeContainer: async () => {
+      state.looks += 1;
+      if (state.container === "missing") throw new Error("no such container");
+      return state.container;
+    },
+    lastLogEvent: async () => state.log,
+  };
+}
+
 /** The calls the way back makes on the app of the project, in order, and what they answer; each can be made to fail. */
 export type RollbackScope = RollbackOptions["scope"];
 export function fakeRollbackScope(calls: string[] = [], fail: Partial<Record<keyof RollbackScope, unknown>> = {}, exitCode = 0): RollbackScope {
@@ -87,6 +100,7 @@ export function fakeRollbackScope(calls: string[] = [], fail: Partial<Record<key
     stopApp: (app) => step("stopApp", app.id, undefined),
     startApp: (app) => step("startApp", app.id, undefined),
     retireReplacement: (replacement) => step("retireReplacement", `${replacement.previousId} ${replacement.nextId === "" ? "-" : replacement.nextId}`, undefined),
+    retireOthers: (keepId) => step("retireOthers", keepId, 0),
     imageOfApp: (id) => step("imageOfApp", id, "sha256:" + "a".repeat(64)),
     isRunning: (id) => step("isRunning", id, true),
     runRecovery: (app, _image, snapshot, endsUpdate) => step("runRecovery", `${app.id} ${snapshot} ${endsUpdate ?? "-"}`, { exitCode, event: null }),
@@ -94,7 +108,7 @@ export function fakeRollbackScope(calls: string[] = [], fail: Partial<Record<key
   };
 }
 
-export async function start(options: { dir?: string; catalog?: string | null; engine?: Engine; backupDir?: string; previous?: PreviousSelection | null; switchScope?: SwitchScope; startTimeoutMs?: number; rollbackScope?: RollbackScope } = {}): Promise<Started> {
+export async function start(options: { dir?: string; catalog?: string | null; engine?: Engine; backupDir?: string; previous?: PreviousSelection | null; switchScope?: SwitchScope; startTimeoutMs?: number; rollbackScope?: RollbackScope; watchScope?: WatchScope; watchIntervalMs?: number } = {}): Promise<Started> {
   const dir = options.dir ?? mkdtempSync(path.join(tmpdir(), "prepare-release-"));
   if (options.catalog !== undefined && options.catalog !== null) writeFileSync(path.join(dir, RELEASE_CATALOG_FILE), options.catalog);
   const engine = options.engine ?? fakeEngine();
@@ -116,7 +130,7 @@ export async function start(options: { dir?: string; catalog?: string | null; en
     startedAtMs: Date.now() - 1000,
     logger,
     installer: createReleasePreparer({ journal, catalogDir: dir, scope, nowIso: () => new Date().toISOString(), logger }),
-    switcher: createReleaseSwitcher({ journal, catalogDir: dir, scope: switchScope, nowIso: () => new Date().toISOString(), logger, onStopped, ...(options.startTimeoutMs === undefined ? {} : { startTimeoutMs: options.startTimeoutMs }) }),
+    switcher: createReleaseSwitcher({ journal, catalogDir: dir, scope: switchScope, nowIso: () => new Date().toISOString(), logger, onStopped, ...(options.watchScope === undefined ? {} : { watchScope: options.watchScope }), ...(options.watchIntervalMs === undefined ? {} : { watchIntervalMs: options.watchIntervalMs }), ...(options.startTimeoutMs === undefined ? {} : { startTimeoutMs: options.startTimeoutMs }) }),
     progress: createProgressHandler({ journal, catalogDir: dir, backupDir, previousSelection: async () => previous, onStopped, discardPrevious: async (replacement) => switchScope.discardPrevious({ ...replacement, nextId: replacement.nextId ?? "unknown" }), nowIso: () => new Date().toISOString() }),
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));

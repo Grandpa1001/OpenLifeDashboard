@@ -6721,6 +6721,39 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D56.1-regression"),
     ],
   },
+  {
+    // DEV §9.55: the watch of the new app, the time to start and the recovery of the updater at its start.
+    id: "D56.2",
+    ready: true,
+    title: "The watch of the new app with codes of its own, the time to start as an option, and the settling of every state of the journal when the updater starts",
+    criteria: ["D56.2-AC1", "D56.2-AC2", "D56.2-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built updater and contracts.
+        id: "workspace-build",
+        criteria: ["D56.2-AC1", "D56.2-AC2"],
+        description: "pnpm -r build: the watch, the option of the time and the recovery of the updater",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/updater/src/install/recover.ts", "apps/updater/src/config.ts", "apps/updater/src/install/switch-release.ts"],
+      },
+      {
+        id: "updater-config",
+        criteria: ["D56.2-AC1"],
+        description: "The time the new app has to start is the constant of the protocol when unset, a whole number of seconds from 60 to 900 when set, and anything else is refused",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/updater/config.test.ts"],
+        requires: ["tests/unit/updater/config.test.ts"],
+      },
+      {
+        id: "watch-and-recover",
+        criteria: ["D56.2-AC1", "D56.2-AC2"],
+        description:
+          "Through the real server of the updater with a real journal, catalog and release file and recorded stand-ins for the Docker scope: a new app that was killed for memory, whose start was refused by a failed migration, that ended for another reason or with nothing in its log, that Docker starts again or that is gone ends the wait at once with its own code (B_OOM_KILLED, B_MIGRATION_FAILED, B_EXITED, B_MISSING) and the way back is made to a healthy old app; one that runs and does not prove itself waits until START_TIMEOUT; one that proved itself is no longer looked at; the updater that starts settles each state of the journal: nothing for none and for idle, completed and recovery_failed, rolled_back ends idle with its code, checking and pulling end idle with UPDATER_RESTARTED, quiescing and backing_up end the same way without touching a container, a switch (with or without the containers on the journal) and a commit that is not on the journal go back, verifying is watched again, a commit that is on the journal is completed with the replaced app discarded, a way back that was going on goes on from its beginning, and an unreadable journal is told and nothing is touched",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updater/watch-and-recover.test.ts", "tests/integration/updater/roll-back.test.ts", "tests/integration/updater/commit-release.test.ts", "tests/integration/updater/switch-release.test.ts", "tests/integration/updater/updater-server.test.ts"],
+        requires: ["tests/integration/updater/watch-and-recover.test.ts", "tests/support/updater-harness.ts"],
+      },
+      ...regressionChecks("D56.2-regression"),
+    ],
+  },
   // The parent passes only through its work orders: the catalog and the pull, the commands, the gate, the start from the app.
   {
     id: "D54",

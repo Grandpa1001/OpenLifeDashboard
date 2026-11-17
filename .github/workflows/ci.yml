@@ -339,7 +339,7 @@ jobs:
     # The copies, the restore and the updater (D48 on): split from the job of the account after run 43761013642,
     # where the 30 minutes of the account ended (the job had grown to 25 minutes, 35 seconds for each step, most of
     # it the build and the checks every step repeats).
-    name: fast tier (copies, restore and updater, SQLite, HTTP)
+    name: fast tier (copies, restore and the releases, SQLite, HTTP)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -397,6 +397,49 @@ jobs:
       - name: Verify D51.3 (the hints for a failed copy)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D51.3
+      - name: Verify D53.1 (the releases the application reads)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D53.1
+      - name: Verify D53.2 (the client of the releases and its cache)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D53.2
+      - name: Verify D53.3 (the check of the releases in the process)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D53.3
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-fast-copies
+          path: .artifacts/
+          # The report directory is a dot-directory, which upload-artifact skips by default.
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+
+
+  fast-updater:
+    # The updater (D52 and from D54): split from fast-copies after run 44034422486, where that job took 28 of its 30 minutes (every step builds, and the
+    # steps of the updater run the images and the Docker daemon). The releases the application reads (D53) stay with the copies.
+    name: fast tier (the updater and the update, SQLite, HTTP, Docker)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
       - name: Verify D52.1 (the command channel of the updater)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D52.1
@@ -412,15 +455,6 @@ jobs:
       - name: Verify D52.5 (the updater as a service)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D52.5
-      - name: Verify D53.1 (the releases the application reads)
-        if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D53.1
-      - name: Verify D53.2 (the client of the releases and its cache)
-        if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D53.2
-      - name: Verify D53.3 (the check of the releases in the process)
-        if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D53.3
       - name: Verify D54.1 (the catalog of the releases and the pull by digest)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D54.1
@@ -439,17 +473,20 @@ jobs:
       - name: Verify D55.2 (the new app takes over the update)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D55.2
-      - name: Verify D56.1 (the way back to the app A)
-        if: ${{ !cancelled() }}
-        run: pnpm verify:task -- D56.1
       - name: Verify D55.3 (the proof of the new app and the commit point)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D55.3
+      - name: Verify D56.1 (the way back to the app A)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D56.1
+      - name: Verify D56.2 (the watch of the new app and the recovery of the updater)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D56.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: verification-fast-copies
+          name: verification-fast-updater
           path: .artifacts/
           # The report directory is a dot-directory, which upload-artifact skips by default.
           include-hidden-files: true

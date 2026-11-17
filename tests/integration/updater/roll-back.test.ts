@@ -56,6 +56,7 @@ describe("D56.1-AC1 every failure past the switch ends in the old app on its cop
   const order = (calls: string[], backupId: string, operationId: string): void => {
     expect(calls).toEqual([
       "retireReplacement container-a container-b",
+      "retireOthers container-a",
       "isRunning container-a",
       "stopApp container-a",
       "imageOfApp container-a",
@@ -120,7 +121,7 @@ describe("D56.1-AC1 every failure past the switch ends in the old app on its cop
     await send(server, envelopeOf({ type: "backed_up", backupId: publishBackup(server.backupDir), fence: FENCE }, operationId));
     const record = await reached(server, "idle");
     expect(record).toMatchObject({ error: { code: "SWITCH_FAILED" }, replacement: { previousId: "container-a", nextId: null } });
-    expect(calls[0]).toBe("retireReplacement container-a -");
+    expect(calls.slice(0, 2)).toEqual(["retireReplacement container-a -", "retireOthers container-a"]);
     expect(calls).toContain(`runRecovery container-a ${record.backupId} ${operationId}`);
   });
 });

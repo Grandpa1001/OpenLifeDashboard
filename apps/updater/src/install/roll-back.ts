@@ -23,7 +23,7 @@ export const ROLLBACK_HEALTH_TIMEOUT_MS = 120 * 1000;
 export type RollbackOptions = Readonly<{
   journal: Journal;
   controlDir: string;
-  scope: Pick<ProjectScope, "findApp" | "stopApp" | "startApp" | "retireReplacement" | "imageOfApp" | "isRunning" | "runRecovery" | "waitHealthy">;
+  scope: Pick<ProjectScope, "findApp" | "stopApp" | "startApp" | "retireReplacement" | "retireOthers" | "imageOfApp" | "isRunning" | "runRecovery" | "waitHealthy">;
   nowIso: () => string;
   logger: UpdaterLogger;
   healthTimeoutMs?: number;
@@ -54,6 +54,8 @@ export function createRollbackRunner(options: RollbackOptions): RollbackRunner {
         try {
           app = replacement === null ? await options.scope.findApp() : { id: replacement.previousId, name: replacement.name };
           if (replacement !== null) await options.scope.retireReplacement({ previousId: replacement.previousId, previousName: replacement.previousName, nextId: replacement.nextId ?? "", name: replacement.name });
+          // A new container that the swap made but never wrote to the journal (the swap was cut short) is found by what it is, not by its id.
+          await options.scope.retireOthers(app.id);
           if (await options.scope.isRunning(app.id)) await options.scope.stopApp(app);
         } catch (error) {
           return failed(error instanceof ScopeError ? error.code : "RETIRE_FAILED");

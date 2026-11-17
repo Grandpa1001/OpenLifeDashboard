@@ -11,13 +11,17 @@ import type { UpdaterLogger } from "../logging.js";
 import { findRelease, readCatalog } from "../release/catalog.js";
 import { imageOf } from "../release/release-file.js";
 import { amendRecord, transition } from "../state-machine/transitions.js";
-import { START_TIMEOUT_MS } from "./update-limits.js";
+import { START_TIMEOUT_MS, WATCH_INTERVAL_MS } from "./update-limits.js";
 import type { UpdateRecord } from "@openlife/contracts/updates/state";
 
 export type SwitchOptions = Readonly<{
   journal: Journal;
   catalogDir: string;
   scope: Pick<ProjectScope, "findApp" | "replaceApp">;
+  /** What lets the updater look at the new app while it waits for its proof (D56.2); without it only the time is watched. */
+  watchScope?: Pick<ProjectScope, "describeContainer" | "lastLogEvent">;
+  /** How often the new app is looked at; the constant of the protocol unless a test narrows it. */
+  watchIntervalMs?: number;
   nowIso: () => string;
   logger: UpdaterLogger;
   /** How long the new app has to say it is ready; the constant of the protocol unless a test narrows it. */
@@ -26,10 +30,75 @@ export type SwitchOptions = Readonly<{
   onStopped?: (record: UpdateRecord) => void;
 }>;
 
-export type ReleaseSwitcher = Readonly<{ run: (record: UpdateRecord) => Promise<void> }>;
+export type ReleaseSwitcher = Readonly<{
+  run: (record: UpdateRecord) => Promise<void>;
+  /** Watches the new app of an operation in `verifying` until it has proved itself or the operation ends otherwise; also what the recovery after a restart of the updater begins again (D56.2). */
+  watch: (record: UpdateRecord) => void;
+}>;
 
 export function createReleaseSwitcher(options: SwitchOptions): ReleaseSwitcher {
+  const watching = new Set<string>();
+
+  /** Why the new app is no longer what the updater waits for, as a code: it was killed for memory, its start was refused by a failed migration, or it ended or is started again and again. */
+  async function failureOfNewApp(nextId: string): Promise<string | null> {
+    const watchScope = options.watchScope;
+    if (watchScope === undefined) return null;
+    let state: Awaited<ReturnType<typeof watchScope.describeContainer>>;
+    try {
+      state = await watchScope.describeContainer(nextId);
+    } catch {
+      return "B_MISSING";
+    }
+    if (state.oomKilled) return "B_OOM_KILLED";
+    const ended = !state.running && (state.status === "exited" || state.status === "dead");
+    if (!ended && state.restartCount === 0) return null;
+    const last = await watchScope.lastLogEvent(nextId).catch(() => null);
+    return last?.event === "bootstrap.failed" && last.code === "MIGRATION_FAILED" ? "B_MIGRATION_FAILED" : "B_EXITED";
+  }
+
+  function watch(record: UpdateRecord): void {
+    const id = record.operationId;
+    if (record.state !== "verifying" || id === null || watching.has(id)) return;
+    watching.add(id);
+    const started = Date.now();
+    const timeoutMs = options.startTimeoutMs ?? START_TIMEOUT_MS;
+    const intervalMs = options.watchIntervalMs ?? WATCH_INTERVAL_MS;
+    const tick = async (): Promise<void> => {
+      let again = true;
+      try {
+        const read = options.journal.read();
+        const current = read.ok ? read.record : null;
+        if (current === null || current.state !== "verifying" || current.operationId !== id) {
+          again = false;
+          return;
+        }
+        const nextId = current.replacement?.nextId ?? null;
+        const code = (nextId === null ? null : await failureOfNewApp(nextId)) ?? (Date.now() - started >= timeoutMs ? "START_TIMEOUT" : null);
+        if (code !== null) {
+          again = false;
+          const stopped = transition(current, "rolling_back", { error: { code } }, options.nowIso());
+          if (stopped.ok) {
+            options.journal.write(stopped.record);
+            options.onStopped?.(stopped.record);
+          }
+          options.logger.log({ level: "warn", event: "updater.switch_failed", code, operationId: id });
+        }
+      } catch {
+        // A look that fails is made again at the next tick; the time still runs out.
+      } finally {
+        if (again) schedule();
+        else watching.delete(id);
+      }
+    };
+    const schedule = (): void => {
+      const remaining = Math.max(1, timeoutMs - (Date.now() - started));
+      setTimeout(() => void tick(), Math.min(intervalMs, remaining)).unref();
+    };
+    schedule();
+  }
+
   return {
+    watch,
     run: async (start) => {
       let record = start;
       const operationId = record.operationId ?? undefined;
@@ -70,19 +139,9 @@ export function createReleaseSwitcher(options: SwitchOptions): ReleaseSwitcher {
         if (!verifying.ok) return stop("TRANSITION_REFUSED");
         options.journal.write(verifying.record);
         log("info", "updater.switched");
-        // The new app has a limited time to prove itself. When it passes, the operation stops in `rolling_back` (the way back is D56)
-        // and a proof that comes after that is refused. A timer is lost with the process; after a restart the recovery decides.
-        const timer = setTimeout(() => {
-          const read = options.journal.read();
-          if (!read.ok || read.record === null || read.record.state !== "verifying" || read.record.operationId !== verifying.record.operationId) return;
-          const stopped = transition(read.record, "rolling_back", { error: { code: "START_TIMEOUT" } }, options.nowIso());
-          if (stopped.ok) {
-            options.journal.write(stopped.record);
-            options.onStopped?.(stopped.record);
-          }
-          log("warn", "updater.switch_failed", "START_TIMEOUT");
-        }, options.startTimeoutMs ?? START_TIMEOUT_MS);
-        timer.unref();
+        // The new app is watched while it has the time to prove itself: when it ends, is killed or is started again, or the time passes, the
+        // operation stops in `rolling_back` (the way back is D56.1) and a proof that comes after that is refused.
+        watch(verifying.record);
       } catch {
         log("warn", "updater.switch_failed", "SWITCH_FAILED");
       }
