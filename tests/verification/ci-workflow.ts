@@ -85,7 +85,7 @@ check.expect(new Set(topicTasks).size === topicTasks.length, "no task is run by 
 const uploadNames = fullJobs.map((job) => workflow.split(`\n  ${job}:\n`)[1]?.split(/\n {2}[a-z0-9-]+:\n/)[0]?.match(/name: (verification-[a-z-]+)\n/)?.[1]);
 check.expect(uploadNames.every(Boolean) && new Set(uploadNames).size === fullJobs.length, "each job of the full tier uploads its own report artifact", uploadNames.join(", "));
 const needs = (job: string): string[] => [jobs[job]?.needs ?? []].flat();
-check.expect(["fast-core", "fast-browser", "full-install"].every((job) => needs("g1").includes(job)) && (jobs["g1"]?.if ?? "").includes("needs.full-install.result != 'skipped'"), "G1 hangs on the fast tier and the installer job and never runs on a partial set");
+check.expect(["fast-core", "fast-catalog", "fast-browser", "full-install"].every((job) => needs("g1").includes(job)) && (jobs["g1"]?.if ?? "").includes("needs.full-install.result != 'skipped'"), "G1 hangs on the fast tier and the installer job and never runs on a partial set");
 check.expect(needs("image").includes("full") && needs("g0").includes("full") && needs("g0").includes("image"), "the images and G0 hang on the full tier");
 check.expect(
   ["changes", "fast-data", "fast-account", "fast-browser", "fast-records-browser", "fast-structure", "fast-structure-browser"].every((job) => needs("g2").includes(job)) && (jobs["g2"]?.if ?? "").includes("needs.changes.outputs.full == 'true'"),
