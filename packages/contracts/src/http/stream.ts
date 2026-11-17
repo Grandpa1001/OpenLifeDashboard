@@ -11,7 +11,7 @@ export const STREAM_PATH = "/api/v1/stream";
 export const STREAM_PING_INTERVAL_MS = 25_000;
 
 /** The wire name of each event, as the `event:` field of the stream carries it (Architektura §10). */
-export const LIVE_EVENT_NAMES = ["ready", "ping", "data.changed", "config.changed", "schema.changed", "layout.changed", "day.changed", "update.available"] as const;
+export const LIVE_EVENT_NAMES = ["ready", "ping", "data.changed", "config.changed", "schema.changed", "layout.changed", "day.changed", "update.available", "update.changed"] as const;
 export type LiveEventName = (typeof LIVE_EVENT_NAMES)[number];
 
 const identifier = z.string().min(1).max(128);
@@ -26,6 +26,8 @@ export const LIVE_EVENT_DATA = {
   "layout.changed": z.object({ screenId: identifier }).strict(),
   "day.changed": z.object({}).strict(),
   "update.available": z.object({ version: identifier }).strict(),
+  /** The operation of an update moved (D57.3): the fact and nothing of the operation, which a tab reads from the state. */
+  "update.changed": z.object({}).strict(),
 } as const satisfies Record<LiveEventName, z.ZodType>;
 
 /** An event the server sends: its name and its data. */
@@ -38,6 +40,7 @@ export const liveEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("layout.changed"), ...LIVE_EVENT_DATA["layout.changed"].shape }).strict(),
   z.object({ type: z.literal("day.changed") }).strict(),
   z.object({ type: z.literal("update.available"), ...LIVE_EVENT_DATA["update.available"].shape }).strict(),
+  z.object({ type: z.literal("update.changed") }).strict(),
 ]);
 export type LiveEvent = z.infer<typeof liveEventSchema>;
 

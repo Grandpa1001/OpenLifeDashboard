@@ -830,6 +830,9 @@ jobs:
       - name: Verify D57.2 (the course of an update and its result)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D57.2
+      - name: Verify D57.3 (the event of the stream for an update that moved)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D57.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -222,6 +222,7 @@ export async function createAppHarness(options: HarnessOptions = {}) {
           availableRelease: options.updater.availableRelease,
           newOperationId: randomUUID,
           logger,
+          announce: () => (options.announce ?? hub.publish)({ type: "update.changed" }),
           pollMs: options.updater.pollMs ?? 20,
           pullTimeoutMs: options.updater.pullTimeoutMs ?? 5000,
         });

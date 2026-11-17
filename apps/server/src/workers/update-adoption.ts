@@ -26,6 +26,8 @@ export type UpdateAdoptionDependencies = Readonly<{
   logger: Pick<TechnicalLogger, "log">;
   pollMs?: number;
   waitMs?: number;
+  /** Tells the open tabs that the operation is over for this app (D57.3); the fact and nothing else. */
+  announce?: () => void;
 }>;
 
 export type UpdateAdoption = Readonly<{ run: () => Promise<AdoptionOutcome>; stop: () => void }>;
@@ -60,6 +62,11 @@ export function createUpdateAdoption(deps: UpdateAdoptionDependencies): UpdateAd
           deps.gate.complete(operationId, fence);
           deps.readiness.release();
           log("update.adopted");
+          try {
+            deps.announce?.();
+          } catch {
+            // The stream is a convenience; the state is the truth.
+          }
           return "committed";
         }
         if (status !== null && (status.operationId !== operationId || status.state === "idle" || status.state === "rolling_back" || status.state === "rolled_back" || status.state === "recovery_failed")) return failed("OPERATION_ENDED");

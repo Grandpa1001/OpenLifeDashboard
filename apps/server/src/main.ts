@@ -310,6 +310,7 @@ const updateInstaller =
         },
         newOperationId: randomUUID,
         logger,
+        announce: () => liveHub.publish({ type: "update.changed" }),
       })
     : unconfiguredInstaller;
 // The new app after a switch (D55.2): it proves itself to the updater and opens its writes only once the updater has committed.
@@ -327,6 +328,7 @@ const adoption =
         schemaVersion: database.schemaVersion,
         update: database.update,
         logger,
+        announce: () => liveHub.publish({ type: "update.changed" }),
       })
     : null;
 const diagnosticsOverview = createOverviewReader({ build, schemaVersion: database.schemaVersion, installation: paths, workingPaths, logStatus: logFile.status, liveConnections: liveHub.total, backupStatus: nightlyBackup.status });

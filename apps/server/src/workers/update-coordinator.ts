@@ -50,6 +50,8 @@ export type UpdateCoordinatorDependencies = Readonly<{
   logger: Pick<TechnicalLogger, "log">;
   pollMs?: number;
   pullTimeoutMs?: number;
+  /** Tells the open tabs that the operation moved; the event is the fact and nothing else, and a failure of it never reaches the update (D57.3). */
+  announce?: () => void;
 }>;
 
 export type UpdateCoordinator = UpdateInstaller & Readonly<{
@@ -65,6 +67,14 @@ export function createUpdateCoordinator(deps: UpdateCoordinatorDependencies): Up
   let run: Run | null = null;
   const pollMs = deps.pollMs ?? UPDATE_STATUS_POLL_MS;
   const pullTimeoutMs = deps.pullTimeoutMs ?? UPDATE_PULL_TIMEOUT_MS;
+  /** The tabs read the state again: after the start, at each stage the app itself moves the operation to, and when it ends. */
+  const moved = (): void => {
+    try {
+      deps.announce?.();
+    } catch {
+      // The stream is a convenience; the state is the truth.
+    }
+  };
   const log = (event: string, operationId: string, code?: string): void => deps.logger.log({ level: code === undefined ? "info" : "warn", event, ...(code === undefined ? {} : { code }), operationId });
 
   const refusalFor = (release: string, operationId: string | undefined): StartRefusal | null => {
@@ -91,6 +101,7 @@ export function createUpdateCoordinator(deps: UpdateCoordinatorDependencies): Up
       current.phase = "failed";
       current.code = code;
       log("update.failed", operationId, code);
+      moved();
     };
     // 1. The updater pulls; the app waits and serves.
     const deadline = Date.now() + pullTimeoutMs;
@@ -107,6 +118,7 @@ export function createUpdateCoordinator(deps: UpdateCoordinatorDependencies): Up
     }
     // 2. The app closes its writes and waits for those in flight.
     current.phase = "quiescing";
+    moved();
     const quiet = await deps.operation.quiesce(current.release, operationId);
     if (!quiet.ok) return fail(quiet.code, true);
     gateFence = quiet.fence;
@@ -116,6 +128,7 @@ export function createUpdateCoordinator(deps: UpdateCoordinatorDependencies): Up
     // 3. The copy, taken here: the updater only looks at it.
     current.phase = "backing_up";
     deps.operation.enter("backing_up");
+    moved();
     const snapshot = await deps.snapshots.create({ reason: "pre_update", scope: "database", operationId, fence });
     if (!snapshot.ok) return fail(snapshot.code, true);
     const name = deps.packageOf(snapshot.snapshotId);
@@ -126,6 +139,7 @@ export function createUpdateCoordinator(deps: UpdateCoordinatorDependencies): Up
     deps.operation.enter("switching");
     current.phase = "switching";
     log("update.switching", operationId);
+    moved();
   }
 
   return {
@@ -143,6 +157,7 @@ export function createUpdateCoordinator(deps: UpdateCoordinatorDependencies): Up
       if (answer.kind === "refused") return { ok: false, code: "UPDATER_REFUSED", detail: answer.code };
       const current: Run = { operationId, release, phase: "pulling", code: null, finished: false, done: Promise.resolve() };
       run = current;
+      moved();
       current.done = drive(current, fence)
         .catch((error: unknown) => {
           current.phase = "failed";

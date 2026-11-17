@@ -6905,6 +6905,40 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D57.2-regression"),
     ],
   },
+  {
+    // DEV §9.56: the event of the stream that tells the other tabs the update moved.
+    id: "D57.3",
+    ready: true,
+    title: "The event of the stream for an update that moved: every tab reads the state at once, and the event carries nothing of the operation",
+    criteria: ["D57.3-AC1", "D57.3-AC2", "D57.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D57.3-AC1", "D57.3-AC2"],
+        description: "pnpm -r build: the event in the contract, the announcements of the coordinator and the adoption, and the key of the event in the SPA",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/http/stream.ts", "apps/server/src/workers/update-coordinator.ts", "apps/web/src/lib/live/event-keys.ts"],
+      },
+      {
+        id: "update-changed-event",
+        criteria: ["D57.3-AC1", "D57.3-AC2"],
+        description:
+          "On the real application of the harness and the real server of the updater: the start, each stage the app moves the operation to and its end (also an end that failed) announce update.changed with no data, and an open stream of the owner receives the frame event: update.changed with data {} the moment the update starts; the event is written and read with no fields and one that carries any (an operation, a state, a release) is not an event; the event reads the state of the updates again and nothing else in the SPA",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updates/update-start.test.ts", "tests/unit/web/live-event-keys.test.ts", "tests/unit/events/live-hub.test.ts"],
+        requires: ["tests/integration/updates/update-start.test.ts", "tests/unit/web/live-event-keys.test.ts", "tests/unit/events/live-hub.test.ts"],
+      },
+      {
+        id: "settings-updates-events-e2e",
+        criteria: ["D57.3-AC1", "D57.3-AC2"],
+        description: "Playwright on the built app with a source of events the test controls and the real state: a tab that did not start the update reads the state at once on the event (not at the next poll), the offer goes and the course is shown, the end is shown the same way, an event of another kind reads nothing, and an event whose data claims another state is dropped and nothing of it is shown",
+        command: ["node", "tests/verification/e2e.ts", "settings-updates-events.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/settings-updates-events.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D57.3-regression"),
+    ],
+  },
   // The parent passes only through its work orders: the catalog and the pull, the commands, the gate, the start from the app.
   {
     id: "D54",

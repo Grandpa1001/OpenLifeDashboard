@@ -35,6 +35,7 @@ describe("D37.1-AC1 the events of the contract", () => {
     { type: "layout.changed", screenId: "scr-1" },
     { type: "day.changed" },
     { type: "update.available", version: "1.2.3" },
+    { type: "update.changed" },
   ];
 
   it("every event of the architecture is written as `event:` and `data:` lines and read back as itself", () => {

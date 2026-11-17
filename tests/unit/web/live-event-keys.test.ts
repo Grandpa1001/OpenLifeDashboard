@@ -30,6 +30,10 @@ describe("D38.2-AC1 the keys of each event", () => {
     expect(queryKeysForEvent({ type: "update.available", version: "1.0.0" })).toEqual([queryKeys.updates.status]);
   });
 
+  it("a moved update reads the state of the updates again and nothing else, whatever the event carries", () => {
+    expect(queryKeysForEvent({ type: "update.changed" })).toEqual([queryKeys.updates.status]);
+  });
+
   it("the other registries are never named, and the events without a table concern no key", () => {
     const other = queryKeys.registries.records("inne");
     for (const event of [{ type: "data.changed", registry: "ksiazki" }, { type: "schema.changed", registry: "ksiazki" }] as const) {

@@ -14,6 +14,7 @@ import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { apiErrorSchema } from "@openlife/contracts/http/errors";
+import { decodeLiveEvent, encodeLiveEvent, liveEventSchema, STREAM_PATH, type LiveEvent } from "@openlife/contracts/http/stream";
 import { UPDATES_INSTALL_PATH, UPDATES_PATH, updatesInstallResultSchema, updatesStatusSchema } from "@openlife/contracts/http/updates";
 import { afterEach, describe, expect, it } from "vitest";
 import { catalogFileTextOf } from "../../../apps/updater/dist/release/catalog.js";
@@ -34,12 +35,13 @@ const catalog = catalogFileTextOf(catalogOf(release123, { ...release123, version
 type Rig = Awaited<ReturnType<typeof rig>>;
 
 /** The app, the updater and the folder of the copies they both look at; the owner has passed the factor and chosen the empty start. */
-async function rig(options: { engine?: Engine; available?: () => string | null; updaterUrl?: (real: string) => Promise<string> | string; snapshots?: NonNullable<HarnessOptions["updater"]>["snapshots"]; catalog?: string | null; attempts?: number } = {}) {
+async function rig(options: { engine?: Engine; announce?: (event: LiveEvent) => void; available?: () => string | null; updaterUrl?: (real: string) => Promise<string> | string; snapshots?: NonNullable<HarnessOptions["updater"]>["snapshots"]; catalog?: string | null; attempts?: number } = {}) {
   const backupsDir = mkdtempSync(path.join(tmpdir(), "update-start-"));
   const updater = await start({ catalog: options.catalog === undefined ? catalog : options.catalog, backupDir: backupsDir, switchScope: idleSwitchScope, ...(options.engine === undefined ? {} : { engine: options.engine }) });
   const baseUrl = options.updaterUrl === undefined ? updater.url : await options.updaterUrl(updater.url);
   const h = await createAppHarness({
     backupsDir,
+    ...(options.announce === undefined ? {} : { announce: options.announce }),
     updater: { baseUrl, token: TOKEN, availableRelease: options.available ?? (() => RELEASE), ...(options.snapshots === undefined ? {} : { snapshots: options.snapshots }), ...(options.attempts === undefined ? {} : { attempts: options.attempts }) },
   });
   const password = (await h.request("POST", "/api/auth/sign-in/email", { email: HARNESS_EMAIL, password: HARNESS_PASSWORD })).cookie ?? "";
@@ -247,3 +249,58 @@ describe("D54.4-AC2 a failure leaves A whole and says why", () => {
   });
 });
 
+describe("D57.3-AC1 every tab is told that the operation moved, by an event that carries nothing but the fact", () => {
+  it("announces the start, each stage the app moves the operation to and its end, in order and with no data", async () => {
+    const events: LiveEvent[] = [];
+    const r = await rig({ announce: (event) => void events.push(event) });
+    expect((await r.install()).status).toBe(202);
+    await r.h.coordinator!.settled();
+    // The start, the app closing its writes, the copy, and the switch it hands over.
+    expect(events.length).toBeGreaterThanOrEqual(4);
+    for (const event of events) expect(event).toEqual({ type: "update.changed" });
+    expect(r.h.coordinator!.progress()).toMatchObject({ phase: "switching" });
+  });
+
+  it("announces the end of an update that failed too, so the other tabs read the reason", async () => {
+    const events: LiveEvent[] = [];
+    const r = await rig({ announce: (event) => void events.push(event), snapshots: { create: async () => ({ ok: false, code: "SNAPSHOT_FAILED" }) } });
+    expect((await r.install()).status).toBe(202);
+    await r.h.coordinator!.settled();
+    expect(r.h.coordinator!.progress()).toMatchObject({ phase: "failed", code: "SNAPSHOT_FAILED" });
+    expect(events.at(-1)).toEqual({ type: "update.changed" });
+    expect(events.every((event) => event.type === "update.changed")).toBe(true);
+  });
+
+  it("reaches an open stream of the owner as the frame of that event, the moment the update starts", async () => {
+    const { engine, letGo } = heldEngine();
+    const r = await rig({ engine });
+    const stream = await r.h.open(STREAM_PATH, { cookie: r.cookie });
+    expect(stream.status).toBe(200);
+    const reader = stream.body!.getReader();
+    const decoder = new TextDecoder();
+    let text = "";
+    const until = async (frame: string): Promise<void> => {
+      const deadline = Date.now() + 5000;
+      while (!text.includes(frame) && Date.now() < deadline) {
+        const next = await Promise.race([reader.read(), new Promise<{ done: true; value: undefined }>((resolve) => setTimeout(() => resolve({ done: true, value: undefined }), 500))]);
+        if (next.value !== undefined) text += decoder.decode(next.value);
+      }
+    };
+    await until("event: ready");
+    expect((await r.install()).status).toBe(202);
+    await until("event: update.changed");
+    expect(text).toContain("event: update.changed\ndata: {}\n\n");
+    letGo();
+    await r.h.coordinator!.settled();
+    await reader.cancel();
+  });
+});
+
+describe("D57.3-AC2 the event names the fact and never the operation", () => {
+  it("is written and read as an event with no fields, and one that carries any is not an event", () => {
+    expect(encodeLiveEvent({ type: "update.changed" })).toBe("event: update.changed\ndata: {}\n\n");
+    expect(decodeLiveEvent("update.changed", "{}")).toEqual({ type: "update.changed" });
+    for (const data of ['{"operationId":"11111111-1111-4111-8111-111111111111"}', '{"state":"pulling"}', '{"release":"1.3.0"}']) expect(decodeLiveEvent("update.changed", data), data).toBeNull();
+    expect(liveEventSchema.safeParse({ type: "update.changed", operationId: "x" }).success).toBe(false);
+  });
+});
