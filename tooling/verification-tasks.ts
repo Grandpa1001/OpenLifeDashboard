@@ -7016,6 +7016,46 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.57: the server mode of the installer up to the stage 'files'.
+    id: "D58.2",
+    ready: true,
+    title: "install.sh in the server mode: a domain and an e-mail for the certificate, the system, the ports and the DNS checked, the files written and an honest stop",
+    criteria: ["D58.2-AC1", "D58.2-AC2", "D58.2-regression"],
+    checks: [
+      {
+        id: "installer-syntax",
+        criteria: ["D58.2-AC1"],
+        description: "bash parses install/install.sh (the macOS bash 3.2 and the bash of Linux accept the same syntax)",
+        command: ["bash", "-n", "install/install.sh"],
+        requires: ["install/install.sh"],
+      },
+      {
+        id: "installer-server-files",
+        criteria: ["D58.2-AC1"],
+        description:
+          "With a fake Linux, DNS and Docker: the server mode writes the folder for the domain (.env 600 with new keys, BASE_URL https, DOMAIN, ACME_EMAIL, no host port, no local Compose file, installMode server), calls Docker for nothing, prints that the installation is NOT installed and ends with the status 3 at the stage 'files', both when the domain resolves (its addresses are shown) and when it does not (it says it waits for DNS); a rerun after the DNS is set keeps the keys and takes the domain from the folder; a server folder is not continued as local, a local folder not as server, and a server folder not for another domain",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/install-server.test.ts", "-t", "D58.2-AC1"],
+        requires: ["tests/integration/installer/install-server.test.ts", "tests/support/installer-rig.ts"],
+      },
+      {
+        id: "installer-server-refusals",
+        criteria: ["D58.2-AC2"],
+        description:
+          "A domain with upper case letters, one part, a hyphen at the end of a part, an empty part or a trailing dot, a space, an IP address, accented letters, a scheme, a path, a part over 63 or a name over 253 characters; no domain, no e-mail or a bad e-mail of the certificate authority; --port or the owner options in the server mode, --domain or --acme-email in the local mode, an unknown mode; macOS in the server mode; a computer without getent; and port 80 taken (run where an unprivileged user can bind it) each end with a message and a nonzero status before any folder or Docker call",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/install-server.test.ts", "-t", "D58.2-AC2"],
+        requires: ["tests/integration/installer/install-server.test.ts", "tests/support/installer-rig.ts"],
+      },
+      {
+        id: "installer-regression",
+        criteria: ["D58.2-regression"],
+        description: "The local installer (D19.1, D19.2) and the package check (D58.1) still pass with the server mode in the script",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer", "-t", "D19|D58.1"],
+        requires: ["tests/integration/installer/install-local.test.ts", "tests/integration/installer/release-package.test.ts"],
+      },
+      ...regressionChecks("D58.2-regression"),
+    ],
+  },
+  {
     // KM6 gate (DEV §8.4, §9.56): the update A to B and the broken B back to A from the browser on a real daemon (the system test of the parent D57),
     // then the reports of the update joined item by item for this exact code; does not run their tests again.
     id: "G6",
@@ -7139,7 +7179,7 @@ const definedLater: readonly TaskDefinition[] = [
         id: "installer-preflight",
         criteria: ["D19.1-AC2"],
         description:
-          "With a fake docker: no CLI, a stopped daemon, Windows containers, an old Engine, an old or missing Compose, root, ports out of range, not a number and in use, an image with a quote or a space, the server mode, an unknown or valueless argument, a bad e-mail, a missing image, a foreign or non-folder target and another installation's folder end with a nonzero code and a message, and write nothing; Ctrl+C ends with 130 and creates no folder",
+          "With a fake docker: no CLI, a stopped daemon, Windows containers, an old Engine, an old or missing Compose, root, ports out of range, not a number and in use, an image with a quote or a space, an unknown mode, an unknown or valueless argument, a bad e-mail, a missing image, a foreign or non-folder target and another installation's folder end with a nonzero code and a message, and write nothing; Ctrl+C ends with 130 and creates no folder",
         command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer", "-t", "D19.1-AC2"],
         requires: ["tests/integration/installer/install-local.test.ts", "tests/support/installer-rig.ts"],
       },

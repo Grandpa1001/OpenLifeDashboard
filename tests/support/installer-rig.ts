@@ -65,14 +65,32 @@ function which(tool: string): string {
 
 const sh = (text: string): string => `'${text.replaceAll("'", "'\\''")}'`;
 
-export function installerRig(options: Readonly<{ docker?: FakeDocker | false; userId?: number }> = {}): InstallerRig {
+export type FakeSystem = Readonly<{
+  /** What `uname -s` answers (the architecture stays the real one). */
+  os?: "Linux" | "Darwin";
+  /** What the DNS answers (`getent ahosts`): the addresses of each name; a name that is not here does not resolve. `false`: there is no getent. */
+  dns?: Readonly<Record<string, readonly string[]>> | false;
+}>;
+
+export function installerRig(options: Readonly<{ docker?: FakeDocker | false; userId?: number; system?: FakeSystem }> = {}): InstallerRig {
   const binDir = scratchDir("openlife-installer-bin-");
   const blockedMarker = path.join(binDir, "docker-blocked");
   const callLog = path.join(binDir, "docker-calls.log");
   const ownerStdin = path.join(binDir, "owner-stdin");
   const ownerEnv = path.join(binDir, "owner-env");
   // `id -u` / `id -g` answer with the chosen user (0 = root) instead of the real tool.
-  for (const tool of TOOLS.filter((name) => name !== "id" || options.userId === undefined)) symlinkSync(which(tool), path.join(binDir, tool));
+  const system = options.system ?? {};
+  const faked = (name: string): boolean => (name === "id" && options.userId !== undefined) || (name === "uname" && system.os !== undefined);
+  for (const tool of TOOLS.filter((name) => !faked(name))) symlinkSync(which(tool), path.join(binDir, tool));
+  if (system.os !== undefined) {
+    writeFileSync(path.join(binDir, "uname"), `#!/usr/bin/env bash\nif [ "$1" = "-s" ]; then echo ${system.os}; exit 0; fi\nexec ${sh(which("uname"))} "$@"\n`, { mode: 0o755 });
+  }
+  if (system.dns !== undefined && system.dns !== false) {
+    const answers = Object.entries(system.dns)
+      .map(([name, addresses]) => `  ${sh(name)}) ${addresses.map((address) => `echo "${address} STREAM ${name}"`).join("; ")}; exit 0 ;;`)
+      .join("\n");
+    writeFileSync(path.join(binDir, "getent"), `#!/usr/bin/env bash\ncase "$2" in\n${answers}\n  *) exit 2 ;;\nesac\n`, { mode: 0o755 });
+  }
   for (const tool of HASH_TOOLS) {
     const found = spawnSync("sh", ["-c", `command -v ${tool}`], { encoding: "utf8" }).stdout.trim();
     if (found) symlinkSync(found, path.join(binDir, tool));

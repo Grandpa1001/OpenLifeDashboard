@@ -200,7 +200,7 @@ describe("D19.1-AC2 a failed check ends with a clear message and writes nothing"
     { name: "a port that is not a number", args: ["--port", "80a"], message: /must be a number/ },
     { name: "an image with a quote", args: ["--image", 'x"y'], message: /characters that are not allowed/ },
     { name: "an image with a space", args: ["--image", "a b"], message: /characters that are not allowed/ },
-    { name: "the server mode", args: ["--mode", "server"], message: /'server' is not available yet/, status: 2 },
+    { name: "an unknown mode", args: ["--mode", "cloud"], message: /'cloud' is unknown; use local or server/, status: 2 },
     { name: "an unknown argument", args: ["--frobnicate"], message: /unknown argument: --frobnicate/, status: 2 },
     { name: "an argument without a value", args: ["--port"], message: /--port needs a value/, status: 2 },
     { name: "a bad owner e-mail", args: ["--owner-email", "nie-adres"], message: /does not look like an address/ },

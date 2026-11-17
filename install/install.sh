@@ -3,6 +3,7 @@
 #
 #   install.sh [--mode local] [--dir <folder>] [--port <host port>] [--image <image>]
 #              [--owner-email <e-mail>] [--owner-password-stdin] [--yes]
+#   install.sh --mode server --domain <domain> --acme-email <e-mail> [--dir <folder>] [--image <image>] [--yes]
 #
 # Stages, each recorded in control/install-state.json when it is done:
 #   preparing -> files -> images -> started -> owner -> complete
@@ -20,6 +21,11 @@
 # Run from a release package (release.json or SHA256SUMS beside this script, DEV §9.57) it first checks every file
 # of the package against SHA256SUMS and takes the image from the manifest; run from the repository it
 # needs --image. Nothing is written before that check has passed.
+#
+# The server mode (Linux, DEV §9.57) prepares the installation for a domain: it checks the system,
+# the ports 80 and 443 and that the domain resolves, writes the folder and stops at the stage
+# 'files' with the exit status 3, never claiming that the installation is complete. The HTTPS stack
+# that continues from there is D60.
 set -u -o pipefail
 
 readonly STATE_FORMAT_VERSION=1
@@ -30,6 +36,9 @@ readonly MIN_FREE_KIB=1048576       # 1 GiB for the image, the database and its 
 readonly MIN_PORT=1024
 readonly MAX_PORT=65535
 readonly DEFAULT_PORT=8080
+readonly SERVER_PORTS=(80 443)      # the only ports of the server mode that are published (Caddy)
+readonly EXIT_WAITING=3             # the files are ready and the installation is not: it waits for something
+readonly DOMAIN_MAX_LENGTH=253
 readonly START_TIMEOUT_SECONDS=180
 # The rules of the owner's credentials, as the application states them (packages/contracts/src/http/identity.ts).
 readonly PASSWORD_MIN_CODE_POINTS=12
@@ -49,6 +58,8 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mode="local"
 dir=""
 port=""
+domain=""
+acme_email=""
 image=""
 owner_email=""
 owner_password=""
@@ -60,8 +71,9 @@ usage() {
   cat >&2 <<'USAGE'
 usage: install.sh [--mode local] [--dir <folder>] [--port <port>] [--image <image>]
                   [--owner-email <e-mail>] [--owner-password-stdin] [--yes]
+       install.sh --mode server --domain <domain> --acme-email <e-mail> [--dir <folder>] [--image <image>] [--yes]
 
-  --mode         local (default). The server mode arrives with a later release.
+  --mode         local (default) or server (Linux; the domain must point to this computer)
   --dir          installation folder (default ~/OpenLifeDashboard/default); a fresh or an
                  interrupted installation folder of this installer, never a foreign one
   --port         host port on 127.0.0.1, 1024-65535 (default 8080)
@@ -71,6 +83,8 @@ usage: install.sh [--mode local] [--dir <folder>] [--port <port>] [--image <imag
                  read the owner's password from the first line of stdin; without it the password
                  is typed twice at the terminal. It is never an argument, a variable or a file
   --yes          do not ask to confirm the folder when a terminal is attached
+  --domain       server mode: the domain of this server, e.g. dziennik.example.com (letters, digits, dots, hyphens)
+  --acme-email   server mode: the e-mail the certificate authority is given for notices about the certificate
 USAGE
 }
 
@@ -100,6 +114,8 @@ while [ "$#" -gt 0 ]; do
     --mode) option_value "$@"; mode="$2"; shift 2 ;;
     --dir) option_value "$@"; dir="$2"; shift 2 ;;
     --port) option_value "$@"; port="$2"; shift 2 ;;
+    --domain) option_value "$@"; domain="$2"; shift 2 ;;
+    --acme-email) option_value "$@"; acme_email="$2"; shift 2 ;;
     --image) option_value "$@"; image="$2"; shift 2 ;;
     --owner-email) option_value "$@"; owner_email="$2"; shift 2 ;;
     --owner-password-stdin) password_from_stdin="yes"; shift ;;
@@ -182,7 +198,8 @@ copy_new_file() { # copy_new_file <source> <target>
 
 preflight_system() {
   case "$(uname -s)" in
-    Darwin|Linux) ;;
+    Darwin) [ "$mode" = "local" ] || fail "the server mode runs on Linux (Debian or Ubuntu LTS); on macOS use --mode local" ;;
+    Linux) ;;
     *) fail "this installer supports macOS and Linux; Windows has its own installer (install.ps1)" ;;
   esac
   case "$(uname -m)" in
@@ -227,6 +244,72 @@ preflight_port() {
   if port_in_use "$port"; then
     fail "port $port is already in use on this computer; choose another with --port"
   fi
+}
+
+# --------------------------------------------------------------------------- server mode
+
+# A domain as DNS and the certificate authority accept it, in lower case: labels of letters, digits
+# and hyphens (not at either end), at least two labels, a last label that is not all digits (so an
+# IP address is not a domain), nothing else. A name with accented letters is given as punycode.
+domain_problem() {
+  local name="$1" label rest
+  [ -n "$name" ] || { printf 'it is empty'; return; }
+  has_control_characters "$name" && { printf 'it contains control characters'; return; }
+  [ "${#name}" -le "$DOMAIN_MAX_LENGTH" ] || { printf 'it is longer than %s characters' "$DOMAIN_MAX_LENGTH"; return; }
+  case "$name" in
+    *[!a-z0-9.-]*) printf 'it may use only lower case letters a-z, digits, dots and hyphens (an accented name is given as punycode, xn--...)'; return ;;
+    *.*) ;;
+    *) printf 'it needs at least two parts separated by a dot (name.example.com)'; return ;;
+  esac
+  rest="$name"
+  while :; do
+    label="${rest%%.*}"
+    [ -n "$label" ] && [ "${#label}" -le 63 ] || { printf 'a part between dots is empty or longer than 63 characters'; return; }
+    case "$label" in
+      -*|*-) printf 'a part between dots begins or ends with a hyphen'; return ;;
+    esac
+    case "$rest" in
+      *.*) rest="${rest#*.}" ;;
+      *) break ;;
+    esac
+  done
+  case "$label" in
+    *[!0-9]*) ;;
+    *) printf 'it looks like an IP address; give the name of the domain' ;;
+  esac
+}
+
+validate_server_arguments() {
+  local problem
+  if [ "$mode" = "local" ]; then
+    [ -z "$domain" ] || usage_error "--domain is for the server mode (--mode server)"
+    [ -z "$acme_email" ] || usage_error "--acme-email is for the server mode (--mode server)"
+    return 0
+  fi
+  [ -z "$port" ] || usage_error "--port is for the local mode: the server mode publishes only ports 80 and 443"
+  { [ -z "$owner_email" ] && [ "$password_from_stdin" = "no" ]; } ||
+    usage_error "the owner of a server is not created by the installer yet: do not give --owner-email or --owner-password-stdin"
+  domain="${domain:-$(ask "Domain of this server" "")}"
+  problem="$(domain_problem "$domain")"
+  [ -z "$problem" ] || fail "the domain is refused: $problem${domain:+: $domain}"
+  acme_email="${acme_email:-$(ask "E-mail for the certificate authority" "")}"
+  problem="it is empty"
+  [ -z "$acme_email" ] || problem="$(owner_email_problem "$acme_email")"
+  [ -z "$problem" ] || fail "the e-mail for the certificate authority is refused: $problem${acme_email:+: $acme_email}"
+}
+
+preflight_server_ports() { # the ports that Caddy will publish must be free
+  local server_port
+  for server_port in "${SERVER_PORTS[@]}"; do
+    if port_in_use "$server_port"; then
+      fail "port $server_port is already in use on this computer; the server mode needs 80 and 443 for HTTPS (stop the program that uses it, or use a computer without it)"
+    fi
+  done
+}
+
+# The addresses the domain resolves to, one per line, or nothing when it does not resolve.
+domain_addresses() {
+  getent ahosts "$domain" 2>/dev/null | awk '{ print $1 }' | awk '!seen[$0]++'
 }
 
 nearest_existing_ancestor() {
@@ -458,6 +541,25 @@ prepare_env_file() {
   local project_name
   project_name="$(project_name_of_instance)"
   [ -n "$project_name" ] || fail "control/instance.json has no valid composeProjectName; the installation is damaged"
+  if [ "$mode" = "server" ]; then
+    # No host port and no compose.server.yml yet: the HTTPS stack of the server is D60.
+    write_new_file "$dir/.env" <<EOF && say "created .env (owner only, with new keys)"
+INSTALL_MODE=$mode
+BASE_URL=https://$domain
+DOMAIN=$domain
+ACME_EMAIL=$acme_email
+BETTER_AUTH_SECRET=$(random_hex 32)
+APP_ENCRYPTION_KEY=$(random_hex 32)
+UPDATER_ENABLED=false
+APP_UID=$(id -u)
+APP_GID=$(id -g)
+COMPOSE_PROJECT_NAME=$project_name
+COMPOSE_PATH_SEPARATOR=;
+COMPOSE_FILE=compose.yml;control/compose.release.yml
+EOF
+    true
+    return
+  fi
   write_new_file "$dir/.env" <<EOF && say "created .env (owner only, with new keys)"
 INSTALL_MODE=$mode
 BASE_URL=http://localhost:$port
@@ -483,8 +585,9 @@ package_file() { # compose files sit next to the installer in a release package,
 }
 
 prepare_compose_files() {
-  local file
-  for file in compose.yml compose.local.yml; do
+  local file files="compose.yml compose.local.yml"
+  [ "$mode" = "local" ] || files="compose.yml"
+  for file in $files; do
     copy_new_file "$(package_file "$file")" "$dir/$file" && say "created $file"
   done
   write_new_file "$dir/control/compose.release.yml" <<EOF && say "created control/compose.release.yml"
@@ -625,6 +728,25 @@ stage_finish() {
   start_and_wait
 }
 
+env_value() { # env_value <KEY>: the value of a key of the installation's .env
+  sed -n "s/^$1=\\(.*\\)\$/\\1/p" "$dir/.env" | head -n 1
+}
+
+print_server_waiting() {
+  say ""
+  say "The files of the server installation are ready in $dir, but it is NOT installed: nothing is running yet."
+  if [ -z "$dns_addresses" ]; then
+    say "  Waiting for DNS: $domain does not resolve to any address yet. Point an A (and AAAA) record of $domain to this server,"
+    say "  wait until it resolves, and run the installer again with the same options: it continues here and keeps its keys."
+  else
+    say "  DNS:        $domain resolves to: $(printf '%s' "$dns_addresses" | tr '\n' ' ')"
+    say "  The HTTPS stack (Caddy, the certificate) that starts the application is not part of this release of the installer yet,"
+    say "  so the application is not started and no certificate was requested."
+  fi
+  say "  Secrets:    $dir/.env - copy it to a safe place; without it the data cannot be opened"
+  say "Nothing was exposed: the application publishes no port, and the data stays in $dir/data."
+}
+
 print_summary() {
   say ""
   say "OpenLifeDashboard is installed."
@@ -642,7 +764,10 @@ print_summary() {
 
 # -------------------------------------------------------------------------------------- run
 
-[ "$mode" = "local" ] || usage_error "the mode '$mode' is not available yet; only 'local' is supported"
+case "$mode" in
+  local|server) ;;
+  *) usage_error "the mode '$mode' is unknown; use local or server" ;;
+esac
 resuming="no"
 state_file=""
 current_stage=""
@@ -671,24 +796,51 @@ if [ "$resuming" = "yes" ]; then
 fi
 rank="$(stage_rank "${current_stage:-preparing}")"
 
-# The port of an interrupted installation is the one already in its .env; a new one is asked for.
+# An interrupted installation keeps its mode and, for a server, its domain and e-mail: a different one is refused.
 if [ "$resuming" = "yes" ] && [ -f "$dir/.env" ]; then
-  recorded_port="$(sed -n 's/^PORT=\([0-9]*\)$/\1/p' "$dir/.env" | head -n 1)"
-  if [ -n "$port" ] && [ -n "$recorded_port" ] && [ "$port" != "$recorded_port" ]; then
-    fail "this installation already uses port $recorded_port; run the installer without --port, or with --port $recorded_port"
+  recorded_mode="$(env_value INSTALL_MODE)"
+  [ -z "$recorded_mode" ] || [ "$recorded_mode" = "$mode" ] ||
+    fail "this installation was made in the $recorded_mode mode; run the installer with --mode $recorded_mode"
+  if [ "$mode" = "server" ]; then
+    recorded_domain="$(env_value DOMAIN)"
+    if [ -n "$domain" ] && [ -n "$recorded_domain" ] && [ "$domain" != "$recorded_domain" ]; then
+      fail "this installation is for the domain $recorded_domain; run the installer without --domain, or with --domain $recorded_domain"
+    fi
+    domain="${domain:-$recorded_domain}"
+    acme_email="${acme_email:-$(env_value ACME_EMAIL)}"
   fi
-  port="${port:-$recorded_port}"
 fi
-port="${port:-$(ask "Port on this computer (127.0.0.1)" "$DEFAULT_PORT")}"
-# Once the application has started, the port is held by this very installation.
-if [ "$rank" -lt 3 ]; then
-  preflight_port
+validate_server_arguments
+
+if [ "$mode" = "local" ]; then
+  # The port of an interrupted installation is the one already in its .env; a new one is asked for.
+  if [ "$resuming" = "yes" ] && [ -f "$dir/.env" ]; then
+    recorded_port="$(env_value PORT)"
+    if [ -n "$port" ] && [ -n "$recorded_port" ] && [ "$port" != "$recorded_port" ]; then
+      fail "this installation already uses port $recorded_port; run the installer without --port, or with --port $recorded_port"
+    fi
+    port="${port:-$recorded_port}"
+  fi
+  port="${port:-$(ask "Port on this computer (127.0.0.1)" "$DEFAULT_PORT")}"
+  # Once the application has started, the port is held by this very installation.
+  if [ "$rank" -lt 3 ]; then
+    preflight_port
+  fi
+  [ "$rank" -ge 4 ] || read_owner_credentials
+else
+  preflight_server_ports
+  # Outside the substitution below: a fail inside it would end only its own subshell.
+  command -v getent >/dev/null 2>&1 || fail "cannot check the DNS of $domain: the getent command is not available"
+  dns_addresses="$(domain_addresses)"
 fi
-[ "$rank" -ge 4 ] || read_owner_credentials
 
 [ -z "$package_version" ] || say "Release package:      $PACKAGE_PRODUCT $package_version (every file matches $PACKAGE_SUMS)"
 say "Installation folder: $dir"
-say "Address:             http://localhost:$port (reachable only from this computer)"
+if [ "$mode" = "local" ]; then
+  say "Address:             http://localhost:$port (reachable only from this computer)"
+else
+  say "Address:             https://$domain (ports 80 and 443)"
+fi
 if [ "$resuming" = "yes" ]; then
   say "Found an installation at the stage '$current_stage'; it is continued, nothing is overwritten."
 elif [ "$interactive" = "yes" ] && [ "$assume_yes" = "no" ]; then
@@ -708,6 +860,13 @@ prepare_env_file
 prepare_compose_files
 if [ "$rank" -le 0 ]; then
   write_state files
+fi
+
+# The server mode ends here until the HTTPS stack exists (D60): the files are ready and the
+# installation is not, whatever the DNS says, so it never prints "installed".
+if [ "$mode" = "server" ]; then
+  print_server_waiting
+  exit "$EXIT_WAITING"
 fi
 
 if [ "$rank" -le 1 ]; then stage_images; write_state images; fi
