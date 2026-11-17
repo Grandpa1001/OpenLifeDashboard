@@ -6939,6 +6939,74 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D57.3-regression"),
     ],
   },
+  {
+    // DEV §9.56: the whole update from the browser on a real daemon, both ways.
+    id: "D57.4",
+    ready: true,
+    title: "The update from the page on a real daemon: A to B from the browser, and a broken B back to A with the reason said, each on an installation of its own",
+    criteria: ["D57.4-AC1", "D57.4-AC2", "D57.4-regression"],
+    checks: [
+      {
+        // Runs first: the images are built from copies of this checkout and the browser opens the built SPA.
+        id: "workspace-build",
+        criteria: ["D57.4-AC1", "D57.4-AC2"],
+        description: "pnpm -r build: the app, the SPA and the updater the images are built from",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/updater/src/install/switch-release.ts", "tests/system/update-browser.ts"],
+      },
+      {
+        id: "update-browser",
+        criteria: ["D57.4-AC1", "D57.4-AC2"],
+        description:
+          "On a real daemon with a local registry, the updater as a service of Compose and Chromium driven by Playwright as the owner, on an installation of its own for each of two releases of version 1.3.0 (one migrates, one whose migration fails) with an owner who signs in on the page with a recovery code so that the session has no fresh factor: the owner checks for releases, starts the update, is asked for a code of the second factor in the dialog of the page and gives the next one, and sees the progress; for the good release the page, with no reload, says the application was updated to the release, the stream of events connected again to the new app, the mark in the corner says the version, a reload still shows the result until it is closed and a closed one does not come back, the updater has completed after its commit point, the app that runs is B on its pinned image and healthy, the release file pins B and the updater, the gate holds no operation, the copy before the update is there, the database is migrated and keeps the option and the owner, the start is in the audit log once, and a plain docker compose up -d keeps B; for the broken release the page does not say the update succeeded, the owner (whose session the restore ended) signs in again and the page says in words that the previous version runs on the copy and why, with the version of A, the updater ended idle with B_MIGRATION_FAILED, the app that runs is A on its pinned image, the release file is as it was, the database is the copy's with the option and the owner and the restore in the audit log once, and a plain docker compose up -d keeps A",
+        command: ["node", "tests/system/update-browser.ts"],
+        requires: ["tests/system/update-browser.ts", "tests/support/update-rig.ts", "docker/Dockerfile", "docker/compose.yml", "docker/compose.updater.yml", "tests/support/compose-instance.ts"],
+        timeoutMs: 30 * 60 * 1000,
+      },
+      ...regressionChecks("D57.4-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the start, the course and the result, the event, the update on a real daemon.
+  {
+    id: "D57",
+    ready: true,
+    title: "The update from the interface: the start with a fresh factor, the course and the result after the reconnection, the event for the other tabs, and the update on a real daemon both ways",
+    steps: ["D57.1", "D57.2", "D57.3", "D57.4"],
+    criteria: [],
+    checks: [],
+  },
+  {
+    // KM6 gate (DEV §8.4, §9.56): the update A to B and the broken B back to A from the browser on a real daemon (the system test of the parent D57),
+    // then the reports of the update joined item by item for this exact code; does not run their tests again.
+    id: "G6",
+    ready: true,
+    title: "Gate G6: the update from the browser on Docker both ways, the writes closed until the commit point, the copy after the quiet, every state of a crash settled and the pins kept by a plain Compose",
+    criteria: ["G6-matrix", "G6-reports"],
+    checks: [
+      {
+        id: "g6-matrix-static",
+        criteria: ["G6-matrix"],
+        description: "Every item of G6 names ready reports, checks of those tasks and test titles written as they stand in the sources the checks run; every report joined proves an item",
+        command: ["node", "tests/verification/g6-matrix-static.ts"],
+        requires: ["tests/verification/g6-matrix-static.ts", "tests/verification/g6-matrix.ts"],
+      },
+      {
+        id: "g6-gate-controls",
+        criteria: ["G6-matrix"],
+        description: "The G6 gate on synthetic reports: a complete set passes; a failed or renamed test line and a failed check fail; a missing report and a report of other code are blocked; the result always lists every item",
+        command: ["node", "tests/verification/g6-gate-controls.ts"],
+        requires: ["tests/verification/g6-gate-controls.ts", "tests/verification/gate-controls.ts", "tests/verification/g6-gate.ts", "tests/verification/gate-run.ts", "tests/verification/g6-matrix.ts"],
+      },
+      {
+        id: "g6-gate",
+        criteria: ["G6-reports"],
+        description:
+          "Joins the reports of D54 to D57 for exactly this code and decides every item of G6 from the passed test that proves it: the update from the page and the way back of a broken release on the real daemon, the fresh factor, the course and the result in words, the event for the other tabs, the writes closed until the commit point, the copy after the quiet, no way back after the commit point, every state of a crash, the file of the release and the pins after a plain Compose, the digest, the instructions; names what is not run. A missing report is blocked",
+        command: ["node", "tests/verification/g6-gate.ts"],
+        requires: ["tests/verification/g6-gate.ts", "tests/verification/g6-matrix.ts", "tests/verification/gate-run.ts", "tests/verification/report-join.ts"],
+      },
+    ],
+  },
   // The parent passes only through its work orders: the catalog and the pull, the commands, the gate, the start from the app.
   {
     id: "D54",
