@@ -3,12 +3,12 @@
 // ports 80 and 443 and the DNS, writes the folder and stops at 'files' with the status 3, and says
 // that it is not installed. The HTTPS stack that goes on from there is D60; a real Linux is D58.4.
 import { createHash } from "node:crypto";
-import { createServer } from "node:net";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { createServer, type AddressInfo } from "node:net";
+import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { dockerCalls, installerRig, runInstaller, type FakeSystem, type InstallerRig } from "../../support/installer-rig.ts";
+import { INSTALLER, dockerCalls, installerRig, runInstaller, type FakeSystem, type InstallerRig } from "../../support/installer-rig.ts";
 
 const root = mkdtempSync(path.join(os.tmpdir(), "openlife-install-server-"));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
@@ -164,18 +164,25 @@ describe("D58.2-AC2 what the server mode cannot accept is refused with a message
     refused(installerRig({ system: { os: "Linux", dns: false } }), ["--mode", "server", "--domain", DOMAIN, "--acme-email", ACME], /getent command is not available/);
   });
 
-  it("a computer where the ports of HTTPS are taken", async (context) => {
-    // Ports below 1024 may be bound only by a privileged user on some systems: then this case cannot be set up and is not run.
+  it("a computer where a port of HTTPS is taken", async () => {
+    // Ports 80 and 443 can be held only by a privileged user on some systems, so the installer is run as a copy whose list of ports
+    // (SERVER_PORTS) is a free high port that this test holds: the check that refuses is the same.
     const holder = createServer();
-    const bound = await new Promise<boolean>((resolve) => {
-      holder.once("error", () => resolve(false));
-      holder.listen(80, () => resolve(true)); // all interfaces, as Caddy would: macOS lets an unprivileged user bind only these
-    });
-    if (!bound) return context.skip();
+    const held = await new Promise<number>((resolve) => holder.listen(0, "127.0.0.1", () => resolve((holder.address() as AddressInfo).port)));
+    const folder = path.join(root, "install-high-ports");
+    cpSync(path.dirname(INSTALLER), folder, { recursive: true });
+    const script = path.join(folder, "install.sh");
+    const original = readFileSync(INSTALLER, "utf8");
+    const changed = original.replace("readonly SERVER_PORTS=(80 443)", `readonly SERVER_PORTS=(${held})`);
+    expect(changed).not.toBe(original);
+    writeFileSync(script, changed, { mode: 0o755 });
     try {
-      refused(linux(), ["--mode", "server", "--domain", DOMAIN, "--acme-email", ACME], /port 80 is already in use/);
+      const result = runInstaller(linux(), ["--mode", "server", "--dir", nextDir(), "--image", IMAGE, "--domain", DOMAIN, "--acme-email", ACME, "--yes"], { script });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toMatch(new RegExp(`port ${held} is already in use`));
     } finally {
       await new Promise((resolve) => holder.close(resolve));
     }
   });
+
 });
