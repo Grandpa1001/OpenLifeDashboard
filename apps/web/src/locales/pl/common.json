@@ -49,6 +49,7 @@
     "navigation": "Wersja",
     "short": "v{{current}}",
     "open": "Otwórz aktualizacje.",
-    "newer": "Dostępna jest nowsza wersja {{latest}}."
+    "newer": "Dostępna jest nowsza wersja {{latest}}.",
+    "updating": "Trwa aktualizacja"
   }
 }

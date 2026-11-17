@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -6829,6 +6829,81 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D56.1", "D56.2", "D56.3", "D56.4"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.56: the start of an update from the page of the updates.
+    id: "D57.1",
+    ready: true,
+    title: "The start of an update from the Updates page: the offer for a newer release, the question before it, a fresh factor, the version and nothing else, and the refusals in words",
+    criteria: ["D57.1-AC1", "D57.1-AC2", "D57.1-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D57.1-AC1", "D57.1-AC2"],
+        description: "pnpm -r build: the install section of the Updates page and its call",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/settings/components/update-install-section.tsx", "apps/web/src/lib/updates/updates-status.ts"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D57.1-AC1", "D57.1-AC2"],
+        description: "pl and en have the same keys, including the texts of the install section and of its refusals",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/settings.json", "apps/web/src/locales/en/settings.json"],
+      },
+      {
+        id: "settings-updates-install-e2e",
+        criteria: ["D57.1-AC1", "D57.1-AC2"],
+        description:
+          "Playwright on the built app with a repository of releases on the loopback and no updater to reach: the page offers Install only for a newer release and not before the first check, asks what will happen before anything is sent, sends nothing on Cancel and gives the focus back; an accepted start sends the version and nothing else, says the update has begun and the page reads the state, which hides the offer; a session without a fresh factor gets the dialog of the page, the start is made once with the code, and the refusal of the updater is told in words with the application still taking writes; a release that is not the one found, an update that is going on and a maintenance operation are told in words and the state is read again; the confirmation from the keyboard, axe, and a phone without sideways scrolling",
+        command: ["node", "tests/verification/e2e.ts", "settings-updates-install.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/settings-updates-install.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D57.1-regression"),
+    ],
+  },
+  {
+    // DEV §9.56: the course of an update and its result on the page.
+    id: "D57.2",
+    ready: true,
+    title: "The course of an update and its result: the stage in words, reconnecting that is no failure, and the result told from the state until it is closed",
+    criteria: ["D57.2-AC1", "D57.2-AC2", "D57.2-regression"],
+    checks: [
+      {
+        // Runs first: the e2e tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D57.2-AC1", "D57.2-AC2"],
+        description: "pnpm -r build: the progress section, the reading of the operation and the mark of the corner",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/web/src/features/settings/components/update-progress-section.tsx", "apps/web/src/lib/updates/operation-view.ts", "apps/web/src/app/layout/version-mark.tsx"],
+      },
+      {
+        id: "check-locales",
+        criteria: ["D57.2-AC1", "D57.2-AC2"],
+        description: "pl and en have the same keys, including the stages, the results and the sentences of the codes",
+        command: ["pnpm", "check:locales"],
+        requires: ["scripts/check-locales.ts", "apps/web/src/locales/pl/settings.json", "apps/web/src/locales/en/settings.json"],
+      },
+      {
+        id: "update-operation-view",
+        criteria: ["D57.2-AC1", "D57.2-AC2"],
+        description: "The page asks again exactly while an update goes on and names a stage for each state of the way forward; the result is told from the state alone (a success only when the application that answers is the release, a return with the code, an installation that needs attention, nothing for a closed or a running operation) and every code the updater ends an operation with has a sentence in both languages",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/web/update-operation-view.test.ts"],
+        requires: ["tests/unit/web/update-operation-view.test.ts"],
+      },
+      {
+        id: "settings-updates-progress-e2e",
+        criteria: ["D57.2-AC1", "D57.2-AC2"],
+        description:
+          "Playwright on the built app with the state of the operation given as the updater would while the application is replaced: the stage in words and the list of stages follow the state, the mark in the corner says an update goes on, the application that cannot be read is told as reconnecting with no alert, the way back is told as the previous version being put back; the new application that answers gives the result with the version and the mark shows it, a closed result stays closed after a reload, the return is told with the reason in words and another operation is another result, a code that is not known has the common sentence, an installation that needs attention has no button and no offer; axe and a phone without sideways scrolling",
+        command: ["node", "tests/verification/e2e.ts", "settings-updates-progress.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/settings-updates-progress.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D57.2-regression"),
+    ],
   },
   // The parent passes only through its work orders: the catalog and the pull, the commands, the gate, the start from the app.
   {

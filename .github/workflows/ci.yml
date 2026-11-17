@@ -824,6 +824,12 @@ jobs:
       - name: Verify D53.4 (the Updates page and the version mark)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D53.4
+      - name: Verify D57.1 (the start of an update from the Updates page)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D57.1
+      - name: Verify D57.2 (the course of an update and its result)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D57.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

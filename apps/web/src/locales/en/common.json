@@ -49,6 +49,7 @@
     "navigation": "Version",
     "short": "v{{current}}",
     "open": "Open the updates.",
-    "newer": "A newer version, {{latest}}, is available."
+    "newer": "A newer version, {{latest}}, is available.",
+    "updating": "Updating"
   }
 }

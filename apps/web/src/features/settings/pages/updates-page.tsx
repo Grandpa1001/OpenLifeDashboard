@@ -9,9 +9,16 @@ import { useGuardRecheck } from "../../../lib/session/use-guard-recheck.js";
 import { useOwnerDisplay } from "../../../lib/session/use-owner-display.js";
 import { checkUpdatesNow, updatesStatusQuery } from "../../../lib/updates/updates-status.js";
 import { patchAppSettings } from "../api/app-settings.js";
+import { fetchFactor } from "../api/security.js";
+import { useStepUp } from "../components/step-up.js";
+import { UpdateInstallSection } from "../components/update-install-section.js";
+import { UpdateProgressSection } from "../components/update-progress-section.js";
 
 /** What the last check said, in the words of the owner: the codes of the checker are told here, one text each. */
 const KNOWN_CHECK_ERRORS: ReadonlySet<string> = new Set(["NETWORK_UNAVAILABLE", "TIMEOUT", "RATE_LIMITED", "FORBIDDEN", "NOT_FOUND", "SERVER_ERROR", "REDIRECT_REFUSED", "RESPONSE_TOO_LARGE", "RESPONSE_INVALID", "UNEXPECTED_STATUS"]);
+
+/** An operation holds the installation while it is anything but ended (the states of the updater that wait for no one). */
+const operationBusy = (data: UpdatesStatusDto): boolean => data.operation !== null && !["idle", "completed", "rolled_back"].includes(data.operation.state);
 
 const when = (iso: string, display: Readonly<{ locale: string; timeZone: string }>): string => new Intl.DateTimeFormat(display.locale, { dateStyle: "medium", timeStyle: "short", timeZone: display.timeZone }).format(new Date(iso));
 
@@ -25,6 +32,16 @@ export function UpdatesPage() {
   const queryClient = useQueryClient();
   const display = useOwnerDisplay();
   const status = useQuery(updatesStatusQuery);
+  // The start of an update needs a fresh second factor (a TOTP while the factor is in force, the password once it is off), asked for in a dialog over the page.
+  const factor = useQuery({
+    queryKey: queryKeys.security.factor,
+    queryFn: async ({ signal }) => {
+      const result = await fetchFactor(signal);
+      if (!result.ok) throw new Error("factor unavailable");
+      return result.value;
+    },
+  });
+  const stepUp = useStepUp(factor.data?.policy === "disabled" ? "password" : "code");
   const [checking, setChecking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<ErrorMessage | null>(null);
@@ -97,8 +114,9 @@ export function UpdatesPage() {
   return (
     <>
       <h2 className="visually-hidden">{t("updates.heading")}</h2>
+      {stepUp.dialog}
       {status.isPending ? <p role="status">{t("loading")}</p> : null}
-      {status.isError ? (
+      {status.isError && status.data === undefined ? (
         <div className="card">
           <p role="alert">{t("updates.loadFailed")}</p>
           <button type="button" onClick={() => void status.refetch()}>
@@ -108,6 +126,7 @@ export function UpdatesPage() {
       ) : null}
       {data === undefined ? null : (
         <>
+          <UpdateProgressSection data={data} reconnecting={status.isRefetchError} />
           <section className="card" aria-labelledby="updates-version-heading">
             <h2 id="updates-version-heading">{t("updates.version.heading")}</h2>
             <p>{t("updates.version.current", { version: data.current })}</p>
@@ -136,8 +155,11 @@ export function UpdatesPage() {
                   {t("updates.release.open")}
                 </a>
               </p>
-              <p className="field-hint">{t("updates.release.howTo")}</p>
             </section>
+          ) : null}
+
+          {data.configured && data.available && data.latest !== null ? (
+            <UpdateInstallSection latest={data.latest} operationBusy={operationBusy(data)} run={stepUp.run} onStarted={() => void queryClient.invalidateQueries({ queryKey: queryKeys.updates.status })} />
           ) : null}
 
           {data.configured ? (

@@ -1927,6 +1927,28 @@ main.pulpit {
   background: var(--color-accent);
 }
 
+/* While an update goes on the mark shows a ring instead of the dot: nothing moves, so it needs no exception for reduced motion. */
+.version-busy {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-accent);
+}
+
+.updates-stages {
+  display: grid;
+  gap: var(--space-1);
+  padding-left: var(--space-5);
+}
+
+.updates-stages li[aria-current="step"] {
+  font-weight: 600;
+}
+
+.updates-stages li[data-done="true"] {
+  color: var(--color-text-muted);
+}
+
 .updates-notes {
   max-height: 20rem;
   overflow: auto;

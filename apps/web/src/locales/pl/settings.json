@@ -366,8 +366,7 @@
       "published": "Opublikowana: {{when}}.",
       "notes": "Co nowego",
       "noNotes": "Wydanie nie ma notatek.",
-      "open": "Otwórz wydanie na GitHubie",
-      "howTo": "Sama aktualizacja nie jest wykonywana z tej strony."
+      "open": "Otwórz wydanie na GitHubie"
     },
     "check": {
       "heading": "Sprawdzanie",
@@ -396,6 +395,75 @@
       "UNEXPECTED_STATUS": "Serwer wydań odpowiedział w nieoczekiwany sposób.",
       "UNKNOWN": "Sprawdzenie się nie udało.",
       "retryAt": "Następna próba po {{when}}."
+    },
+    "install": {
+      "heading": "Zainstaluj wersję {{version}}",
+      "about": "Aktualizację wykonuje updater tej instalacji. Najpierw powstaje kopia Twoich danych, a jeśli nowa wersja się nie uruchomi, poprzednia wraca.",
+      "button": "Zainstaluj {{version}}",
+      "confirmHeading": "Zainstalować wersję {{version}}?",
+      "confirmText": "Na czas aktualizacji zapisy są zamknięte: można czytać, ale nic nie da się zapisać, a jeśli trzeba będzie przywrócić poprzednią wersję, wszyscy zostaną wylogowani. Najpierw powstaje kopia danych. Zapytamy o świeży kod drugiego składnika.",
+      "confirm": "Zainstaluj",
+      "cancel": "Anuluj",
+      "starting": "Uruchamiam…",
+      "started": "Aktualizacja się rozpoczęła. Ta strona pokazuje, jak idzie.",
+      "refused": {
+        "UPDATE_RELEASE_UNKNOWN": "To nie jest już wydanie znalezione ostatnim sprawdzeniem. Strona odczytała stan na nowo.",
+        "UPDATE_IN_PROGRESS": "Aktualizacja już trwa.",
+        "UPDATE_UNAVAILABLE": "Nie udało się rozpocząć aktualizacji i nic nie zostało zmienione. Updater tej instalacji jej nie przyjął albo jest nieosiągalny.",
+        "UPDATES_NOT_CONFIGURED": "Ta instalacja nie ma updatera, więc nie zaktualizuje się stąd.",
+        "MAINTENANCE": "Trwa operacja utrzymania. Spróbuj, gdy się skończy."
+      }
+    },
+    "progress": {
+      "heading": "Aktualizacja do wersji {{version}}",
+      "returning": "Nowa wersja nie zadziałała, więc wraca poprzednia.",
+      "writesClosed": "Na czas aktualizacji zapisy są zamknięte, można czytać. Ta strona na bieżąco czyta, jak idzie.",
+      "reconnecting": "Łączę ponownie. Aplikacja jest wymieniana, to normalne.",
+      "stage": {
+        "checking": "Sprawdzam wydanie",
+        "pulling": "Pobieram nową wersję",
+        "quiescing": "Zamykam zapisy",
+        "backing_up": "Robię kopię Twoich danych",
+        "switching": "Wymieniam aplikację",
+        "verifying": "Sprawdzam, czy nowa wersja działa",
+        "committing": "Potwierdzam wybór wersji",
+        "rolling_back": "Przywracam poprzednią wersję"
+      }
+    },
+    "result": {
+      "dismiss": "Zamknij",
+      "heading": {
+        "updated": "Zaktualizowano",
+        "returned": "Aktualizacja się nie skończyła",
+        "stuck": "Aktualizacja wymaga Twojej uwagi"
+      },
+      "updated": "Aplikacja została zaktualizowana do wersji {{version}}. Twoje dane i ustawienia są takie, jak były.",
+      "returned": "Poprzednia wersja znowu działa na kopii zrobionej przed aktualizacją, więc nic z Twoich danych nie zginęło. Zostałeś wylogowany, zaloguj się ponownie.",
+      "stuck": "Aktualizacji nie dało się samoczynnie naprawić, więc aplikacja pozostaje zatrzymana i nie przyjmuje zapisów. Postępuj według instrukcji po nieudanym powrocie w README, „When an update does not finish”.",
+      "codes": {
+        "ABORTED": "Aktualizacja została porzucona, zanim aplikacja została wymieniona.",
+        "UPDATER_RESTARTED": "Updater uruchomił się ponownie w jej trakcie.",
+        "CATALOG_MISSING": "Brakuje katalogu wydań.",
+        "CATALOG_TOO_LARGE": "Katalog wydań jest za duży.",
+        "CATALOG_INVALID": "Katalog wydań nie jest cały.",
+        "RELEASE_UNKNOWN": "Katalog nie zawiera tego wydania.",
+        "RELEASE_REQUIRES_ADMIN": "To wydanie wymienia sam updater, co robi się ręcznie.",
+        "PULL_FAILED": "Nie udało się pobrać nowej wersji.",
+        "DIGEST_MISMATCH": "Pobrany obraz nie jest tym, który wskazuje katalog.",
+        "BACKUP_MISSING": "Brakuje kopii sprzed aktualizacji.",
+        "BACKUP_INVALID": "Kopia sprzed aktualizacji nie jest cała.",
+        "PREVIOUS_UNKNOWN": "Instalacja nie ma poprzedniego wydania, do którego mogłaby wrócić.",
+        "START_TIMEOUT": "Nowa wersja nie dała dowodu na czas.",
+        "B_EXITED": "Nowa wersja zakończyła się po starcie.",
+        "B_OOM_KILLED": "Nową wersję zatrzymał brak pamięci.",
+        "B_MIGRATION_FAILED": "Nowa wersja nie mogła zmigrować bazy.",
+        "B_MISSING": "Nowa wersja zniknęła.",
+        "VERSION_MISMATCH": "Nowa wersja nie jest wybranym wydaniem.",
+        "SCHEMA_MISMATCH": "Baza nowej wersji nie jest tą, którą wskazuje wydanie.",
+        "RELEASE_FILE_FAILED": "Nie udało się zapisać wyboru wersji.",
+        "SWITCH_FAILED": "Nie udało się wymienić aplikacji.",
+        "UNKNOWN": "Przyczyna jest w logu updatera."
+      }
     }
   },
   "diagnostics": {

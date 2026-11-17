@@ -360,8 +360,7 @@
       "published": "Published: {{when}}.",
       "notes": "What is new",
       "noNotes": "The release has no notes.",
-      "open": "Open the release on GitHub",
-      "howTo": "The update itself is not made from this page."
+      "open": "Open the release on GitHub"
     },
     "check": {
       "heading": "Checking",
@@ -388,6 +387,75 @@
       "UNEXPECTED_STATUS": "The server of the releases answered in an unexpected way.",
       "UNKNOWN": "The check did not succeed.",
       "retryAt": "The next try is after {{when}}."
+    },
+    "install": {
+      "heading": "Install version {{version}}",
+      "about": "The update is made by the updater of this installation. A copy of your data is taken first, and if the new version does not start the previous one is put back.",
+      "button": "Install {{version}}",
+      "confirmHeading": "Install version {{version}}?",
+      "confirmText": "Writes are closed for the time of the update: you can read, but nothing can be saved, and everyone is signed out if the previous version has to be put back. A copy of the data is taken first. You will be asked for a fresh code of the second factor.",
+      "confirm": "Install",
+      "cancel": "Cancel",
+      "starting": "Starting…",
+      "started": "The update has started. This page shows how it goes.",
+      "refused": {
+        "UPDATE_RELEASE_UNKNOWN": "This is no longer the release the last check found. The page has read the state again.",
+        "UPDATE_IN_PROGRESS": "An update is already going on.",
+        "UPDATE_UNAVAILABLE": "The update could not be started and nothing was changed. The updater of this installation did not accept it or cannot be reached.",
+        "UPDATES_NOT_CONFIGURED": "This installation has no updater, so it cannot update from here.",
+        "MAINTENANCE": "A maintenance operation is going on. Try again when it ends."
+      }
+    },
+    "progress": {
+      "heading": "Updating to version {{version}}",
+      "returning": "The new version did not work, so the previous one is being put back.",
+      "writesClosed": "Writes are closed while the update goes on; you can read. This page keeps reading how it goes.",
+      "reconnecting": "Reconnecting. The application is being replaced; this is expected.",
+      "stage": {
+        "checking": "Checking the release",
+        "pulling": "Downloading the new version",
+        "quiescing": "Closing writes",
+        "backing_up": "Taking a copy of your data",
+        "switching": "Replacing the application",
+        "verifying": "Checking that the new version works",
+        "committing": "Confirming the choice of the version",
+        "rolling_back": "Putting the previous version back"
+      }
+    },
+    "result": {
+      "dismiss": "Close",
+      "heading": {
+        "updated": "Updated",
+        "returned": "The update did not finish",
+        "stuck": "The update needs your attention"
+      },
+      "updated": "The application was updated to version {{version}}. Your data and settings are as they were.",
+      "returned": "The previous version is running again on the copy taken before the update, so nothing of your data was lost. You were signed out; sign in again.",
+      "stuck": "The update could not be put right by itself, so the application stays stopped and takes no writes. Follow the instructions for a failed recovery in the README, “When an update does not finish”.",
+      "codes": {
+        "ABORTED": "The update was given up before the application was replaced.",
+        "UPDATER_RESTARTED": "The updater restarted in the middle of it.",
+        "CATALOG_MISSING": "The catalog of releases is missing.",
+        "CATALOG_TOO_LARGE": "The catalog of releases is too large.",
+        "CATALOG_INVALID": "The catalog of releases is not whole.",
+        "RELEASE_UNKNOWN": "The catalog does not list this release.",
+        "RELEASE_REQUIRES_ADMIN": "This release replaces the updater itself, which is done by hand.",
+        "PULL_FAILED": "The new version could not be downloaded.",
+        "DIGEST_MISMATCH": "The downloaded image is not the one the catalog names.",
+        "BACKUP_MISSING": "The copy before the update is missing.",
+        "BACKUP_INVALID": "The copy before the update is not whole.",
+        "PREVIOUS_UNKNOWN": "The installation has no previous release to go back to.",
+        "START_TIMEOUT": "The new version did not prove itself in time.",
+        "B_EXITED": "The new version ended after it started.",
+        "B_OOM_KILLED": "The new version was stopped for lack of memory.",
+        "B_MIGRATION_FAILED": "The new version could not migrate the database.",
+        "B_MISSING": "The new version vanished.",
+        "VERSION_MISMATCH": "The new version is not the release that was chosen.",
+        "SCHEMA_MISMATCH": "The database of the new version is not the one the release names.",
+        "RELEASE_FILE_FAILED": "The choice of the version could not be written.",
+        "SWITCH_FAILED": "The application could not be replaced.",
+        "UNKNOWN": "The reason is in the log of the updater."
+      }
     }
   },
   "diagnostics": {

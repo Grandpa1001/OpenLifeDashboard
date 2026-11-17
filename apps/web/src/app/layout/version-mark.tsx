@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { isGoingOn } from "../../lib/updates/operation-view.js";
 import { updatesStatusQuery } from "../../lib/updates/updates-status.js";
 
 /**
@@ -13,14 +14,15 @@ export function VersionMark() {
   const { t } = useTranslation("common");
   const status = useQuery(updatesStatusQuery);
   if (status.data === undefined) return null;
-  const { current, available, latest, configured } = status.data;
+  const { current, available, latest, configured, operation } = status.data;
+  const updating = isGoingOn(operation);
   const newer = configured && available && latest !== null ? latest.version : null;
   return (
     <nav aria-label={t("version.navigation")} className="version-mark">
       <Link to="/settings/updates">
         <span>{t("version.short", { current })}</span>
-        <span className="visually-hidden"> {newer === null ? "" : `${t("version.newer", { latest: newer })} `}{t("version.open")}</span>
-        {newer === null ? null : <span className="version-dot" aria-hidden="true" />}
+        <span className="visually-hidden"> {updating ? `${t("version.updating")} ` : newer === null ? "" : `${t("version.newer", { latest: newer })} `}{t("version.open")}</span>
+        {updating ? <span className="version-busy" aria-hidden="true" /> : newer === null ? null : <span className="version-dot" aria-hidden="true" />}
       </Link>
     </nav>
   );
