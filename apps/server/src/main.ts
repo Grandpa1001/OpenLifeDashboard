@@ -150,7 +150,7 @@ const database = await openInstallationDatabase({
   createSnapshots: (source) => createDatabaseSnapshots(source, snapshotOptions),
   now: () => new Date().toISOString(),
   newOperationId: randomUUID,
-  ...(updaterClient === null ? {} : { update: { appVersion: build.appVersion, status: () => updaterClient.status() } }),
+  ...(updaterClient === null ? {} : { update: { appVersion: build.appVersion, status: () => updaterClient.status(), abort: async (operationId: string, fence: number) => (await updaterClient.send({ type: "abort", fence }, operationId)).kind === "accepted" } }),
 });
 if (!database.ok) {
   bootstrapFailed(database.code, database.fields);

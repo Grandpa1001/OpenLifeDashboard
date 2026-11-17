@@ -482,6 +482,9 @@ jobs:
       - name: Verify D56.2 (the watch of the new app and the recovery of the updater)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D56.2
+      - name: Verify D56.3 (the old app that restarts before the switch, recovery_failed)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D56.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

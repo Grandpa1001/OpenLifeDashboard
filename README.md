@@ -247,6 +247,26 @@ Workspace layout:
 | `scripts` | Repository checks (`check:architecture`, `check:contracts`) |
 | `tests` | Integration tests, step checks, test support and synthetic graphs for the boundary checks |
 
+## Updates
+
+An update is made by the updater of the installation (the installation has one when `UPDATER_ENABLED=true`): it pulls the release named in the trusted catalog, the app closes its writes and takes a copy (`pre_update`), the updater replaces the app, the new app migrates the database and proves itself, and only then does the updater write the choice of the release and the app open its writes. Whatever fails before that point puts the old app back on the copy; nothing written after the copy is lost, because nothing is written after it. After that point there is no way back to the copy.
+
+### When an update does not finish
+
+The state of the operation is in `control/update-state.json` (the record: `state`, `error.code`, `operationId`, `backupId`, `targetRelease`) and in the status of the updater; the log of the updater (`docker compose logs updater`) has one line per step with the same code. The data and the copy are never removed by a failure.
+
+| State and code | What it means and what to do |
+|---|---|
+| `idle` with `ABORTED` or `UPDATER_RESTARTED` | The operation was given up before the app was replaced (by the app, or because the updater restarted); nothing of the app was changed. Start the update again. |
+| `idle` with `CATALOG_MISSING`, `CATALOG_TOO_LARGE`, `CATALOG_INVALID`, `RELEASE_UNKNOWN` or `RELEASE_REQUIRES_ADMIN` | The trusted catalog `control/release-catalog.json` is missing, not whole, does not list the release, or the release replaces the updater itself, which the app does not do; nothing was pulled or changed. Fix the catalog or update the administration package by hand. |
+| `idle` with `PULL_FAILED` or `DIGEST_MISMATCH` | The image of the release could not be pulled or is not the digest of the catalog; the app is untouched. Check the network and the registry, then start again. |
+| `idle` with `BACKUP_MISSING`, `BACKUP_INVALID` or `PREVIOUS_UNKNOWN` | The copy before the update is not there or is not whole, or the installation has no release file to go back to; the app opened its writes again. Check `data/backup/` and `control/compose.release.yml`. |
+| `idle` with `START_TIMEOUT`, `B_EXITED`, `B_OOM_KILLED`, `B_MIGRATION_FAILED` or `B_MISSING` | The new app did not prove itself in time (`UPDATER_START_TIMEOUT_SECONDS`, 60 to 900 seconds), ended, was killed for lack of memory, failed its migration or vanished. The old app is back on its copy and runs. Read the log of the new app (`docker logs`), then start again. |
+| `idle` with `VERSION_MISMATCH`, `SCHEMA_MISMATCH`, `RELEASE_FILE_FAILED` or `SWITCH_FAILED` | The new app is not the release of the catalog, its schema is not the one of the catalog, the choice of the release could not be written, or the app could not be replaced. The old app is back on its copy and runs. |
+| `recovery_failed` | The way back itself failed (`NO_SNAPSHOT`, `RESTORE_FAILED`, `RELEASE_FILE_RESTORE_FAILED`, `RETIRE_FAILED`, `OUT_OF_SCOPE`, `UNHEALTHY`, `A_UNHEALTHY`, `TRANSITION_REFUSED` or `ROLLBACK_FAILED`). The app does not start and takes no writes: the operation stays on the maintenance gate. See below. |
+
+**When the state is `recovery_failed`** nothing opens by itself and the app stays stopped. With the app and the updater stopped: look at `error.code`, `operationId` and `backupId` in `control/update-state.json`; the package named by `backupId` is in `data/backup/`. Restore it with the image of the old release and close the operation with the same command: `printf '%s' '{"snapshot":"<backupId>","confirm":"replace-current-database","endsUpdate":"<operationId>"}' | node apps/server/dist/cli/restore-instance.js --installation <installation-folder>`, put `control/compose.release.yml` as it was before the update (or remove it if the installation had none) and start the app; when it is healthy, remove `control/update-state.json*` and start the updater, which then has no operation. Sessions are ended by the restore: sign in again.
+
 ## License
 
 [MIT](LICENSE)

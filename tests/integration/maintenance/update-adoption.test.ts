@@ -34,7 +34,7 @@ afterEach(() => {
 type Rig = Awaited<ReturnType<typeof rig>>;
 
 /** An installation of A as the update leaves it when B is started: the database at the old version, its copy `pre_update` taken, the operation in `switching`. */
-async function rig(options: { copy?: boolean; phase?: "quiescing" | "switching"; reopenPlan?: DatabaseOpenInputs["plan"] } = {}) {
+async function rig(options: { copy?: boolean; phase?: "quiescing" | "backing_up" | "switching"; reopenPlan?: DatabaseOpenInputs["plan"] } = {}) {
   const dir = scratchDir("update-adoption-");
   const workingPaths = { maintenance: path.join(dir, "maintenance"), database: path.join(dir, "app.db"), backups: path.join(dir, "backup") };
   mkdirSync(workingPaths.maintenance);
@@ -68,7 +68,7 @@ async function rig(options: { copy?: boolean; phase?: "quiescing" | "switching";
     createSnapshots: (source) => createDatabaseSnapshots(source, snapshotOptions),
     now: () => new Date().toISOString(),
     newOperationId: randomUUID,
-    update: { appVersion: TARGET, status: async () => { asked += 1; return state.status; } },
+    update: { appVersion: TARGET, status: async () => { asked += 1; return state.status; }, abort: async () => true },
     ...over,
   });
   return { dir, workingPaths, gate: gate.gate, operationId, fence: begun.generation, state, statusOf, inputs, asked: () => asked, packages: () => readdirSync(workingPaths.backups).filter((name) => !name.startsWith(".")) };
@@ -207,16 +207,17 @@ describe("D55.2-AC2 whatever does not agree leaves the gate as it was and the ap
 
   it("does not take the operation over for another version, without an updater to ask, or in another phase", async () => {
     const r = await rig();
-    expect(await refused(r, { update: { appVersion: "1.2.3", status: async () => r.state.status } })).toBe("MAINTENANCE_RECOVERY_REQUIRED");
+    expect(await refused(r, { update: { appVersion: "1.2.3", status: async () => r.state.status, abort: async () => true } })).toBe("MAINTENANCE_RECOVERY_REQUIRED");
     const { update: _withUpdater, ...withoutUpdater } = r.inputs();
     void _withUpdater;
     const before = JSON.stringify(r.gate.current());
     const bare = await openInstallationDatabase(withoutUpdater);
     expect(bare.ok ? "adopted" : bare.code).toBe("MAINTENANCE_RECOVERY_REQUIRED");
     expect(JSON.stringify(r.gate.current())).toBe(before);
+    // An operation of the old app itself (D56.3) is asked about at the updater, and one that the updater has past the switch is no operation to give up.
     const early = await rig({ phase: "quiescing" });
     expect(await refused(early)).toBe("MAINTENANCE_RECOVERY_REQUIRED");
-    expect(early.asked()).toBe(0);
+    expect(early.asked()).toBe(1);
   });
 
   it("does not take it over when the updater cannot be asked, says another operation, another state or another fence", async () => {
@@ -282,5 +283,75 @@ describe("D55.2-AC2 whatever does not agree leaves the gate as it was and the ap
     expect(await make({ updater: { send: async () => ({ kind: "accepted", body: {} }), status: async () => r.statusOf({ state: "rolling_back" }) } }).run()).toBe("failed");
     expect(await make({ updater: { send: async () => ({ kind: "accepted", body: {} }), status: async () => r.statusOf({ operationId: randomUUID(), committed: true }) } }).run()).toBe("failed");
     stays();
+  });
+});
+
+describe("D56.3-AC1 the old app that restarts before the switch gives its own operation up and starts", () => {
+  /** The installation of A in the middle of its own update: the copy is taken or being taken, the operation is in `quiescing` or `backing_up`, and the app that starts is A. */
+  async function ofTheOldApp(phase: "quiescing" | "backing_up") {
+    const r = await rig({ phase, reopenPlan: PLAN_A });
+    const aborted: Array<[string, number]> = [];
+    const open = (over: Partial<DatabaseOpenInputs> = {}) => r.inputs({ update: { appVersion: "1.2.3", status: async () => r.state.status, abort: async (operationId, fence) => { aborted.push([operationId, fence]); return true; } }, ...over });
+    return { r, aborted, open };
+  }
+
+  it.each(["quiescing", "backing_up"] as const)("tells the updater to give up an operation it still waits for in %s, closes it on the gate and starts on its own database", async (phase) => {
+    const { r, aborted, open } = await ofTheOldApp(phase);
+    r.state.status = r.statusOf({ state: phase });
+    const result = await openInstallationDatabase(open());
+    if (!result.ok) throw new Error(`refused: ${result.code}`);
+    result.connection.close();
+    expect(result.update).toBeUndefined();
+    expect(aborted).toEqual([[r.operationId, r.fence]]);
+    expect(r.gate.current()).toMatchObject({ generation: r.fence, activeOperation: null });
+    expect(noteTable(r.workingPaths.database)).toBe(false);
+  });
+
+  it("closes an operation the updater has already ended, without telling it anything", async () => {
+    for (const status of [{ state: "idle" as const, error: { code: "ABORTED" } }, { state: "idle" as const, error: { code: "UPDATER_RESTARTED" } }, { state: "rolled_back" as const, error: { code: "UPDATER_RESTARTED" } }]) {
+      const { r, aborted, open } = await ofTheOldApp("backing_up");
+      r.state.status = r.statusOf(status);
+      const result = await openInstallationDatabase(open());
+      if (!result.ok) throw new Error(`refused: ${result.code}`);
+      result.connection.close();
+      expect(aborted, JSON.stringify(status)).toEqual([]);
+      expect(r.gate.current().activeOperation).toBeNull();
+    }
+  });
+});
+
+describe("D56.3-AC2 whatever the updater says that is not an operation to give up leaves the gate, and recovery_failed opens nothing", () => {
+  it("does not start, and leaves the gate, for an updater that does not answer, another operation or fence, a state past the switch, a failed recovery, an abort it refuses and a database that is not this version's", async () => {
+    const make = async (phase: "quiescing" | "backing_up" = "quiescing", plan: DatabaseOpenInputs["plan"] = PLAN_A) => {
+      const r = await rig({ phase, reopenPlan: plan });
+      let told = 0;
+      const open = (abort: boolean) => r.inputs({ update: { appVersion: "1.2.3", status: async () => r.state.status, abort: async () => { told += 1; return abort; } } });
+      return { r, open, told: () => told };
+    };
+    const outcome = async (r: Rig, inputs: DatabaseOpenInputs): Promise<string> => {
+      const before = JSON.stringify(r.gate.current());
+      const result = await openInstallationDatabase(inputs);
+      if (result.ok) {
+        result.connection.close();
+        return "started";
+      }
+      expect(JSON.stringify(r.gate.current())).toBe(before);
+      return result.code;
+    };
+    const { r, open, told } = await make();
+    for (const status of [null, r.statusOf({ operationId: randomUUID() }), r.statusOf({ fence: r.fence + 1 }), r.statusOf({ state: "switching" }), r.statusOf({ state: "verifying" }), r.statusOf({ state: "committing" }), r.statusOf({ state: "completed", committed: true }), r.statusOf({ state: "recovery_failed", error: { code: "RESTORE_FAILED" } }), r.statusOf({ state: "idle", committed: true })]) {
+      r.state.status = status;
+      expect(await outcome(r, open(true)), JSON.stringify(status)).toBe("MAINTENANCE_RECOVERY_REQUIRED");
+    }
+    expect(told()).toBe(0);
+    // The updater refuses the abort: the operation is not given up.
+    r.state.status = r.statusOf({ state: "quiescing" });
+    expect(await outcome(r, open(false))).toBe("MAINTENANCE_RECOVERY_REQUIRED");
+    expect(told()).toBe(1);
+    // A database that is not this version's is no reason to end an operation, and the updater is not told.
+    const pending = await make("quiescing", PLAN_B);
+    pending.r.state.status = pending.r.statusOf({ state: "quiescing" });
+    expect(await outcome(pending.r, pending.open(true))).toBe("MAINTENANCE_RECOVERY_REQUIRED");
+    expect(pending.told()).toBe(0);
   });
 });

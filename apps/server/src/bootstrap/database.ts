@@ -62,7 +62,12 @@ export type DatabaseOpenInputs = Readonly<{
    * What lets this process take over the operation of an update that was begun by the app it replaces (D55.2): its own version
    * and what the updater says of the operation. Without it, an operation `update` found on the gate is never adopted.
    */
-  update?: Readonly<{ appVersion: string; status: () => Promise<UpdaterStatus | null> }>;
+  update?: Readonly<{
+    appVersion: string;
+    status: () => Promise<UpdaterStatus | null>;
+    /** Gives the operation up at the updater (the command `abort`); true when the updater answers that it is closed (D56.3). */
+    abort: (operationId: string, fence: number) => Promise<boolean>;
+  }>;
 }>;
 
 const refused = (code: DatabaseOpenCode, fields: readonly string[]): DatabaseOpenResult => ({ ok: false, code, fields });
@@ -229,8 +234,11 @@ type UpdateOperation = Extract<MaintenanceOperation, { reason: "update" }>;
  */
 async function adoptUpdate(inputs: DatabaseOpenInputs, operation: UpdateOperation, generation: number): Promise<DatabaseOpenResult> {
   const update = inputs.update;
-  // Before the switch the operation is the old app's own: nothing here may take it over, and there is nothing to ask the updater.
-  if (update === undefined || operation.targetRelease !== update.appVersion || operation.phase === "quiescing" || operation.phase === "backing_up") return RECOVERY_REQUIRED;
+  if (update === undefined) return RECOVERY_REQUIRED;
+  // Before the switch the operation is this very app's own (it closed its writes and took the copy): an app that starts and finds it was
+  // restarted in the middle of it, and the way out is to give the operation up and carry on (D56.3).
+  if (operation.phase === "quiescing" || operation.phase === "backing_up") return giveUpOwnUpdate(inputs, operation, generation, update);
+  if (operation.targetRelease !== update.appVersion) return RECOVERY_REQUIRED;
   const status = await update.status();
   if (status === null || status.operationId !== operation.operationId || status.fence !== generation) return RECOVERY_REQUIRED;
   // This process was the new app and went down after it had taken the operation over: when the updater has passed its commit point the
@@ -277,6 +285,27 @@ async function adoptUpdate(inputs: DatabaseOpenInputs, operation: UpdateOperatio
     connection.close();
     throw error;
   }
+}
+
+/**
+ * This app began the update (D54) and went down before the switch: the operation is on the gate in `quiescing` or `backing_up`, and the app
+ * that starts is the one that closed its writes. The updater is asked where the operation is: still waiting for the app, it is told to give it up
+ * (`abort`, which closes it as `idle`); already closed by the abort of the app or the restart of the updater, it is simply over. In both cases the
+ * copy that was being taken changes nothing of the database, the operation is closed on the gate and the app starts. The updater not answering, another
+ * operation, a state past the switch or a database that is not this version's leave the gate as it was and the app does not start.
+ */
+async function giveUpOwnUpdate(inputs: DatabaseOpenInputs, operation: UpdateOperation, generation: number, update: NonNullable<DatabaseOpenInputs["update"]>): Promise<DatabaseOpenResult> {
+  const status = await update.status();
+  if (status === null || status.operationId !== operation.operationId || status.fence !== generation) return RECOVERY_REQUIRED;
+  const waiting = status.state === "quiescing" || status.state === "backing_up";
+  const over = (status.state === "idle" || status.state === "rolled_back") && !status.committed;
+  if (!waiting && !over) return RECOVERY_REQUIRED;
+  // The database is looked at before the updater is told anything: a database that is not this version's is no reason to end an operation.
+  const inspection = inspectDatabase(inputs.file, inputs.plan, { instanceId: inputs.instanceId, busyTimeoutMs: inputs.busyTimeoutMs });
+  if (inspection.kind !== "current") return RECOVERY_REQUIRED;
+  if (waiting && !(await update.abort(operation.operationId, generation))) return RECOVERY_REQUIRED;
+  const connection = withWriter(inputs, () => inputs.gate.complete(operation.operationId, generation));
+  return { ok: true, connection, schemaVersion: inspection.schemaVersion, created: false };
 }
 
 /** A new `migrate` operation for the pending upgrade. */

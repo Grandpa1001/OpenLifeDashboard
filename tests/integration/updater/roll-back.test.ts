@@ -160,5 +160,8 @@ describe("D56.1-AC2 a step that fails stops the way back at recovery_failed and 
     expect(await send(server, install("1.2.3", FENCE + 1))).toMatchObject({ status: 409, json: { code: "BUSY" } });
     expect((await send(server, ready(operationId))).json["code"]).toBe("WRONG_STATE");
     expect(recordOf(server.dir)).toMatchObject({ state: "recovery_failed" });
+    // The status says what the operator needs: the state, the code and the operation (D56.3).
+    const status = await send(server, envelopeOf({ type: "status" }));
+    expect(status.json).toMatchObject({ state: "recovery_failed", operationId, committed: false, error: { code: "UNHEALTHY" } });
   });
 });

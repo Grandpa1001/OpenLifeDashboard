@@ -6754,6 +6754,46 @@ const definedLater: readonly TaskDefinition[] = [
       ...regressionChecks("D56.2-regression"),
     ],
   },
+  {
+    // DEV §9.55: the old app that restarts before the switch, and recovery_failed that opens nothing.
+    id: "D56.3",
+    ready: true,
+    title: "The old app that restarts before the switch gives its operation up, and a failed recovery opens nothing and says why",
+    criteria: ["D56.3-AC1", "D56.3-AC2", "D56.3-regression"],
+    checks: [
+      {
+        // Runs first: the tests use the built server and updater.
+        id: "workspace-build",
+        criteria: ["D56.3-AC1", "D56.3-AC2"],
+        description: "pnpm -r build: the app that gives its own operation up at its start and the instruction of the operator",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/bootstrap/database.ts", "README.md"],
+      },
+      {
+        id: "update-adoption",
+        criteria: ["D56.3-AC1", "D56.3-AC2"],
+        description:
+          "On a real gate, a real database and a real copy: an app that starts and finds its own operation in quiescing or backing_up asks the updater, tells it to give the operation up when it still waits (or finds it already ended), closes the operation on the gate and starts on its own database with nothing migrated; an updater that does not answer, another operation or fence, a state past the switch, a recovery that failed, a commit that is on the journal, an abort the updater refuses and a database that is not this version's leave the gate as it was and the app does not start, and the updater is not told when the database is not this version's",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/maintenance/update-adoption.test.ts"],
+        requires: ["tests/integration/maintenance/update-adoption.test.ts"],
+      },
+      {
+        id: "roll-back",
+        criteria: ["D56.3-AC2"],
+        description: "A way back that fails at a step leaves the operation in recovery_failed, the instance held and a new operation and a proof refused, and the status of the updater says the state, the code and the operation",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/updater/roll-back.test.ts"],
+        requires: ["tests/integration/updater/roll-back.test.ts"],
+      },
+      {
+        id: "update-instructions",
+        criteria: ["D56.3-AC2"],
+        description: "The README says for each state an update can end in what it means and what to do, has the steps of the operator for recovery_failed with the command that restores the copy and ends the operation, and explains every code the updater ends an operation with, each of them a code of the sources",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/docs/update-instructions.test.ts"],
+        requires: ["tests/unit/docs/update-instructions.test.ts", "README.md"],
+      },
+      ...regressionChecks("D56.3-regression"),
+    ],
+  },
   // The parent passes only through its work orders: the catalog and the pull, the commands, the gate, the start from the app.
   {
     id: "D54",
