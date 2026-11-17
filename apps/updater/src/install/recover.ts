@@ -7,7 +7,7 @@
 //   checking, pulling                  `idle` with UPDATER_RESTARTED: nothing of the app was touched
 //   quiescing, backing_up              the app still holds its own operation; the operation ends as an abort does, and the app sees the refusal
 //   switching                          the way back (the swap is not made again by asking, and may be half done)
-//   verifying                          the new app is watched again from the full time
+//   verifying                          the new app is watched again from the full time; a swap that is not on the journal as made goes back
 //   committing                         the commit point is on the journal: the operation is completed; it is not: the way back puts the file back
 //   rolling_back                       the way back goes on, from the beginning (every step looks first)
 import type { UpdateRecord } from "@openlife/contracts/updates/state";
@@ -79,6 +79,9 @@ export async function recoverOnStart(options: RecoveryOptions): Promise<Recovery
     case "switching":
       return stop("UPDATER_RESTARTED");
     case "verifying":
+      // A swap whose new container is not on the journal was cut short, and what it left (a container that was created and never started, the old app
+      // stopped or renamed aside) is not something to wait for: the way back looks at the containers and puts the old app back.
+      if ((record.replacement ?? null) === null || record.replacement?.nextId === null) return stop("UPDATER_RESTARTED");
       options.switcher.watch(record);
       return log("watching");
     case "committing": {

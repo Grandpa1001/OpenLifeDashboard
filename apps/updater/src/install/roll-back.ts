@@ -53,9 +53,10 @@ export function createRollbackRunner(options: RollbackOptions): RollbackRunner {
         let app: { id: string; name: string };
         try {
           app = replacement === null ? await options.scope.findApp() : { id: replacement.previousId, name: replacement.name };
-          if (replacement !== null) await options.scope.retireReplacement({ previousId: replacement.previousId, previousName: replacement.previousName, nextId: replacement.nextId ?? "", name: replacement.name });
-          // A new container that the swap made but never wrote to the journal (the swap was cut short) is found by what it is, not by its id.
+          // A new container that the swap made but never wrote to the journal is found by what it is, not by its id, and is removed first: it holds the name
+          // the old app is given back (a swap cut short leaves it created and under that name, and the rename would be refused while it is there).
           await options.scope.retireOthers(app.id);
+          if (replacement !== null) await options.scope.retireReplacement({ previousId: replacement.previousId, previousName: replacement.previousName, nextId: replacement.nextId ?? "", name: replacement.name });
           if (await options.scope.isRunning(app.id)) await options.scope.stopApp(app);
         } catch (error) {
           return failed(error instanceof ScopeError ? error.code : "RETIRE_FAILED");

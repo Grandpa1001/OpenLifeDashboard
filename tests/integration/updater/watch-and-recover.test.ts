@@ -172,6 +172,17 @@ describe("D56.2-AC2 the updater that starts settles each state of the journal", 
     expect(r.calls).toEqual([]);
   });
 
+  it("goes back at once from a verifying whose swap is not on the journal as made, instead of waiting for a new app that may not exist", async () => {
+    for (const over of [{}, { replacement: { ...swapped.replacement, nextId: null } }]) {
+      const r = rig(at("verifying", over));
+      expect(await r.run()).toBe("rolling_back");
+      for (let i = 0; i < 300 && r.record()?.state !== "idle"; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(r.record()).toMatchObject({ state: "idle", error: { code: "UPDATER_RESTARTED" } });
+      expect(r.watched).toEqual([]);
+      expect(r.calls.some((call) => call.startsWith("runRecovery"))).toBe(true);
+    }
+  });
+
   it("completes a commit that is on the journal and goes back from one that is not", async () => {
     const committed = rig(at("committing", { ...swapped, committed: true }));
     expect(await committed.run()).toBe("completed");
@@ -191,7 +202,7 @@ describe("D56.2-AC2 the updater that starts settles each state of the journal", 
     expect(await r.run()).toBe("rolling_back");
     for (let i = 0; i < 300 && r.record()?.state !== "idle"; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
     expect(r.record()).toMatchObject({ state: "idle", error: { code: "START_TIMEOUT" } });
-    expect(r.calls[0]).toBe("retireReplacement container-a container-b");
+    expect(r.calls.slice(0, 2)).toEqual(["retireOthers container-a", "retireReplacement container-a container-b"]);
   });
 
   it("says that the journal cannot be read and touches nothing, so nothing opens", async () => {

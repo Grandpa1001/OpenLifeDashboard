@@ -258,6 +258,18 @@ try {
     check.expect(existsSync(path.join(controlDir, RELEASE_FILE_NAME)) && readFileSync(path.join(controlDir, RELEASE_FILE_NAME), "utf8") === fileBefore && readReleaseFile(fileBefore).ok, "the release file is as it was before the operation");
   }
 
+  // D56.4 (CI run 44070352392): a swap cut short leaves a new container that was created, never started and never written to the journal, under the name
+  // the old app is to be given back; the way back removes it first, and only then renames the old app, which the Engine would refuse while the name is held.
+  const cutName = (await scopeX.findApp()).name;
+  const cutOld = inspectOf(swapped.previousId);
+  check.expect(cutOld["Name"] === `/${cutName}`, "the old app is under its name before the swap is cut short");
+  check.expect(run(["rename", swapped.previousId, `${cutName}-previous-cut`]).status === 0, "the swap renames the old app aside");
+  const stray = run(["create", "--name", cutName, "--label", `com.docker.compose.project=${x.projectName}`, "--label", "com.docker.compose.service=app", refB]);
+  check.expect(stray.status === 0, "the swap creates the new container under the name of the old one and is cut short before it starts it", stray.output);
+  check.expect(await scopeX.retireOthers(swapped.previousId) === 1, "the way back finds the container that no journal knows by what it is, and removes it");
+  await scopeX.retireReplacement({ previousId: swapped.previousId, previousName: `${cutName}-previous-cut`, nextId: "", name: cutName });
+  check.expect(inspectOf(swapped.previousId)["Name"] === `/${cutName}` && run(["ps", "-a", "--filter", `label=com.docker.compose.project=${x.projectName}`, "--filter", "label=com.docker.compose.service=app", "-q"]).stdout.trim().split("\n").length === 1, "the old app has its name again and no other app of the project is left");
+
   // The fence: the crashed writer after a restart of the updater.
   const journalDir = mkdtempSync(path.join(root, "journal-"));
   const envelope = (fence: number) => ({ v: 1 as const, operationId: "11111111-1111-4111-8111-111111111111", issuedAt: Date.now(), nonce: "n".repeat(24), command: { type: "install" as const, release: "1.2.3", fence } });

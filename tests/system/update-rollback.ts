@@ -6,7 +6,7 @@
 // failure, the app that runs is A on its image, healthy, on the database of the copy (the option and the owner are there, the migration of the
 // release is not, the restore is in the audit and the start is too), the new app is gone, the release file is as it was, the gate holds no
 // operation, the copy is still there, and a write (a sign-in) is taken. The second release is also tried with its updater killed while it waits
-// for the proof: the updater that comes back finds the operation in `verifying`, and goes back to the old app, with the code of the new app that
+// for the proof: the updater that comes back finds the operation in `verifying`, and goes back to the old app, with the code of the restart (UPDATER_RESTARTED), of the new app that
 // could not ask it while it was down (B_EXITED) or of the time that ran out (START_TIMEOUT).
 import { spawnSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -215,9 +215,11 @@ try {
 
   await scenario("broken", "app-broken", ["B_MIGRATION_FAILED"], false);
   await scenario("silent", "app-silent", ["START_TIMEOUT"], false);
-  // With the updater down the new app cannot ask it about the operation at its start and ends; Docker starts it again, and the updater that comes
-  // back, which counts that as the end of the new app (B_EXITED) or runs out of time (START_TIMEOUT), goes back either way, never opens the writes.
-  await scenario("killed", "app-silent", ["B_EXITED", "START_TIMEOUT"], true);
+  // The updater is killed the moment the operation is seen in `verifying`, which is before or while it replaces the app, or after. One that comes back to a swap
+  // that is not on its journal as made goes back at once (UPDATER_RESTARTED, CI run 44070352392: it left a container that was created and never started under
+  // the name of the old app); one that comes back to a new app that cannot ask it while it was down counts the end of that app (B_EXITED) or the time (START_TIMEOUT).
+  // Whichever it is, the old app is back on its copy and nothing opens.
+  await scenario("killed", "app-silent", ["UPDATER_RESTARTED", "B_EXITED", "START_TIMEOUT"], true);
 } finally {
   for (const instance of instances) run(["compose", "down", "-v", "--remove-orphans", "-t", "5"], instance.dir);
   run(["rm", "-f", registryName, ...feeds]);
