@@ -20,6 +20,7 @@ const LAYOUT = { phone: { x: 0, y: 0, w: 1, h: 8 }, tablet: { x: 0, y: 0, w: 8, 
 
 const bar = (page: Page): Locator => page.getByRole("region", { name: text(designer, "bar.label") });
 const tile = (page: Page, title: string): Locator => page.getByRole("button", { name: `Select widget: ${title}` });
+const liveState = (page: Page): Promise<unknown> => page.evaluate("document.documentElement.dataset.liveStream ?? null");
 const elsewhere = (page: Page): Locator => page.getByRole("region", { name: text(designer, "elsewhere.label") });
 
 async function onTheServer(page: Page, owner: BrowserOwner): Promise<Array<{ id: string; config: Record<string, unknown> }>> {
@@ -51,6 +52,10 @@ async function twoTabs(context: BrowserContext, page: Page, owner: BrowserOwner)
   const other = await context.newPage();
   await other.goto(`${owner.baseUrl}/designer`);
   await expect(tile(other, "Moje")).toBeVisible();
+  // Both streams are open before anything is typed: the first opening of a stream reads the screen again, and that read must not land between a title typed in B and its test
+  // (run 44096898165).
+  await expect.poll(() => liveState(page)).toBe("live");
+  await expect.poll(() => liveState(other)).toBe("live");
   return other;
 }
 
