@@ -1614,6 +1614,43 @@ jobs:
           include-hidden-files: true
           retention-days: 14
 
+  full-windows:
+    # The installer of Windows on a real Windows (D59.3): the access to the secrets, paths with spaces and Polish letters, Windows PowerShell 5.1 and
+    # PowerShell 7. The runner cannot run Linux containers, so Docker is a fake docker.exe of the test; Docker Desktop on a real computer is D59.4.
+    name: verify:task (full tier, install.ps1 on Windows D59)
+    needs: changes
+    if: ${{ needs.changes.outputs.full == 'true' }}
+    runs-on: windows-2022
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime sometimes stalls on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
+      - name: Verify D59.3 (install.ps1 on Windows)
+        run: pnpm verify:task -- D59.3
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-windows
+          path: .artifacts/
+          include-hidden-files: true
+          retention-days: 14
+
   full-update-ui:
     # The update from the browser on the real Docker (D57): the parent runs the pages of the update in Chromium (D57.1 to D57.3 again, as a parent does) and
     # the update itself, both ways, driven in Chromium on an installation with four images built and a registry, which is why it has a job of its own.

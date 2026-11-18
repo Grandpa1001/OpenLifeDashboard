@@ -7185,6 +7185,24 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.58: the Windows installer on a real Windows (the job `full-windows`); anywhere else the check is blocked.
+    id: "D59.3",
+    ready: true,
+    title: "install.ps1 on Windows: the access to the secrets, a folder with spaces and Polish letters and a long one, on Windows PowerShell 5.1 and PowerShell 7",
+    criteria: ["D59.3-AC1", "D59.3-AC2"],
+    checks: [
+      {
+        id: "installer-windows-native",
+        criteria: ["D59.3-AC1", "D59.3-AC2"],
+        description:
+          "On a real Windows with a fake docker.exe, the real install.ps1 run by Windows PowerShell 5.1 and by PowerShell 7: a folder with spaces and Polish letters is installed and complete; the password with quotes, backslash, percent, caret, ampersand, a tab and Polish letters reaches the owner container as it was typed (UTF-8 on stdin) and is in neither .env nor the output; .env has LF and no BOM; .env and the data folder do not inherit the access of their parent, are open to the user, SYSTEM and the administrators and to no Everyone, Users or Authenticated Users, and a file made in data later is not open to Users either; a rerun keeps the keys and the access lists; a folder path of 170 characters installs, one of more than 200 and one with a character that Windows refuses are refused; Docker with Windows containers is refused before anything is written",
+        command: ["node", "tests/system/install-windows.ts"],
+        requires: ["tests/system/install-windows.ts", "install/install.ps1", "docker/compose.yml", "docker/compose.local.yml"],
+        timeoutMs: 30 * 60 * 1000,
+      },
+    ],
+  },
+  {
     // KM6 gate (DEV §8.4, §9.56): the update A to B and the broken B back to A from the browser on a real daemon (the system test of the parent D57),
     // then the reports of the update joined item by item for this exact code; does not run their tests again.
     id: "G6",

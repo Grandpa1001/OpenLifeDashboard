@@ -43,6 +43,7 @@ $MaxFolderChars = 200           # the paths below the folder stay under the 260 
 $OwnerEmailMaxLength = 254
 $RequiredPlatform = 'Win32NT'   # [Environment]::OSVersion.Platform of a Windows computer
 $DockerUserId = 1000            # Docker Desktop ignores the owner of a bind mount
+$OnWindows = [System.Environment]::OSVersion.Platform -eq 'Win32NT'   # the ACL of the secrets exists only there
 $StartTimeoutSeconds = 180
 $PasswordMinCodePoints = 12     # the rules of the owner's credentials as the application states them
 $PasswordMaxCodePoints = 128
@@ -103,17 +104,34 @@ function Version-Part([string]$Version, [int]$Index) {
 
 function Json-String([string]$Text) { return '"' + ($Text.Replace('\', '\\').Replace('"', '\"')) + '"' }
 
+# The files and folders that carry secrets or data are open to the user who installs, to the system and to the
+# administrators, and to nobody else (no Everyone, no Users, no Authenticated Users); inheritance from the parent
+# folder is cut. On Windows only: the POSIX modes of install.sh have no meaning there.
+function Set-PrivateAcl([string]$Path, [bool]$IsFolder) {
+  if (-not $OnWindows) { return }
+  $me = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+  $grant = '(F)'
+  if ($IsFolder) { $grant = '(OI)(CI)(F)' }
+  $output = & icacls $Path /inheritance:r /grant:r "*${me}:$grant" "*S-1-5-18:$grant" "*S-1-5-32-544:$grant" 2>&1 | Out-String
+  if ($LASTEXITCODE -ne 0) { Fail "cannot restrict the access to ${Path}: $($output.Trim())" }
+}
+
 # Writes <Path> only when it does not exist: a temporary file in the same folder, then a rename.
-# Returns $false (and writes nothing) when the file is already there.
-function Write-NewFile([string]$Path, [byte[]]$Bytes) {
+# Returns $false (and writes nothing) when the file is already there. A private file is restricted
+# while it is still empty, so its content is never readable by another user, not even for a moment.
+function Write-NewFile([string]$Path, [byte[]]$Bytes, [bool]$Private = $false) {
   if (Test-Path -LiteralPath $Path) { return $false }
   $temp = "$Path.tmp.$PID"
   $TempFiles.Add($temp)
-  try { [System.IO.File]::WriteAllBytes($temp, $Bytes) } catch { Fail "cannot write ${temp}: $($_.Exception.Message)" }
+  try {
+    [System.IO.File]::WriteAllBytes($temp, [byte[]]@())
+    if ($Private) { Set-PrivateAcl $temp $false }
+    [System.IO.File]::WriteAllBytes($temp, $Bytes)
+  } catch { Fail "cannot write ${temp}: $($_.Exception.Message)" }
   try { Move-Item -LiteralPath $temp -Destination $Path } catch { Fail "cannot create ${Path}: $($_.Exception.Message)" }
   return $true
 }
-function Write-NewText([string]$Path, [string]$Text) { return (Write-NewFile $Path ($Utf8NoBom.GetBytes($Text))) }
+function Write-NewText([string]$Path, [string]$Text, [bool]$Private = $false) { return (Write-NewFile $Path ($Utf8NoBom.GetBytes($Text)) $Private) }
 function Copy-NewFile([string]$Source, [string]$Target) {
   if (-not (Test-Path -LiteralPath $Source -PathType Leaf)) { Fail "missing package file: $Source" }
   return (Write-NewFile $Target ([System.IO.File]::ReadAllBytes($Source)))
@@ -311,7 +329,7 @@ function Prepare-EnvFile([string]$Folder, [string]$PortText) {
     'COMPOSE_PATH_SEPARATOR=;',
     'COMPOSE_FILE=compose.yml;compose.local.yml;control/compose.release.yml'
   )
-  if (Write-NewText (Join-Path $Folder '.env') (($lines -join "`n") + "`n")) { Say 'created .env (new keys)' }
+  if (Write-NewText (Join-Path $Folder '.env') (($lines -join "`n") + "`n") $true) { Say 'created .env (new keys, readable by you, the system and the administrators only)' }
 }
 
 function Package-File([string]$Name) { # next to the installer in a release package, in docker\ in the repository
@@ -373,6 +391,19 @@ function Owner-PasswordProblem([string]$Password) {
   return ''
 }
 
+# The first line of stdin decoded as UTF-8 (a BOM is dropped), not with the code page of the console, which
+# in Windows PowerShell 5.1 is an OEM page and would spoil Polish letters.
+function Read-StdinLine {
+  $stream = [Console]::OpenStandardInput()
+  $bytes = New-Object System.Collections.Generic.List[byte]
+  while (($next = $stream.ReadByte()) -ge 0) {
+    if ($next -eq 10) { break }
+    $bytes.Add([byte]$next)
+  }
+  $line = $Utf8NoBom.GetString($bytes.ToArray()).TrimEnd("`r")
+  return $line.TrimStart([char]0xFEFF)
+}
+
 function Read-Secret([string]$Prompt) {
   $secure = Read-Host -AsSecureString $Prompt
   $pointer = [System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($secure)
@@ -397,9 +428,7 @@ function Read-OwnerCredentials {
     }
   }
   if ($OwnerPasswordStdin) {
-    $line = [Console]::In.ReadLine()
-    if ($null -eq $line) { $line = '' }
-    $script:OwnerPassword = $line.TrimEnd("`r")
+    $script:OwnerPassword = Read-StdinLine
     $problem = Owner-PasswordProblem $script:OwnerPassword
     if ($problem -ne '') { Fail "the owner's password is refused: $problem; nothing was written" }
   } elseif ($Interactive) {
@@ -617,6 +646,9 @@ function Main {
   Prepare-InstanceFile $folder
   Prepare-EnvFile $folder $portText
   Prepare-ComposeFiles $folder $imageReference
+  # Every run, so that a run that was interrupted before this point is made right: idempotent, and it overwrites no content.
+  Set-PrivateAcl (Join-Path $folder '.env') $false
+  Set-PrivateAcl (Join-Path $folder 'data') $true
   if ($rank -le 0) { Write-State $stateFile 'files' }
 
   if ($rank -le 1) { Stage-Images $imageReference; Write-State $stateFile 'images' }
