@@ -93,6 +93,8 @@ describe("D60.3-AC1 the Caddyfile", () => {
 describe("D60.3-AC2 the log of Caddy", () => {
   it("is JSON in the folder of Caddy, without Cookie, Authorization and Set-Cookie", () => {
     expect(caddyfile).toContain("output file /var/log/caddy/access.log");
+    // Caddy is root of its container and makes the file 0600: the owner of the installation could not read it.
+    expect(caddyfile).toMatch(/access\.log \{[^}]*mode 0644/s);
     expect(caddyfile).toMatch(/format filter \{\s*wrap json/);
     for (const field of ["request>headers>Cookie delete", "request>headers>Authorization delete", "resp_headers>Set-Cookie delete"]) expect(caddyfile).toContain(field);
   });

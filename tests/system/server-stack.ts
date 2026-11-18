@@ -150,8 +150,12 @@ async function main(): Promise<void> {
   check.expect(fromEdge.status !== 0, "a container in the edge network, where only Caddy is, does not reach the app by its address", fromEdge.output);
   const fromElsewhere = probe(lonely, `http://${appAddress}:8080/api/health`);
   check.expect(fromElsewhere.status !== 0, "a container of another network does not reach the app by its address", fromElsewhere.output);
-  const fromHost = await fetch(`http://${appAddress}:8080/api/health`, { signal: AbortSignal.timeout(3_000) }).then(() => true, () => false);
-  check.expect(!fromHost, "the host does not reach the app by its address either (a published port is the only door)");
+  // On a Linux host a process of the host reaches the address of a container of a bridge network by itself (Docker routes it), like
+  // the Docker socket it is the trust of the host, and a Mac does not route it at all; what matters is that nothing of the host
+  // listens for the app: no address of the host answers on 8080.
+  const hostAddresses = ["127.0.0.1", ...Object.values(os.networkInterfaces()).flat().flatMap((entry) => (entry !== undefined && entry.family === "IPv4" && !entry.internal ? [entry.address] : []))];
+  const listening = await Promise.all(hostAddresses.map((address) => fetch(`http://${address}:8080/api/health`, { signal: AbortSignal.timeout(3_000) }).then(() => address, () => null)));
+  check.expect(listening.every((address) => address === null), "no address of the host answers on port 8080: the app is behind Caddy and nothing else", listening.filter(Boolean).join(","));
 
   // Caddy: its root certificate is the trust of the test.
   const rootCertificate = path.join(root, "caddy-root.crt");
@@ -194,6 +198,9 @@ async function main(): Promise<void> {
   stream.close();
 
   // ---- AC2: the log of Caddy.
+  // Caddy is root of its container: the file must be readable by the owner of the installation, who is not (a runner of Linux enforces it).
+  const mode = compose(["exec", "-T", "caddy", "stat", "-c", "%a", "/var/log/caddy/access.log"]).output.trim();
+  check.expect(mode === "644", `the log file is made readable by the owner of the installation (mode ${mode})`);
   const files_ = (): string[] => readdirSync(path.dirname(logPath));
   const whole = (): string => files_().map((name) => readFileSync(path.join(path.dirname(logPath), name), "utf8")).join("\n");
   check.expect(entries().length > 0 && entries().every((entry) => typeof entry["ts"] === "number" && typeof object(entry["request"])["uri"] === "string"), "the access log of Caddy is JSON: one object of a request per line");
