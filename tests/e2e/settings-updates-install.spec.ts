@@ -115,6 +115,8 @@ test.describe("D57.1-AC1 the offer, the question before it and what is sent", ()
     await expect(dialog).toHaveCount(0);
     expect(JSON.parse(body ?? "{}")).toEqual({ release: "1.2.0" });
     await expect(installButton(page)).toHaveCount(0);
+    // The page reads the state again on its own: a read still in flight when the test ends must not fail it (nightly run 44282883994).
+    await page.unrouteAll({ behavior: "ignoreErrors" });
   });
 });
 
