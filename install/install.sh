@@ -598,6 +598,26 @@ EOF
   true
 }
 
+# An installation keeps the image it was made with. A package of a newer version (or another --image)
+# next to an installation that is already begun changes nothing: the image that Compose starts is the
+# one in control/compose.release.yml, so that is the one the stages check, and a newer release is
+# installed from the Updates page, not by running an installer again.
+adopt_installed_image() {
+  local file="$dir/control/compose.release.yml" installed
+  [ -f "$file" ] || return 0
+  installed="$(sed -n 's/^    image: "\(.*\)"$/\1/p' "$file" | head -n 1)"
+  [ -n "$installed" ] || fail "$file names no image; the installation is damaged"
+  if [ "$installed" != "$image" ]; then
+    if [ -n "$package_version" ]; then
+      say "This installation was made with $installed. The release package $package_version next to this installer is not installed here:"
+    else
+      say "This installation was made with $installed. The image $image is not installed here:"
+    fi
+    say "  a newer release is installed from the Updates page of the application, once it is installed."
+    image="$installed"
+  fi
+}
+
 # A folder that reached "files" must still hold the files that carry the identity and the keys:
 # a missing one is never made up again, because the data would no longer match.
 require_identity_files() {
@@ -811,6 +831,7 @@ if [ "$resuming" = "yes" ] && [ -f "$dir/.env" ]; then
   fi
 fi
 validate_server_arguments
+adopt_installed_image
 
 if [ "$mode" = "local" ]; then
   # The port of an interrupted installation is the one already in its .env; a new one is asked for.

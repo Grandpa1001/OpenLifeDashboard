@@ -42,6 +42,10 @@ export type FakeDocker = Readonly<{
   upFailsOnCalls?: readonly number[];
   /** `compose up` blocks on this call, to interrupt the installer in the middle of a stage. */
   upHangsOnCall?: number;
+  /** `docker pull` blocks, to interrupt the installer while it downloads the image. */
+  pullHangs?: boolean;
+  /** The one-off create-owner container blocks, to interrupt the installer in the middle of the owner stage. */
+  ownerHangs?: boolean;
   /** What the one-off create-owner container does: exit status and what it prints. */
   owner?: Readonly<{ exit: number; output: string }>;
 }>;
@@ -116,6 +120,7 @@ export function installerRig(options: Readonly<{ docker?: FakeDocker | false; us
       fake.imageMissing ? "  exit 1" : "  exit 0",
       "fi",
       'if [ "$1" = "pull" ]; then',
+      fake.pullHangs ? `  ${block(blockedMarker)}` : "",
       fake.pullFails ? '  echo "pull access denied or no network" >&2; exit 1' : "  exit 0",
       "fi",
       'if [ "$1" = "compose" ] && [ "$2" = "up" ]; then',
@@ -126,6 +131,7 @@ export function installerRig(options: Readonly<{ docker?: FakeDocker | false; us
       "fi",
       'if [ "$1" = "compose" ] && [ "$2" = "run" ]; then',
       `  cat > ${sh(ownerStdin)}`,
+      fake.ownerHangs ? `  ${block(blockedMarker)}` : "",
       `  env > ${sh(ownerEnv)}`,
       `  echo ${sh(owner.output)}`,
       `  exit ${owner.exit}`,
@@ -170,8 +176,8 @@ export function runInstaller(rig: InstallerRig, args: readonly string[], options
 }
 
 /** Starts the installer in its own process group, so a test can interrupt it like Ctrl+C does. */
-export function startInstaller(rig: InstallerRig, args: readonly string[], input = "") {
-  const child = spawn("bash", [INSTALLER, ...args], { env: { PATH: rig.binDir, HOME: rig.binDir }, stdio: ["pipe", "pipe", "pipe"], detached: true });
+export function startInstaller(rig: InstallerRig, args: readonly string[], input = "", script: string = INSTALLER) {
+  const child = spawn("bash", [script, ...args], { env: { PATH: rig.binDir, HOME: rig.binDir }, stdio: ["pipe", "pipe", "pipe"], detached: true });
   child.stdin.end(input);
   let stderr = "";
   child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString("utf8")));

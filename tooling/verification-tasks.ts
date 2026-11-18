@@ -7041,7 +7041,7 @@ const definedLater: readonly TaskDefinition[] = [
         id: "installer-server-refusals",
         criteria: ["D58.2-AC2"],
         description:
-          "A domain with upper case letters, one part, a hyphen at the end of a part, an empty part or a trailing dot, a space, an IP address, accented letters, a scheme, a path, a part over 63 or a name over 253 characters; no domain, no e-mail or a bad e-mail of the certificate authority; --port or the owner options in the server mode, --domain or --acme-email in the local mode, an unknown mode; macOS in the server mode; a computer without getent; and port 80 taken (run where an unprivileged user can bind it) each end with a message and a nonzero status before any folder or Docker call",
+          "A domain with upper case letters, one part, a hyphen at the end of a part, an empty part or a trailing dot, a space, an IP address, accented letters, a scheme, a path, a part over 63 or a name over 253 characters; no domain, no e-mail or a bad e-mail of the certificate authority; --port or the owner options in the server mode, --domain or --acme-email in the local mode, an unknown mode; macOS in the server mode; a computer without getent; and a port of HTTPS taken (held on a free high port, in a copy of the script whose list of server ports is that port, so the test runs on every system) each end with a message and a nonzero status before any folder or Docker call",
         command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/install-server.test.ts", "-t", "D58.2-AC2"],
         requires: ["tests/integration/installer/install-server.test.ts", "tests/support/installer-rig.ts"],
       },
@@ -7053,6 +7053,46 @@ const definedLater: readonly TaskDefinition[] = [
         requires: ["tests/integration/installer/install-local.test.ts", "tests/integration/installer/release-package.test.ts"],
       },
       ...regressionChecks("D58.2-regression"),
+    ],
+  },
+  {
+    // DEV §9.57: an interrupted installation continues in both modes and keeps its version.
+    id: "D58.3",
+    ready: true,
+    title: "install.sh continues an interrupted installation at every stage in both modes and keeps its keys, account and version; errors of the environment leave a state to continue from",
+    criteria: ["D58.3-AC1", "D58.3-AC2", "D58.3-regression"],
+    checks: [
+      {
+        id: "installer-syntax",
+        criteria: ["D58.3-AC1"],
+        description: "bash parses install/install.sh (the macOS bash 3.2 and the bash of Linux accept the same syntax)",
+        command: ["bash", "-n", "install/install.sh"],
+        requires: ["install/install.sh"],
+      },
+      {
+        id: "installer-resume-keeps",
+        criteria: ["D58.3-AC1"],
+        description:
+          "With a fake Docker and two release packages (1.4.0 and a newer 1.5.0): Ctrl+C while the image is downloaded, while the application starts, while the owner account is created and while it starts again leaves the stage files, images, started and owner, and the rerun finishes with the same .env, instance file and release file (the image of the older package), one owner run or none after the owner stage; a complete installation run again changes nothing and starts nothing; the package of the newer version, or another --image, next to a complete or an interrupted installation, is not installed (the installation keeps its image, the run says that a newer release comes from the Updates page and the fake Docker is never asked for the newer image); a server installation keeps its keys, domain and image on a rerun and with the newer package; a run stopped right after the identity file is made again from it",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/install-resume.test.ts", "-t", "D58.3-AC1"],
+        requires: ["tests/integration/installer/install-resume.test.ts", "tests/support/installer-rig.ts"],
+      },
+      {
+        id: "installer-resume-environment",
+        criteria: ["D58.3-AC2"],
+        description:
+          "A stopped Docker, a Compose that is too old or missing, a port taken meanwhile (held on the port of the installation), no network for the image and a folder whose keys are gone each end with a message, change nothing (same keys, same stage, no start, no owner run, no new .env) and the next run finishes; a path with spaces and national letters installs, is interrupted and continues in the local mode and reaches the files in the server mode",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/install-resume.test.ts", "-t", "D58.3-AC2"],
+        requires: ["tests/integration/installer/install-resume.test.ts", "tests/support/installer-rig.ts"],
+      },
+      {
+        id: "installer-regression",
+        criteria: ["D58.3-regression"],
+        description: "The local installer (D19), the package check (D58.1) and the server mode (D58.2) still pass",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer", "-t", "D19|D58.1|D58.2"],
+        requires: ["tests/integration/installer/install-local.test.ts", "tests/integration/installer/release-package.test.ts", "tests/integration/installer/install-server.test.ts"],
+      },
+      ...regressionChecks("D58.3-regression"),
     ],
   },
   {

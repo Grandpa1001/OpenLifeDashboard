@@ -133,6 +133,9 @@ jobs:
       - name: Verify D58.2 (install.sh in the server mode, up to the files)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D58.2
+      - name: Verify D58.3 (install.sh continues an interrupted installation)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D58.3
       - name: Verify D20.2 (every data route refuses the states before the gate)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D20.2
