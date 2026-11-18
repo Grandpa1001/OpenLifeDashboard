@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -7137,6 +7137,25 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D58.1", "D58.2", "D58.3", "D58.4"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.58: the installer of Windows up to the stage 'files'.
+    id: "D59.1",
+    ready: true,
+    title: "install.ps1 up to the files: parameters, checks and preflight before any write, the files of a clean folder, and a rerun that changes nothing",
+    criteria: ["D59.1-AC1", "D59.1-AC2", "D59.1-regression"],
+    checks: [
+      {
+        id: "installer-windows-files",
+        criteria: ["D59.1-AC1", "D59.1-AC2"],
+        description:
+          "PowerShell 7 in a Linux container with a fake Docker, running a copy of install.ps1 that believes it is on Windows: a clean folder with spaces and Polish letters ends with the status 3 and NOT installed, with .env (two different 64 hex keys, LF, no BOM, the port, the Compose files, 1000:1000), the identity of a Windows installation, the Compose files of the repository, the release file of the image, the folders and the state 'files', Docker asked only for its versions; a rerun changes no file and another port is refused; an unknown mode, the server mode, no image, a bad image, an accented or incomplete e-mail, port 80, a port that is not a number or is taken, a folder name with a character Windows refuses, a path over 200 characters, a foreign folder, a file instead of a folder, no Docker, a stopped daemon, Windows containers, a Compose that is too old, a computer that is not Windows and a folder whose .env is gone each end with a message before anything is written",
+        command: ["node", "tests/system/install-powershell.ts"],
+        requires: ["tests/system/install-powershell.ts", "tests/support/powershell-rig.ts", "install/install.ps1", "docker/compose.yml", "docker/compose.local.yml"],
+        timeoutMs: 30 * 60 * 1000,
+      },
+      ...regressionChecks("D59.1-regression"),
+    ],
   },
   {
     // KM6 gate (DEV §8.4, §9.56): the update A to B and the broken B back to A from the browser on a real daemon (the system test of the parent D57),
