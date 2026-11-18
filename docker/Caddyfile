@@ -1,0 +1,33 @@
+# The Caddy of a server installation (Architektura §9.4, §15.1; DEV §9.59 D60.3). The certificate comes from ACME (Let's Encrypt) for
+# DOMAIN; Caddy redirects 80 to 443 by itself. The admin API is off: nothing here uses it and nothing publishes it.
+{
+	admin off
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+	# The access log is JSON in data/logs/caddy, without the headers that carry a secret. The size and the number of files are
+	# the defaults of logs.fileMaxMiB and logs.maxFiles (packages/contracts/src/settings/catalog.ts; a test keeps them equal).
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+		format filter {
+			wrap json
+			fields {
+				request>headers>Cookie delete
+				request>headers>Authorization delete
+				resp_headers>Set-Cookie delete
+			}
+		}
+	}
+	reverse_proxy app:8080 {
+		# What the client sent is replaced, not appended to: the app believes this one (TRUSTED_PROXY_HOST, D60.2).
+		header_up X-Forwarded-For {remote_host}
+		# Server-sent events are not buffered.
+		flush_interval -1
+	}
+}

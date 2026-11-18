@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 2,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -7304,6 +7304,41 @@ const definedLater: readonly TaskDefinition[] = [
         requires: ["tests/integration/http/trusted-proxy.test.ts", "tests/support/auth-http.ts", "apps/server/src/http/middleware/client-address.ts"],
       },
       ...regressionChecks("D60.2-regression"),
+    ],
+  },
+  {
+    // DEV §9.59: Caddy as the only door of a server installation.
+    id: "D60.3",
+    ready: true,
+    title: "The stack of a server installation: Caddy the only published service, the app in the internal network alone, HSTS and the redirect, and the log of Caddy",
+    criteria: ["D60.3-AC1", "D60.3-AC2", "D60.3-regression"],
+    checks: [
+      {
+        id: "server-files",
+        criteria: ["D60.3-AC1", "D60.3-AC2"],
+        description:
+          "compose.server.yml and the Caddyfile as parsed files: 80 and 443 are published by Caddy alone, the edge network holds only Caddy and the app is in the internal one, Caddy gets the domain and the e-mail and not the .env and is pinned by a digest, read-only with two capabilities, its mounts are its file, its log and two volumes; the Caddyfile has HSTS, the replaced X-Forwarded-For, no buffering of the stream, a JSON log without Cookie, Authorization and Set-Cookie, and the size and number of files of the log equal to the defaults of its options",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/compose/server-files.test.ts"],
+        requires: ["tests/unit/compose/server-files.test.ts", "docker/compose.server.yml", "docker/Caddyfile"],
+      },
+      {
+        // Runs before the system test: it starts the built server once to make the installation.
+        id: "workspace-build",
+        criteria: ["D60.3-AC1", "D60.3-AC2"],
+        description: "pnpm -r build: the built server that makes the installation of the stack and the built app inside the image",
+        command: ["pnpm", "-r", "build"],
+        requires: ["docker/compose.server.yml"],
+      },
+      {
+        id: "server-stack",
+        criteria: ["D60.3-AC1", "D60.3-AC2"],
+        description:
+          "Real Docker and Compose with the real files, Caddy on its own certificate authority: the app publishes nothing and is in the internal network alone, Caddy publishes 80 and 443 only; a container of the edge network or of another network and the host do not reach the app, one in the internal network does; port 80 redirects to HTTPS, an answer has HSTS and the headers of the app; the audit holds the client address that Caddy saw and not a forged X-Forwarded-For; the stream is not buffered; the log is JSON with no Cookie, Authorization, Set-Cookie or session value, and rotates past its size keeping at most five files. Blocked without Docker on this architecture",
+        command: ["node", "tests/system/server-stack.ts"],
+        requires: ["tests/system/server-stack.ts", "tests/support/tls-owner.ts", "tests/support/tls-http.ts", "docker/Dockerfile", "docker/Caddyfile"],
+        timeoutMs: 30 * 60 * 1000,
+      },
+      ...regressionChecks("D60.3-regression"),
     ],
   },
   {

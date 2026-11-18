@@ -11,17 +11,17 @@ import { spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { enrollmentChallengeSchema, issuedRecoveryCodesSchema } from "@openlife/contracts/http/mfa";
 import { SIGN_OUT_PATH } from "@openlife/contracts/http/identity";
 import { STREAM_PATH, STREAM_PING_INTERVAL_MS } from "@openlife/contracts/http/stream";
 import { EVIDENCE_DIR_ENV } from "../../tooling/verification-tasks.ts";
-import { CREATE_OWNER, OWNER_EMAIL, codeOf, secretOf } from "../support/auth-http.ts";
+import { CREATE_OWNER, OWNER_EMAIL } from "../support/auth-http.ts";
 import { createCheck } from "../support/check-report.ts";
 import { freeLoopbackPort } from "../support/compose-instance.ts";
 import { buildAppImage, containerInstanceArgs, docker, requireNativeDocker } from "../support/docker.ts";
 import { repoRoot } from "../support/repository-copy.ts";
 import { runBuiltScript, startedInstallation } from "../support/server-process.ts";
 import { openTlsStream, tlsSend, type OpenStream, type TlsTarget } from "../support/tls-http.ts";
+import { passTheGate } from "../support/tls-owner.ts";
 
 const APP_IMAGE = "openlife-app:verify-d37-stream";
 /** Caddy 2.10.2, pinned by the digest of its multi-arch index (the tag only tells which release it is). */
@@ -110,18 +110,13 @@ async function main(): Promise<void> {
 
   // The owner past the gate, as a browser would get there, through the proxy.
   const headers = { origin };
-  const login = await tlsSend(target, "POST", "/api/auth/sign-in/email", { body: { email: OWNER_EMAIL, password: PASSWORD }, ...headers });
-  check.expect(login.status === 200, "signing in through Caddy answers 200", login.text);
-  const challenge = enrollmentChallengeSchema.parse((await tlsSend(target, "POST", "/api/v1/mfa/enrollment/begin", { body: {}, cookie: login.cookie, ...headers })).json());
-  const secret = secretOf(challenge.otpauthUri);
-  const confirmed = await tlsSend(target, "POST", "/api/v1/mfa/enrollment/confirm", { body: { challengeId: challenge.challengeId, code: await codeOf(secret) }, cookie: login.cookie, ...headers });
-  check.expect(confirmed.status === 200, "the second factor is confirmed through Caddy", confirmed.text);
-  const codes = issuedRecoveryCodesSchema.parse(confirmed.json());
-  const acknowledged = await tlsSend(target, "POST", "/api/v1/mfa/enrollment/recovery/ack", { body: { batchId: codes.batchId }, cookie: confirmed.cookie, ...headers });
-  const chosen = await tlsSend(target, "POST", "/api/v1/setup/choose-empty", { body: {}, cookie: confirmed.cookie, ...headers });
-  const cookie = confirmed.cookie ?? "";
-  check.expect(acknowledged.status === 200 && chosen.status === 200 && cookie !== "", "the codes are acknowledged and the starting data chosen: the owner is past the gate", `${acknowledged.text}\n${chosen.text}`);
-  const sessionCookie = confirmed.setCookies[0] ?? "";
+  const session = await passTheGate(target, origin, PASSWORD);
+  const [login, confirmed, acknowledged, chosen] = session.steps;
+  check.expect(login?.status === 200, "signing in through Caddy answers 200", login?.text);
+  check.expect(confirmed?.status === 200, "the second factor is confirmed through Caddy", confirmed?.text);
+  const { challenge, recoveryCodes: codes, cookie } = session;
+  check.expect(acknowledged?.status === 200 && chosen?.status === 200 && cookie !== "", "the codes are acknowledged and the starting data chosen: the owner is past the gate", `${acknowledged?.text}\n${chosen?.text}`);
+  const sessionCookie = session.setCookie;
   evidence["sessionCookieAttributes"] = sessionCookie.split(";").slice(1).map((part) => part.trim().split("=")[0]);
   check.expect(/;\s*secure/i.test(sessionCookie) && /;\s*httponly/i.test(sessionCookie), "the session cookie is Secure and HttpOnly over HTTPS", sessionCookie.replace(/=[^;]+/, "=[redacted]"));
 

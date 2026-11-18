@@ -1,0 +1,70 @@
+# Server mode (Architektura §12.1, §9.4, §15.1; DEV §9.59 D60.3): Caddy is the only door of the installation. It is the one
+# service that publishes ports (80 and 443) and it lives in two networks: `edge`, which only it is in and which carries the
+# published ports, and `internal`, where it reaches the app. The app is only in `internal` and publishes nothing, so no
+# other host and no other network can reach its port 8080. Used instead of compose.local.yml, never together with it.
+# Caddy gets only the three values it needs, never the .env of the installation. Its certificates and its configuration are in
+# volumes of this project (separate for every installation); its log is data/logs/caddy, which only it writes.
+# Caddy runs as root of its container with every capability dropped but the two it needs: it binds the ports below 1024
+# (NET_BIND_SERVICE) and writes the log folder that belongs to the host user (DAC_OVERRIDE). Its file system is read-only.
+services:
+  app:
+    networks:
+      - internal
+    environment:
+      # The name of the Caddy service in the network above: the one peer whose X-Forwarded-For the app believes (D60.2).
+      - TRUSTED_PROXY_HOST=caddy
+  caddy:
+    # Caddy 2.10.2, pinned by the digest of its multi-arch index (the tag only tells which release it is).
+    image: caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - DAC_OVERRIDE
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    stop_grace_period: 20s
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+      - target: 443
+        published: 443
+        protocol: tcp
+    environment:
+      - DOMAIN=${DOMAIN:?DOMAIN is set by the installer}
+      - ACME_EMAIL=${ACME_EMAIL:?ACME_EMAIL is set by the installer}
+    volumes:
+      - type: bind
+        source: ./Caddyfile
+        target: /etc/caddy/Caddyfile
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./data/logs/caddy
+        target: /var/log/caddy
+        bind:
+          create_host_path: false
+      - type: volume
+        source: caddy_data
+        target: /data
+      - type: volume
+        source: caddy_config
+        target: /config
+    networks:
+      - edge
+      - internal
+networks:
+  edge: {}
+  internal: {}
+volumes:
+  caddy_data: {}
+  caddy_config: {}

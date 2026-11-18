@@ -1649,6 +1649,9 @@ jobs:
       - name: Verify D59.4 (the release package with install.ps1 and its check in PowerShell)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D59.4
+      - name: Verify D60.3 (the stack of a server installation, Caddy, the networks and the log)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D60.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
