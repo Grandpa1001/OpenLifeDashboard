@@ -6983,6 +6983,14 @@ const definedLater: readonly TaskDefinition[] = [
     criteria: ["D58.1-AC1", "D58.1-AC2", "D58.1-regression"],
     checks: [
       {
+        // Runs first: the regression of the installer starts the built server on an installation folder it made (D19.1).
+        id: "workspace-build",
+        criteria: ["D58.1-regression"],
+        description: "pnpm -r build: the server that the installed folder must start",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/main.ts"],
+      },
+      {
         id: "installer-syntax",
         criteria: ["D58.1-AC1"],
         description: "bash parses install/install.sh (the macOS bash 3.2 and the bash of Linux accept the same syntax)",
