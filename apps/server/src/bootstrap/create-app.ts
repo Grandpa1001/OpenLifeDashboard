@@ -1,6 +1,6 @@
 import { PUBLIC_BOOTSTRAP_PATH } from "@openlife/contracts/http/bootstrap";
 import { HEALTH_PATH } from "@openlife/contracts/http/health";
-import { Hono } from "hono";
+import { Hono, type MiddlewareHandler } from "hono";
 import type { Announce } from "../adapters/events/live-hub.js";
 import type { TechnicalLogger } from "../adapters/logging/technical-logger.js";
 import { apiNotFound } from "../http/api-errors.js";
@@ -42,6 +42,8 @@ export type AppDependencies = Readonly<{
   updateBarrier: UpdateBarrier;
   /** Monotonic milliseconds for request durations. */
   nowMs: () => number;
+  /** Sets the address of the client of every request (D60.2). */
+  clientAddress?: MiddlewareHandler<AppEnv>;
   identity: IdentityRouteDependencies;
   mfaEnrollment: MfaEnrollmentRouteDependencies;
   mfaVerification: MfaVerificationRouteDependencies;

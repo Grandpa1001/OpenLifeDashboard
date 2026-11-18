@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 1,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 2,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -7270,6 +7270,40 @@ const definedLater: readonly TaskDefinition[] = [
         timeoutMs: 15 * 60 * 1000,
       },
       ...regressionChecks("D60.1-regression"),
+    ],
+  },
+  {
+    // DEV §9.59: the trusted proxy and the address of the client.
+    id: "D60.2",
+    ready: true,
+    title: "The trusted proxy: the address of the client from X-Forwarded-For only from the Caddy of the installation, in the limit of sign-in and in the audit",
+    criteria: ["D60.2-AC1", "D60.2-AC2", "D60.2-regression"],
+    checks: [
+      {
+        // Runs first: the integration test runs the built server.
+        id: "workspace-build",
+        criteria: ["D60.2-AC1", "D60.2-AC2"],
+        description: "pnpm -r build: the middleware of the client address and TRUSTED_PROXY_HOST in the parser of the environment",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/middleware/client-address.ts"],
+      },
+      {
+        id: "client-address-unit",
+        criteria: ["D60.2-AC1"],
+        description:
+          "The header comes from the connection of the trusted proxy only: not in the local mode, not from another peer, the last entry of a list, nothing that is not an address, two spellings of an address are one; the name is resolved at the start and for a stranger at most once in 10 s, follows a changed address, keeps the old ones when it does not answer and is resolved once for parallel requests; TRUSTED_PROXY_HOST is a service name in the server mode and nothing else (no address, port, path, list or capital letter, never in the local mode), and the refusal names the field and not the value",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/foundation/client-address.test.ts", "tests/unit/bootstrap/trusted-proxy-environment.test.ts"],
+        requires: ["tests/unit/foundation/client-address.test.ts", "tests/unit/bootstrap/trusted-proxy-environment.test.ts", "apps/server/src/bootstrap/environment.ts"],
+      },
+      {
+        id: "trusted-proxy-http",
+        criteria: ["D60.2-AC1", "D60.2-AC2"],
+        description:
+          "The built server in the server mode: a forged X-Forwarded-For from the trusted proxy gives every address its own limit of sign-in requests and is the address in the audit; without a trusted proxy, with a name that is not the peer and in the local mode the header changes neither the limit nor the audit; the config check refuses the variable in the local mode and for an address",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/http/trusted-proxy.test.ts"],
+        requires: ["tests/integration/http/trusted-proxy.test.ts", "tests/support/auth-http.ts", "apps/server/src/http/middleware/client-address.ts"],
+      },
+      ...regressionChecks("D60.2-regression"),
     ],
   },
   {

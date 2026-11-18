@@ -2,6 +2,7 @@
 // It reads only the keys it names, so unrelated process variables such as PATH are ignored.
 // Errors name fields, never their values. Option ranges and cross-field rules belong to the
 // settings resolver (D03.2); instance.json is validated in D03.3.
+import { isIP } from "node:net";
 import { SETTINGS_CATALOG } from "@openlife/contracts/settings";
 import { parseHeartbeatUrl } from "../adapters/monitoring/heartbeat.js";
 import { parseApiBase } from "../adapters/updates/release-client.js";
@@ -26,6 +27,8 @@ export type EnvironmentConfig = Readonly<{
   updater: UpdaterConfig;
   /** The address the nightly copy signals to (D49.4); absent when the administrator set none. It holds the token of the monitor. */
   backupHeartbeatUrl?: Secret;
+  /** The name of the Caddy service of this installation in the Compose network; only the server mode has one (D60.2). */
+  trustedProxyHost?: string;
   dbBusyTimeoutMs: number;
   overrides: EnvironmentOverrides;
 }>;
@@ -40,6 +43,8 @@ const DB_BUSY_TIMEOUT_MS = { default: 5_000, min: 100, max: 30_000 } as const;
 const SECRET_HEX = /^[0-9a-f]{64}$/i;
 const DECIMAL_DIGITS = /^\d+$/;
 const RELEASES_REPO = /^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9._-]+$/;
+/** A name of a service in a network: DNS labels of lower case letters, digits and hyphens, never an address and never with a port or a path. */
+const PROXY_HOST = /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/;
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
 
@@ -146,6 +151,13 @@ export function parseEnvironment(env: RawEnvironment): EnvironmentResult {
     invalid.add("BACKUP_HEARTBEAT_URL");
   }
 
+  // Only an installation behind Caddy has a proxy to trust; in the local mode the address of the connection is the client.
+  const rawProxy = present("TRUSTED_PROXY_HOST");
+  const trustedProxyHost = rawProxy !== undefined && installMode === "server" && PROXY_HOST.test(rawProxy) && isIP(rawProxy) === 0 ? rawProxy : undefined;
+  if (rawProxy !== undefined && trustedProxyHost === undefined) {
+    invalid.add("TRUSTED_PROXY_HOST");
+  }
+
   const integer = (key: string): number | undefined => {
     const raw = present(key);
     if (raw === undefined) {
@@ -183,6 +195,7 @@ export function parseEnvironment(env: RawEnvironment): EnvironmentResult {
       appEncryptionKey,
       updater,
       ...(heartbeatUrl === undefined ? {} : { backupHeartbeatUrl: heartbeatUrl }),
+      ...(trustedProxyHost === undefined ? {} : { trustedProxyHost }),
       dbBusyTimeoutMs: busyTimeout ?? DB_BUSY_TIMEOUT_MS.default,
       overrides,
     },

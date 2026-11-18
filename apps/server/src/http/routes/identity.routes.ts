@@ -30,7 +30,7 @@ export type IdentityRouteDependencies = Readonly<{
   /** Cookies get `Secure` in HTTPS mode (Architektura §9.4). */
   secureCookies: boolean;
   loginLimiter: RateLimiter;
-  /** The peer of the connection; X-Forwarded-For is not read until the trusted proxy exists (§14.4). */
+  /** The client of the request: the peer of the connection, or the one the trusted proxy wrote (D60.2). */
   clientIp: (c: Context<AppEnv>) => string;
   /** Wall clock in milliseconds. */
   nowMs: () => number;

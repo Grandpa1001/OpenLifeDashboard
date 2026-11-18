@@ -6,6 +6,7 @@
 // before the lease opens or changes database files.
 import { SETTINGS_CATALOG } from "@openlife/contracts/settings";
 import { integerSetting, type EffectiveSetting } from "@openlife/core/settings";
+import { lookup } from "node:dns/promises";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import type { Context } from "hono";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -69,6 +70,7 @@ import { bindSystemTableReader } from "./adapters/system-tables.js";
 import { loadBootstrapConfig } from "./bootstrap/bootstrap-config.js";
 import { createApp } from "./bootstrap/create-app.js";
 import type { AppEnv } from "./http/app-env.js";
+import { createClientAddress } from "./http/middleware/client-address.js";
 import { createRateLimiter } from "./http/middleware/fixed-window-limit.js";
 import { LOGIN_LIMIT_WINDOW_MS, LOGIN_REQUESTS_PER_MINUTE } from "./http/security-limits.js";
 import { createEffectiveSettings } from "./bootstrap/effective-settings.js";
@@ -334,7 +336,16 @@ const adoption =
 const diagnosticsOverview = createOverviewReader({ build, schemaVersion: database.schemaVersion, installation: paths, workingPaths, logStatus: logFile.status, liveConnections: liveHub.total, backupStatus: nightlyBackup.status });
 const diagnosticsLogs = createLogFiles({ dir: workingPaths.logs, retentionDays: () => logLimits().retentionDays, now: () => new Date() });
 const attemptKeys = createAttemptKeys(secret);
-const clientIp = (c: Context<AppEnv>): string => getConnInfo(c).remote.address ?? "unknown";
+// The client is the peer of the connection, or the client that the one trusted proxy of a server installation wrote (D60.2).
+const clientAddress = createClientAddress({
+  ...(environment.trustedProxyHost === undefined ? {} : { proxyHost: environment.trustedProxyHost }),
+  lookup: async (host) => (await lookup(host, { all: true })).map((entry) => entry.address),
+  nowMs: Date.now,
+  connectionAddress: (c) => getConnInfo(c).remote.address,
+  onResolved: (outcome) => logger.log(outcome.ok ? { level: "info", event: "proxy.resolved" } : { level: "warn", event: "proxy.resolve_failed", code: "PROXY_UNRESOLVED" }),
+});
+await clientAddress.warm();
+const clientIp = (c: Context<AppEnv>): string => c.get("clientIp");
 const cookies = createSessionCookies({ instanceId: paths.instanceId, secret });
 const trustedDeviceCookies = createTrustedDeviceCookies({ instanceId: paths.instanceId, secret });
 const mfaCrypto = createMfaCrypto(environment.appEncryptionKey.reveal());
@@ -345,6 +356,7 @@ const app = createApp({
   webRoot,
   indexHtml,
   newRequestId: randomUUID,
+  clientAddress: clientAddress.middleware,
   logger,
   readiness,
   updateBarrier,
