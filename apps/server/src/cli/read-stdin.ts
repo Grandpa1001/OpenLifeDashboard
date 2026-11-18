@@ -6,7 +6,10 @@ export class StdinTooLargeError extends Error {
   }
 }
 
-/** The whole stream as UTF-8 text; more than `maxBytes` rejects before it is held in memory. */
+/**
+ * The whole stream as UTF-8 text; more than `maxBytes` rejects before it is held in memory. A byte order mark at the
+ * start is dropped: a tool of Windows may put one before the JSON, and it is never a part of the input.
+ */
 export async function readStdin(stream: AsyncIterable<Buffer | string>, maxBytes: number): Promise<string> {
   const chunks: Buffer[] = [];
   let size = 0;
@@ -18,5 +21,6 @@ export async function readStdin(stream: AsyncIterable<Buffer | string>, maxBytes
     }
     chunks.push(buffer);
   }
-  return Buffer.concat(chunks).toString("utf8");
+  const text = Buffer.concat(chunks).toString("utf8");
+  return text.startsWith("\uFEFF") ? text.slice(1) : text;
 }

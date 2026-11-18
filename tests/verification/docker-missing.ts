@@ -10,8 +10,8 @@ import { BLOCKED_EXIT_CODE } from "../../tooling/verification-tasks.ts";
 import { createCheck } from "../support/check-report.ts";
 import { repoRoot } from "../support/repository-copy.ts";
 
-/** System tests that need no Docker: they join reports made elsewhere. */
-const WITHOUT_DOCKER = new Set(["multiarch-reports.ts"]);
+/** System tests that need no Docker: they join reports made elsewhere, or (install-windows.ts) need Windows and block on any other system. */
+const WITHOUT_DOCKER = new Set(["multiarch-reports.ts", "install-windows.ts"]);
 
 const check = createCheck("container tests without Docker");
 const scratch = mkdtempSync(path.join(os.tmpdir(), "openlife-no-docker-"));

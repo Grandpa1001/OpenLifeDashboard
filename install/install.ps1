@@ -519,7 +519,13 @@ function Invoke-WithStdin([string]$Folder, [string[]]$Arguments, [byte[]]$Payloa
   $info.RedirectStandardInput = $true
   $info.RedirectStandardOutput = $true
   $info.RedirectStandardError = $true
-  $process = [System.Diagnostics.Process]::Start($info)
+  # The StreamWriter that .NET makes for the stdin of a child writes a byte order mark of the console encoding when the
+  # process starts. The console encoding is set to UTF-8 without a mark for the start (the CLI of the container also ignores a mark).
+  $previousEncoding = $null
+  try { $previousEncoding = [Console]::InputEncoding; [Console]::InputEncoding = $Utf8NoBom } catch { $previousEncoding = $null }
+  try { $process = [System.Diagnostics.Process]::Start($info) } finally {
+    if ($null -ne $previousEncoding) { try { [Console]::InputEncoding = $previousEncoding } catch { } }
+  }
   $outTask = $process.StandardOutput.ReadToEndAsync()
   $errTask = $process.StandardError.ReadToEndAsync()
   try { $process.StandardInput.BaseStream.Write($Payload, 0, $Payload.Length); $process.StandardInput.BaseStream.Flush() } catch { }

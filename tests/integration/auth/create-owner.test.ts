@@ -161,6 +161,13 @@ describe("D09.2-AC1 one owner, one credential, one audit entry", () => {
     expect(counts(instance)).toEqual(NOTHING);
   });
 
+  it("a byte order mark before the JSON on stdin (Windows tools write one) is ignored, and the owner is created", async () => {
+    const instance = await startedInstallation();
+    const run = await createOwner(instance, `\uFEFF${input(EMAIL, PASSWORD)}`);
+    expect(run.code, run.output).toBe(0);
+    expect(counts(instance)).toEqual(ONE_OWNER);
+  });
+
   const invalid: ReadonlyArray<readonly [string, string, readonly string[]]> = [
     ["a password of 11 characters", input(EMAIL, "elevenchars"), ["password"]],
     ["a password of 129 emoji", input(EMAIL, "🔐".repeat(129)), ["password"]],
