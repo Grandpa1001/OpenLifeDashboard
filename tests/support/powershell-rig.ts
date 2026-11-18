@@ -15,12 +15,12 @@ let counter = 0;
 
 export type FakeWindowsDocker = "ok" | "down" | "windows-containers" | "old-compose" | "absent";
 
-export type RunOptions = Readonly<{ docker?: FakeWindowsDocker; original?: boolean; before?: string; env?: Readonly<Record<string, string>>; stdin?: string }>;
+export type RunOptions = Readonly<{ docker?: FakeWindowsDocker; original?: boolean; script?: string; before?: string; env?: Readonly<Record<string, string>>; stdin?: string }>;
 
 export type PowerShellRig = Readonly<{
   /** The work folder, mounted at /work in the container. */
   work: string;
-  /** Runs the installer; `before` is a script run first in the same container (e.g. to hold a port), `original` runs the script as it is in the repository, `env` shapes the fake docker. `stdin` is the input of the installer. */
+  /** Runs the installer; `before` is a script run first in the same container (e.g. to hold a port), `original` runs the script as it is in the repository, `script` runs the installer at that path of the work folder (e.g. one in a release package), `env` shapes the fake docker. `stdin` is the input of the installer. */
   run: (args: readonly string[], options?: RunOptions) => Readonly<{ status: number | null; output: string }>;
   /** Runs the installer in the background, waits until the fake docker blocks (FAKE_HANG), sends Ctrl+C and returns what the installer did. */
   interrupt: (args: readonly string[], options?: RunOptions) => Promise<Readonly<{ status: number | null; output: string }>>;
@@ -90,7 +90,7 @@ export function powershellRig(): PowerShellRig {
   writeFileSync(path.join(work, "tree", "install", "install.ps1"), asWindows);
 
   const dockerArgs = (options: RunOptions, args: readonly string[], name?: string): string[] => {
-    const script = options.original ? "/repo/install/install.ps1" : "/work/tree/install/install.ps1";
+    const script = options.original ? "/repo/install/install.ps1" : options.script === undefined ? "/work/tree/install/install.ps1" : `/work/${options.script}`;
     const quoted = args.map((arg) => `'${arg.replaceAll("'", "'\\''")}'`).join(" ");
     const searchPath = options.docker === "absent" ? "/usr/bin:/bin:/opt/microsoft/powershell/7" : "/work/bin:/usr/bin:/bin:/opt/microsoft/powershell/7";
     const command = `${options.before ?? ""}\nexec pwsh -NoProfile -NonInteractive -File ${script} ${quoted}`;

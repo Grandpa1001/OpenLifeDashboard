@@ -1267,6 +1267,41 @@ jobs:
       - name: Verify D47 (the parent, D47.1–D47.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D47
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-data
+          path: .artifacts/
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error
+
+  full-copies:
+    # The copies and the restore: the package of the backup, the retention and the nightly copy, the
+    # restore of a whole instance and the drills, every parent over its work orders. Split from the
+    # job of the data after run 44328577907 (30 of its 30 minutes were used, the run was cut in D51).
+    name: verify:task (full tier, copies and restore D48-D51)
+    needs: changes
+    if: ${{ needs.changes.outputs.full == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install
+        # The pinned Node runtime (58 MB from nodejs.org) sometimes stalls at a few KB/s for tens of
+        # minutes on a runner; a stalled attempt is cut after 5 minutes and started again.
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && exit 0
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          exit 1
       - name: Verify D48 (the parent, D48.1–D48.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D48
@@ -1283,7 +1318,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: verification-data
+          name: verification-copies
           path: .artifacts/
           include-hidden-files: true
           retention-days: 14
@@ -1605,6 +1640,9 @@ jobs:
       - name: Verify D59.2 (install.ps1 stages, owner account through stdin and resuming)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D59.2
+      - name: Verify D59.4 (the release package with install.ps1 and its check in PowerShell)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D59.4
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

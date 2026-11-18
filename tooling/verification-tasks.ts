@@ -7203,6 +7203,41 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.58: the package with install.ps1 and its check in PowerShell. AC2, the trial on a real Windows with Docker Desktop, is a manual protocol
+    // with the owner's report and is reported not_run in DEV until there is one; it is not a check of this map (as the phone of D34).
+    id: "D59.4",
+    ready: true,
+    title: "The release package with install.ps1: the sixth file, the sums over it and the check of the package in PowerShell",
+    criteria: ["D59.4-AC1", "D59.4-regression"],
+    checks: [
+      {
+        id: "release-package",
+        criteria: ["D59.4-AC1"],
+        description:
+          "The builder makes a folder and an archive with exactly both installers, both Compose files, a manifest and SHA256SUMS, the files are the repository's, the same input gives the same sums, and install.sh from the unpacked archive installs from it",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/release-package.test.ts", "-t", "D58.1-AC1"],
+        requires: ["tests/integration/installer/release-package.test.ts", "scripts/support/release-package.ts", "tests/support/installer-rig.ts"],
+      },
+      {
+        id: "release-package-damage",
+        criteria: ["D59.4-AC1"],
+        description: "A changed, a missing or an extra file of the package, install.ps1 included, a sums file that is wrong and a manifest that is not ours are refused by install.sh before anything is written",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/release-package.test.ts", "-t", "D58.1-AC2"],
+        requires: ["tests/integration/installer/release-package.test.ts", "tests/support/installer-rig.ts"],
+      },
+      {
+        id: "installer-windows-package",
+        criteria: ["D59.4-AC1"],
+        description:
+          "PowerShell 7 in a Linux container with a fake Docker, running the install.ps1 of a package built by the real builder: a whole package installs without -Image, with the image of its manifest, the Compose files of the package and the line that names the version; a changed compose.yml, compose.local.yml, install.ps1, install.sh or release.json, a missing compose.yml, compose.local.yml, install.sh, release.json or SHA256SUMS, an extra file and an extra folder, a SHA256SUMS that leaves a file out or lists one twice, a manifest with an image that has no digest and an -Image other than the one of the package are each refused with a message before Docker is asked for anything and before a folder is written",
+        command: ["node", "tests/system/install-powershell-package.ts"],
+        requires: ["tests/system/install-powershell-package.ts", "tests/support/powershell-rig.ts", "install/install.ps1", "scripts/support/release-package.ts"],
+        timeoutMs: 30 * 60 * 1000,
+      },
+      ...regressionChecks("D59.4-regression"),
+    ],
+  },
+  {
     // KM6 gate (DEV §8.4, §9.56): the update A to B and the broken B back to A from the browser on a real daemon (the system test of the parent D57),
     // then the reports of the update joined item by item for this exact code; does not run their tests again.
     id: "G6",

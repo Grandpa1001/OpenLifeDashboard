@@ -51,7 +51,7 @@ readonly PACKAGE_FORMAT_VERSION=1
 readonly PACKAGE_PRODUCT=openlife-dashboard
 readonly PACKAGE_MANIFEST=release.json
 readonly PACKAGE_SUMS=SHA256SUMS
-readonly PACKAGE_FILES=(compose.local.yml compose.yml install.sh release.json)
+readonly PACKAGE_FILES=(compose.local.yml compose.yml install.ps1 install.sh release.json)
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

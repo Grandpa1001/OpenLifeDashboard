@@ -1,7 +1,7 @@
-// The release package (Architektura §12.4 point 1; DEV §9.57): the files of one release that belong
-// together — the installer, the Compose files, a manifest that names the version and the image, and
+// The release package (Architektura §12.4 point 1; DEV §9.57, §9.58): the files of one release that belong
+// together — the installers (install.sh for Linux and macOS, install.ps1 for Windows), the Compose files, a manifest that names the version and the image, and
 // the SHA256SUMS of all of them — in one folder and one archive. install/install.sh checks the same
-// list before it writes anything, so a package that lost or changed a file is refused. The sums
+// list (install.ps1 does too, with Get-FileHash) before it writes anything, so a package that lost or changed a file is refused. The sums
 // find damage; they do not prove who published the package (the trust in a publication is D61).
 import { createHash } from "node:crypto";
 import { chmodSync, copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -16,6 +16,7 @@ export const SUMS_FILE = "SHA256SUMS";
 export const PACKAGE_SOURCES: Readonly<Record<string, string>> = {
   "compose.local.yml": "docker/compose.local.yml",
   "compose.yml": "docker/compose.yml",
+  "install.ps1": "install/install.ps1",
   "install.sh": "install/install.sh",
   [MANIFEST_FILE]: "",
 };

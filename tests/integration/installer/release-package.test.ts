@@ -46,8 +46,8 @@ function reseal(folder: string): void {
 }
 
 describe("D58.1-AC1 a release package carries the files of one release and installs from itself", () => {
-  it("holds the installer, both Compose files, a manifest and SHA256SUMS, and the files are the ones of the repository", () => {
-    expect(entries(built.folder)).toEqual([MANIFEST_FILE, SUMS_FILE, "compose.local.yml", "compose.yml", "install.sh"].sort());
+  it("holds both installers, both Compose files, a manifest and SHA256SUMS, and the files are the ones of the repository", () => {
+    expect(entries(built.folder)).toEqual([MANIFEST_FILE, SUMS_FILE, "compose.local.yml", "compose.yml", "install.ps1", "install.sh"].sort());
     for (const [file, source] of Object.entries(PACKAGE_SOURCES)) {
       if (source !== "") expect(sha256(path.join(built.folder, file)), file).toBe(sha256(path.join(repoRoot, source)));
     }
@@ -116,7 +116,7 @@ describe("D58.1-AC2 a package that is not whole and unchanged is refused before 
     expect(dockerCalls(rig)).toEqual([]);
   }
 
-  for (const file of ["compose.yml", "compose.local.yml", "install.sh", "release.json"]) {
+  for (const file of ["compose.yml", "compose.local.yml", "install.ps1", "install.sh", "release.json"]) {
     it(`a changed ${file}`, () => {
       const folder = copyOfPackage();
       writeFileSync(path.join(folder, file), `${readFileSync(path.join(folder, file), "utf8")}\n# changed\n`);
@@ -160,7 +160,7 @@ describe("D58.1-AC2 a package that is not whole and unchanged is refused before 
     const cases: Array<[string, string[], RegExp]> = [
       ["twice", [...lines, lines[0]!], /twice/],
       ["unknown file", [...lines.slice(0, 3), `${DIGEST}  other.txt`], /not part of the package: other\.txt/],
-      ["a file left out", lines.slice(0, 3), /must list all 4 files/],
+      ["a file left out", lines.slice(0, 3), /must list all 5 files/],
       ["not a sum", [...lines.slice(0, 3), "not a sum"], /not '<sha256> {2}<file>'/],
       ["upper case digits", [...lines.slice(0, 3), lines[3]!.toUpperCase()], /not '<sha256> {2}<file>'/],
       ["one space between the sum and the name", [...lines.slice(0, 3), lines[3]!.replace("  ", " ")], /not '<sha256> {2}<file>'/],

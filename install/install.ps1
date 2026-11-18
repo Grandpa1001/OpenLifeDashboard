@@ -49,6 +49,15 @@ $PasswordMinCodePoints = 12     # the rules of the owner's credentials as the ap
 $PasswordMaxCodePoints = 128
 $CredentialAttempts = 5         # asks in a terminal before giving up
 $CreateOwnerCommand = @('node', 'apps/server/dist/cli/create-owner.js')
+# The release package: exactly these files, listed in SHA256SUMS (scripts/support/release-package.ts is the builder, install.sh checks the same list).
+$PackageFormatVersion = 1
+$PackageProduct = 'openlife-dashboard'
+$PackageManifest = 'release.json'
+$PackageSums = 'SHA256SUMS'
+$PackageFiles = @('compose.local.yml', 'compose.yml', 'install.ps1', 'install.sh', 'release.json')
+$PackageSumPattern = '^([0-9a-f]{64})  ([A-Za-z0-9._-]+)$'
+$PackageImagePattern = '^[A-Za-z0-9._/-]+(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$'
+$script:PackageVersion = ''
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $TempFiles = New-Object System.Collections.Generic.List[string]
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -60,14 +69,14 @@ function Exit-With([int]$Code) { $script:ExitRequested = $true; exit $Code }
 function Fail([string]$Text) { Note "error: $Text"; Exit-With 1 }
 function Show-Usage {
   Note @'
-usage: install.ps1 [-Mode local] [-Dir <folder>] [-Port <port>] -Image <image>
+usage: install.ps1 [-Mode local] [-Dir <folder>] [-Port <port>] [-Image <image>]
                    [-OwnerEmail <e-mail>] [-OwnerPasswordStdin] [-Yes]
 
   -Mode       local (the only mode on Windows)
   -Dir        installation folder (default %USERPROFILE%\OpenLifeDashboard\default); a fresh or an
               interrupted installation folder of this installer, never a foreign one
   -Port       host port on 127.0.0.1, 1024-65535 (default 8080)
-  -Image      the application image to run
+  -Image      the application image to run (not needed from a release package, which names it)
   -OwnerEmail e-mail of the owner account
   -OwnerPasswordStdin
               read the owner's password from the first line of stdin; it is never a parameter,
@@ -142,6 +151,67 @@ function Copy-NewFile([string]$Source, [string]$Target) {
 function Test-Image([string]$Reference) {
   if ($Reference -eq '') { Usage-Error '-Image is required: this release of the installer is not run from a release package' }
   if ($Reference -cnotmatch '^[A-Za-z0-9._/:@-]+$') { Fail "the image reference contains characters that are not allowed: $Reference" }
+}
+
+# ------------------------------------------------------------------------------ the release package
+
+function Test-PackageFile([string]$Name) { return (($Name -ceq $PackageSums) -or ($PackageFiles -ccontains $Name)) }
+
+function Manifest-Text([string]$Text, [string]$Key) { # the value of a string key; the manifest has one key per line and each key once
+  $found = [regex]::Matches($Text, "(?m)^  `"$Key`": `"([^`"]*)`",?$")
+  if ($found.Count -ne 1) { Fail "$PackageManifest must name `"$Key`" exactly once" }
+  return $found[0].Groups[1].Value
+}
+
+# The package is whole and unchanged: only its own files, each as SHA256SUMS lists it, and a manifest that names the product, a
+# version and an image pinned by digest. Reads only. Returns the image of the manifest, which becomes the image of the installation.
+# The sums find a damaged or a changed package; they do not say who published it.
+function Test-ReleasePackage([string]$GivenImage) {
+  $sumsPath = Join-Path $ScriptDir $PackageSums
+  if (-not (Test-Path -LiteralPath $sumsPath)) { Fail "the release package is incomplete: $PackageSums is missing" }
+  foreach ($entry in (Get-ChildItem -LiteralPath $ScriptDir -Force)) {
+    if (-not (Test-PackageFile $entry.Name)) { Fail "the release package holds a file that is not part of it: $($entry.Name)" }
+  }
+  foreach ($name in ($PackageFiles + $PackageSums)) {
+    $item = Get-Item -LiteralPath (Join-Path $ScriptDir $name) -Force -ErrorAction SilentlyContinue
+    if ($null -eq $item -or $item.PSIsContainer -or $item.Attributes.HasFlag([System.IO.FileAttributes]::ReparsePoint)) {
+      Fail "the release package is incomplete: $name is missing or is not a plain file"
+    }
+  }
+  $lines = [System.IO.File]::ReadAllText($sumsPath, $Utf8NoBom).Split("`n")
+  if ($lines[$lines.Count - 1] -eq '') { $lines = @($lines | Select-Object -First ($lines.Count - 1)) }
+  $listed = 0
+  $seen = @{}
+  foreach ($line in $lines) {
+    $match = [regex]::Match($line, $PackageSumPattern)
+    if (-not $match.Success) { Fail "$PackageSums has a line that is not '<sha256>  <file>': $line" }
+    $expected = $match.Groups[1].Value
+    $name = $match.Groups[2].Value
+    if (-not (Test-PackageFile $name) -or $name -ceq $PackageSums) { Fail "$PackageSums lists a file that is not part of the package: $name" }
+    if ($seen.ContainsKey($name)) { Fail "$PackageSums lists $name twice" }
+    $actual = (Get-FileHash -LiteralPath (Join-Path $ScriptDir $name) -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actual -cne $expected) { Fail "$name does not match ${PackageSums}: the package is damaged or was changed; download it again" }
+    $seen[$name] = $true
+    $listed++
+  }
+  if ($listed -ne $PackageFiles.Count) { Fail "$PackageSums must list all $($PackageFiles.Count) files of the package, it lists $listed" }
+
+  $manifest = [System.IO.File]::ReadAllText((Join-Path $ScriptDir $PackageManifest), $Utf8NoBom)
+  $format = [regex]::Match($manifest, '(?m)^  "formatVersion": ([0-9]*),?$').Groups[1].Value
+  if ($format -ne "$PackageFormatVersion") {
+    $shown = $format; if ($shown -eq '') { $shown = 'missing' }
+    Fail "$PackageManifest has a format this installer does not know (formatVersion $shown, expected $PackageFormatVersion)"
+  }
+  if ((Manifest-Text $manifest 'product') -cne $PackageProduct) { Fail "$PackageManifest is not the manifest of $PackageProduct" }
+  $version = Manifest-Text $manifest 'version'
+  if ($version -cnotmatch '^[0-9]+\.[0-9]+\.[0-9]+$') { Fail "$PackageManifest names a version that is not x.y.z: $version" }
+  $manifestImage = Manifest-Text $manifest 'image'
+  if ($manifestImage -cnotmatch $PackageImagePattern) { Fail "$PackageManifest names an image that is not pinned by digest: $manifestImage" }
+  if ($GivenImage -ne '' -and $GivenImage -cne $manifestImage) {
+    Usage-Error "this release package pins its image ($manifestImage); do not give -Image, or give the same one"
+  }
+  $script:PackageVersion = $version
+  return $manifestImage
 }
 
 # Why the e-mail would be refused by the application, or an empty string. The address is ASCII only,
@@ -580,6 +650,7 @@ function Adopt-InstalledImage([string]$Folder, [string]$Requested) {
 function Write-Summary([string]$Folder, [string]$PortText) {
   Say ''
   Say 'OpenLifeDashboard is installed.'
+  if ($script:PackageVersion -ne '') { Say "  Release package: $PackageProduct $($script:PackageVersion) (every file matches $PackageSums)" }
   Say "  Open:       http://localhost:$PortText (only from this computer)"
   Say '  Sign in:    with the e-mail of the owner account; the first sign-in sets up the second factor (TOTP) and shows your recovery codes'
   Say "  Data:       $(Join-Path $Folder 'data')"
@@ -601,6 +672,11 @@ function Main {
     Usage-Error "the mode '$Mode' is unknown; use local"
   }
   Test-System
+  # A release.json or a SHA256SUMS beside the script means a release package (so a package that lost one of them is refused,
+  # not mistaken for the repository): it is checked whole before anything else.
+  if ((Test-Path -LiteralPath (Join-Path $ScriptDir $PackageManifest)) -or (Test-Path -LiteralPath (Join-Path $ScriptDir $PackageSums))) {
+    $Image = Test-ReleasePackage $Image
+  }
   Test-Image $Image
   Test-OwnerEmail $OwnerEmail
 
