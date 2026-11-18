@@ -7046,7 +7046,7 @@ const definedLater: readonly TaskDefinition[] = [
         requires: ["tests/integration/installer/install-server.test.ts", "tests/support/installer-rig.ts"],
       },
       {
-        id: "installer-regression",
+        id: "installer-regression-server",
         criteria: ["D58.2-regression"],
         description: "The local installer (D19.1, D19.2) and the package check (D58.1) still pass with the server mode in the script",
         command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer", "-t", "D19|D58.1"],
@@ -7086,7 +7086,7 @@ const definedLater: readonly TaskDefinition[] = [
         requires: ["tests/integration/installer/install-resume.test.ts", "tests/support/installer-rig.ts"],
       },
       {
-        id: "installer-regression",
+        id: "installer-regression-resume",
         criteria: ["D58.3-regression"],
         description: "The local installer (D19), the package check (D58.1) and the server mode (D58.2) still pass",
         command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer", "-t", "D19|D58.1|D58.2"],
@@ -7094,6 +7094,41 @@ const definedLater: readonly TaskDefinition[] = [
       },
       ...regressionChecks("D58.3-regression"),
     ],
+  },
+  {
+    // DEV §9.57: the package on a clean Linux with a Docker daemon of its own.
+    id: "D58.4",
+    ready: true,
+    title: "The release package on a clean Linux: the local mode installs and a rerun changes nothing, the server mode for a domain that does not resolve ends in waiting",
+    criteria: ["D58.4-AC1", "D58.4-AC2", "D58.4-regression"],
+    checks: [
+      {
+        id: "package-archive",
+        criteria: ["D58.4-AC1"],
+        description: "The archive of a package holds the folder and exactly its five files (no AppleDouble file of the macOS tar), and unpacks to the same files",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/release-package.test.ts", "-t", "one archive with one folder"],
+        requires: ["tests/integration/installer/release-package.test.ts", "scripts/support/release-package.ts"],
+      },
+      {
+        id: "installer-clean-linux",
+        criteria: ["D58.4-AC1", "D58.4-AC2"],
+        description:
+          "Ubuntu 24.04 with the docker.io and docker-compose-v2 packages, a user that is not root and a Docker daemon of its own, given the application image through a registry on port 80: the package for the digest of that image is unpacked and install.sh from it installs the local mode in a folder with a space (the image is pulled, the package is checked and named, the application is healthy and published on 127.0.0.1 only, a wrong password is refused, the owner signs in, the password is in neither the output nor .env), a second run only shows the status and keeps the files and the very same container; the server mode is refused while a really taken port 80 is held, writes nothing, and once it is free ends with the status 3 for a domain that does not resolve (NOT installed, waiting for DNS, stage files, no port of the host in .env, no container started) and a rerun keeps the keys",
+        command: ["node", "tests/system/install-clean-linux.ts"],
+        requires: ["tests/system/install-clean-linux.ts", "tests/system/clean-linux/Dockerfile", "tests/system/clean-linux/entrypoint.sh", "install/install.sh", "scripts/support/release-package.ts", "docker/Dockerfile", "docker/compose.yml"],
+        timeoutMs: 40 * 60 * 1000,
+      },
+      ...regressionChecks("D58.4-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the package, the server mode, the interruptions and the clean Linux.
+  {
+    id: "D58",
+    ready: true,
+    title: "The installer from a release package: a checked package, the server mode up to waiting, continuing an interrupted installation, and the proof on a clean Linux",
+    steps: ["D58.1", "D58.2", "D58.3", "D58.4"],
+    criteria: [],
+    checks: [],
   },
   {
     // KM6 gate (DEV §8.4, §9.56): the update A to B and the broken B back to A from the browser on a real daemon (the system test of the parent D57),

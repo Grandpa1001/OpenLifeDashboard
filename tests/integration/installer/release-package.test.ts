@@ -71,6 +71,10 @@ describe("D58.1-AC1 a release package carries the files of one release and insta
   });
 
   it("is one archive with one folder, and its files are the same as the folder's", () => {
+    // The names in the archive itself: unpacking on macOS would hide a `._name` file of extended attributes, which a Linux unpack shows.
+    const listed = spawnSync("tar", ["-tzf", built.archive], { encoding: "utf8" }).stdout.split("\n").filter((name) => name !== "").map((name) => name.replace(/\/$/, ""));
+    const name = `openlife-dashboard-${VERSION}`;
+    expect(listed.sort()).toEqual([name, ...[...Object.keys(PACKAGE_SOURCES), SUMS_FILE].map((file) => `${name}/${file}`)].sort());
     const unpacked = nextDir("unpacked");
     mkdirSync(unpacked);
     const result = spawnSync("tar", ["-xzf", built.archive, "-C", unpacked], { encoding: "utf8" });

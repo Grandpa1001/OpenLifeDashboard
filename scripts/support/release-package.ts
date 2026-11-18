@@ -54,7 +54,9 @@ export function buildReleasePackage(options: Readonly<{ repositoryRoot: string; 
   writeFileSync(path.join(folder, SUMS_FILE), sums);
 
   // The archive holds the one folder, so unpacking it never scatters files into the current folder.
-  const packed = spawnSync("tar", ["-czf", archive, "-C", outDir, name], { encoding: "utf8" });
+  // COPYFILE_DISABLE: the tar of macOS otherwise adds an AppleDouble file `._<name>` for the extended attributes of every file,
+  // and a package with a file that is not its own is refused by the installer on the computer that unpacks it.
+  const packed = spawnSync("tar", ["-czf", archive, "-C", outDir, name], { encoding: "utf8", env: { ...process.env, COPYFILE_DISABLE: "1" } });
   if (packed.status !== 0) throw new Error(`tar failed: ${packed.stderr}`);
   return { folder, archive, files: [...files, SUMS_FILE], sums };
 }

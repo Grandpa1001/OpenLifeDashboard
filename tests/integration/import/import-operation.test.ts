@@ -75,7 +75,11 @@ describe("D46.3-AC1 the import is an operation of the gate and the instance stay
     })();
 
     const first = send(fileWithRecords(6000));
-    await pause();
+    // Not a fixed pause: on a loaded computer (two runs of the suites at once, D08.1) a pause may end after the whole import,
+    // and then there is nothing to refuse (run 44266831697). The second request goes out as soon as the gate shows the import.
+    const deadline = Date.now() + 10_000;
+    while (h.gate.current().activeOperation === null && Date.now() < deadline) await pause();
+    expect(h.gate.current().activeOperation, "the import is running when the second request is sent").not.toBeNull();
     const second = await send(F01_TEXT);
     const choose = await h.request("POST", "/api/v1/setup/choose-empty", {}, { cookie });
     expect([second.status, (apiErrorSchema.parse(second.json())).code]).toEqual([503, "MAINTENANCE"]);
