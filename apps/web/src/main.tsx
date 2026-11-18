@@ -1,4 +1,5 @@
 // Browser entrypoint and composition root of the SPA (Architektura §13.1).
+import "./app/providers/schema-runtime.js";
 import { applyTheme } from "@openlife/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";

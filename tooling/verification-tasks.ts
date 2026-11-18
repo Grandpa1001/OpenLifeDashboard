@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 1,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -7235,6 +7235,41 @@ const definedLater: readonly TaskDefinition[] = [
         timeoutMs: 30 * 60 * 1000,
       },
       ...regressionChecks("D59.4-regression"),
+    ],
+  },
+  {
+    // DEV §9.59: the security headers of the application, the same in both modes.
+    id: "D60.1",
+    ready: true,
+    title: "The security headers of every response and the policy of the document against the built application in a browser",
+    criteria: ["D60.1-AC1", "D60.1-AC2", "D60.1-regression"],
+    checks: [
+      {
+        // Runs first: both tests run the built server and SPA.
+        id: "workspace-build",
+        criteria: ["D60.1-AC1", "D60.1-AC2"],
+        description: "pnpm -r build: the middleware of the headers and the interpreted schemas of the browser",
+        command: ["pnpm", "-r", "build"],
+        requires: ["apps/server/src/http/middleware/security-headers.ts", "apps/web/src/app/providers/schema-runtime.ts"],
+      },
+      {
+        id: "security-headers-http",
+        criteria: ["D60.1-AC1"],
+        description:
+          "The built server over HTTP: the SPA document, a reloaded UI route, a hashed asset, the health of the API, an unknown API route, a missing file, a refused method and the answer of the error handler each carry the policy of the document (self only, no inline and no eval, no framing, a base and a form only of the same origin), nosniff, no referrer, the same opener, a permissions policy without camera, microphone and location, and no Strict-Transport-Security",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/http/security-headers.test.ts"],
+        requires: ["tests/integration/http/security-headers.test.ts", "apps/server/src/http/middleware/security-headers.ts", "tests/support/server-process.ts"],
+      },
+      {
+        id: "security-headers-e2e",
+        criteria: ["D60.1-AC2"],
+        description:
+          "Playwright on the built app: the sign-in and every screen of the application, in the light and in the dark scheme, with a dashboard that holds a register table, the window that adds a record and the Designer with a list open, are drawn without one violation of the policy and with no policy message in the console",
+        command: ["node", "tests/verification/e2e.ts", "security-headers.spec"],
+        requires: ["tests/verification/e2e.ts", "tests/e2e/security-headers.spec.ts", "tests/e2e/owner-session.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D60.1-regression"),
     ],
   },
   {

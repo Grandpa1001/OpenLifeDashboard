@@ -153,6 +153,11 @@
       "@openlife/source": "./src/workers/maintenance-state.ts",
       "types": "./dist/workers/maintenance-state.d.ts",
       "default": "./dist/workers/maintenance-state.js"
+    },
+    "./schema-runtime": {
+      "@openlife/source": "./src/schema-runtime.ts",
+      "types": "./dist/schema-runtime.d.ts",
+      "default": "./dist/schema-runtime.js"
     }
   },
   "scripts": {
