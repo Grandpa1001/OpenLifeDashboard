@@ -6,15 +6,16 @@
 # The same installer as install.sh, for Windows PowerShell 5.1 and PowerShell 7 with Docker Desktop
 # running Linux containers. Stages, each recorded in control/install-state.json when it is done:
 #   preparing -> files -> images -> started -> owner -> complete
-# This release of the script (D59.1) does the stage 'files' and stops with the status 3: the
-# containers (images, started, owner, complete) come with D59.2, so it never claims that the
-# installation is complete. It never overwrites: every file is written only when it does not exist,
+# files: the installation folder. images: the image is present. started: the application runs and is
+# healthy. owner: the application is stopped and the owner account is created in a one-off container
+# under the writer lease (the password only on its stdin). complete: the application runs again. A
+# rerun continues with the first stage that is not done. It never overwrites: every file is written only when it does not exist,
 # through a temporary file and a rename, so an interrupted run leaves a folder that the next run
 # continues. Secrets are generated once, with the first .env. Nothing is written before every check
 # of the preflight has passed. The owner's password is never a parameter, a variable of the
 # environment or a file.
 #
-# Exit status: 0 done, 1 an error, 2 wrong use, 3 the files are ready and the installation is not.
+# Exit status: 0 done, 1 an error, 2 wrong use.
 [CmdletBinding()]
 param(
   [string]$Mode = 'local',
@@ -38,18 +39,24 @@ $MinFreeBytes = 1GB             # for the image, the database and its copies
 $MinPort = 1024
 $MaxPort = 65535
 $DefaultPort = 8080
-$ExitWaiting = 3
 $MaxFolderChars = 200           # the paths below the folder stay under the 260 characters of a Windows path
 $OwnerEmailMaxLength = 254
 $RequiredPlatform = 'Win32NT'   # [Environment]::OSVersion.Platform of a Windows computer
 $DockerUserId = 1000            # Docker Desktop ignores the owner of a bind mount
+$StartTimeoutSeconds = 180
+$PasswordMinCodePoints = 12     # the rules of the owner's credentials as the application states them
+$PasswordMaxCodePoints = 128
+$CredentialAttempts = 5         # asks in a terminal before giving up
+$CreateOwnerCommand = @('node', 'apps/server/dist/cli/create-owner.js')
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $TempFiles = New-Object System.Collections.Generic.List[string]
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+$script:ExitRequested = $false
 
 function Say([string]$Text) { [Console]::Out.WriteLine($Text) }
 function Note([string]$Text) { [Console]::Error.WriteLine($Text) }
-function Fail([string]$Text) { Note "error: $Text"; exit 1 }
+function Exit-With([int]$Code) { $script:ExitRequested = $true; exit $Code }
+function Fail([string]$Text) { Note "error: $Text"; Exit-With 1 }
 function Show-Usage {
   Note @'
 usage: install.ps1 [-Mode local] [-Dir <folder>] [-Port <port>] -Image <image>
@@ -67,7 +74,7 @@ usage: install.ps1 [-Mode local] [-Dir <folder>] [-Port <port>] -Image <image>
   -Yes        do not ask to confirm the folder when a terminal is attached
 '@
 }
-function Usage-Error([string]$Text) { Note "error: $Text"; Show-Usage; exit 2 }
+function Usage-Error([string]$Text) { Note "error: $Text"; Show-Usage; Exit-With 2 }
 
 function Remove-TempFiles {
   foreach ($file in $TempFiles) { Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue }
@@ -337,10 +344,223 @@ function Env-Value([string]$Folder, [string]$Key) {
   return ''
 }
 
+# --------------------------------------------------------------------------- the owner
+
+$Interactive = [Environment]::UserInteractive -and -not [Console]::IsInputRedirected
+
+function Ask([string]$Prompt, [string]$Default) { # the answer, or the default when not interactive or empty
+  if (-not $Interactive) { return $Default }
+  $answer = Read-Host "$Prompt [$Default]"
+  if ([string]::IsNullOrEmpty($answer)) { return $Default }
+  return $answer
+}
+
+# Characters of a password as the application counts them: Unicode code points, not UTF-16 units.
+function Code-Points([string]$Text) {
+  $count = 0
+  foreach ($character in $Text.ToCharArray()) { if (-not [char]::IsLowSurrogate($character)) { $count += 1 } }
+  return $count
+}
+
+# Why the password would be refused by the application, or an empty string.
+function Owner-PasswordProblem([string]$Password) {
+  if ($Password -eq '') { return 'it is empty' }
+  $length = Code-Points $Password
+  if ($length -lt $PasswordMinCodePoints) { return "it has $length characters and needs at least $PasswordMinCodePoints" }
+  if ($length -gt $PasswordMaxCodePoints) { return "it has $length characters and may have at most $PasswordMaxCodePoints" }
+  # A tab is a valid character of a password; every other control character is not.
+  if ($Password.Replace("`t", '') -cmatch '[\x00-\x1f\x7f-\x9f]') { return 'it contains control characters other than a tab' }
+  return ''
+}
+
+function Read-Secret([string]$Prompt) {
+  $secure = Read-Host -AsSecureString $Prompt
+  $pointer = [System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($secure)
+  try { return [System.Runtime.InteropServices.Marshal]::PtrToStringUni($pointer) } finally { [System.Runtime.InteropServices.Marshal]::ZeroFreeGlobalAllocUnicode($pointer) }
+}
+
+# The owner's credentials are collected before anything is written, and only while the owner account
+# is still to be created. The password lives in this variable and on the stdin of the container.
+function Read-OwnerCredentials {
+  $script:OwnerPassword = ''
+  if ($OwnerEmail -eq '') {
+    if (-not $Interactive) { Usage-Error '-OwnerEmail is required when no terminal is attached' }
+    $attempt = 0
+    while ($true) {
+      $script:OwnerEmail = Ask 'E-mail of the owner account' ''
+      $problem = Owner-EmailProblem $script:OwnerEmail
+      if ($script:OwnerEmail -ne '' -and $problem -eq '') { break }
+      $attempt += 1
+      if ($attempt -ge $CredentialAttempts) { Fail 'no valid e-mail was given; nothing was written' }
+      $shown = $problem; if ($shown -eq '') { $shown = 'it is empty' }
+      Say "That e-mail is refused: $shown. Try again."
+    }
+  }
+  if ($OwnerPasswordStdin) {
+    $line = [Console]::In.ReadLine()
+    if ($null -eq $line) { $line = '' }
+    $script:OwnerPassword = $line.TrimEnd("`r")
+    $problem = Owner-PasswordProblem $script:OwnerPassword
+    if ($problem -ne '') { Fail "the owner's password is refused: $problem; nothing was written" }
+  } elseif ($Interactive) {
+    $attempt = 0
+    while ($true) {
+      $first = Read-Secret 'Password of the owner account (12 to 128 characters)'
+      $problem = Owner-PasswordProblem $first
+      if ($problem -eq '') {
+        $again = Read-Secret 'Repeat the password'
+        if ($first -ceq $again) { $script:OwnerPassword = $first; break }
+        $problem = 'the two entries differ'
+      }
+      $attempt += 1
+      if ($attempt -ge $CredentialAttempts) { Fail 'no valid password was given; nothing was written' }
+      Say "That password is refused: $problem. Try again."
+    }
+  } else {
+    Usage-Error "the owner's password is needed: use -OwnerPasswordStdin, or run the installer in a terminal"
+  }
+}
+
+# The one JSON object that create-owner reads from stdin, written as UTF-8 bytes without a BOM.
+function Owner-Json {
+  return $Utf8NoBom.GetBytes("{`"email`":$(Json-String $OwnerEmail),`"password`":$(Json-String-Escaped $OwnerPassword)}`n")
+}
+
+# The JSON text of a string with every character that JSON needs escaped (a tab is allowed in a password).
+function Json-String-Escaped([string]$Text) {
+  $builder = New-Object System.Text.StringBuilder
+  [void]$builder.Append('"')
+  foreach ($character in $Text.ToCharArray()) {
+    switch ($character) {
+      '"' { [void]$builder.Append('\"') }
+      '\' { [void]$builder.Append('\\') }
+      "`t" { [void]$builder.Append('\t') }
+      default { [void]$builder.Append($character) }
+    }
+  }
+  [void]$builder.Append('"')
+  return $builder.ToString()
+}
+
+# ------------------------------------------------------------------------------- the stages
+
+function Compose([string]$Folder, [string[]]$Arguments) { # docker compose in the installation folder: .env there selects the project and files
+  Push-Location -LiteralPath $Folder
+  try {
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { & docker compose @Arguments; return $LASTEXITCODE } finally { $ErrorActionPreference = $previous }
+  } finally { Pop-Location }
+}
+
+function Stage-Images([string]$ImageReference) {
+  Say "Image: checking $ImageReference"
+  $inspect = Invoke-Docker @('image', 'inspect', $ImageReference)
+  if ($inspect.Status -eq 0) { Say 'Image: present on this computer'; return }
+  Say "Image: pulling $ImageReference"
+  $previous = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try { & docker pull $ImageReference; $status = $LASTEXITCODE } finally { $ErrorActionPreference = $previous }
+  if ($status -ne 0) {
+    Fail "the image $ImageReference is not on this computer and could not be pulled (no internet, or no such image); the installation continues from here when you run the installer again"
+  }
+}
+
+function Start-AndWait([string]$Folder) {
+  $status = Compose $Folder @('up', '--detach', '--wait', '--wait-timeout', "$StartTimeoutSeconds")
+  if ($status -ne 0) {
+    Fail "the application did not become healthy within $StartTimeoutSeconds seconds. Look at its log: cd `"$Folder`"; docker compose logs app. Run the installer again to continue"
+  }
+}
+
+function Stage-Start([string]$Folder) {
+  Say "Start: the application is starting (up to $StartTimeoutSeconds seconds)"
+  Start-AndWait $Folder
+}
+
+# A native process with the bytes of Payload on its stdin (no encoding of ours in between, so a password
+# with Polish letters or quotes arrives as it is) and what it wrote on stdout and stderr.
+function Invoke-WithStdin([string]$Folder, [string[]]$Arguments, [byte[]]$Payload) {
+  $docker = (Get-Command docker -ErrorAction Stop).Source
+  $info = New-Object System.Diagnostics.ProcessStartInfo
+  $info.FileName = $docker
+  $info.Arguments = ($Arguments | ForEach-Object { if ($_ -match '[\s"]') { '"' + $_.Replace('"', '\"') + '"' } else { $_ } }) -join ' '
+  $info.WorkingDirectory = $Folder
+  $info.UseShellExecute = $false
+  $info.RedirectStandardInput = $true
+  $info.RedirectStandardOutput = $true
+  $info.RedirectStandardError = $true
+  $process = [System.Diagnostics.Process]::Start($info)
+  $outTask = $process.StandardOutput.ReadToEndAsync()
+  $errTask = $process.StandardError.ReadToEndAsync()
+  try { $process.StandardInput.BaseStream.Write($Payload, 0, $Payload.Length); $process.StandardInput.BaseStream.Flush() } catch { }
+  $process.StandardInput.Close()
+  $process.WaitForExit()
+  return [pscustomobject]@{ Status = $process.ExitCode; Output = ($outTask.Result + $errTask.Result).Trim() }
+}
+
+function Stage-Owner([string]$Folder) {
+  Say 'Owner: stopping the application to create the owner account without a second writer'
+  if ((Compose $Folder @('stop', 'app')) -ne 0) { Fail 'cannot stop the application; the owner account was not created' }
+  Say 'Owner: creating the owner account in a one-off container'
+  # -T: no terminal, so stdin is the pipe. --no-deps and no published ports: nothing is exposed.
+  $arguments = @('compose', 'run', '--rm', '--no-deps', '-T', '--entrypoint', $CreateOwnerCommand[0], 'app') + $CreateOwnerCommand[1..($CreateOwnerCommand.Count - 1)]
+  $result = Invoke-WithStdin $Folder $arguments (Owner-Json)
+  if ($result.Status -eq 0) { Say 'Owner: the account was created'; return }
+  $code = [regex]::Match($result.Output, '"code":"([A-Z_]*)"').Groups[1].Value
+  switch ($code) {
+    'OWNER_ALREADY_EXISTS' { Say 'Owner: an account already exists; it is kept as it is'; return }
+    'INPUT_INVALID' {
+      $fields = [regex]::Match($result.Output, '"fields":\[([^\]]*)\]').Groups[1].Value
+      Fail "the owner account was not created: the e-mail or the password was refused ($fields). The application is stopped; run the installer again to enter them"
+    }
+    default {
+      $shown = $code; if ($shown -eq '') { $shown = 'no code' }
+      Fail "the owner account was not created ($shown). The application is stopped; run the installer again to retry. Details: $($result.Output)"
+    }
+  }
+}
+
+function Stage-Finish([string]$Folder) {
+  Say 'Start: starting the application again'
+  Start-AndWait $Folder
+}
+
+# An installation keeps the image it was made with. Another -Image next to an installation that is
+# already begun changes nothing: the image Compose starts is the one in control\compose.release.yml,
+# so that is the one the stages check, and a newer release is installed from the Updates page.
+function Adopt-InstalledImage([string]$Folder, [string]$Requested) {
+  $file = Join-Path (Join-Path $Folder 'control') 'compose.release.yml'
+  if (-not (Test-Path -LiteralPath $file)) { return $Requested }
+  $match = [regex]::Match([System.IO.File]::ReadAllText($file), '(?m)^    image: "(.*)"\r?$')
+  if (-not $match.Success) { Fail "$file names no image; the installation is damaged" }
+  $installed = $match.Groups[1].Value
+  if ($installed -ne $Requested) {
+    Say "This installation was made with $installed. The image $Requested is not installed here:"
+    Say '  a newer release is installed from the Updates page of the application, once it is installed.'
+  }
+  return $installed
+}
+
+function Write-Summary([string]$Folder, [string]$PortText) {
+  Say ''
+  Say 'OpenLifeDashboard is installed.'
+  Say "  Open:       http://localhost:$PortText (only from this computer)"
+  Say '  Sign in:    with the e-mail of the owner account; the first sign-in sets up the second factor (TOTP) and shows your recovery codes'
+  Say "  Data:       $(Join-Path $Folder 'data')"
+  Say "  Logs:       $(Join-Path (Join-Path $Folder 'data') 'logs')"
+  Say "  Backups:    $(Join-Path (Join-Path $Folder 'data') 'backup')"
+  Say "  Secrets:    $(Join-Path $Folder '.env') - copy it to a safe place; without it the data cannot be opened"
+  Say "  Stop:       cd `"$Folder`"; docker compose stop"
+  Say "  Start:      cd `"$Folder`"; docker compose up --detach"
+  Say 'A computer that sleeps or is off does not run the application, and a phone cannot reach localhost of this computer.'
+  Say 'Uninstalling means stopping it; the data stays until you delete the folder yourself.'
+}
+
 # -------------------------------------------------------------------------------------- run
 
 function Main {
-  if ($Help) { Show-Usage; exit 0 }
+  if ($Help) { Show-Usage; Exit-With 0 }
   if ($Mode -ne 'local') {
     if ($Mode -eq 'server') { Usage-Error 'the server mode runs on Linux (Debian or Ubuntu LTS); on Windows only -Mode local is available' }
     Usage-Error "the mode '$Mode' is unknown; use local"
@@ -367,7 +587,9 @@ function Main {
   $rank = 0
   if ($currentStage -ne '') { $rank = Stage-Rank $currentStage }
 
-  # The port of an interrupted installation is the one already in its .env; a new one is the default.
+  $imageReference = Adopt-InstalledImage $folder $Image
+
+  # The port of an interrupted installation is the one already in its .env; a new one is asked for.
   $portText = $Port
   if ($resuming -and (Test-Path -LiteralPath (Join-Path $folder '.env'))) {
     $recorded = Env-Value $folder 'PORT'
@@ -376,30 +598,46 @@ function Main {
     }
     if ($portText -eq '') { $portText = $recorded }
   }
-  if ($portText -eq '') { $portText = "$DefaultPort" }
+  if ($portText -eq '') { $portText = Ask 'Port on this computer (127.0.0.1)' "$DefaultPort" }
   # Once the application has started, the port is held by this very installation.
   if ($rank -lt 3) { Test-Port $portText }
+  if ($rank -lt 4) { Read-OwnerCredentials }
 
   Say "Installation folder: $folder"
   Say "Address:             http://localhost:$portText (reachable only from this computer)"
-  if ($resuming) { Say "Found an installation at the stage '$currentStage'; it is continued, nothing is overwritten." }
+  if ($resuming) {
+    Say "Found an installation at the stage '$currentStage'; it is continued, nothing is overwritten."
+  } elseif ($Interactive -and -not $Yes) {
+    $confirmation = Ask 'Create it here? (yes/no)' 'yes'
+    if ($confirmation -notin @('y', 'Y', 'yes', 'YES', 'Yes')) { Say 'Nothing was written.'; Exit-With 1 }
+  }
 
   if ($rank -gt 0) { Require-IdentityFiles $folder }
   Prepare-Folders $folder $stateFile
   Prepare-InstanceFile $folder
   Prepare-EnvFile $folder $portText
-  Prepare-ComposeFiles $folder $Image
+  Prepare-ComposeFiles $folder $imageReference
   if ($rank -le 0) { Write-State $stateFile 'files' }
 
-  Say ''
-  Say "The files of the installation are ready in $folder, but it is NOT installed: no container was started."
-  Say '  The stages that start the application and create the owner account come with the next release of this installer.'
-  Say "  Secrets:    $(Join-Path $folder '.env') - copy it to a safe place; without it the data cannot be opened"
-  exit $ExitWaiting
+  if ($rank -le 1) { Stage-Images $imageReference; Write-State $stateFile 'images' }
+  if ($rank -le 2) { Stage-Start $folder; Write-State $stateFile 'started' }
+  if ($rank -le 3) { Stage-Owner $folder; Write-State $stateFile 'owner' }
+  if ($rank -le 4) { Stage-Finish $folder; Write-State $stateFile 'complete' }
+  if ($rank -ge 5) {
+    Say 'The installation is complete; nothing was changed. Status of its containers:'
+    [void](Compose $folder @('ps'))
+  }
+  Write-Summary $folder $portText
 }
 
 try {
   Main
+  $script:ExitRequested = $true
 } finally {
   Remove-TempFiles
+  # Ctrl+C stops the script without a word and with the status 0 of the shell: it is told and given the status of an interruption.
+  if (-not $script:ExitRequested) {
+    Note 'interrupted: run the installer again to continue'
+    [Environment]::Exit(130)
+  }
 }

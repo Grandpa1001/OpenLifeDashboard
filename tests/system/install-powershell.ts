@@ -1,4 +1,4 @@
-// D59.1 — install/install.ps1 up to the stage 'files', run by PowerShell 7 in a Linux container with a fake Docker, as a copy
+// D59.1 — install/install.ps1 up to the stage 'files' (the stages after it are D59.2), run by PowerShell 7 in a Linux container with a fake Docker, as a copy
 // that believes it is on Windows (tests/support/powershell-rig.ts). The files of a clean folder, a rerun that changes nothing,
 // and every refusal before anything is written. ACL, Windows PowerShell 5.1 and a real Windows are D59.3 and D59.4.
 import { createHash } from "node:crypto";
@@ -22,16 +22,20 @@ if (probe.status !== 0) {
 
 const rig = powershellRig();
 const sha = (text: string): string => createHash("sha256").update(text).digest("hex");
-const base = ["-Image", IMAGE, "-Yes"] as const;
+const PASSWORD = "Zażółć gęślą jaźń 2026";
+const base = ["-Image", IMAGE, "-Yes", "-OwnerEmail", "wlasciciel@example.com", "-OwnerPasswordStdin"] as const;
+/** The stages after 'files' are D59.2: here the image cannot be pulled, so the run ends right after the files. */
+const STOP_AT_FILES = { FAKE_IMAGE_MISSING: "1", FAKE_PULL_FAILS: "1" } as const;
+const given = { stdin: `${PASSWORD}\n`, env: STOP_AT_FILES } as const;
 const FILES = [".env", "control/instance.json", "control/compose.release.yml", "compose.yml", "compose.local.yml", "control/install-state.json"] as const;
 const snapshot = (dir: string): string => FILES.map((file) => sha(rig.read(`${dir}/${file}`))).join(",");
 
 try {
   // ---- AC1: a clean folder with spaces and Polish letters becomes the files of an installation, and a rerun changes nothing.
   const dir = "Moja instalacja ąęść";
-  const first = rig.run(["-Dir", `/work/${dir}`, "-Port", "18080", ...base]);
-  check.expect(first.status === 3, "a clean folder ends with the status 3 (files ready, not installed)", `${first.status}\n${first.output}`);
-  check.expect(first.output.includes("NOT installed") && !/is installed\./.test(first.output), "it says that nothing is installed", first.output);
+  const first = rig.run(["-Dir", `/work/${dir}`, "-Port", "18080", ...base], given);
+  check.expect(first.status === 1 && /could not be pulled/.test(first.output), "a clean folder is written and stops at the image that cannot be pulled", `${first.status}\n${first.output}`);
+  check.expect(!/OpenLifeDashboard is installed/.test(first.output), "it does not say that it is installed", first.output);
   const env = rig.read(`${dir}/.env`);
   const key = (name: string): string => new RegExp(`^${name}=([0-9a-f]{64})$`, "m").exec(env)?.[1] ?? "";
   check.expect(key("BETTER_AUTH_SECRET") !== "" && key("APP_ENCRYPTION_KEY") !== "" && key("BETTER_AUTH_SECRET") !== key("APP_ENCRYPTION_KEY"), ".env has two different keys of 64 hex digits");
@@ -48,15 +52,15 @@ try {
   check.expect((JSON.parse(rig.read(`${dir}/control/install-state.json`)) as { stage: string }).stage === "files", "the state is 'files'");
   check.expect(["data/backup", "data/logs/app", "data/tmp", "control/maintenance"].every((sub) => existsSync(path.join(rig.work, dir, sub))), "the folders of the installation exist");
   const calls = rig.dockerCalls();
-  check.expect(calls.length === 2 && calls[0]?.startsWith("version") === true && calls[1] === "compose version --short", "Docker was only asked for its versions", calls.join(" | "));
+  check.expect(calls.length === 4 && calls[0]?.startsWith("version") === true && calls[1] === "compose version --short" && calls[2] === `image inspect ${IMAGE}` && calls[3] === `pull ${IMAGE}`, "Docker was asked for its versions and for the image, and nothing started", calls.join(" | "));
 
   const before = snapshot(dir);
-  const second = rig.run(["-Dir", `/work/${dir}`, ...base]);
-  check.expect(second.status === 3 && second.output.includes("Found an installation at the stage 'files'"), "a rerun continues the folder and ends with 3 again", second.output);
+  const second = rig.run(["-Dir", `/work/${dir}`, ...base], given);
+  check.expect(second.status === 1 && second.output.includes("Found an installation at the stage 'files'"), "a rerun continues the folder at the stage 'files'", second.output);
   check.expect(snapshot(dir) === before, "a rerun changes no file: same keys, identity, Compose files and state");
   const portless = rig.read(`${dir}/.env`).includes("PORT=18080");
   check.expect(portless, "a rerun without -Port keeps the port of the folder");
-  const otherPort = rig.run(["-Dir", `/work/${dir}`, "-Port", "18081", ...base]);
+  const otherPort = rig.run(["-Dir", `/work/${dir}`, "-Port", "18081", ...base], given);
   check.expect(otherPort.status === 1 && /already uses port 18080/.test(otherPort.output) && snapshot(dir) === before, "another -Port for an existing folder is refused", otherPort.output);
 
   // ---- AC2: every refusal ends with a message before anything is written.
@@ -67,8 +71,8 @@ try {
     { name: "the server mode", args: [...target("r2"), "-Mode", "server", ...base], status: 2, message: /server mode runs on Linux/ },
     { name: "no image", args: [...target("r3"), "-Yes"], status: 2, message: /-Image is required/ },
     { name: "an image with a space", args: [...target("r4"), "-Image", "openlife app", "-Yes"], status: 1, message: /characters that are not allowed/ },
-    { name: "an e-mail with an accented letter", args: [...target("r5"), "-OwnerEmail", "właściciel@example.com", ...base], status: 1, message: /no accented letters/ },
-    { name: "an e-mail without a domain", args: [...target("r6"), "-OwnerEmail", "wlasciciel", ...base], status: 1, message: /does not look like an address/ },
+    { name: "an e-mail with an accented letter", args: [...target("r5"), "-OwnerEmail", "właściciel@example.com", "-Image", IMAGE, "-Yes", "-OwnerPasswordStdin"], status: 1, message: /no accented letters/ },
+    { name: "an e-mail without a domain", args: [...target("r6"), "-OwnerEmail", "wlasciciel", "-Image", IMAGE, "-Yes", "-OwnerPasswordStdin"], status: 1, message: /does not look like an address/ },
     { name: "port 80", args: [...target("r7"), "-Port", "80", ...base], status: 1, message: /port must be between 1024 and 65535/ },
     { name: "a port that is not a number", args: [...target("r8"), "-Port", "80a", ...base], status: 1, message: /port must be a number/ },
     { name: "a port that is taken", args: [...target("r9"), "-Port", "18090", ...base], status: 1, message: /port 18090 is already in use/, before: "pwsh -NoProfile -Command '$l=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,18090);$l.Start();Start-Sleep 25' &\nsleep 6" },
@@ -83,7 +87,7 @@ try {
     { name: "a computer that is not Windows", args: [...target("r14"), ...base], status: 1, message: /this installer is for Windows/, original: true },
   ];
   for (const refusal of refusals) {
-    const options = { ...(refusal.docker === undefined ? {} : { docker: refusal.docker }), ...(refusal.original === undefined ? {} : { original: refusal.original }), ...(refusal.before === undefined ? {} : { before: refusal.before }) };
+    const options = { ...given, ...(refusal.docker === undefined ? {} : { docker: refusal.docker }), ...(refusal.original === undefined ? {} : { original: refusal.original }), ...(refusal.before === undefined ? {} : { before: refusal.before }) };
     const result = rig.run(refusal.args, options);
     const folder = refusal.args[1] ?? "";
     const wrote = refusal.name.startsWith("a folder that is not ours") || refusal.name === "a file instead of a folder" ? false : existsSync(path.join(rig.work, folder.replace("/work/", ""), "control"));
@@ -92,8 +96,8 @@ try {
 
   // ---- A folder whose keys are gone is refused, not made again.
   const damaged = "uszkodzona";
-  rig.run(["-Dir", `/work/${damaged}`, ...base]);
-  const removed = rig.run(["-Dir", `/work/${damaged}`, ...base], { before: `rm -f /work/${damaged}/.env` });
+  rig.run(["-Dir", `/work/${damaged}`, ...base], given);
+  const removed = rig.run(["-Dir", `/work/${damaged}`, ...base], { ...given, before: `rm -f /work/${damaged}/.env` });
   check.expect(removed.status === 1 && /installation is damaged: .*\.env is missing/.test(removed.output) && !existsSync(path.join(rig.work, damaged, ".env")), "a folder whose .env is gone is refused and the keys are not made again", removed.output);
 } finally {
   rig.cleanup();

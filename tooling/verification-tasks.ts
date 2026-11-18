@@ -7158,6 +7158,33 @@ const definedLater: readonly TaskDefinition[] = [
     ],
   },
   {
+    // DEV §9.58: the stages of the Windows installer after the files.
+    id: "D59.2",
+    ready: true,
+    title: "install.ps1 stages: the image, the start, the owner account through stdin and the end, and a run that is continued after an error or Ctrl+C at every stage",
+    criteria: ["D59.2-AC1", "D59.2-AC2", "D59.2-regression"],
+    checks: [
+      {
+        id: "installer-windows-stages",
+        criteria: ["D59.2-AC1", "D59.2-AC2"],
+        description:
+          "PowerShell 7 in a Linux container with a fake Docker, running a copy of install.ps1 that believes it is on Windows: a clean folder is installed in the order image, start, stop, owner, start and ends complete; the owner container is one-off, without dependencies and without a terminal and gets one JSON object on stdin whose password (quotes, backslash, dollar, percent, caret, ampersand, a tab and Polish letters) is intact, without a BOM, and the password is in no output, Docker call, container environment or file; a second run of a complete installation changes no key and starts, stops and creates nothing; a password under 12 characters, an empty one, one with a control character, a missing e-mail and a missing password source are refused before anything is written and are not echoed; an owner that exists ends the stage; an image that cannot be pulled, an application that is not healthy, an owner that is refused or fails and an application that does not start again stop with a message at the stage files, images, started and owner, and the rerun finishes with the same keys, identity and image and one account; Ctrl+C while the image is downloaded, while the application starts, while the owner is created and while it starts again ends with 130 and the rerun finishes the same way; another image next to a begun installation is not installed",
+        command: ["node", "tests/system/install-powershell-stages.ts"],
+        requires: ["tests/system/install-powershell-stages.ts", "tests/support/powershell-rig.ts", "install/install.ps1"],
+        timeoutMs: 40 * 60 * 1000,
+      },
+      {
+        id: "installer-windows-files",
+        criteria: ["D59.2-regression"],
+        description: "The files, the checks and the refusals of D59.1 still hold with the stages in the script",
+        command: ["node", "tests/system/install-powershell.ts"],
+        requires: ["tests/system/install-powershell.ts", "tests/support/powershell-rig.ts", "install/install.ps1", "docker/compose.yml", "docker/compose.local.yml"],
+        timeoutMs: 30 * 60 * 1000,
+      },
+      ...regressionChecks("D59.2-regression"),
+    ],
+  },
+  {
     // KM6 gate (DEV §8.4, §9.56): the update A to B and the broken B back to A from the browser on a real daemon (the system test of the parent D57),
     // then the reports of the update joined item by item for this exact code; does not run their tests again.
     id: "G6",
