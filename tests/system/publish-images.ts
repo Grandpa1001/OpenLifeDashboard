@@ -4,6 +4,7 @@
 // the digests are the registry's, the index lists the architecture, the app run from its digest answers and reports the revision and the
 // version it was given, the updater image holds the updater; and what the script refuses before it builds anything. The real two-architecture
 // run on two runners and GHCR is the workflow (tests of its file are D61.1-AC2 and D61.4).
+import { spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -13,12 +14,12 @@ import { createCheck } from "../support/check-report.ts";
 import { freeLoopbackPort } from "../support/compose-instance.ts";
 import { containerInstanceArgs, docker, hostTestInstance, requireNativeDocker } from "../support/docker.ts";
 import { repoRoot } from "../support/repository-copy.ts";
-import { runBuiltScript } from "../support/server-process.ts";
 
 const REGISTRY_IMAGE = "registry:2";
 const REVISION = "0123456789abcdef0123456789abcdef01234567";
 const VERSION = (JSON.parse(readFileSync(path.join(repoRoot, "apps/server/package.json"), "utf8")) as { version: string }).version;
 const PUBLISH = path.join(repoRoot, "scripts/publish-images.ts");
+const BUILD_TIMEOUT_MS = 30 * 60 * 1000;
 
 const { arch, platform } = requireNativeDocker(repoRoot);
 const check = createCheck(`publication of the images on ${platform}`);
@@ -26,7 +27,17 @@ const scratch = mkdtempSync(path.join(os.tmpdir(), "openlife-publish-test-"));
 const registryName = `openlife-publish-registry-${process.pid}`;
 const evidence: Record<string, unknown> = { arch, platform };
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-const script = (args: readonly string[]) => runBuiltScript(PUBLISH, args, { PATH: process.env["PATH"] ?? "", HOME: process.env["HOME"] ?? "" });
+/** The script to its end: a build of two images takes minutes on a runner, which the 25 s of the helper for the commands of the server would cut. */
+const script = (args: readonly string[]): Promise<{ code: number | null; output: string }> =>
+  new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [PUBLISH, ...args], { cwd: repoRoot, env: { PATH: process.env["PATH"] ?? "", HOME: process.env["HOME"] ?? "" }, stdio: ["ignore", "pipe", "pipe"] });
+    let output = "";
+    child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString("utf8")));
+    child.stderr.on("data", (chunk: Buffer) => (output += chunk.toString("utf8")));
+    const timer = setTimeout(() => (child.kill("SIGKILL"), reject(new Error(`the script ran longer than ${BUILD_TIMEOUT_MS} ms:\n${output}`))), BUILD_TIMEOUT_MS);
+    child.once("error", reject);
+    child.once("exit", (code) => (clearTimeout(timer), resolve({ code, output })));
+  });
 
 let appContainer: string | undefined;
 try {
