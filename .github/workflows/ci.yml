@@ -83,6 +83,27 @@ jobs:
           echo "full=$full" >> "$GITHUB_OUTPUT"
           echo "Full tier: $full ($reason)"
 
+  commit-messages:
+    # The first line of every commit of a push or a pull request is a Conventional Commit (D61.3), because Release Please makes the version from them.
+    # A job of its own, so that a wrong title does not stop the tiers; it needs the whole history to know which commits came before the rule.
+    name: commit messages
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Check the first lines of the commits
+        env:
+          FROM: ${{ github.event.pull_request.base.sha || github.event.before }}
+          TO: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/check-commit-messages.ts --from "$FROM" --to "$TO"
+
   fast-core:
     name: fast tier (code, SQLite, HTTP)
     runs-on: ubuntu-24.04
@@ -1734,6 +1755,9 @@ jobs:
       - name: Verify D61.2 (the files of a release)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D61.2
+      - name: Verify D61.3 (Release Please, the versions and the check of the commits)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D61.3
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

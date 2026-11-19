@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 4, D61: 2,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 4, D61: 3,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -7469,6 +7469,32 @@ const definedLater: readonly TaskDefinition[] = [
         requires: ["tests/integration/release/release-assets.test.ts", "scripts/support/release-assets.ts"],
       },
       ...regressionChecks("D61.2-regression"),
+    ],
+  },
+  {
+    // DEV §9.60: the versions of a release and the format of the commits that make them.
+    id: "D61.3",
+    ready: true,
+    title: "Release Please and the versions: one version for the product in four package files and the manifest of Release Please, and the check that every commit is a Conventional Commit",
+    criteria: ["D61.3-AC1", "D61.3-AC2", "D61.3-regression"],
+    checks: [
+      {
+        id: "release-config",
+        criteria: ["D61.3-AC1"],
+        description:
+          "Release Please is set up in the mode of a manifest with the type node, the tag vX.Y.Z, a draft release and one package; the four package files that carry the version and the manifest agree, and every one but the root is in extra-files with $.version; a version that differs in the server, the updater or the web app or is missing, a root that is not x.y.z, a manifest of another version or with another package, a file left out of extra-files or listed without carrying the version, a release that is not a draft, a tag with the component, another release type, a second package and no configuration are each found",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/release/release-config.test.ts"],
+        requires: ["tests/unit/release/release-config.test.ts", "scripts/support/release-config.ts", "release-please-config.json", ".release-please-manifest.json"],
+      },
+      {
+        id: "commit-messages",
+        criteria: ["D61.3-AC2"],
+        description:
+          "feat, fix and the other types with or without a scope or a ! pass, and so do the commits of a merge and of git revert; a title without a type, in prose, with a type that is not known or in capitals, a colon without a space, no description, a scope in capitals or empty, a line over 100 characters and an empty line are refused with the reason; on a real temporary repository a range lists only the wrong commits after the one that introduced the rule, takes only the last commit when there is no base or the base is not in the clone, and looks at all of them when that commit is not in the clone",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/release/commit-messages.test.ts"],
+        requires: ["tests/unit/release/commit-messages.test.ts", "scripts/support/commit-messages.ts", "scripts/check-commit-messages.ts"],
+      },
+      ...regressionChecks("D61.3-regression"),
     ],
   },
   {

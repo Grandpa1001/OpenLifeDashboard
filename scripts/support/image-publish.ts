@@ -24,7 +24,7 @@ export const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;
 /** A registry with the owner or the folder the images live under, lower case as GHCR needs: `ghcr.io/owner`, `localhost:5000/openlife`. */
 export const REGISTRY_PATTERN = /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:[0-9]{1,5})?(\/[a-z0-9]([a-z0-9._-]*[a-z0-9])?)+$/;
 /** The packages that carry the version of the product: the image of the app reports the first, and all must agree. */
-const VERSIONED_PACKAGES = ["package.json", "apps/server/package.json", "apps/updater/package.json", "apps/web/package.json"] as const;
+export const VERSIONED_PACKAGES = ["package.json", "apps/server/package.json", "apps/updater/package.json", "apps/web/package.json"] as const;
 
 export type PlatformDigests = Readonly<Record<ImageKey, string>>;
 export type PlatformResult = Readonly<{ platform: Platform; digests: PlatformDigests }>;
