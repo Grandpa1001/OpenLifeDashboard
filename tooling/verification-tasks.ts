@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 4, D61: 4,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 4, D61: 4, D62: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -7529,6 +7529,38 @@ const definedLater: readonly TaskDefinition[] = [
         requires: ["tests/integration/release/release-assets.test.ts", "scripts/support/release-assets.ts"],
       },
       ...regressionChecks("D61.4-regression"),
+    ],
+  },
+  {
+    // DEV §9.61: the README for users and the Polish guide.
+    id: "D62.1",
+    ready: true,
+    title: "The README for users: the sections of DEV 9.61 in order, the installation in readable parts, the first sign-in, the Polish guide and a test that keeps the document true to the installers and the commands",
+    criteria: ["D62.1-AC1", "D62.1-AC2", "D62.1-regression"],
+    checks: [
+      {
+        id: "readme-structure",
+        criteria: ["D62.1-AC1", "D62.1-AC2"],
+        description:
+          "The README has the sections of the plan in their order, every relative link and anchor leads somewhere, every option of install.sh and parameter of install.ps1 in its code blocks exists in the installer, every command it names exists, the part for users gives no command of a source checkout, and the Polish guide covers the installation, the first sign-in, the recovery codes, the copy and the keys, what to do when something does not work and where the log is without a command of the source; a missing or reordered section, a link to a missing file or heading, an option, a parameter or a command that does not exist, a command of a source checkout for users and each topic dropped from the Polish guide are found",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/docs/readme-structure.test.ts"],
+        requires: ["tests/unit/docs/readme-structure.test.ts", "tests/support/readme-check.ts", "README.md", "install/install.sh", "install/install.ps1"],
+      },
+      {
+        id: "readme-install",
+        criteria: ["D62.1-AC1"],
+        description: "The quick start still names the installer, the image build and every option of install.sh, and states the requirements and the limits (D19.3)",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/foundation/readme-install.test.ts"],
+        requires: ["tests/unit/foundation/readme-install.test.ts", "README.md"],
+      },
+      {
+        id: "readme-instructions",
+        criteria: ["D62.1-regression"],
+        description: "The instructions of the restore, of a failed copy and of a failed update, and the table of the verified runtime, are still in the README and still agree with the code",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/docs/backup-failure-instructions.test.ts", "tests/unit/docs/restore-instructions.test.ts", "tests/unit/docs/update-instructions.test.ts"],
+        requires: ["tests/unit/docs/backup-failure-instructions.test.ts", "tests/unit/docs/restore-instructions.test.ts", "tests/unit/docs/update-instructions.test.ts", "README.md"],
+      },
+      ...regressionChecks("D62.1-regression"),
     ],
   },
   // The parent passes only through its work orders: the images, the files, the versions and the pipeline with its candidate.

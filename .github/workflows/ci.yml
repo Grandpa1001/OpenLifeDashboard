@@ -471,6 +471,9 @@ jobs:
       - name: Verify D53.3 (the check of the releases in the process)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D53.3
+      - name: Verify D62.1 (the README for users, the Polish guide and the test of the documentation)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D62.1
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -19,7 +19,7 @@ describe("D19.3 the README quick start", () => {
 
   it("names every option of the installer", () => {
     expect(options).toEqual(expect.arrayContaining(["--mode", "--dir", "--port", "--image", "--owner-email", "--owner-password-stdin", "--yes"]));
-    const installSection = readme.slice(readme.indexOf("## Install"), readme.indexOf("## Development"));
+    const installSection = readme.slice(readme.indexOf("## Quick start"), readme.indexOf("## The installation folder"));
     for (const option of options.filter((name) => name !== "--mode" && name !== "--yes")) {
       expect(installSection, option).toContain(option);
     }
