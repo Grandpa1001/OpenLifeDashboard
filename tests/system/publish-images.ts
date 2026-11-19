@@ -13,6 +13,7 @@ import { EVIDENCE_DIR_ENV } from "../../tooling/verification-tasks.ts";
 import { createCheck } from "../support/check-report.ts";
 import { freeLoopbackPort } from "../support/compose-instance.ts";
 import { containerInstanceArgs, docker, hostTestInstance, requireNativeDocker } from "../support/docker.ts";
+import { PRODUCT_VERSION_PATTERN } from "../support/product-version.ts";
 import { repoRoot } from "../support/repository-copy.ts";
 
 const REGISTRY_IMAGE = "registry:2";
@@ -57,7 +58,7 @@ try {
   // ---- What is refused before anything is built.
   const refusals: ReadonlyArray<readonly [string, readonly string[], RegExp]> = [
     ["a version that is not x.y.z", ["build", "--registry", registry, "--version", "1.0", "--revision", REVISION, "--platform", platform, "--out", builtFile], /version must be x\.y\.z/],
-    ["a version that is not the one of the packages", ["build", "--registry", registry, "--version", "9.9.9", "--revision", REVISION, "--platform", platform, "--out", builtFile], /package\.json has the version 0\.0\.0, not 9\.9\.9/],
+    ["a version that is not the one of the packages", ["build", "--registry", registry, "--version", "9.9.9", "--revision", REVISION, "--platform", platform, "--out", builtFile], new RegExp(`package\\.json has the version ${PRODUCT_VERSION_PATTERN}, not 9\\.9\\.9`)],
     ["a revision that is not a commit", ["build", "--registry", registry, "--version", VERSION, "--revision", "main", "--platform", platform, "--out", builtFile], /revision must be 7 to 40 hex/],
     ["a registry with upper case letters", ["build", "--registry", "ghcr.io/Owner", "--version", VERSION, "--revision", REVISION, "--platform", platform, "--out", builtFile], /registry must be lower case/],
     ["a registry without an owner", ["build", "--registry", "ghcr.io", "--version", VERSION, "--revision", REVISION, "--platform", platform, "--out", builtFile], /registry must be lower case/],

@@ -12,6 +12,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Page } from "@playwright/test";
 import type { BrowserOwner } from "../support/auth-http.ts";
+import { PRODUCT_VERSION_PATTERN } from "../support/product-version.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
 import { expectNoViolations, signInFully } from "./owner-session.ts";
 
@@ -56,7 +57,7 @@ async function toUpdates(page: Page, owner: BrowserOwner): Promise<void> {
   await expect(page.getByRole("navigation", { name: text(settings, "navigation") }).getByRole("link", { name: text(settings, "tabs.updates") })).toHaveAttribute("aria-current", "page");
 }
 
-const mark = (page: Page) => page.getByRole("navigation", { name: text(common, "version.navigation") }).getByRole("link", { name: /^v0\.0\.0/ });
+const mark = (page: Page) => page.getByRole("navigation", { name: text(common, "version.navigation") }).getByRole("link", { name: new RegExp(`^v${PRODUCT_VERSION_PATTERN}`) });
 const checkNow = (page: Page) => page.getByRole("button", { name: text(settings, "updates.check.now") });
 
 test.describe("D53.4-AC1 the version, the release and the mark", () => {

@@ -89,8 +89,8 @@ describe("D61.2-AC1 the files of a release", () => {
     writeFileSync(imagesFile, JSON.stringify(images));
     const out = path.join(root, "cli-release");
     const env = { PATH: process.env["PATH"] ?? "" };
-    const made = await runBuiltScript(path.join(repoRoot, "scripts/assemble-release.ts"), ["--version", VERSION, "--images", imagesFile, "--min-from", "0.0.0", "--out", out], env);
-    // 0.0.0 is not older than 0.0.0: the manifest refuses it, and nothing is made.
+    const made = await runBuiltScript(path.join(repoRoot, "scripts/assemble-release.ts"), ["--version", VERSION, "--images", imagesFile, "--min-from", VERSION, "--out", out], env);
+    // The version is not older than itself: the manifest refuses it, and nothing is made.
     expect(made.code).toBe(1);
     expect(made.output).toMatch(/minFrom/);
     const ok = await runBuiltScript(path.join(repoRoot, "scripts/assemble-release.ts"), ["--version", VERSION, "--images", imagesFile, "--out", out], env);

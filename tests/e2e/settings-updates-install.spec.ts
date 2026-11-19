@@ -11,6 +11,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Page } from "@playwright/test";
 import type { BrowserOwner } from "../support/auth-http.ts";
+import { PRODUCT_VERSION } from "../support/product-version.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
 import { expectNoViolations } from "./owner-session.ts";
 
@@ -83,7 +84,7 @@ test.describe("D57.1-AC1 the offer, the question before it and what is sent", ()
   });
 
   test("an installation with no newer release has no offer", async ({ page, ownerServer }) => {
-    const owner = await ownerServer("ready", await releases("v0.0.0"));
+    const owner = await ownerServer("ready", await releases(`v${PRODUCT_VERSION}`));
     await signInWithoutAFreshFactor(page, owner);
     await page.goto(`${owner.baseUrl}/settings/updates`);
     await page.getByRole("button", { name: text(settings, "updates.check.now") }).click();
