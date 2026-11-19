@@ -630,10 +630,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: steps.browser.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: steps.browser.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D12 (D12.1–D12.3, sign-in, enrollment and first setup in a real browser)
         run: pnpm verify:task -- D12
       - name: Verify D46.4 (the import in the setup)
@@ -703,10 +703,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: steps.browser.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: steps.browser.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D22.2 (the form of a new registry as rows in a real browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D22.2
@@ -765,10 +765,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: steps.browser.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: steps.browser.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D31.1 (manage columns, the effects of a change and the deletion of a registry in a browser, S8, S10)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D31.1
@@ -822,10 +822,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: steps.browser.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: steps.browser.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D33.1 (the screen under /, Pulpity with Właściwości and the bar of the application in a browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D33.1
@@ -918,10 +918,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: steps.browser.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: steps.browser.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D35.1 (the autosave of the Designer, its queue, its retries and the states of the saving)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D35.1
@@ -1027,10 +1027,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D08 (D08.1–D08.3, CI checks, theme and texts, the G0 image in a browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D08
@@ -1075,10 +1075,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D09 (D09.1–D09.4, auth adapter, owner, sign-in, reset and cookies)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D09
@@ -1144,10 +1144,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D14.1 (rules of the registry catalog)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D14.1
@@ -1242,10 +1242,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D22 (the parent, D22.1–D22.3 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D22
@@ -1363,10 +1363,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D27 (the parent, D27.1–D27.2 together)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D27
@@ -1426,10 +1426,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D18.1 (the private screen in a real browser)
         if: ${{ !cancelled() }}
         run: pnpm verify:task -- D18.1
@@ -1495,10 +1495,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D37 (the parent, D37.1–D37.3 together; the phone is a manual protocol and not run here)
         run: pnpm verify:task -- D37
       - name: Verify D38 (the parent, D38.1–D38.3 together)
@@ -1548,10 +1548,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D43 (the parent, D43.1–D43.8 together)
         run: pnpm verify:task -- D43
       - name: Verify D44 (the parent, D44.1–D44.6 together)
@@ -1690,10 +1690,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit != 'true' }}
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: ${{ !cancelled() && steps.browser.outputs.cache-hit == 'true' }}
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D60 (the parent, D60.1–D60.4 together)
         run: pnpm verify:task -- D60
       - name: Upload verification report
@@ -1812,10 +1812,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: steps.browser.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: steps.browser.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Verify D57 (the parent, D57.1–D57.4 together)
         run: pnpm verify:task -- D57
       - name: Upload verification report
@@ -2000,10 +2000,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: ${{ steps.browser.outputs.cache-hit != 'true' }}
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: ${{ steps.browser.outputs.cache-hit == 'true' }}
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Download the reports of the fast tier of KM2
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -2055,10 +2055,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: ${{ steps.browser.outputs.cache-hit != 'true' }}
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: ${{ steps.browser.outputs.cache-hit == 'true' }}
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Download the reports of the fast tier of KM3
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -2110,10 +2110,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: ${{ steps.browser.outputs.cache-hit != 'true' }}
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: ${{ steps.browser.outputs.cache-hit == 'true' }}
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Download the reports of the fast tier of KM4
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -2250,10 +2250,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install the Playwright browser
         if: ${{ steps.browser.outputs.cache-hit != 'true' }}
-        run: pnpm exec playwright install --with-deps chromium
+        run: bash scripts/ci/install-browser.sh with-deps
       - name: Install the system libraries of the cached browser
         if: ${{ steps.browser.outputs.cache-hit == 'true' }}
-        run: pnpm exec playwright install-deps chromium
+        run: bash scripts/ci/install-browser.sh deps-only
       - name: Download the reports of the fast tier and of the installer
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
