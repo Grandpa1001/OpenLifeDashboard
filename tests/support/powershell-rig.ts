@@ -83,7 +83,8 @@ export function powershellRig(): PowerShellRig {
   // A tree like the repository's (install/ and docker/) in which the platform constant says Windows.
   mkdirSync(path.join(work, "tree", "install"), { recursive: true });
   mkdirSync(path.join(work, "tree", "docker"));
-  for (const file of ["compose.yml", "compose.local.yml"]) cpSync(path.join(repoRoot, "docker", file), path.join(work, "tree", "docker", file));
+  // Every file of docker/ that a release package carries: the builder (scripts/support/release-package.ts) copies them all from this tree.
+  for (const file of ["Caddyfile", "compose.yml", "compose.local.yml", "compose.server.yml"]) cpSync(path.join(repoRoot, "docker", file), path.join(work, "tree", "docker", file));
   const original = readFileSync(path.join(repoRoot, "install", "install.ps1"), "utf8");
   const asWindows = original.replace("$RequiredPlatform = 'Win32NT'", "$RequiredPlatform = 'Unix'");
   if (asWindows === original) throw new Error("install.ps1 has no $RequiredPlatform line to change");
