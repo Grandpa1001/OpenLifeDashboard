@@ -28,6 +28,8 @@ export type CleanLinux = Readonly<{
   facts: Readonly<Record<string, unknown>>;
   /** A command of the host. */
   host: (args: readonly string[], timeoutMs?: number) => Run;
+  /** Copies a file or folder of the host into the box (as root; `inside` with `root` can chown it). */
+  copyIn: (from: string, to: string) => Run;
   /** A command in the clean Linux as `tester` (or root), with an optional stdin and environment. */
   inside: (command: readonly string[], options?: Readonly<{ input?: string; root?: boolean; timeoutMs?: number; env?: Readonly<Record<string, string>> }>) => Run;
   insideDocker: (args: readonly string[]) => Run;
@@ -131,6 +133,7 @@ export async function withCleanLinux(check: Check, options: CleanLinuxOptions, b
       image,
       facts,
       host,
+      copyIn: (from, to) => host(["cp", from, `${box}:${to}`]),
       inside,
       insideDocker,
       read,

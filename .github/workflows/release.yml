@@ -1,0 +1,192 @@
+# The release pipeline (DEV §9.60 D61.4; Architektura Załącznik I). One workflow, because a release made with the built-in token does not start another workflow:
+#   Release Please (a pull request of the release, and on its merge a DRAFT release with the tag vX.Y.Z)
+#   -> the images of the version (release-images.yml) -> the files of the release (assembled and checked) -> the attestations of the images and the files
+#   -> the files uploaded to the draft -> the candidate: the files of the draft downloaded like a user and installed on a clean Linux
+#   -> only a passing candidate publishes the draft (the feed of the releases sees published releases only, so the updater never sees one without its files).
+# Nothing is granted at the top; every job has exactly what it needs; the only secret is the built-in token; no pull request starts this workflow.
+name: Release
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+      sha: ${{ steps.release.outputs.sha }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  images:
+    name: images of the release
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/release-images.yml
+    with:
+      version: ${{ needs.release-please.outputs.version }}
+      revision: ${{ needs.release-please.outputs.sha }}
+
+  assets:
+    name: files of the release
+    needs: [release-please, images]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release-please.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Enable the pnpm version pinned in packageManager
+        run: corepack enable
+      - name: Install and build
+        run: |
+          for attempt in 1 2 3 4; do
+            timeout 300 pnpm install --frozen-lockfile && break
+            [ "$attempt" -lt 4 ] || exit 1
+            echo "install attempt $attempt did not finish; trying again"
+          done
+          pnpm -r build
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-images
+          path: images
+      - name: Assemble the files of the release and check them like a user who downloaded them
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          # The oldest version the release may be installed over is a decision of the owner: a version in .release-min-from, none by default.
+          min_from=()
+          if [ -f .release-min-from ]; then min_from=(--min-from "$(tr -d '[:space:]' < .release-min-from)"); fi
+          node scripts/assemble-release.ts --version "$VERSION" --images images/release-images.json "${min_from[@]}" --out release-assets
+          node scripts/verify-release-assets.ts release-assets
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-assets
+          path: release-assets
+          if-no-files-found: error
+          retention-days: 14
+
+  attest:
+    name: attestations of the release
+    needs: [release-please, images, assets]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+      attestations: write
+      packages: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-images
+          path: images
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-assets
+          path: release-assets
+      - name: Read the pinned names of the images
+        id: images
+        run: |
+          for image in app updater; do
+            pinned="$(jq -r ".$image" images/release-images.json)"
+            echo "${image}_name=${pinned%@*}" >> "$GITHUB_OUTPUT"
+            echo "${image}_digest=${pinned#*@}" >> "$GITHUB_OUTPUT"
+          done
+      - name: Attest the app image (by the digest of its index)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.images.outputs.app_name }}
+          subject-digest: ${{ steps.images.outputs.app_digest }}
+          push-to-registry: true
+      - name: Attest the updater image (by the digest of its index)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.images.outputs.updater_name }}
+          subject-digest: ${{ steps.images.outputs.updater_digest }}
+          push-to-registry: true
+      - name: Attest the files of the release (the package, the installers, the manifest, the sums)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: release-assets/*
+
+  upload:
+    name: files to the draft
+    needs: [release-please, assets, attest]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-assets
+          path: release-assets
+      - name: Upload exactly the files that were attested
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: gh release upload "$TAG" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
+
+  candidate:
+    name: candidate installed from the files of the draft
+    needs: [release-please, upload]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      # A draft release is visible to those who can write to the repository only, so reading its files needs this; nothing is written.
+      contents: write
+    steps:
+      # Only the script of the candidate is taken from the repository; the installation uses the downloaded files and no login to the registry.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: scripts/ci
+          persist-credentials: false
+      - name: Download the files of the draft like a user
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir downloaded
+      - name: Install the release on this clean Linux and sign in as the owner
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: bash scripts/ci/release-candidate.sh downloaded "$VERSION"
+
+  publish:
+    name: publish the release
+    needs: [release-please, candidate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Publish the draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest

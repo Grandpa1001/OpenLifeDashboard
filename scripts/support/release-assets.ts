@@ -1,4 +1,4 @@
-// The files a release is published with (Architektura Załącznik I; DEV §9.60 D61.2): the installers, the Compose files, the Caddyfile, `.env.example`, the
+// The files a release is published with (Architektura Załącznik I; DEV §9.60 D61.2): the installers, the Compose files, the Caddyfile, `env.example` (the `.env.example` of the repository), the
 // package of D58.1 (the archive that pins the image of the release), `release-manifest.json` (the images and what the release may be installed over) and
 // SHA256SUMS over all the others. `assembleRelease` makes the folder from the digests of D61.1; `verifyReleaseAssets` checks a folder the way a user
 // who downloaded it can: exactly these files, every sum, the manifest, and that the archive pins the image the manifest names.
@@ -20,7 +20,8 @@ export const LOOSE_FILES: Readonly<Record<string, string>> = {
   "compose.yml": "docker/compose.yml",
   "install.ps1": "install/install.ps1",
   "install.sh": "install/install.sh",
-  ".env.example": ".env.example",
+  // Not `.env.example`: GitHub renames an asset whose name starts with a dot (to `default.env.example`), which SHA256SUMS would not list.
+  "env.example": ".env.example",
 };
 export const archiveName = (version: string): string => `openlife-dashboard-${version}.tar.gz`;
 /** Every file of the release of a version, SHA256SUMS included, in the order of their names. */

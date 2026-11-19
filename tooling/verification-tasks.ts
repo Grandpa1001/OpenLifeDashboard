@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 4, D61: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 4, D61: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -7496,6 +7496,49 @@ const definedLater: readonly TaskDefinition[] = [
       },
       ...regressionChecks("D61.3-regression"),
     ],
+  },
+  {
+    // DEV §9.60: the pipeline of the release and its candidate.
+    id: "D61.4",
+    ready: true,
+    title: "The release pipeline: Release Please, the images, the files, the attestations, the draft, the candidate installed from its own files, and only then the publication",
+    criteria: ["D61.4-AC1", "D61.4-AC2", "D61.4-regression"],
+    checks: [
+      {
+        id: "release-candidate",
+        criteria: ["D61.4-AC1"],
+        description:
+          "Ubuntu 24.04 with a Docker daemon of its own and a registry in it as the registry of the release: the files of a release, assembled by the real assembler for the digest of the app image, are copied to the box like downloads and installed by scripts/ci/release-candidate.sh, the script of the candidate job, with nothing of the repository and no login to the registry; the candidate passes only when the sums, the manifest and the package are whole, the installer pulls the image by the digest, the application answers with the version of the release on 127.0.0.1 and the owner signs in, and it refuses before installing anything a changed file, an extra file, a file that SHA256SUMS does not list, a folder without the manifest and the files of another version. Blocked without Docker on this architecture",
+        command: ["node", "tests/system/release-candidate.ts"],
+        requires: ["tests/system/release-candidate.ts", "scripts/ci/release-candidate.sh", "scripts/support/release-assets.ts", "tests/support/clean-linux.ts", "tests/system/clean-linux/Dockerfile", "install/install.sh", "docker/Dockerfile"],
+        timeoutMs: 40 * 60 * 1000,
+      },
+      {
+        id: "release-workflow",
+        criteria: ["D61.4-AC2"],
+        description:
+          "The release workflow starts on a push to main only, grants nothing at the top and each job exactly its permissions (Release Please writes contents and pull requests, the images contents read and packages write, the attestation id-token, attestations and packages, the upload, the candidate and the publication contents write), pins every action to a commit and uses no secret but the built-in token; the images wait for a release created by Release Please, the files for the images, the attestations for the files, the upload for the attestations, the candidate for the upload and the publication for the candidate; both images are attested by name and digest and the files with a path, the upload takes the very artifact that was attested, only the last job publishes the draft, and the candidate takes only scripts/ci from the repository, logs in to no registry and downloads the files of the draft; each fault of these, a permission that is not needed, an action without a commit, a secret of the repository, a pull request or another branch as a trigger and a queue that cancels, is found",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/release/release-workflow.test.ts"],
+        requires: ["tests/unit/release/release-workflow.test.ts", "tests/support/release-pipeline.ts", "tests/support/workflow-policy.ts", ".github/workflows/release.yml", ".github/workflows/release-images.yml"],
+      },
+      {
+        id: "release-assets-regression",
+        criteria: ["D61.4-regression"],
+        description: "The files of a release, now with env.example instead of a name that starts with a dot (GitHub renames such an asset), are still exactly the list, with sums, manifest and package that agree, and the damaged ones are refused",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/release/release-assets.test.ts"],
+        requires: ["tests/integration/release/release-assets.test.ts", "scripts/support/release-assets.ts"],
+      },
+      ...regressionChecks("D61.4-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the images, the files, the versions and the pipeline with its candidate.
+  {
+    id: "D61",
+    ready: true,
+    title: "The releases: the images of a version, the files of a release, Release Please and the versions, and the pipeline that publishes only a release whose candidate installed from its own files",
+    steps: ["D61.1", "D61.2", "D61.3", "D61.4"],
+    criteria: [],
+    checks: [],
   },
   {
     // KM6 gate (DEV §8.4, §9.56): the update A to B and the broken B back to A from the browser on a real daemon (the system test of the parent D57),
