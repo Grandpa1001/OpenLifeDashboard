@@ -49,6 +49,7 @@ describe("D61.3-AC1 the versions and the configuration of Release Please", () =>
     ["a manifest with another package", (dir) => writeFileSync(path.join(dir, RELEASE_MANIFEST_FILE), '{ ".": "0.0.0", "apps/web": "0.0.0" }'), /must be/],
     ["a file left out of extra-files", (dir) => edit(dir, RELEASE_CONFIG_FILE, (json) => ((json["packages"] as { "."?: { "extra-files": unknown[] } })["."]!["extra-files"].pop())), /must be in extra-files/],
     ["a file in extra-files that carries no version", (dir) => edit(dir, RELEASE_CONFIG_FILE, (json) => ((json["packages"] as { "."?: { "extra-files": unknown[] } })["."]!["extra-files"].push({ type: "json", path: "apps/other/package.json", jsonpath: "$.version" }))), /not a file that carries the version/],
+    ["a first release that would be 1.0.0", (dir) => edit(dir, RELEASE_CONFIG_FILE, (json) => delete json["initial-version"]), /initial-version must be "0\.1\.0"/],
     ["a release that is not a draft", (dir) => edit(dir, RELEASE_CONFIG_FILE, (json) => (json["draft"] = false)), /draft must be true/],
     ["a tag with the name of the component", (dir) => edit(dir, RELEASE_CONFIG_FILE, (json) => (json["include-component-in-tag"] = true)), /include-component-in-tag must be false/],
     ["another type of release", (dir) => edit(dir, RELEASE_CONFIG_FILE, (json) => (json["release-type"] = "simple")), /release-type must be "node"/],

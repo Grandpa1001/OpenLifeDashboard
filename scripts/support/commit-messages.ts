@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 export const COMMIT_TYPES = ["feat", "fix", "perf", "refactor", "docs", "test", "build", "ci", "chore", "revert"] as const;
 export const SUBJECT_MAX_LENGTH = 100;
 /** The commit that introduced the rule: it and its ancestors are exempt (its own title was written before the rule applied), every later commit must follow it. */
-export const LEGACY_UNTIL = "770687cab6aa3dcd0e2660b339f0fd2bf14e5f27";
+export const LEGACY_UNTIL = "d9b314027ffb7eb98cb87aba6612d8ee71fee544";
 const SUBJECT = new RegExp(`^(${COMMIT_TYPES.join("|")})(\\([a-z0-9][a-z0-9._/-]*\\))?!?: \\S.*$`);
 
 /** What is wrong with a first line, or null. A merge commit and the commit that `git revert` writes are not ours to rename. */

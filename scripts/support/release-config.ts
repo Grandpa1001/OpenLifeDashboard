@@ -49,6 +49,8 @@ export function releaseConfigProblems(root: string): string[] {
     "include-v-in-tag": true,
     draft: true,
     "force-tag-creation": true,
+    // Without it the first release of a repository with no tag is 1.0.0, whatever the manifest says (seen in the first run of the pipeline).
+    "initial-version": "0.1.0",
     "bump-minor-pre-major": true,
     "changelog-path": "CHANGELOG.md",
   };
