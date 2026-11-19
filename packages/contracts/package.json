@@ -19,6 +19,11 @@
       "types": "./dist/updates/catalog.d.ts",
       "default": "./dist/updates/catalog.js"
     },
+    "./updates/release-manifest": {
+      "@openlife/source": "./src/updates/release-manifest.ts",
+      "types": "./dist/updates/release-manifest.d.ts",
+      "default": "./dist/updates/release-manifest.js"
+    },
     "./updates/check-cache": {
       "@openlife/source": "./src/updates/check-cache.ts",
       "types": "./dist/updates/check-cache.d.ts",

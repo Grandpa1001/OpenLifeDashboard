@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 4, D61: 1,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 4, D61: 2,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -7419,6 +7419,56 @@ const definedLater: readonly TaskDefinition[] = [
         requires: ["tests/unit/release/release-images-workflow.test.ts", "tests/support/workflow-policy.ts", ".github/workflows/release-images.yml"],
       },
       ...regressionChecks("D61.1-regression"),
+    ],
+  },
+  {
+    // DEV §9.60: the files a release is published with.
+    id: "D61.2",
+    ready: true,
+    title: "The files of a release: the installers, the Compose files, the Caddyfile, .env.example, the package, the manifest with the digests and minFrom, and SHA256SUMS over them",
+    criteria: ["D61.2-AC1", "D61.2-AC2", "D61.2-regression"],
+    checks: [
+      {
+        // Runs first: the scripts load the contracts and the migrations of the build.
+        id: "workspace-build",
+        criteria: ["D61.2-AC1", "D61.2-AC2"],
+        description: "pnpm -r build: the schema of the manifest of a release in the contracts",
+        command: ["pnpm", "-r", "build"],
+        requires: ["packages/contracts/src/updates/release-manifest.ts"],
+      },
+      {
+        id: "release-manifest-unit",
+        criteria: ["D61.2-AC1", "D61.2-AC2"],
+        description:
+          "The manifest of a release has the shape of its schema and makes the entry of the trusted catalog; a version that is not x.y.z or has a suffix, a revision that is not a commit, a digest without sha256 or of the wrong length, a minFrom equal to or newer than the version, the same repository for both images, no database schema, another format and an extra field are each refused with the field; versions are ordered as numbers",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/release/release-manifest.test.ts"],
+        requires: ["tests/unit/release/release-manifest.test.ts", "packages/contracts/src/updates/release-manifest.ts"],
+      },
+      {
+        id: "env-example",
+        criteria: ["D61.2-AC1"],
+        description:
+          ".env.example has exactly the keys that both modes of the installer write in a real run, the Compose files read from the .env and the updater and the options take, leaves the secrets empty and holds no value that looks like a key or a token",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/release/env-example.test.ts"],
+        requires: ["tests/unit/release/env-example.test.ts", ".env.example", "tests/support/installer-rig.ts", "install/install.sh"],
+      },
+      {
+        id: "release-assets",
+        criteria: ["D61.2-AC1"],
+        description:
+          "The folder of a release holds exactly the files of the list; the same input gives the same sums but for the archive; SHA256SUMS fits every file; the manifest is the one of the schema with the number of migrations as the database schema and becomes an entry of the catalog; the loose files are the repository's and the archive unpacks to the package that pins the image of the manifest; the scripts make and check a folder from the command line and a changed file ends the check with its name",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/release/release-assets.test.ts", "-t", "D61.2-AC1"],
+        requires: ["tests/integration/release/release-assets.test.ts", "scripts/assemble-release.ts", "scripts/verify-release-assets.ts", "scripts/support/release-assets.ts"],
+      },
+      {
+        id: "release-assets-refusals",
+        criteria: ["D61.2-AC2"],
+        description:
+          "A changed file of the release whichever it is, a missing file, an extra file, a sums file that leaves a file out, lists one twice, lists a file that is not ours or has a line that is not a sum, a manifest with a digest that is not a digest, a version that is not x.y.z or a minFrom that is not older (the sums made again), a package that pins another image than the manifest, and an assembly given an image that is not pinned, of the other kind, of another version than the release or the packages, or a minFrom that is not older are each refused with the name of the fault",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/release/release-assets.test.ts", "-t", "D61.2-AC2"],
+        requires: ["tests/integration/release/release-assets.test.ts", "scripts/support/release-assets.ts"],
+      },
+      ...regressionChecks("D61.2-regression"),
     ],
   },
   {

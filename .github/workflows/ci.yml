@@ -1731,6 +1731,9 @@ jobs:
           exit 1
       - name: Verify D61.1 (the publication of the images)
         run: pnpm verify:task -- D61.1
+      - name: Verify D61.2 (the files of a release)
+        if: ${{ !cancelled() }}
+        run: pnpm verify:task -- D61.2
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
