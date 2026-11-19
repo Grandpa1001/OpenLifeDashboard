@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 4,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 4, D61: 1,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -7393,6 +7393,33 @@ const definedLater: readonly TaskDefinition[] = [
     steps: ["D60.1", "D60.2", "D60.3", "D60.4"],
     criteria: [],
     checks: [],
+  },
+  {
+    // DEV §9.60: the publication of the two images of a release.
+    id: "D61.1",
+    ready: true,
+    title: "The publication of the images of a release: the app and the updater built per architecture, pushed by digest, joined into one index each, and the workflow that does it with the permissions it needs",
+    criteria: ["D61.1-AC1", "D61.1-AC2", "D61.1-regression"],
+    checks: [
+      {
+        id: "publish-images",
+        criteria: ["D61.1-AC1"],
+        description:
+          "Real Docker and a registry of its own: publish-images build pushes the app and the updater for the architecture of this computer under the tag of the architecture and reports the digests of the registry; merge joins them into the index of the version, the digests it writes are those of the indexes, the index lists the architecture and the tag of the version exists on both images; the app run from its digest answers 200 on /api/health, carries the revision and the version it was given, and the updater image starts the updater as the user node with none of the code of the app; a version that is not x.y.z or not the one of the packages, a revision that is not a commit, a registry with upper case letters or without an owner, an unsupported architecture, no output file, the same architecture twice and a digest that is not sha256 are refused before anything is built. Blocked without Docker on this architecture",
+        command: ["node", "tests/system/publish-images.ts"],
+        requires: ["tests/system/publish-images.ts", "scripts/publish-images.ts", "scripts/support/image-publish.ts", "docker/Dockerfile"],
+        timeoutMs: 40 * 60 * 1000,
+      },
+      {
+        id: "release-images-workflow",
+        criteria: ["D61.1-AC2"],
+        description:
+          "The workflow of the images grants nothing at the top, its build and join jobs only contents read and packages write, pins every action to a commit and uses no secret but the built-in token; it builds amd64 on ubuntu-24.04 and arm64 on ubuntu-24.04-arm and joins after both; write-all, a permission at the top, a job without permissions, an extra permission, an action that is not pinned, a secret of the repository, secrets inherit, pull_request_target, a write on a pull request without the guard against forks and a job that is not expected are each found",
+        command: ["pnpm", "exec", "vitest", "run", "tests/unit/release/release-images-workflow.test.ts"],
+        requires: ["tests/unit/release/release-images-workflow.test.ts", "tests/support/workflow-policy.ts", ".github/workflows/release-images.yml"],
+      },
+      ...regressionChecks("D61.1-regression"),
+    ],
   },
   {
     // KM6 gate (DEV §8.4, §9.56): the update A to B and the broken B back to A from the browser on a real daemon (the system test of the parent D57),

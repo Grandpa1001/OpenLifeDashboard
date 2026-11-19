@@ -1,0 +1,108 @@
+# The images of a release (DEV §9.60 D61.1; Architektura Załącznik I). A reusable workflow, called by the release workflow (D61.4) with the version and the
+# commit: the app and the updater are built for each architecture on a runner of that architecture (scripts/publish-images.ts build), then joined into one
+# index per image (merge), and the pinned names (`name@sha256:index digest`) come back as the artifact `release-images`. Only the build and merge jobs
+# may write packages; nothing else is granted, and the only secret is the built-in GITHUB_TOKEN. The attestation of the digests is a job of the release
+# workflow (D61.4), which has the permission for it and nothing else.
+name: Release images
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: The version of the release, x.y.z (the packages of the repository must have it)
+        required: true
+        type: string
+      revision:
+        description: The commit the release is built from
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  build:
+    name: build ${{ matrix.platform }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            suffix: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            suffix: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.revision }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push the app and the updater for ${{ matrix.platform }}
+        env:
+          VERSION: ${{ inputs.version }}
+          REVISION: ${{ inputs.revision }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          # GHCR names are lower case; the owner of the repository may not be.
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          node scripts/publish-images.ts build --registry "ghcr.io/${owner}" --version "$VERSION" --revision "$REVISION" --platform "$PLATFORM" --out "built-${{ matrix.suffix }}.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: built-${{ matrix.suffix }}
+          path: built-${{ matrix.suffix }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+  merge:
+    name: join the architectures
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.revision }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: built-*
+          path: built
+          merge-multiple: true
+      - name: Join the two architectures of each image into the index of the version
+        env:
+          VERSION: ${{ inputs.version }}
+          REVISION: ${{ inputs.revision }}
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          node scripts/publish-images.ts merge --registry "ghcr.io/${owner}" --version "$VERSION" --revision "$REVISION" --out release-images.json built/built-amd64.json built/built-arm64.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-images
+          path: release-images.json
+          if-no-files-found: error
+          retention-days: 14
