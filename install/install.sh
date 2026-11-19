@@ -3,14 +3,15 @@
 #
 #   install.sh [--mode local] [--dir <folder>] [--port <host port>] [--image <image>]
 #              [--owner-email <e-mail>] [--owner-password-stdin] [--yes]
-#   install.sh --mode server --domain <domain> --acme-email <e-mail> [--dir <folder>] [--image <image>] [--yes]
+#   install.sh --mode server --domain <domain> --acme-email <e-mail> [--dir <folder>] [--image <image>]
+#              [--owner-email <e-mail>] [--owner-password-stdin] [--https-wait <seconds>] [--yes]
 #
 # Stages, each recorded in control/install-state.json when it is done:
-#   preparing -> files -> images -> started -> owner -> complete
+#   preparing -> files -> images -> started -> owner -> (server only: proxy) -> complete
 # files: the installation folder (D19.1). images: the image is present. started: the application
 # runs and is healthy. owner: the application is stopped, the owner account is created in a
 # one-off container under the writer lease (the password only on its stdin), complete: the
-# application runs again. A rerun continues with the first stage that is not done.
+# application runs again. proxy (server): Caddy runs; complete waits for the HTTPS answer. A rerun continues with the first stage that is not done.
 #
 # The script never overwrites: every file is written only when it does not exist, through a
 # temporary file and an atomic rename, so an interrupted run leaves a folder that the next run
@@ -22,10 +23,12 @@
 # of the package against SHA256SUMS and takes the image from the manifest; run from the repository it
 # needs --image. Nothing is written before that check has passed.
 #
-# The server mode (Linux, DEV §9.57) prepares the installation for a domain: it checks the system,
-# the ports 80 and 443 and that the domain resolves, writes the folder and stops at the stage
-# 'files' with the exit status 3, never claiming that the installation is complete. The HTTPS stack
-# that continues from there is D60.
+# The server mode (Linux, DEV §9.57, §9.59) installs for a domain: it checks the system, the ports 80 and 443 and that
+# the domain resolves, writes the folder, starts the application WITHOUT Caddy, creates the owner account, and only then
+# starts Caddy, the one service that publishes ports, so the application is never public before it has an owner. It is
+# complete only when https://<domain>/api/health answers from this computer. A domain that does not resolve yet, or a
+# certificate that is not issued yet, ends with the exit status 3 and the words "NOT installed": the files and the keys
+# stay, and running the installer again with the same options continues from where it stopped.
 set -u -o pipefail
 
 readonly STATE_FORMAT_VERSION=1
@@ -40,6 +43,9 @@ readonly SERVER_PORTS=(80 443)      # the only ports of the server mode that are
 readonly EXIT_WAITING=3             # the files are ready and the installation is not: it waits for something
 readonly DOMAIN_MAX_LENGTH=253
 readonly START_TIMEOUT_SECONDS=180
+readonly DEFAULT_HTTPS_WAIT_SECONDS=120   # how long the server mode waits for the certificate and the HTTPS answer
+readonly HTTPS_POLL_SECONDS=3
+readonly MAX_HTTPS_WAIT_SECONDS=3600
 # The rules of the owner's credentials, as the application states them (packages/contracts/src/http/identity.ts).
 readonly PASSWORD_MIN_CODE_POINTS=12
 readonly PASSWORD_MAX_CODE_POINTS=128
@@ -51,7 +57,7 @@ readonly PACKAGE_FORMAT_VERSION=1
 readonly PACKAGE_PRODUCT=openlife-dashboard
 readonly PACKAGE_MANIFEST=release.json
 readonly PACKAGE_SUMS=SHA256SUMS
-readonly PACKAGE_FILES=(compose.local.yml compose.yml install.ps1 install.sh release.json)
+readonly PACKAGE_FILES=(Caddyfile compose.local.yml compose.server.yml compose.yml install.ps1 install.sh release.json)
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -65,13 +71,15 @@ owner_email=""
 owner_password=""
 password_from_stdin="no"
 assume_yes="no"
+https_wait="$DEFAULT_HTTPS_WAIT_SECONDS"
 tmp_files=()
 
 usage() {
   cat >&2 <<'USAGE'
 usage: install.sh [--mode local] [--dir <folder>] [--port <port>] [--image <image>]
                   [--owner-email <e-mail>] [--owner-password-stdin] [--yes]
-       install.sh --mode server --domain <domain> --acme-email <e-mail> [--dir <folder>] [--image <image>] [--yes]
+       install.sh --mode server --domain <domain> --acme-email <e-mail> [--dir <folder>] [--image <image>]
+                  [--owner-email <e-mail>] [--owner-password-stdin] [--https-wait <seconds>] [--yes]
 
   --mode         local (default) or server (Linux; the domain must point to this computer)
   --dir          installation folder (default ~/OpenLifeDashboard/default); a fresh or an
@@ -85,6 +93,8 @@ usage: install.sh [--mode local] [--dir <folder>] [--port <port>] [--image <imag
   --yes          do not ask to confirm the folder when a terminal is attached
   --domain       server mode: the domain of this server, e.g. dziennik.example.com (letters, digits, dots, hyphens)
   --acme-email   server mode: the e-mail the certificate authority is given for notices about the certificate
+  --https-wait   server mode: seconds to wait for the certificate and the HTTPS answer (default 120, 1 to 3600);
+                 when they do not come in time the installation waits and running the installer again continues it
 USAGE
 }
 
@@ -119,6 +129,7 @@ while [ "$#" -gt 0 ]; do
     --image) option_value "$@"; image="$2"; shift 2 ;;
     --owner-email) option_value "$@"; owner_email="$2"; shift 2 ;;
     --owner-password-stdin) password_from_stdin="yes"; shift ;;
+    --https-wait) option_value "$@"; https_wait="$2"; shift 2 ;;
     --yes) assume_yes="yes"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) usage_error "unknown argument: $1" ;;
@@ -284,11 +295,16 @@ validate_server_arguments() {
   if [ "$mode" = "local" ]; then
     [ -z "$domain" ] || usage_error "--domain is for the server mode (--mode server)"
     [ -z "$acme_email" ] || usage_error "--acme-email is for the server mode (--mode server)"
+    [ "$https_wait" = "$DEFAULT_HTTPS_WAIT_SECONDS" ] || usage_error "--https-wait is for the server mode (--mode server)"
     return 0
   fi
   [ -z "$port" ] || usage_error "--port is for the local mode: the server mode publishes only ports 80 and 443"
-  { [ -z "$owner_email" ] && [ "$password_from_stdin" = "no" ]; } ||
-    usage_error "the owner of a server is not created by the installer yet: do not give --owner-email or --owner-password-stdin"
+  case "$https_wait" in
+    ''|*[!0-9]*) usage_error "--https-wait must be a number of seconds, got: $https_wait" ;;
+  esac
+  { [ "$https_wait" -ge 1 ] && [ "$https_wait" -le "$MAX_HTTPS_WAIT_SECONDS" ]; } ||
+    usage_error "--https-wait must be between 1 and $MAX_HTTPS_WAIT_SECONDS seconds, got: $https_wait"
+  command -v curl >/dev/null 2>&1 || fail "the curl command is needed to check the HTTPS answer of the server; install curl and run the installer again"
   domain="${domain:-$(ask "Domain of this server" "")}"
   problem="$(domain_problem "$domain")"
   [ -z "$problem" ] || fail "the domain is refused: $problem${domain:+: $domain}"
@@ -512,8 +528,10 @@ project_name_of_instance() {
 }
 
 prepare_folders() {
-  local sub
-  for sub in data/backup data/logs/app data/tmp control/maintenance; do
+  local sub subs="data/backup data/logs/app data/tmp control/maintenance"
+  # Caddy writes its access log here; the folder is the host user's, as the others are (Docker must not make it).
+  [ "$mode" = "server" ] && subs="$subs data/logs/caddy"
+  for sub in $subs; do
     mkdir -p -- "$dir/$sub" || fail "cannot create $dir/$sub"
   done
   # The state file is the marker that this folder is ours: it comes right after the folders.
@@ -542,7 +560,7 @@ prepare_env_file() {
   project_name="$(project_name_of_instance)"
   [ -n "$project_name" ] || fail "control/instance.json has no valid composeProjectName; the installation is damaged"
   if [ "$mode" = "server" ]; then
-    # No host port and no compose.server.yml yet: the HTTPS stack of the server is D60.
+    # No host port: only Caddy publishes ports (compose.server.yml), the application publishes none.
     write_new_file "$dir/.env" <<EOF && say "created .env (owner only, with new keys)"
 INSTALL_MODE=$mode
 BASE_URL=https://$domain
@@ -555,7 +573,7 @@ APP_UID=$(id -u)
 APP_GID=$(id -g)
 COMPOSE_PROJECT_NAME=$project_name
 COMPOSE_PATH_SEPARATOR=;
-COMPOSE_FILE=compose.yml;control/compose.release.yml
+COMPOSE_FILE=compose.yml;compose.server.yml;control/compose.release.yml
 EOF
     true
     return
@@ -586,7 +604,7 @@ package_file() { # compose files sit next to the installer in a release package,
 
 prepare_compose_files() {
   local file files="compose.yml compose.local.yml"
-  [ "$mode" = "local" ] || files="compose.yml"
+  [ "$mode" = "local" ] || files="compose.yml compose.server.yml Caddyfile"
   for file in $files; do
     copy_new_file "$(package_file "$file")" "$dir/$file" && say "created $file"
   done
@@ -688,7 +706,8 @@ stage_rank() {
     images) printf 2 ;;
     started) printf 3 ;;
     owner) printf 4 ;;
-    complete) printf 5 ;;
+    proxy) printf 5 ;;
+    complete) printf 6 ;;
     *) printf -- -1 ;;
   esac
 }
@@ -697,25 +716,42 @@ compose() { # docker compose in the installation folder: .env there selects the 
   (cd "$dir" && docker compose "$@")
 }
 
-stage_images() {
-  say "Image: checking $image"
-  if docker image inspect "$image" >/dev/null 2>&1; then
-    say "Image: present on this computer"
+pull_image() { # pull_image <image>: present already, or pulled
+  if docker image inspect "$1" >/dev/null 2>&1; then
+    say "Image: $1 is present on this computer"
     return 0
   fi
-  say "Image: pulling $image"
-  docker pull "$image" ||
-    fail "the image $image is not on this computer and could not be pulled (no internet, or no such image); the installation continues from here when you run the installer again"
+  say "Image: pulling $1"
+  docker pull "$1" ||
+    fail "the image $1 is not on this computer and could not be pulled (no internet, or no such image); the installation continues from here when you run the installer again"
 }
 
-start_and_wait() {
-  compose up --detach --wait --wait-timeout "$START_TIMEOUT_SECONDS" ||
+stage_images() {
+  local other
+  say "Image: checking $image"
+  pull_image "$image"
+  # The server mode also runs Caddy: the images that the Compose files name beside the application, pinned by their digests.
+  if [ "$mode" = "server" ]; then
+    while IFS= read -r other; do
+      [ -n "$other" ] && [ "$other" != "$image" ] || continue
+      pull_image "$other"
+    done < <(compose config --images 2>/dev/null)
+  fi
+}
+
+start_and_wait() { # start_and_wait [service...]: no service means the whole stack of the mode
+  compose up --detach --wait --wait-timeout "$START_TIMEOUT_SECONDS" "$@" ||
     fail "the application did not become healthy within $START_TIMEOUT_SECONDS seconds. Look at its log: cd \"$dir\" && docker compose logs app. Run the installer again to continue"
 }
 
 stage_start() {
   say "Start: the application is starting (up to $START_TIMEOUT_SECONDS seconds)"
-  start_and_wait
+  if [ "$mode" = "server" ]; then
+    # Without Caddy: nothing is published until the owner account exists.
+    start_and_wait app
+  else
+    start_and_wait
+  fi
 }
 
 stage_owner() {
@@ -744,27 +780,75 @@ stage_owner() {
 }
 
 stage_finish() {
-  say "Start: starting the application again"
+  if [ "$mode" = "server" ]; then
+    say "Start: starting the application again and Caddy, which publishes ports 80 and 443 (the owner account exists now)"
+  else
+    say "Start: starting the application again"
+  fi
   start_and_wait
+}
+
+caddy_running() { # Caddy of this installation is running: it holds ports 80 and 443 itself
+  [ -n "$(compose ps --status running --quiet caddy 2>/dev/null)" ]
+}
+
+https_answers() { # the application answers over HTTPS on the domain, with a certificate that this computer trusts
+  curl --silent --fail --max-time 5 --output /dev/null "https://$domain/api/health" 2>/dev/null
+}
+
+# Caddy asks the certificate authority for the certificate when it starts; until it has it the domain does not answer.
+# Running out of time is not a failure of the installation: it waits (status 3) and a rerun continues from here.
+stage_https() {
+  say "HTTPS: waiting up to $https_wait seconds for https://$domain/api/health (Caddy is getting the certificate)"
+  SECONDS=0
+  while [ "$SECONDS" -lt "$https_wait" ]; do
+    if https_answers; then
+      say "HTTPS: https://$domain answers with a certificate that this computer trusts"
+      return 0
+    fi
+    sleep "$HTTPS_POLL_SECONDS"
+  done
+  https_answers && return 0
+  print_server_certificate_waiting
+  exit "$EXIT_WAITING"
 }
 
 env_value() { # env_value <KEY>: the value of a key of the installation's .env
   sed -n "s/^$1=\\(.*\\)\$/\\1/p" "$dir/.env" | head -n 1
 }
 
-print_server_waiting() {
+print_server_waiting() { # the domain does not resolve: nothing was started
   say ""
   say "The files of the server installation are ready in $dir, but it is NOT installed: nothing is running yet."
-  if [ -z "$dns_addresses" ]; then
-    say "  Waiting for DNS: $domain does not resolve to any address yet. Point an A (and AAAA) record of $domain to this server,"
-    say "  wait until it resolves, and run the installer again with the same options: it continues here and keeps its keys."
-  else
-    say "  DNS:        $domain resolves to: $(printf '%s' "$dns_addresses" | tr '\n' ' ')"
-    say "  The HTTPS stack (Caddy, the certificate) that starts the application is not part of this release of the installer yet,"
-    say "  so the application is not started and no certificate was requested."
-  fi
+  say "  Waiting for DNS: $domain does not resolve to any address yet. Point an A (and AAAA) record of $domain to this server,"
+  say "  wait until it resolves, and run the installer again with the same options: it continues here and keeps its keys."
   say "  Secrets:    $dir/.env - copy it to a safe place; without it the data cannot be opened"
   say "Nothing was exposed: the application publishes no port, and the data stays in $dir/data."
+}
+
+print_server_certificate_waiting() { # Caddy runs, the HTTPS answer did not come in time
+  say ""
+  say "The server installation in $dir is NOT complete: Caddy runs, but https://$domain did not answer within $https_wait seconds."
+  say "  Waiting for the certificate: the certificate authority has not issued it yet, or this computer is not reached on ports 80 and 443."
+  say "  Check that $domain points to this server and that ports 80 and 443 are open to the internet, and look at the log of Caddy:"
+  say "    cd \"$dir\" && docker compose logs caddy"
+  say "  Then run the installer again with the same options: it continues here, keeps its keys and its owner account."
+  say "  Secrets:    $dir/.env - copy it to a safe place; without it the data cannot be opened"
+}
+
+print_server_summary() {
+  say ""
+  say "OpenLifeDashboard is installed."
+  say "  Open:       https://$domain"
+  say "  Sign in:    with the e-mail of the owner account; the first sign-in sets up the second factor (TOTP) and shows your recovery codes"
+  say "  Data:       $dir/data"
+  say "  Logs:       $dir/data/logs (the log of Caddy is in data/logs/caddy)"
+  say "  Backups:    $dir/data/backup"
+  say "  Secrets:    $dir/.env - copy it to a safe place; without it the data cannot be opened"
+  say "  Stop:       cd \"$dir\" && docker compose stop"
+  say "  Start:      cd \"$dir\" && docker compose up --detach"
+  say "Only Caddy is published (ports 80 and 443); the application is reachable only through it."
+  say "Uninstalling means stopping it; the data stays until you delete the folder yourself."
 }
 
 print_summary() {
@@ -849,10 +933,13 @@ if [ "$mode" = "local" ]; then
   fi
   [ "$rank" -ge 4 ] || read_owner_credentials
 else
-  preflight_server_ports
+  # Caddy starts only after the owner stage, and once it runs it holds the ports itself.
+  if [ "$rank" -lt 4 ] || ! caddy_running; then preflight_server_ports; fi
   # Outside the substitution below: a fail inside it would end only its own subshell.
   command -v getent >/dev/null 2>&1 || fail "cannot check the DNS of $domain: the getent command is not available"
   dns_addresses="$(domain_addresses)"
+  # The owner account is only asked for when the installation goes on: a domain that does not resolve stops it after the files.
+  if [ -n "$dns_addresses" ] && [ "$rank" -lt 4 ]; then read_owner_credentials; fi
 fi
 
 [ -z "$package_version" ] || say "Release package:      $PACKAGE_PRODUCT $package_version (every file matches $PACKAGE_SUMS)"
@@ -883,9 +970,8 @@ if [ "$rank" -le 0 ]; then
   write_state files
 fi
 
-# The server mode ends here until the HTTPS stack exists (D60): the files are ready and the
-# installation is not, whatever the DNS says, so it never prints "installed".
-if [ "$mode" = "server" ]; then
+# A server whose domain does not resolve ends here: the files are ready and the installation is not, so it never prints "installed".
+if [ "$mode" = "server" ] && [ -z "$dns_addresses" ]; then
   print_server_waiting
   exit "$EXIT_WAITING"
 fi
@@ -893,9 +979,15 @@ fi
 if [ "$rank" -le 1 ]; then stage_images; write_state images; fi
 if [ "$rank" -le 2 ]; then stage_start; write_state started; fi
 if [ "$rank" -le 3 ]; then stage_owner; write_state owner; fi
-if [ "$rank" -le 4 ]; then stage_finish; write_state complete; fi
-if [ "$rank" -ge 5 ]; then
+if [ "$mode" = "server" ]; then
+  # Caddy starts only now, after the owner account exists; the answer over HTTPS completes the installation.
+  if [ "$rank" -le 4 ]; then stage_finish; write_state proxy; fi
+  if [ "$rank" -le 5 ]; then stage_https; write_state complete; fi
+else
+  if [ "$rank" -le 4 ]; then stage_finish; write_state complete; fi
+fi
+if [ "$rank" -ge 6 ]; then
   say "The installation is complete; nothing was changed. Status of its containers:"
   compose ps || note "cannot read the status of the containers"
 fi
-print_summary
+if [ "$mode" = "server" ]; then print_server_summary; else print_summary; fi

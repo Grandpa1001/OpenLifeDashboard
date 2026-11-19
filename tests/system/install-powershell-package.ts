@@ -63,12 +63,12 @@ try {
   check.expect(rig.dockerCalls().some((call) => call === `image inspect ${IMAGE}`), "Docker was asked for the image of the manifest", rig.dockerCalls().join(" | "));
 
   // ---- AC1: a changed, a missing or an extra file is refused.
-  for (const file of ["compose.yml", "compose.local.yml", "install.ps1", "install.sh", MANIFEST_FILE]) {
+  for (const file of ["Caddyfile", "compose.yml", "compose.local.yml", "compose.server.yml", "install.ps1", "install.sh", MANIFEST_FILE]) {
     const folder = copyOfPackage();
     writeFileSync(path.join(rig.work, folder, file), `${readFileSync(path.join(rig.work, folder, file), "utf8")}\n# changed\n`);
     refused(`a changed ${file}`, folder, new RegExp(`${file.replace(".", "\\.")} does not match SHA256SUMS`));
   }
-  for (const file of ["compose.yml", "compose.local.yml", "install.sh", MANIFEST_FILE, SUMS_FILE]) {
+  for (const file of ["Caddyfile", "compose.yml", "compose.local.yml", "compose.server.yml", "install.sh", MANIFEST_FILE, SUMS_FILE]) {
     const folder = copyOfPackage();
     rmSync(path.join(rig.work, folder, file));
     refused(`a missing ${file}`, folder, new RegExp(`${file.replace(".", "\\.")} is missing`));
@@ -84,7 +84,7 @@ try {
   const leftOut = copyOfPackage();
   const lines = readFileSync(path.join(rig.work, leftOut, SUMS_FILE), "utf8").trimEnd().split("\n");
   writeFileSync(path.join(rig.work, leftOut, SUMS_FILE), `${lines.slice(0, 4).join("\n")}\n`);
-  refused("a SHA256SUMS that leaves a file out", leftOut, /must list all 5 files/);
+  refused("a SHA256SUMS that leaves a file out", leftOut, /must list all 7 files/);
   const twice = copyOfPackage();
   writeFileSync(path.join(rig.work, twice, SUMS_FILE), `${[...lines, lines[0]].join("\n")}\n`);
   refused("a SHA256SUMS that lists a file twice", twice, /twice/);

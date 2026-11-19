@@ -21,7 +21,8 @@ const OWNER_ARGS = ["--owner-email", "wlasciciel@example.com", "--owner-password
 const PASSWORD_LINE = "Zażółć gęślą jaźń 2026\n";
 const DOMAIN = "dziennik.example.com";
 const SERVER_ARGS = ["--mode", "server", "--domain", DOMAIN, "--acme-email", "admin@example.com"] as const;
-const LINUX = { os: "Linux", dns: { [DOMAIN]: ["203.0.113.7"] } } as const;
+/** A Linux whose DNS does not know the domain yet: the server installation stops after its files, the state these tests continue (D60.4 moved the rest of the server mode to install-server-stack.test.ts). */
+const LINUX = { os: "Linux", dns: {} } as const;
 
 const older = buildReleasePackage({ repositoryRoot: repoRoot, outDir: path.join(root, "older"), version: "1.4.0", image: IMAGE_OLD });
 const newer = buildReleasePackage({ repositoryRoot: repoRoot, outDir: path.join(root, "newer"), version: "1.5.0", image: IMAGE_NEW });

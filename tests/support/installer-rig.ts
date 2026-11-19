@@ -74,6 +74,11 @@ export type FakeSystem = Readonly<{
   os?: "Linux" | "Darwin";
   /** What the DNS answers (`getent ahosts`): the addresses of each name; a name that is not here does not resolve. `false`: there is no getent. */
   dns?: Readonly<Record<string, readonly string[]>> | false;
+  /**
+   * The HTTPS answer of the domain as `curl` sees it (the server mode, D60.4): `answers` (the default where there is a DNS),
+   * `never` (curl fails as when the certificate is not there), `after:<n>` (the n-th call is the first that answers) or `absent` (no curl).
+   */
+  https?: "answers" | "never" | "absent" | `after:${number}`;
 }>;
 
 export function installerRig(options: Readonly<{ docker?: FakeDocker | false; userId?: number; system?: FakeSystem }> = {}): InstallerRig {
@@ -94,6 +99,15 @@ export function installerRig(options: Readonly<{ docker?: FakeDocker | false; us
       .map(([name, addresses]) => `  ${sh(name)}) ${addresses.map((address) => `echo "${address} STREAM ${name}"`).join("; ")}; exit 0 ;;`)
       .join("\n");
     writeFileSync(path.join(binDir, "getent"), `#!/usr/bin/env bash\ncase "$2" in\n${answers}\n  *) exit 2 ;;\nesac\n`, { mode: 0o755 });
+  }
+  const https = system.https ?? (system.dns === undefined ? "absent" : "answers");
+  if (https !== "absent") {
+    const answers = https === "answers" ? "exit 0" : https === "never" ? "exit 22" : `if [ "$n" -ge ${https.slice("after:".length)} ]; then exit 0; fi; exit 22`;
+    writeFileSync(
+      path.join(binDir, "curl"),
+      `#!/usr/bin/env bash\necho "$*" >> ${sh(path.join(binDir, "curl-calls.log"))}\nn=$(( $(cat ${sh(path.join(binDir, "curls"))} 2>/dev/null || echo 0) + 1 )); echo $n > ${sh(path.join(binDir, "curls"))}\n${answers}\n`,
+      { mode: 0o755 },
+    );
   }
   for (const tool of HASH_TOOLS) {
     const found = spawnSync("sh", ["-c", `command -v ${tool}`], { encoding: "utf8" }).stdout.trim();
@@ -127,6 +141,16 @@ export function installerRig(options: Readonly<{ docker?: FakeDocker | false; us
       `  ups=$(( $(cat ${sh(path.join(binDir, "ups"))} 2>/dev/null || echo 0) + 1 )); echo $ups > ${sh(path.join(binDir, "ups"))}`,
       fake.upHangsOnCall !== undefined ? `  if [ "$ups" = ${fake.upHangsOnCall} ]; then ${block(blockedMarker)}; fi` : "",
       failing ? `  if [ ${failing} ]; then echo "container is unhealthy" >&2; exit 1; fi` : "",
+      // Everything but the application alone starts Caddy too (the server mode, D60.4): `compose ps` then says that it runs.
+      `  if [ "\${!#}" != "app" ]; then : > ${sh(path.join(binDir, "caddy-running"))}; fi`,
+      "  exit 0",
+      "fi",
+      'if [ "$1" = "compose" ] && [ "$2" = "ps" ]; then',
+      `  if [ -f ${sh(path.join(binDir, "caddy-running"))} ] && [ "\${!#}" = "caddy" ]; then echo caddy-container-id; fi`,
+      "  exit 0",
+      "fi",
+      'if [ "$1" = "compose" ] && [ "$2" = "config" ]; then',
+      '  echo "caddy:2.10.2-alpine@sha256:0000000000000000000000000000000000000000000000000000000000000000"',
       "  exit 0",
       "fi",
       'if [ "$1" = "compose" ] && [ "$2" = "run" ]; then',

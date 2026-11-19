@@ -43,7 +43,7 @@ const TASK_COUNT = 66;
 const GATE_COUNT = 8;
 /** Work orders specified in DEV §9.4/§9.6/§9.7, per parent task. */
 const WORK_ORDER_COUNTS: Readonly<Record<string, number>> = {
-  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 3,
+  D01: 3, D02: 3, D03: 4, D04: 3, D05: 3, D06: 3, D07: 3, D08: 3, D09: 4, D10: 3, D11: 4, D12: 3, D13: 3, D14: 3, D15: 3, D16: 3, D17: 4, D18: 3, D19: 3, D20: 3, D22: 3, D23: 4, D24: 3, D25: 3, D26: 2, D27: 2, D28: 2, D29: 2, D30: 2, D31: 3, D32: 2, D33: 3, D34: 3, D35: 3, D36: 3, D37: 3, D38: 3, D39: 3, D40: 2, D41: 3, D42: 3, D43: 8, D44: 6, D45: 3, D46: 4, D47: 3, D48: 3, D49: 4, D50: 3, D51: 3, D52: 5, D53: 4, D54: 4, D55: 4, D56: 4, D57: 4, D58: 4, D59: 4, D60: 4,
 };
 const COPY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -7041,7 +7041,7 @@ const definedLater: readonly TaskDefinition[] = [
         id: "installer-server-files",
         criteria: ["D58.2-AC1"],
         description:
-          "With a fake Linux, DNS and Docker: the server mode writes the folder for the domain (.env 600 with new keys, BASE_URL https, DOMAIN, ACME_EMAIL, no host port, no local Compose file, installMode server), calls Docker for nothing, prints that the installation is NOT installed and ends with the status 3 at the stage 'files', both when the domain resolves (its addresses are shown) and when it does not (it says it waits for DNS); a rerun after the DNS is set keeps the keys and takes the domain from the folder; a server folder is not continued as local, a local folder not as server, and a server folder not for another domain",
+          "With a fake Linux, DNS and Docker: the server mode writes the folder for the domain (.env 600 with new keys, BASE_URL https, DOMAIN, ACME_EMAIL, no host port, no local Compose file, installMode server), calls Docker for nothing, prints that the installation is NOT installed and ends with the status 3 at the stage 'files' when the domain does not resolve (it says it waits for DNS; a domain that resolves goes on to the stages of D60.4), with the Compose files of the server stack and the folder of the log of Caddy; a rerun after the DNS is set keeps the keys and takes the domain from the folder and installs; a server folder is not continued as local, a local folder not as server, and a server folder not for another domain",
         command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/install-server.test.ts", "-t", "D58.2-AC1"],
         requires: ["tests/integration/installer/install-server.test.ts", "tests/support/installer-rig.ts"],
       },
@@ -7049,7 +7049,7 @@ const definedLater: readonly TaskDefinition[] = [
         id: "installer-server-refusals",
         criteria: ["D58.2-AC2"],
         description:
-          "A domain with upper case letters, one part, a hyphen at the end of a part, an empty part or a trailing dot, a space, an IP address, accented letters, a scheme, a path, a part over 63 or a name over 253 characters; no domain, no e-mail or a bad e-mail of the certificate authority; --port or the owner options in the server mode, --domain or --acme-email in the local mode, an unknown mode; macOS in the server mode; a computer without getent; and a port of HTTPS taken (held on a free high port, in a copy of the script whose list of server ports is that port, so the test runs on every system) each end with a message and a nonzero status before any folder or Docker call",
+          "A domain with upper case letters, one part, a hyphen at the end of a part, an empty part or a trailing dot, a space, an IP address, accented letters, a scheme, a path, a part over 63 or a name over 253 characters; no domain, no e-mail or a bad e-mail of the certificate authority; --port in the server mode, --domain, --acme-email or --https-wait in the local mode, a bad --https-wait, a computer without curl in the server mode, an unknown mode; macOS in the server mode; a computer without getent; and a port of HTTPS taken (held on a free high port, in a copy of the script whose list of server ports is that port, so the test runs on every system) each end with a message and a nonzero status before any folder or Docker call",
         command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/install-server.test.ts", "-t", "D58.2-AC2"],
         requires: ["tests/integration/installer/install-server.test.ts", "tests/support/installer-rig.ts"],
       },
@@ -7113,7 +7113,7 @@ const definedLater: readonly TaskDefinition[] = [
       {
         id: "package-archive",
         criteria: ["D58.4-AC1"],
-        description: "The archive of a package holds the folder and exactly its five files (no AppleDouble file of the macOS tar), and unpacks to the same files",
+        description: "The archive of a package holds the folder and exactly its seven files (no AppleDouble file of the macOS tar), and unpacks to the same files",
         command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/release-package.test.ts", "-t", "one archive with one folder"],
         requires: ["tests/integration/installer/release-package.test.ts", "scripts/support/release-package.ts"],
       },
@@ -7340,6 +7340,59 @@ const definedLater: readonly TaskDefinition[] = [
       },
       ...regressionChecks("D60.3-regression"),
     ],
+  },
+  {
+    // DEV §9.59: the server installation to the end.
+    id: "D60.4",
+    ready: true,
+    title: "install.sh --mode server to the end: the owner before Caddy, complete only after the HTTPS answer, the rerun, the files in the package, and the proof on a clean Linux with a real Caddy",
+    criteria: ["D60.4-AC1", "D60.4-regression"],
+    checks: [
+      {
+        id: "installer-server-stages",
+        criteria: ["D60.4-AC1"],
+        description:
+          "With a fake Linux, DNS, Docker and curl: the application starts without Caddy, the owner account is made from stdin, Caddy starts after it and the installation is complete only after the HTTPS answer; Caddy's image is pulled before anything starts; the password is in neither .env, the output nor the environment of the container; an HTTPS answer that does not come ends with the status 3, NOT complete and the stage proxy, and the rerun keeps the keys and makes no second owner; an answer on the third try completes; Ctrl+C while Caddy starts and the rerun keep the keys and the one owner; the ports of Caddy are refused before Caddy exists and not when Caddy holds them; Caddy never starts when the application is not healthy, the owner is refused or the owner container fails; a package installs its own Compose files and Caddyfile and a second run changes nothing; the owner is not asked for while the domain does not resolve and is required once it does",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/install-server-stack.test.ts"],
+        requires: ["tests/integration/installer/install-server-stack.test.ts", "tests/support/installer-rig.ts", "install/install.sh"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      {
+        id: "installer-package-files",
+        criteria: ["D60.4-AC1"],
+        description:
+          "The package holds exactly seven files, the Caddyfile and compose.server.yml among them, install.sh and install.ps1 refuse a package that lost, changed or added one, and PowerShell 7 installs from a whole package and refuses the damaged ones",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer/release-package.test.ts"],
+        requires: ["tests/integration/installer/release-package.test.ts", "scripts/support/release-package.ts", "docker/Caddyfile", "docker/compose.server.yml"],
+      },
+      {
+        id: "installer-server-linux",
+        criteria: ["D60.4-AC1"],
+        description:
+          "Ubuntu 24.04 with a Docker daemon of its own and a real Caddy, the domain dziennik.localhost (Caddy's own authority): install.sh --mode server from the package, with this computer not yet trusting the authority, ends with the status 3 and NOT complete at the stage proxy with Caddy published on 80 and 443 and the application published nowhere, created before Caddy; once the root certificate of Caddy is trusted the rerun completes with the same .env, https://DOMAIN/api/health answers 200, port 80 redirects to HTTPS, an answer has HSTS and the policy of the application, a wrong password is 401 and the owner's password signs in, a further run changes nothing and keeps the same containers, and the access log of Caddy is readable by the user and has no cookie. Blocked without Docker on this architecture",
+        command: ["node", "tests/system/install-server-linux.ts"],
+        requires: ["tests/system/install-server-linux.ts", "tests/support/clean-linux.ts", "tests/system/clean-linux/Dockerfile", "install/install.sh", "docker/Caddyfile", "docker/compose.server.yml", "docker/Dockerfile"],
+        timeoutMs: 40 * 60 * 1000,
+      },
+      {
+        id: "installer-regression-clean-linux",
+        criteria: ["D60.4-regression"],
+        description: "The local installer, the package, the server mode up to waiting and the resumption in both modes still pass, and the clean Linux of D58.4 (now through the shared helper) still installs the local mode and waits for DNS in the server mode",
+        command: ["pnpm", "exec", "vitest", "run", "tests/integration/installer"],
+        requires: ["tests/integration/installer/install-local.test.ts", "tests/integration/installer/install-resume.test.ts", "tests/integration/installer/install-server.test.ts", "tests/integration/installer/install-stages.test.ts"],
+        timeoutMs: 15 * 60 * 1000,
+      },
+      ...regressionChecks("D60.4-regression"),
+    ],
+  },
+  // The parent passes only through its work orders: the headers, the trusted proxy, the stack of Caddy and the installation to the end.
+  {
+    id: "D60",
+    ready: true,
+    title: "HTTPS on a server: the headers of the application, the trusted proxy, Caddy with its networks and log, and the installation to the end",
+    steps: ["D60.1", "D60.2", "D60.3", "D60.4"],
+    criteria: [],
+    checks: [],
   },
   {
     // KM6 gate (DEV §8.4, §9.56): the update A to B and the broken B back to A from the browser on a real daemon (the system test of the parent D57),

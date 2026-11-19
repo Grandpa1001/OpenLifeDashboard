@@ -14,7 +14,9 @@ export const MANIFEST_FILE = "release.json";
 export const SUMS_FILE = "SHA256SUMS";
 /** The files of a package with their place in the repository; the order is the order of SHA256SUMS. */
 export const PACKAGE_SOURCES: Readonly<Record<string, string>> = {
+  Caddyfile: "docker/Caddyfile",
   "compose.local.yml": "docker/compose.local.yml",
+  "compose.server.yml": "docker/compose.server.yml",
   "compose.yml": "docker/compose.yml",
   "install.ps1": "install/install.ps1",
   "install.sh": "install/install.sh",
