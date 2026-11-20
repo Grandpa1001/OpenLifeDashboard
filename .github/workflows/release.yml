@@ -110,6 +110,12 @@ jobs:
         with:
           name: release-assets
           path: release-assets
+      # push-to-registry stores the attestation next to the image, so the registry needs the credentials of this job.
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Read the pinned names of the images
         id: images
         run: |

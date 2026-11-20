@@ -65,6 +65,7 @@ export function checkReleasePipeline(text: string): string[] {
   const attestedImages = attestations.filter((step) => "subject-digest" in withOf(step) && "subject-name" in withOf(step));
   if (attestedImages.length < 2) problems.push("both images are attested by name and digest (actions/attest-build-provenance with subject-name and subject-digest, twice)");
   if (!attestations.some((step) => "subject-path" in withOf(step))) problems.push("the files of the release are attested (actions/attest-build-provenance with subject-path)");
+  if (!usesOf(attest).some((used) => used.startsWith("docker/login-action@"))) problems.push("the attest job logs in to the registry (push-to-registry stores the attestation next to the image and needs credentials)");
   const uploadsAttested = /gh release upload/.test(runsOf(jobs["upload"])) && stepsOf(jobs["upload"]).some((step) => isObject(step["with"]) && step["with"]["name"] === "release-assets");
   if (!uploadsAttested) problems.push("the upload takes the artifact release-assets, the very files that were attested");
 
