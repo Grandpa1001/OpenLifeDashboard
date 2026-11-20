@@ -1,6 +1,6 @@
 {
   "name": "openlifedashboard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "Kamil Bandzwołek",
   "private": true,
   "description": "Self-hosted, no-code personal life dashboard.",
