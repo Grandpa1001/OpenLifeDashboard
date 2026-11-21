@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/Grandpa1001/OpenLifeDashboard/compare/v0.1.0...v0.1.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* D61.4 ([223cc34](https://github.com/Grandpa1001/OpenLifeDashboard/commit/223cc344903482a67dbd437a965189211b62f330))
+
 ## 0.1.0 (2026-11-19)
 
 
