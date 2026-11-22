@@ -12,7 +12,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Page } from "@playwright/test";
 import type { BrowserOwner } from "../support/auth-http.ts";
-import { PRODUCT_VERSION_PATTERN } from "../support/product-version.ts";
+import { PRODUCT_VERSION, PRODUCT_VERSION_PATTERN } from "../support/product-version.ts";
 import { expect, locale, test, text } from "./fixtures.ts";
 import { expectNoViolations, signInFully } from "./owner-session.ts";
 
@@ -67,7 +67,7 @@ test.describe("D53.4-AC1 the version, the release and the mark", () => {
     await signInFully(page, owner);
     await toUpdates(page, owner);
 
-    await expect(page.getByText(say("updates.version.current", { version: "0.0.0" }))).toBeVisible();
+    await expect(page.getByText(say("updates.version.current", { version: PRODUCT_VERSION }))).toBeVisible();
     await expect(page.getByText(text(settings, "updates.version.notChecked"))).toBeVisible();
     await expect(mark(page)).toBeVisible();
     await expect(page.locator(".version-dot")).toHaveCount(0);
@@ -106,7 +106,7 @@ test.describe("D53.4-AC1 the version, the release and the mark", () => {
     await signInFully(page, owner);
     await toUpdates(page, owner);
     await expect(page.getByText(text(settings, "updates.notConfigured"))).toBeVisible();
-    await expect(page.getByText(say("updates.version.current", { version: "0.0.0" }))).toBeVisible();
+    await expect(page.getByText(say("updates.version.current", { version: PRODUCT_VERSION }))).toBeVisible();
     await expect(checkNow(page)).toHaveCount(0);
     await expect(page.getByRole("switch")).toHaveCount(0);
     await expect(mark(page)).toBeVisible();
