@@ -1,6 +1,6 @@
 {
   "name": "@openlife/updater",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "The updater: the only process with the Docker socket; installs and rolls back the release of the app.",
   "license": "MIT",
