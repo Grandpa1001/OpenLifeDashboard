@@ -146,6 +146,9 @@ test.describe("D35.3-AC2 a save whose answer was lost", () => {
     await createRegistry(page, owner, BOOKS_DEFINITION);
     await createScreenWith(page, owner, [{ id: A, title: "Moje", layout: LAYOUT }]);
     await page.goto(`${owner.baseUrl}/designer`);
+    // The first opening of the stream reads the screen again; that read must not land between the title typed below and its test (same race as in twoTabs).
+    await expect(tile(page, "Moje")).toBeVisible();
+    await expect.poll(() => liveState(page)).toBe("live");
     let lost = 1;
     let puts = 0;
     await page.route(DESIGN, async (route) => {
