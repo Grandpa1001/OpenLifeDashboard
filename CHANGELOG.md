@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.2](https://github.com/Grandpa1001/OpenLifeDashboard/compare/v0.1.1...v0.1.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* D35.3 wait for the live stream in the lost answer designer tab test so a late re-read cannot overwrite the typed title ([6ae3461](https://github.com/Grandpa1001/OpenLifeDashboard/commit/6ae3461232d04605dc19d40badfe41ef1ab0d2f6))
+* D61.4 read the product version in the updates e2e test so every release keeps CI green ([fc49779](https://github.com/Grandpa1001/OpenLifeDashboard/commit/fc49779ce534b4e4c3c6448ea3a66ac61e77f34f))
+
 ## [0.1.1](https://github.com/Grandpa1001/OpenLifeDashboard/compare/v0.1.0...v0.1.1) (2026-11-20)
 
 
